@@ -46,6 +46,8 @@ test("a configuração inicial pode retomar uma conta já criada", async () => {
   assert.match(runtime, /getInitialAdminCredential/);
   assert.match(runtime, /auth\/email-already-in-use/);
   assert.match(runtime, /signInWithEmailAndPassword/);
+  assert.doesNotMatch(runtime, /set\(this\.appRef\("meta"\)/);
+  assert.match(runtime, /set\(this\.appRef\("meta\/initialized"\), true\)/);
   assert.match(main, /Publique database\.rules\.json/);
 });
 
