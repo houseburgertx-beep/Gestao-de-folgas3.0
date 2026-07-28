@@ -308,45 +308,10 @@ export function createAdvancedHandlers() {
     },
 
     async anexarDocumento(args) {
-      const profile = await runtime.requireProfile();
-      const values = dropClientToken(args);
-      const [employeeId, payload] = values;
-      const employee = await employeeById(employeeId);
-      scopeRecord(profile, employee);
-      const file = payload?.Arquivo || {};
-      assert(file.base64, "O arquivo não foi recebido.");
-      assert(
-        Number(file.tamanho || 0) <= 8 * 1024 * 1024,
-        "O documento deve ter no máximo 8 MB.",
+      dropClientToken(args);
+      throw new Error(
+        "O envio de documentos foi desativado para não armazenar arquivos no Realtime Database.",
       );
-      const id = uuid();
-      const saved = await runtime.upsert("Documentos", {
-        DocID: id,
-        FuncionarioID: employee.FuncionarioID,
-        NomeFuncionario: employee.Nome,
-        LojaID: employee.LojaID,
-        Tipo: payload.Tipo || "Documento",
-        Descricao: payload.Descricao || "",
-        NomeArquivo: file.nome || "documento",
-        MimeType: file.tipo || "application/octet-stream",
-        TamanhoBytes: Number(file.tamanho || 0),
-        DataEmissao: payload.DataEmissao || "",
-        DataValidade: payload.DataValidade || "",
-        AlertadoEm: "",
-        CriadoPor: profile.Email,
-        DataCriacao: nowIso(),
-      });
-      await runtime.saveBlob("documents", id, {
-        FuncionarioID: employee.FuncionarioID,
-        LojaID: employee.LojaID,
-        nome: saved.NomeArquivo,
-        tipo: saved.MimeType,
-        base64: file.base64,
-      });
-      await audit("Anexar documento", "Documentos", id, {
-        after: { ...saved, arquivo: "[conteúdo protegido]" },
-      });
-      return success(saved, "Documento anexado.");
     },
 
     async listarDocumentos(args) {
@@ -617,7 +582,7 @@ export function createAdvancedHandlers() {
       );
       if (existing) return success(existing, "Leitura já confirmada.");
       const saved = await runtime.upsert("ComunicadosLeituras", {
-        LeituraID: uuid(),
+        LeituraID: `${announcement.ComID}__${profile.FuncionarioID}`,
         ComID: announcement.ComID,
         FuncionarioID: profile.FuncionarioID,
         LojaID: profile.LojaID,
@@ -690,6 +655,10 @@ export function createAdvancedHandlers() {
       const [id, option] = values;
       const poll = await runtime.getById("Enquetes", id);
       assert(poll && asBoolean(poll.Ativa), "Enquete encerrada.");
+      assert(
+        !poll.FechaEm || new Date(poll.FechaEm).getTime() > Date.now(),
+        "Enquete encerrada.",
+      );
       const options = Array.isArray(poll.opcoesLista)
         ? poll.opcoesLista
         : JSON.parse(poll.Opcoes || "[]");
@@ -704,7 +673,7 @@ export function createAdvancedHandlers() {
         "Você já votou nesta enquete.",
       );
       const saved = await runtime.upsert("EnquetesVotos", {
-        VotoID: uuid(),
+        VotoID: `${id}__${profile.FuncionarioID}`,
         EnqID: id,
         FuncionarioID: profile.FuncionarioID,
         LojaID: profile.LojaID,
