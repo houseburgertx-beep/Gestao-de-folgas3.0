@@ -3,8 +3,10 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   getAuth,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
@@ -173,9 +175,14 @@ export class FirebaseRuntime {
       throw new Error("Este acesso está inativo ou não foi configurado.");
     }
     await update(this.appRef(`access/${pathKey(credential.user.uid)}`), {
+      FotoPerfil: "",
       UltimoAcesso: nowIso(),
       DataAtualizacao: nowIso(),
     });
+    if (profile) {
+      profile.FotoPerfil = "";
+      this.profile = clone(profile);
+    }
     return credential.user;
   }
 
@@ -188,43 +195,16 @@ export class FirebaseRuntime {
     await sendPasswordResetEmail(this.auth, normalizeEmail(email));
   }
 
-  async getInitialAdminCredential(email, password) {
-    const normalizedEmail = normalizeEmail(email);
-    const currentUser = this.auth.currentUser;
-
-    if (
-      currentUser &&
-      normalizeEmail(currentUser.email) === normalizedEmail
-    ) {
-      return { user: currentUser };
-    }
-
-    if (currentUser) {
-      await signOut(this.auth);
-    }
-
-    try {
-      return await createUserWithEmailAndPassword(
-        this.auth,
-        normalizedEmail,
-        password,
-      );
-    } catch (error) {
-      if (error?.code !== "auth/email-already-in-use") throw error;
-      return signInWithEmailAndPassword(
-        this.auth,
-        normalizedEmail,
-        password,
-      );
-    }
-  }
-
   async setupInitialAdmin({ name, email, password, company }) {
     if (await this.isInitialized()) {
       throw new Error("A configuração inicial já foi concluída.");
     }
     await setPersistence(this.auth, browserLocalPersistence);
-    const credential = await this.getInitialAdminCredential(email, password);
+    const credential = await createUserWithEmailAndPassword(
+      this.auth,
+      normalizeEmail(email),
+      password,
+    );
     const employeeId = uuid();
     const createdAt = nowIso();
     const profile = {
@@ -236,7 +216,6 @@ export class FirebaseRuntime {
       LojaID: "",
       NomeLoja: "",
       Cargo: "Administrador",
-      FotoPerfil: "",
       PrimeiroAcesso: false,
       Ativo: true,
       DataCriacao: createdAt,
@@ -290,12 +269,12 @@ export class FirebaseRuntime {
         AtualizadoPor: profile.Email,
       });
     }
-    await Promise.all([
-      set(this.appRef("meta/version"), APP.version),
-      set(this.appRef("meta/createdAt"), createdAt),
-      set(this.appRef("meta/createdBy"), credential.user.uid),
-    ]);
-    await set(this.appRef("meta/initialized"), true);
+    await set(this.appRef("meta"), {
+      initialized: true,
+      version: APP.version,
+      createdAt,
+      createdBy: credential.user.uid,
+    });
     return clone(profile);
   }
 
@@ -318,10 +297,22 @@ export class FirebaseRuntime {
     }
   }
 
-  async updateOwnAuth({ email, password }) {
+  async updateOwnAuth({ email, password, currentPassword }) {
     const user = this.auth.currentUser;
     if (!user) throw new Error("Sua sessão expirou. Entre novamente.");
-    if (email && normalizeEmail(email) !== normalizeEmail(user.email)) {
+    const normalizedEmail = normalizeEmail(email);
+    const changesEmail =
+      normalizedEmail && normalizedEmail !== normalizeEmail(user.email);
+    if (changesEmail || password) {
+      if (!currentPassword) {
+        throw new Error("Informe a senha atual para confirmar a alteração.");
+      }
+      await reauthenticateWithCredential(
+        user,
+        EmailAuthProvider.credential(user.email, String(currentPassword)),
+      );
+    }
+    if (changesEmail) {
       await updateEmail(user, normalizeEmail(email));
     }
     if (password) await updatePassword(user, password);
