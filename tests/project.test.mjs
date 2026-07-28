@@ -41,6 +41,14 @@ test("o index preserva a interface sem marcação de template do Apps Script", a
   assert.doesNotMatch(html, /<\?(?:=|!=)/);
   assert.match(html, /id="view-timeclock"/);
   assert.match(html, /id="view-house-arena"/);
+  assert.match(
+    html,
+    /\$\$\s*=\s*\(s,\s*r\s*=\s*document\)\s*=>\s*\[\.\.\.r\.querySelectorAll\(s\)\]/,
+  );
+  assert.doesNotMatch(
+    html,
+    /const \$\s*=\s*[\s\S]*?querySelector\(s\),\s*\$\s*=\s*[\s\S]*?querySelectorAll\(s\)/,
+  );
 });
 
 test("utilitários de data, duração e geolocalização", () => {
