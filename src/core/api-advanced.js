@@ -46,6 +46,48 @@ const employeeById = async (id) => {
   return employee;
 };
 
+const normalizedDateKey = (value) => {
+  const text = String(value || "");
+  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
+};
+
+const nextTimeOffSummary = (records, employeeId, currentDay = todayIso()) => {
+  const next = records
+    .filter(
+      (item) =>
+        item.FuncionarioID === employeeId &&
+        item.Status === APP.status.approved &&
+        normalizedDateKey(item.DataInicio) >= currentDay,
+    )
+    .sort((a, b) =>
+      normalizedDateKey(a.DataInicio).localeCompare(
+        normalizedDateKey(b.DataInicio),
+      ),
+    )[0];
+  if (!next) return null;
+
+  const dateKey = normalizedDateKey(next.DataInicio);
+  const nextDate = new Date(`${dateKey}T12:00:00`);
+  const currentDate = new Date(`${currentDay}T12:00:00`);
+  const days =
+    Math.max(0, Math.round((nextDate - currentDate) / 86400000)) + 1;
+  const weekdays = [
+    "Domingo",
+    "Segunda",
+    "Terça",
+    "Quarta",
+    "Quinta",
+    "Sexta",
+    "Sábado",
+  ];
+  return {
+    ...next,
+    dias: days,
+    diaSemana: weekdays[nextDate.getDay()],
+    data: dateKey,
+  };
+};
+
 export function createAdvancedHandlers() {
   return {
     async getOperationalRules() {
@@ -260,15 +302,9 @@ export function createAdvancedHandlers() {
       dropClientToken(args);
       const profile = await runtime.requireProfile();
       const records = await runtime.list("Folgas", { profile });
-      const next = records
-        .filter(
-          (item) =>
-            item.FuncionarioID === profile.FuncionarioID &&
-            [APP.status.approved, APP.status.pending].includes(item.Status) &&
-            item.DataInicio >= todayIso(),
-        )
-        .sort((a, b) => a.DataInicio.localeCompare(b.DataInicio))[0];
-      return success(next || null);
+      return success(
+        nextTimeOffSummary(records, profile.FuncionarioID),
+      );
     },
 
     async anexarDocumento(args) {
@@ -886,3 +922,5 @@ export function createAdvancedHandlers() {
     },
   };
 }
+
+export { nextTimeOffSummary };
