@@ -138,8 +138,11 @@ const showInitialSetup = () => {
       }
       location.reload();
     } catch (failure) {
-      error.textContent =
+      const message =
         failure?.message || "Não foi possível concluir a configuração.";
+      error.textContent = /PERMISSION_DENIED|permission[- ]denied/i.test(message)
+        ? "O Firebase bloqueou o banco. Publique database.rules.json no Realtime Database e clique novamente em Criar sistema."
+        : message;
       error.classList.remove("hidden");
       button.disabled = false;
       button.textContent = "Criar sistema";
