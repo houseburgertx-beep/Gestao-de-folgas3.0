@@ -11362,7 +11362,7 @@
     <script type="module" src="./src/main.js"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
-    $ = (s, r = document) => [...r.querySelectorAll(s)];
+    $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const APP_CLIENT_VERSION_ =
       document.querySelector('meta[name="app-version"]')?.content ||
       "unknown",
@@ -11855,11 +11855,11 @@
   function setLoading(on) {
     $("#loadingOverlay").classList.toggle("hidden", !on);
     if (!on) {
-      $("[data-action-lock]").forEach((el) => {
+      $$("[data-action-lock]").forEach((el) => {
         delete el.dataset.actionLock;
         el.classList.remove("action-busy");
       });
-      $("form[data-submitting]").forEach((form) => {
+      $$("form[data-submitting]").forEach((form) => {
         delete form.dataset.submitting;
         const submit = form.querySelector('[type="submit"]');
         if (submit) {
@@ -11974,10 +11974,10 @@
       i.type = i.type === "password" ? "text" : "password";
     };
     $("#forgotPasswordBtn").onclick = requestPasswordReset;
-    $(".nav-item[data-view]").forEach(
+    $$(".nav-item[data-view]").forEach(
       (b) => (b.onclick = () => switchView(b.dataset.view)),
     );
-    $("[data-view-target]").forEach(
+    $$("[data-view-target]").forEach(
       (b) => (b.onclick = () => switchView(b.dataset.viewTarget)),
     );
     $("#sidebarToggle").onclick = () =>
@@ -12064,7 +12064,7 @@
     $("#clockDecisionForm").onsubmit = approveClockAdjustment;
     $("#clockDecisionReject").onclick = rejectClockAdjustment;
     $("#captureStoreLocation").onclick = captureStoreLocation;
-    $("[data-close]").forEach(
+    $$("[data-close]").forEach(
       (b) => (b.onclick = () => closeDialog(b.dataset.close)),
     );
     $("#timeOffForm").onsubmit = saveTimeOff;
@@ -12104,7 +12104,7 @@
     $("#pendingTimeOffAction").onclick = () => editTimeOff();
     $("#pendingClockAction").onclick = () => switchView("timeclock");
     $("#pendingRefreshBtn").onclick = () => loadPendingCenter_(true);
-    $("[data-pending-filter]").forEach(
+    $$("[data-pending-filter]").forEach(
       (button) =>
         (button.onclick = () =>
           setPendingCenterFilter_(button.dataset.pendingFilter)),
@@ -12880,7 +12880,7 @@
     const manager = isManager();
     const kitchenChief = isKitchenChief();
     const admin = isAdmin();
-    const navItems = $(".nav-item[data-view]");
+    const navItems = $$(".nav-item[data-view]");
 
     $("#userName").textContent = name;
     $("#userRole").textContent = profile(u) || "Perfil";
@@ -12895,13 +12895,13 @@
      * o mesmo navegador entrava depois como administrador ou responsável.
      */
     navItems.forEach((item) => item.classList.remove("hidden"));
-    $(".permission-manager").forEach((item) =>
+    $$(".permission-manager").forEach((item) =>
       item.classList.toggle("hidden", !manager),
     );
-    $(".permission-team-read").forEach((item) =>
+    $$(".permission-team-read").forEach((item) =>
       item.classList.toggle("hidden", !canViewTeam()),
     );
-    $(".permission-admin").forEach((item) =>
+    $$(".permission-admin").forEach((item) =>
       item.classList.toggle("hidden", !admin),
     );
     if (typeof showHouseArenaWelcomeOnce_ === "function")
@@ -13048,10 +13048,10 @@
       view = "pending-center";
     }
     state.currentView = view;
-    $(".view").forEach((v) =>
+    $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
     );
-    $(".nav-item[data-view]").forEach((v) =>
+    $$(".nav-item[data-view]").forEach((v) =>
       v.classList.toggle("active", v.dataset.view === view),
     );
     const active = $(`.nav-item[data-view="${view}"] b`);
@@ -13619,12 +13619,12 @@
     const allowed = ["all", "timeoff", "clock", "swaps", "documents"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
-    $("[data-pending-filter]").forEach((button) => {
+    $$("[data-pending-filter]").forEach((button) => {
       const active = button.dataset.pendingFilter === filter;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", active ? "true" : "false");
     });
-    $("[data-pending-category]").forEach((section) => {
+    $$("[data-pending-category]").forEach((section) => {
       section.classList.toggle(
         "hidden",
         filter !== "all" && section.dataset.pendingCategory !== filter,
@@ -16988,7 +16988,7 @@
     loadCommunication_();
   }
   function pollOptionRows_() {
-    return $("#pollOptionList .poll-option-row");
+    return $$("#pollOptionList .poll-option-row");
   }
   function updatePollOptionBuilder_() {
     const rows = pollOptionRows_(),
