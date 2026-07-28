@@ -197,10 +197,14 @@ async function clockContext(filters = {}) {
   const month = /^\d{4}-\d{2}$/.test(String(filters.month || ""))
     ? String(filters.month)
     : monthIso();
+  const recordPeriods = new Set([month]);
+  if (month === monthIso()) {
+    recordPeriods.add(previousDateKey(todayIso()).slice(0, 7));
+  }
   const [employees, records, schedules, adjustments, timeOff] =
     await Promise.all([
       runtime.list("Funcionarios", { profile }),
-      runtime.list("RegistrosPonto", { profile }),
+      runtime.listPeriods("RegistrosPonto", [...recordPeriods], { profile }),
       runtime.list("JornadasPonto", { profile }),
       runtime.list("AjustesPonto", { profile }),
       runtime.list("Folgas", { profile }),
@@ -428,7 +432,11 @@ async function quickClockContext() {
     };
   }
   const [records, schedules, timeOff] = await Promise.all([
-    runtime.list("RegistrosPonto", { profile }),
+    runtime.listPeriods(
+      "RegistrosPonto",
+      [monthIso(), previousDateKey(todayIso()).slice(0, 7)],
+      { profile },
+    ),
     runtime.list("JornadasPonto", { profile }),
     runtime.list("Folgas", { profile }),
   ]);
@@ -640,7 +648,11 @@ export function createClockHandlers() {
       const [location, schedules, allRecords] = await Promise.all([
         runtime.findOne("LocaisPonto", "LojaID", employee.LojaID),
         runtime.list("JornadasPonto", { profile }),
-        runtime.list("RegistrosPonto", { profile }),
+        runtime.listPeriods(
+          "RegistrosPonto",
+          [monthIso(), previousDateKey(todayIso()).slice(0, 7)],
+          { profile },
+        ),
       ]);
       assert(location && asBoolean(location.Ativo), "Configure o local do ponto.");
       const day = operationalDayFor(
