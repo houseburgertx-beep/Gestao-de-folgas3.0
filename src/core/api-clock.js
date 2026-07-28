@@ -80,6 +80,46 @@ const nextClockAction = (records, schedule) => {
   return sequenceFor(schedule).find((type) => !types.includes(type)) || "";
 };
 
+const previousDateKey = (dateKey) => {
+  const date = new Date(`${dateKey}T12:00:00`);
+  date.setDate(date.getDate() - 1);
+  return todayIso(date);
+};
+
+const operationalDayFor = (
+  records,
+  schedules,
+  employeeId,
+  now = new Date(),
+) => {
+  const currentDay = todayIso(now);
+  const previousDay = previousDateKey(currentDay);
+  const previousRecords = records
+    .filter(
+      (item) =>
+        item.FuncionarioID === employeeId &&
+        normalizedDateKey(item.Data) === previousDay &&
+        item.Status !== "Substituído",
+    )
+    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
+  const hasOpenShift =
+    previousRecords.some((item) => item.TipoMarcacao === "ENTRADA") &&
+    !previousRecords.some((item) => item.TipoMarcacao === "SAIDA_FINAL");
+  if (!hasOpenShift) return currentDay;
+
+  const lastTimestamp = Math.max(
+    ...previousRecords.map((item) => new Date(item.DataHora).getTime()),
+  );
+  const withinSameShift =
+    Number.isFinite(lastTimestamp) &&
+    now.getTime() - lastTimestamp >= 0 &&
+    now.getTime() - lastTimestamp <= 18 * 60 * 60 * 1000;
+  return withinSameShift &&
+    scheduleFor(schedules, employeeId, previousDay)
+    ? previousDay
+    : currentDay;
+};
+
 const exactMinutesBetween = (start, end) => {
   const first = new Date(start).getTime();
   const last = new Date(end).getTime();
@@ -189,7 +229,13 @@ async function clockContext(filters = {}) {
   const ownEmployee = allowed.find(
     (item) => item.FuncionarioID === profile.FuncionarioID,
   );
-  const operationalDay = todayIso();
+  const operationalDay = ownEmployee
+    ? operationalDayFor(
+        records,
+        schedules,
+        ownEmployee.FuncionarioID,
+      )
+    : todayIso();
   const ownSchedule = ownEmployee
     ? scheduleFor(schedules, ownEmployee.FuncionarioID, operationalDay)
     : null;
@@ -360,6 +406,107 @@ async function clockContext(filters = {}) {
   };
 }
 
+async function quickClockContext() {
+  const profile = await runtime.requireProfile();
+  const employee = await runtime.getById(
+    "Funcionarios",
+    profile.FuncionarioID,
+  );
+  if (!employee || !asBoolean(employee.Ativo)) {
+    return {
+      month: monthIso(),
+      date: todayIso(),
+      todayRecords: [],
+      records: [],
+      days: [],
+      adjustments: [],
+      nextAction: "",
+      offToday: false,
+      offTodayLabel: "",
+      breakDurationMinutes: 0,
+      summary: {},
+    };
+  }
+  const [records, schedules, timeOff] = await Promise.all([
+    runtime.list("RegistrosPonto", { profile }),
+    runtime.list("JornadasPonto", { profile }),
+    runtime.list("Folgas", { profile }),
+  ]);
+  const operationalDay = operationalDayFor(
+    records,
+    schedules,
+    employee.FuncionarioID,
+  );
+  const schedule = scheduleFor(
+    schedules,
+    employee.FuncionarioID,
+    operationalDay,
+  );
+  const todayRecords = records
+    .filter(
+      (item) =>
+        item.FuncionarioID === employee.FuncionarioID &&
+        normalizedDateKey(item.Data) === operationalDay &&
+        item.Status !== "Substituído",
+    )
+    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
+  const approvedOff = timeOff.find(
+    (item) =>
+      item.FuncionarioID === employee.FuncionarioID &&
+      ["Aprovada", "Concluída"].includes(item.Status) &&
+      normalizedDateKey(item.DataInicio) <= operationalDay &&
+      normalizedDateKey(item.DataFim || item.DataInicio) >= operationalDay,
+  );
+  const weekdayName = [
+    "domingo",
+    "segunda",
+    "terça",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sábado",
+  ][new Date(`${operationalDay}T12:00:00`).getDay()];
+  const fixedOff =
+    !approvedOff &&
+    [
+      employee.DiaFolgaPreferencial,
+      employee.SegundoDiaFolgaPreferencial,
+    ]
+      .filter(Boolean)
+      .some((day) =>
+        String(day).toLowerCase().startsWith(weekdayName.slice(0, 5)),
+      );
+  const metrics = dayMetrics(todayRecords, schedule);
+  return {
+    month: operationalDay.slice(0, 7),
+    date: operationalDay,
+    todayRecords,
+    records: todayRecords,
+    days: [],
+    adjustments: [],
+    nextAction:
+      !approvedOff && !fixedOff
+        ? nextClockAction(todayRecords, schedule)
+        : "",
+    breakDurationMinutes: Number(schedule?.DuracaoIntervaloMinutos || 0),
+    offToday: !!approvedOff || fixedOff,
+    offTodayLabel: approvedOff
+      ? "De folga hoje"
+      : fixedOff
+        ? "Folga fixa hoje"
+        : "",
+    summary: {
+      trabalhadoMinutos: metrics.worked,
+      previstoMinutos: metrics.expected,
+      saldoMinutos: metrics.balance,
+      trabalhadoTexto: minutesText(metrics.worked),
+      previstoTexto: minutesText(metrics.expected),
+      saldoTexto:
+        (metrics.balance >= 0 ? "+" : "") + minutesText(metrics.balance),
+    },
+  };
+}
+
 export function createClockHandlers() {
   return {
     async getTimeClockSettingsWithSession(args) {
@@ -383,11 +530,22 @@ export function createClockHandlers() {
       );
       assert(employee, "Funcionário não encontrado.");
       scopeRecord(profile, employee);
-      const existing = (
+      const employeeSchedules = (
         await runtime.list("JornadasPonto", { profile })
-      ).find(
+      ).filter(
         (item) => item.FuncionarioID === employee.FuncionarioID,
       );
+      const existing =
+        scheduleFor(
+          employeeSchedules,
+          employee.FuncionarioID,
+          todayIso(),
+        ) ||
+        employeeSchedules.sort((a, b) =>
+          String(b.DataAtualizacao || b.VigenteDe || "").localeCompare(
+            String(a.DataAtualizacao || a.VigenteDe || ""),
+          ),
+        )[0];
       const schedule = await runtime.upsert("JornadasPonto", {
         ...(existing || {}),
         JornadaPontoID: existing?.JornadaPontoID || uuid(),
@@ -467,16 +625,7 @@ export function createClockHandlers() {
 
     async getTimeClockQuickStatusWithSession(args) {
       dropClientToken(args);
-      const context = await clockContext({ month: monthIso() });
-      return success(
-        {
-          ...context,
-          records: context.todayRecords,
-          days: [],
-          adjustments: [],
-        },
-        "Ponto pronto.",
-      );
+      return success(await quickClockContext(), "Ponto pronto.");
     },
 
     async registerTimeClockPunch(args) {
@@ -488,11 +637,22 @@ export function createClockHandlers() {
         profile.FuncionarioID,
       );
       assert(employee && asBoolean(employee.Ativo), "Funcionário inativo.");
-      const [location, schedule] = await Promise.all([
+      const [location, schedules, allRecords] = await Promise.all([
         runtime.findOne("LocaisPonto", "LojaID", employee.LojaID),
-        runtime.findOne("JornadasPonto", "FuncionarioID", employee.FuncionarioID),
+        runtime.list("JornadasPonto", { profile }),
+        runtime.list("RegistrosPonto", { profile }),
       ]);
       assert(location && asBoolean(location.Ativo), "Configure o local do ponto.");
+      const day = operationalDayFor(
+        allRecords,
+        schedules,
+        employee.FuncionarioID,
+      );
+      const schedule = scheduleFor(
+        schedules,
+        employee.FuncionarioID,
+        day,
+      );
       assert(schedule && asBoolean(schedule.Ativa), "Configure a jornada.");
       const latitude = Number(payload.latitude);
       const longitude = Number(payload.longitude);
@@ -518,13 +678,20 @@ export function createClockHandlers() {
           accuracy,
         )} m), fora do raio de ${radius} m.`,
       );
-      const day = todayIso();
-      const records = (await runtime.list("RegistrosPonto", { profile })).filter(
+      const records = allRecords.filter(
         (item) =>
           item.FuncionarioID === employee.FuncionarioID &&
           normalizedDateKey(item.Data) === day &&
           item.Status !== "Substituído",
       );
+      const requestId = String(payload.requestId || "").trim();
+      assert(requestId, "Atualize a tela e tente registrar o ponto novamente.");
+      const repeated = requestId
+        ? records.find((item) => item.RequestID === requestId)
+        : null;
+      if (repeated) {
+        return success(repeated, `Ponto já registrado: ${repeated.TipoMarcacao}.`);
+      }
       const next = nextClockAction(records, schedule);
       const expected = String(payload.expectedAction || next).toUpperCase();
       let type = next;
@@ -535,7 +702,7 @@ export function createClockHandlers() {
       }
       assert(type, "A jornada de hoje já foi concluída.");
       const saved = await runtime.upsert("RegistrosPonto", {
-        RegistroPontoID: uuid(),
+        RegistroPontoID: requestId,
         FuncionarioID: employee.FuncionarioID,
         NomeFuncionario: employee.Nome,
         EmailFuncionario: employee.Email,
@@ -560,7 +727,7 @@ export function createClockHandlers() {
         DataCriacao: nowIso(),
         ForaHorario: false,
         CriadoPor: profile.Email,
-        RequestID: String(payload.requestId || ""),
+        RequestID: requestId,
       });
       await audit("Registrar ponto", "Ponto", saved.RegistroPontoID, {
         after: saved,
@@ -680,11 +847,13 @@ export function createClockHandlers() {
         },
       );
       if (approved) {
+        const approvedDateTime = updated.DataHoraAprovada;
         await runtime.patch(
           "RegistrosPonto",
           adjustment.RegistroPontoID,
           {
-            DataHora: updated.DataHoraAprovada,
+            DataHora: approvedDateTime,
+            Data: todayIso(new Date(approvedDateTime)),
             Ajustado: true,
             Observacoes: `Ajustado por ${profile.Email}: ${
               payload.observacao || ""
@@ -786,4 +955,10 @@ export function createClockHandlers() {
   };
 }
 
-export { balanceDays, clockContext, dayMetrics, scheduleExpectedMinutes };
+export {
+  balanceDays,
+  clockContext,
+  dayMetrics,
+  operationalDayFor,
+  scheduleExpectedMinutes,
+};
