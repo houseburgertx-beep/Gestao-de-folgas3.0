@@ -549,7 +549,7 @@ export function createClockHandlers() {
         PrecisaoMetros: accuracy,
         DistanciaLojaMetros: distance,
         DentroRaio: true,
-        Origem: "Aplicação web · selfie + localização",
+        Origem: "Aplicação web · localização",
         Status: "Válido",
         Observacoes:
           type === "SEM_DESCANSO"
@@ -558,14 +558,12 @@ export function createClockHandlers() {
         Ajustado: false,
         RegistroOriginalID: "",
         DataCriacao: nowIso(),
-        SelfieData: String(payload.selfieDataUrl || "").slice(0, 700000),
-        SelfieMimeType: "image/jpeg",
         ForaHorario: false,
         CriadoPor: profile.Email,
         RequestID: String(payload.requestId || ""),
       });
       await audit("Registrar ponto", "Ponto", saved.RegistroPontoID, {
-        after: { ...saved, SelfieData: "[selfie]" },
+        after: saved,
       });
       return success(saved, `Ponto registrado: ${type}.`);
     },
@@ -609,8 +607,6 @@ export function createClockHandlers() {
         Ajustado: true,
         RegistroOriginalID: "",
         DataCriacao: nowIso(),
-        SelfieData: "",
-        SelfieMimeType: "",
         ForaHorario: false,
         CriadoPor: profile.Email,
       });
