@@ -56,6 +56,9 @@ const isManagerProfile = (profile) =>
 const isEmployeeProfile = (profile) =>
   roleName(profile).includes("funcion");
 
+const PERIOD_INDEXED_TABLES = new Set(["RegistrosPonto", "AjustesPonto"]);
+const PERIOD_INDEX_MIGRATION = "timeClockPeriodIndexesV1";
+
 const pathKey = (value) =>
   encodeURIComponent(String(value || uuid())).replaceAll(".", "%2E");
 
@@ -64,6 +67,26 @@ const snapshotList = (snapshot) => {
   return Object.values(value)
     .filter((item) => item && typeof item === "object")
     .map(clone);
+};
+
+const validPeriod = (value) =>
+  /^\d{4}-\d{2}$/.test(String(value || "")) ? String(value) : "";
+
+export const periodFieldsFor = (table, record = {}) => {
+  if (!PERIOD_INDEXED_TABLES.has(table)) return {};
+  const period = validPeriod(
+    String(record.Data || record.DataHora || "").slice(0, 7),
+  );
+  if (!period) return {};
+  const employeeId = String(record.FuncionarioID || "");
+  const storeId = String(record.LojaID || "");
+  return cleanObject({
+    PeriodoChave: period,
+    ...(employeeId
+      ? { FuncionarioPeriodo: `${employeeId}|${period}` }
+      : {}),
+    ...(storeId ? { LojaPeriodo: `${storeId}|${period}` } : {}),
+  });
 };
 
 export function firebaseConfigurationProblems(config = firebaseConfig) {
@@ -99,6 +122,7 @@ export class FirebaseRuntime {
     this.profile = null;
     this.authResolved = false;
     this.readyPromise = Promise.resolve(null);
+    this.periodIndexMigrationPromise = null;
   }
 
   initialize() {
@@ -374,6 +398,110 @@ export class FirebaseRuntime {
     return [];
   }
 
+  async periodIndexesReady() {
+    const snapshot = await get(
+      this.appRef(`meta/migrations/${PERIOD_INDEX_MIGRATION}`),
+    );
+    return snapshot.val() === true;
+  }
+
+  async ensurePeriodIndexes(options = {}) {
+    const profile = options.profile || (await this.requireProfile());
+    if (await this.periodIndexesReady()) return true;
+    if (!isAdminProfile(profile)) return false;
+    if (this.periodIndexMigrationPromise) {
+      return this.periodIndexMigrationPromise;
+    }
+
+    this.periodIndexMigrationPromise = (async () => {
+      for (const table of PERIOD_INDEXED_TABLES) {
+        const tableRef = this.appRef(`tables/${table}`);
+        const snapshot = await get(tableRef);
+        const records = snapshot.val() || {};
+        const changes = {};
+        Object.entries(records).forEach(([key, record]) => {
+          if (!record || typeof record !== "object") return;
+          const fields = periodFieldsFor(table, record);
+          Object.entries(fields).forEach(([field, value]) => {
+            if (record[field] !== value) changes[`${key}/${field}`] = value;
+          });
+        });
+        if (Object.keys(changes).length) await update(tableRef, changes);
+      }
+      await set(
+        this.appRef(`meta/migrations/${PERIOD_INDEX_MIGRATION}`),
+        true,
+      );
+      return true;
+    })().finally(() => {
+      this.periodIndexMigrationPromise = null;
+    });
+
+    return this.periodIndexMigrationPromise;
+  }
+
+  async listPeriod(table, period, options = {}) {
+    const profile = options.profile || (await this.requireProfile());
+    const normalizedPeriod = validPeriod(period);
+    if (!normalizedPeriod || !PERIOD_INDEXED_TABLES.has(table)) {
+      return this.list(table, { profile });
+    }
+
+    const ready = await this.ensurePeriodIndexes({ profile });
+    if (!ready) return this.list(table, { profile });
+
+    let field = "PeriodoChave";
+    let value = normalizedPeriod;
+    if (!isAdminProfile(profile)) {
+      if (isManagerProfile(profile) && profile.LojaID) {
+        field = "LojaPeriodo";
+        value = `${profile.LojaID}|${normalizedPeriod}`;
+      } else if (profile.FuncionarioID) {
+        field = "FuncionarioPeriodo";
+        value = `${profile.FuncionarioID}|${normalizedPeriod}`;
+      } else {
+        return [];
+      }
+    }
+
+    try {
+      return snapshotList(
+        await get(
+          query(
+            this.appRef(`tables/${table}`),
+            orderByChild(field),
+            equalTo(value),
+          ),
+        ),
+      );
+    } catch (error) {
+      const code = String(error?.code || error?.message || "");
+      if (/permission[-_]denied/i.test(code)) {
+        return this.list(table, { profile });
+      }
+      throw error;
+    }
+  }
+
+  async listPeriods(table, periods, options = {}) {
+    const profile = options.profile || (await this.requireProfile());
+    const uniquePeriods = [...new Set(periods)]
+      .map(validPeriod)
+      .filter(Boolean);
+    if (!uniquePeriods.length) return [];
+    const groups = await Promise.all(
+      uniquePeriods.map((period) =>
+        this.listPeriod(table, period, { profile }),
+      ),
+    );
+    const idField = ID_FIELDS[table];
+    const unique = new Map();
+    groups.flat().forEach((record) => {
+      unique.set(String(record?.[idField] || uuid()), record);
+    });
+    return [...unique.values()];
+  }
+
   async getById(table, id) {
     if (!id) return null;
     const snapshot = await get(
@@ -398,7 +526,11 @@ export class FirebaseRuntime {
     const idField = ID_FIELDS[table];
     if (!idField) throw new Error(`Tabela sem identificador: ${table}.`);
     const id = String(record?.[idField] || uuid());
-    const normalized = cleanObject({ ...record, [idField]: id });
+    const normalized = cleanObject({
+      ...record,
+      ...periodFieldsFor(table, record),
+      [idField]: id,
+    });
     await set(
       this.appRef(`tables/${table}/${pathKey(id)}`),
       normalized,
