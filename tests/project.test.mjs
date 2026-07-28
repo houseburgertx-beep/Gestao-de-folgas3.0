@@ -82,6 +82,21 @@ test("registro de ponto usa localização sem capturar selfie", async () => {
   assert.doesNotMatch(interfaceHtml, /selfie/i);
 });
 
+test("dashboard do funcionário inicia o carregamento rápido do ponto", async () => {
+  const client = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    client,
+    /function scheduleSecondaryLoads_\(\)[\s\S]*?if \(isEmployee\(\)\) loadTimeClockQuick_\(\);/,
+  );
+  assert.match(
+    client,
+    /if \(CLOCK_QUICK_PROMISE_\) return CLOCK_QUICK_PROMISE_;/,
+  );
+});
+
 test("banco de horas usa a jornada líquida e arredonda apenas o total", () => {
   const schedule = {
     HoraEntrada: "1899-12-30T18:34:04.000Z",
