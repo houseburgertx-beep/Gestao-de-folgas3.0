@@ -1,0 +1,2236 @@
+<style>
+  #view-house-arena {
+    --hl-bg: #090716;
+    --hl-bg-2: #12102a;
+    --hl-card: rgba(27, 23, 58, 0.82);
+    --hl-card-strong: rgba(35, 29, 75, 0.96);
+    --hl-line: rgba(174, 155, 255, 0.18);
+    --hl-purple: #8b5cf6;
+    --hl-violet: #a855f7;
+    --hl-cyan: #22d3ee;
+    --hl-lime: #a3e635;
+    --hl-gold: #fbbf24;
+    --hl-coral: #fb7185;
+    --hl-white: #f8f7ff;
+    --hl-muted: #aaa4c3;
+  }
+
+  #view-house-arena .house-link-app {
+    width: 100%;
+    min-width: 0;
+    color: var(--hl-white);
+    background: var(--hl-bg);
+  }
+
+  #view-house-arena .house-link-shell {
+    position: relative;
+    isolation: isolate;
+    min-height: min(calc(var(--arena-vh, 1vh) * 100 - 5.75rem), 58rem);
+    overflow: hidden;
+    padding: max(0.75rem, env(safe-area-inset-top))
+      max(0.75rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom))
+      max(0.75rem, env(safe-area-inset-left));
+    background:
+      radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.38), transparent 46%),
+      radial-gradient(circle at 105% 40%, rgba(34, 211, 238, 0.14), transparent 38%),
+      linear-gradient(160deg, var(--hl-bg-2), var(--hl-bg) 58%);
+  }
+
+  #view-house-arena .house-link-aurora {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  #view-house-arena .house-link-aurora::before,
+  #view-house-arena .house-link-aurora::after {
+    position: absolute;
+    width: 22rem;
+    height: 22rem;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.2;
+    content: "";
+    animation: house-link-aurora 9s ease-in-out infinite alternate;
+  }
+
+  #view-house-arena .house-link-aurora::before {
+    top: 12%;
+    left: -10rem;
+    background: var(--hl-violet);
+  }
+
+  #view-house-arena .house-link-aurora::after {
+    right: -12rem;
+    bottom: 4%;
+    background: var(--hl-cyan);
+    animation-delay: -4s;
+  }
+
+  #view-house-arena .house-link-topbar {
+    position: relative;
+    z-index: 8;
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: center;
+    min-height: 3rem;
+    margin-bottom: 0.75rem;
+  }
+
+  #view-house-arena .house-link-topbar > button {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.9rem;
+    color: var(--hl-white);
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 1.8rem;
+    line-height: 1;
+    backdrop-filter: blur(14px);
+  }
+
+  #view-house-arena .house-link-topbar > div {
+    display: flex;
+    min-width: 0;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  #view-house-arena .house-link-topbar > div b {
+    overflow: hidden;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-live-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--hl-lime);
+    box-shadow: 0 0 0 0.3rem rgba(163, 230, 53, 0.12);
+    animation: house-link-live 1.8s ease-out infinite;
+  }
+
+  #view-house-arena .house-link-net {
+    min-width: 4.6rem;
+    padding: 0.48rem 0.6rem;
+    border: 1px solid rgba(163, 230, 53, 0.22);
+    border-radius: 99rem;
+    color: var(--hl-lime);
+    background: rgba(163, 230, 53, 0.08);
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-net.is-offline {
+    border-color: rgba(251, 113, 133, 0.28);
+    color: var(--hl-coral);
+    background: rgba(251, 113, 133, 0.1);
+  }
+
+  #view-house-arena .house-link-primary,
+  #view-house-arena .house-link-secondary,
+  #view-house-arena .house-link-danger,
+  #view-house-arena .house-link-text-btn {
+    min-height: 3rem;
+    border-radius: 1rem;
+    font: inherit;
+    font-weight: 900;
+  }
+
+  #view-house-arena .house-link-primary {
+    border: 0;
+    color: #100b24;
+    background: linear-gradient(135deg, var(--hl-cyan), #9ff4ff);
+    box-shadow: 0 0.75rem 2rem rgba(34, 211, 238, 0.2);
+  }
+
+  #view-house-arena .house-link-primary:disabled {
+    color: var(--hl-muted);
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow: none;
+    opacity: 0.72;
+  }
+
+  #view-house-arena .house-link-primary.is-ready {
+    color: #172008;
+    background: linear-gradient(135deg, var(--hl-lime), #d9f99d);
+    box-shadow: 0 0.75rem 2rem rgba(163, 230, 53, 0.16);
+  }
+
+  #view-house-arena .house-link-secondary {
+    border: 1px solid var(--hl-line);
+    color: var(--hl-white);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  #view-house-arena .house-link-danger {
+    border: 0;
+    color: #fff;
+    background: linear-gradient(135deg, #e11d48, var(--hl-coral));
+  }
+
+  #view-house-arena .house-link-text-btn {
+    border: 0;
+    color: var(--hl-muted);
+    background: transparent;
+  }
+
+  #view-house-arena .house-link-overline {
+    color: var(--hl-cyan);
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+  }
+
+  /* Entrada */
+  #view-house-arena .house-link-landing {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-launch-hero {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: clamp(0.5rem, 4vw, 2.5rem) 0.25rem 1.4rem;
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-logo-orbit {
+    position: relative;
+    display: grid;
+    width: clamp(7.5rem, 32vw, 10rem);
+    height: clamp(7.5rem, 32vw, 10rem);
+    margin-bottom: 1.25rem;
+    place-items: center;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, rgba(139, 92, 246, 0.38), transparent 60%),
+      rgba(255, 255, 255, 0.02);
+    box-shadow:
+      inset 0 0 2rem rgba(139, 92, 246, 0.2),
+      0 0 4rem rgba(139, 92, 246, 0.24);
+  }
+
+  #view-house-arena .house-link-logo-orbit::before,
+  #view-house-arena .house-link-logo-orbit::after,
+  #view-house-arena .house-link-logo-orbit i {
+    position: absolute;
+    inset: 0.55rem;
+    border: 1px dashed rgba(34, 211, 238, 0.36);
+    border-radius: 50%;
+    content: "";
+    animation: house-link-spin 9s linear infinite;
+  }
+
+  #view-house-arena .house-link-logo-orbit::after {
+    inset: 1.25rem;
+    border-style: solid;
+    border-color: transparent rgba(168, 85, 247, 0.65);
+    animation-direction: reverse;
+    animation-duration: 5s;
+  }
+
+  #view-house-arena .house-link-logo-orbit i {
+    inset: -0.35rem;
+    border-color: rgba(163, 230, 53, 0.25) transparent;
+    animation-duration: 13s;
+  }
+
+  #view-house-arena .house-link-logo-orbit > span {
+    position: relative;
+    z-index: 2;
+    font-size: clamp(2.8rem, 12vw, 4.2rem);
+    filter: drop-shadow(0 0 1rem rgba(34, 211, 238, 0.38));
+  }
+
+  #view-house-arena .house-link-logo-orbit > b {
+    position: absolute;
+    top: 0.35rem;
+    right: -0.25rem;
+    z-index: 3;
+    padding: 0.35rem 0.5rem;
+    border-radius: 99rem;
+    color: #142004;
+    background: var(--hl-lime);
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    box-shadow: 0 0 1rem rgba(163, 230, 53, 0.45);
+  }
+
+  #view-house-arena .house-link-launch-hero h2 {
+    margin: 0.35rem 0 0.6rem;
+    font-size: clamp(2.1rem, 9vw, 4.1rem);
+    line-height: 0.95;
+    letter-spacing: -0.06em;
+  }
+
+  #view-house-arena .house-link-launch-hero h2 em {
+    display: block;
+    color: transparent;
+    background: linear-gradient(90deg, var(--hl-cyan), #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    font-style: normal;
+  }
+
+  #view-house-arena .house-link-launch-hero p {
+    max-width: 34rem;
+    margin: 0;
+    color: var(--hl-muted);
+    font-size: clamp(0.9rem, 3.5vw, 1.08rem);
+    line-height: 1.55;
+  }
+
+  #view-house-arena .house-link-feature-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    justify-content: center;
+    margin-top: 1.05rem;
+  }
+
+  #view-house-arena .house-link-feature-row span {
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 99rem;
+    color: #dcd7ee;
+    background: rgba(255, 255, 255, 0.045);
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  #view-house-arena .house-link-entry-grid {
+    display: grid;
+    width: min(100%, 42rem);
+    gap: 0.75rem;
+    margin: 0 auto;
+  }
+
+  #view-house-arena .house-link-create {
+    display: grid;
+    grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+    align-items: center;
+    min-height: 4.4rem;
+    padding: 0.8rem 1rem;
+    text-align: left;
+  }
+
+  #view-house-arena .house-link-create > span {
+    font-size: 1.75rem;
+    font-weight: 500;
+  }
+
+  #view-house-arena .house-link-create > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-create strong {
+    font-size: 1rem;
+  }
+
+  #view-house-arena .house-link-create small {
+    margin-top: 0.15rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    opacity: 0.68;
+  }
+
+  #view-house-arena .house-link-create > b {
+    font-size: 1.6rem;
+  }
+
+  #view-house-arena .house-link-join {
+    padding: 0.8rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 1.15rem;
+    background: rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(18px);
+  }
+
+  #view-house-arena .house-link-join label {
+    display: block;
+    margin: 0 0 0.5rem 0.15rem;
+    color: var(--hl-muted);
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+  }
+
+  #view-house-arena .house-link-join > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+  }
+
+  #view-house-arena .house-link-join input {
+    width: 100%;
+    min-width: 0;
+    height: 3.25rem;
+    padding: 0 0.9rem;
+    border: 1px solid rgba(34, 211, 238, 0.26);
+    border-radius: 0.85rem;
+    outline: 0;
+    color: var(--hl-white);
+    background: rgba(9, 7, 22, 0.72);
+    font-family: inherit;
+    font-size: 1.18rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  #view-house-arena .house-link-join input:focus {
+    border-color: var(--hl-cyan);
+    box-shadow: 0 0 0 0.2rem rgba(34, 211, 238, 0.12);
+  }
+
+  #view-house-arena .house-link-join button {
+    min-width: 5.4rem;
+    min-height: 3.25rem;
+    border: 0;
+    border-radius: 0.85rem;
+    color: var(--hl-white);
+    background: linear-gradient(135deg, var(--hl-purple), var(--hl-violet));
+    font-weight: 900;
+  }
+
+  #view-house-arena .house-link-tech-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.8rem;
+    justify-content: center;
+    margin-top: 0.85rem;
+    color: #77718f;
+    font-size: 0.6rem;
+    font-weight: 800;
+  }
+
+  #view-house-arena .house-link-tech-strip span {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+  }
+
+  #view-house-arena .house-link-tech-strip i {
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background: var(--hl-lime);
+  }
+
+  /* Loading */
+  #view-house-arena .house-link-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-loader {
+    position: relative;
+    display: grid;
+    width: 7rem;
+    height: 7rem;
+    margin-bottom: 1rem;
+    place-items: center;
+  }
+
+  #view-house-arena .house-link-loader i {
+    position: absolute;
+    inset: 0;
+    border: 2px solid transparent;
+    border-top-color: var(--hl-cyan);
+    border-radius: 50%;
+    animation: house-link-spin 1.2s linear infinite;
+  }
+
+  #view-house-arena .house-link-loader i:nth-child(2) {
+    inset: 0.7rem;
+    border-top-color: var(--hl-violet);
+    animation-direction: reverse;
+    animation-duration: 1.6s;
+  }
+
+  #view-house-arena .house-link-loader i:nth-child(3) {
+    inset: 1.4rem;
+    border-top-color: var(--hl-lime);
+    animation-duration: 2s;
+  }
+
+  #view-house-arena .house-link-loader span {
+    font-size: 2rem;
+  }
+
+  #view-house-arena .house-link-loading > strong {
+    font-size: 1.15rem;
+  }
+
+  #view-house-arena .house-link-loading > small {
+    margin-top: 0.35rem;
+    color: var(--hl-muted);
+  }
+
+  /* Sala */
+  #view-house-arena .house-link-room-code {
+    max-width: 38rem;
+    margin: 0 auto;
+    padding: 1rem;
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 1.2rem;
+    background:
+      linear-gradient(135deg, rgba(34, 211, 238, 0.07), rgba(139, 92, 246, 0.08)),
+      rgba(255, 255, 255, 0.035);
+    text-align: center;
+    backdrop-filter: blur(18px);
+  }
+
+  #view-house-arena .house-link-room-code > span {
+    color: var(--hl-cyan);
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+  }
+
+  #view-house-arena .house-link-room-code > strong {
+    display: block;
+    margin: 0.35rem 0;
+    color: var(--hl-white);
+    font-size: clamp(2.2rem, 13vw, 4.5rem);
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-indent: 0.16em;
+    text-shadow: 0 0 2rem rgba(34, 211, 238, 0.3);
+  }
+
+  #view-house-arena .house-link-room-code p {
+    max-width: 27rem;
+    margin: 0 auto 0.75rem;
+    color: var(--hl-muted);
+    font-size: 0.75rem;
+  }
+
+  #view-house-arena .house-link-room-code > div {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+
+  #view-house-arena .house-link-room-code button {
+    min-height: 2.75rem;
+    padding: 0 0.85rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.8rem;
+    color: var(--hl-white);
+    background: rgba(255, 255, 255, 0.06);
+    font-weight: 800;
+  }
+
+  #view-house-arena .house-link-pairing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: center;
+    max-width: 46rem;
+    margin: 1rem auto;
+  }
+
+  #view-house-arena .house-link-player-card {
+    display: flex;
+    min-width: 0;
+    min-height: 11.25rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 0.45rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 1.2rem;
+    background: var(--hl-card);
+    text-align: center;
+    backdrop-filter: blur(18px);
+  }
+
+  #view-house-arena .house-link-player-card.is-me {
+    border-color: rgba(34, 211, 238, 0.3);
+  }
+
+  #view-house-arena .house-link-player-card.is-empty {
+    border-style: dashed;
+    opacity: 0.68;
+  }
+
+  #view-house-arena .house-link-avatar {
+    position: relative;
+    display: grid;
+    width: 3.8rem;
+    height: 3.8rem;
+    margin-bottom: 0.45rem;
+    place-items: center;
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    border-radius: 1.2rem;
+    background: linear-gradient(145deg, rgba(139, 92, 246, 0.36), rgba(34, 211, 238, 0.16));
+    font-size: 1.1rem;
+    font-weight: 950;
+  }
+
+  #view-house-arena .house-link-avatar i {
+    position: absolute;
+    right: -0.15rem;
+    bottom: -0.15rem;
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 0.18rem solid var(--hl-bg-2);
+    border-radius: 50%;
+    background: #6b7280;
+  }
+
+  #view-house-arena .house-link-avatar.is-online i {
+    background: var(--hl-lime);
+    box-shadow: 0 0 0.7rem rgba(163, 230, 53, 0.55);
+  }
+
+  #view-house-arena .house-link-player-card > small {
+    color: var(--hl-cyan);
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+  }
+
+  #view-house-arena .house-link-player-card > strong {
+    overflow: hidden;
+    max-width: 100%;
+    margin-top: 0.2rem;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-player-card > em {
+    overflow: hidden;
+    max-width: 100%;
+    margin-top: 0.1rem;
+    color: var(--hl-muted);
+    font-size: 0.65rem;
+    font-style: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-player-card > b {
+    margin-top: 0.55rem;
+    padding: 0.3rem 0.45rem;
+    border-radius: 99rem;
+    color: #8f89a7;
+    background: rgba(255, 255, 255, 0.055);
+    font-size: 0.52rem;
+    letter-spacing: 0.08em;
+  }
+
+  #view-house-arena .house-link-player-card > b.is-ready {
+    color: var(--hl-lime);
+    background: rgba(163, 230, 53, 0.1);
+  }
+
+  #view-house-arena .house-link-pair-beam {
+    display: flex;
+    align-items: center;
+  }
+
+  #view-house-arena .house-link-pair-beam i {
+    flex: 1;
+    height: 1px;
+    background: var(--hl-line);
+  }
+
+  #view-house-arena .house-link-pair-beam span {
+    display: grid;
+    width: 2.1rem;
+    height: 2.1rem;
+    place-items: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 50%;
+    background: var(--hl-bg-2);
+  }
+
+  #view-house-arena .house-link-pair-beam.is-linked i {
+    background: linear-gradient(90deg, var(--hl-purple), var(--hl-cyan));
+    box-shadow: 0 0 0.7rem rgba(34, 211, 238, 0.4);
+  }
+
+  #view-house-arena .house-link-pair-beam.is-linked span {
+    border-color: var(--hl-cyan);
+    animation: house-link-live 1.5s ease-out infinite;
+  }
+
+  #view-house-arena .house-link-ready-panel {
+    display: grid;
+    max-width: 38rem;
+    gap: 0.8rem;
+    margin: 0 auto;
+    padding: 1rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 1.15rem;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  #view-house-arena .house-link-ready-panel > div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-ready-panel > div > strong {
+    margin-top: 0.2rem;
+    font-size: 0.95rem;
+  }
+
+  #view-house-arena .house-link-ready-panel > div > small {
+    margin-top: 0.15rem;
+    color: var(--hl-muted);
+    font-size: 0.7rem;
+  }
+
+  #view-house-arena .house-link-wait-pulse {
+    flex-direction: row !important;
+    gap: 0.55rem;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    color: var(--hl-muted);
+    font-size: 0.75rem;
+    font-weight: 800;
+  }
+
+  #view-house-arena .house-link-wait-pulse i {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: var(--hl-cyan);
+    animation: house-link-live 1.5s ease-out infinite;
+  }
+
+  /* HUD e missão */
+  #view-house-arena .house-link-game {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  #view-house-arena .house-link-game-hud {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  #view-house-arena .house-link-game-hud > div {
+    display: flex;
+    min-width: 0;
+    min-height: 3.7rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.9rem;
+    background: rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(15px);
+  }
+
+  #view-house-arena .house-link-game-hud small {
+    color: var(--hl-muted);
+    font-size: clamp(0.45rem, 2.2vw, 0.58rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-game-hud strong {
+    margin-top: 0.1rem;
+    font-size: clamp(1rem, 4.8vw, 1.45rem);
+  }
+
+  #view-house-arena .house-link-hud-time {
+    border-color: rgba(34, 211, 238, 0.3) !important;
+    color: var(--hl-cyan);
+  }
+
+  #view-house-arena .house-link-time-track {
+    height: 0.3rem;
+    margin: 0.5rem 0 0.65rem;
+    overflow: hidden;
+    border-radius: 99rem;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  #view-house-arena .house-link-time-track i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--hl-cyan), var(--hl-lime));
+    box-shadow: 0 0 0.8rem rgba(34, 211, 238, 0.5);
+    transition: width 0.12s linear;
+  }
+
+  #view-house-arena .house-link-status-deck {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  #view-house-arena .house-link-satisfaction,
+  #view-house-arena .house-link-power {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.2rem 0.45rem;
+    align-items: center;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  #view-house-arena .house-link-satisfaction > span,
+  #view-house-arena .house-link-power > span {
+    color: var(--hl-muted);
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+  }
+
+  #view-house-arena .house-link-satisfaction > strong,
+  #view-house-arena .house-link-power > strong {
+    grid-row: span 2;
+    color: var(--hl-white);
+    font-size: 0.7rem;
+  }
+
+  #view-house-arena .house-link-satisfaction > i,
+  #view-house-arena .house-link-power > i {
+    height: 0.3rem;
+    overflow: hidden;
+    border-radius: 99rem;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  #view-house-arena .house-link-satisfaction > i b,
+  #view-house-arena .house-link-power > i b {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--hl-coral), var(--hl-lime));
+    transition: width 0.35s ease;
+  }
+
+  #view-house-arena .house-link-power > i b {
+    background: linear-gradient(90deg, var(--hl-purple), var(--hl-cyan));
+  }
+
+  #view-house-arena .house-link-role-banner {
+    display: grid;
+    grid-template-columns: 2.7rem minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: center;
+    margin-top: 0.65rem;
+    padding: 0.65rem;
+    border: 1px solid rgba(168, 85, 247, 0.22);
+    border-radius: 1rem;
+    background:
+      linear-gradient(100deg, rgba(139, 92, 246, 0.14), rgba(34, 211, 238, 0.05)),
+      rgba(255, 255, 255, 0.035);
+  }
+
+  #view-house-arena .house-link-role-icon {
+    display: grid;
+    width: 2.7rem;
+    height: 2.7rem;
+    place-items: center;
+    border-radius: 0.85rem;
+    background: rgba(139, 92, 246, 0.2);
+    font-size: 1.35rem;
+  }
+
+  #view-house-arena .house-link-role-banner > div:nth-child(2) {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-role-banner > div:nth-child(2) span {
+    color: var(--hl-cyan);
+    font-size: 0.48rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+  }
+
+  #view-house-arena .house-link-role-banner > div:nth-child(2) strong {
+    font-size: 0.88rem;
+  }
+
+  #view-house-arena .house-link-role-banner > div:nth-child(2) small {
+    overflow: hidden;
+    color: var(--hl-muted);
+    font-size: 0.62rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-partner-mini {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #view-house-arena .house-link-partner-mini > span {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.65rem;
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 0.68rem;
+    font-weight: 900;
+  }
+
+  #view-house-arena .house-link-partner-mini > small {
+    margin-top: 0.2rem;
+    color: var(--hl-coral);
+    font-size: 0.42rem;
+    font-weight: 900;
+  }
+
+  #view-house-arena .house-link-partner-mini.is-online > small {
+    color: var(--hl-lime);
+  }
+
+  #view-house-arena .house-link-mission {
+    position: relative;
+    z-index: 2;
+    min-height: 18rem;
+    margin-top: 0.65rem;
+    padding: 0.75rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 1.2rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02)),
+      rgba(9, 7, 22, 0.76);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  #view-house-arena .house-link-ticket {
+    overflow: hidden;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 1rem;
+    background: linear-gradient(145deg, #fff8e6, #f7e8c8);
+    color: #2c2111;
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.18);
+  }
+
+  #view-house-arena .house-link-ticket.is-vip {
+    border-color: var(--hl-gold);
+    box-shadow: 0 0 1.5rem rgba(251, 191, 36, 0.2);
+  }
+
+  #view-house-arena .house-link-ticket header {
+    padding: 0.75rem;
+    border-bottom: 1px dashed rgba(44, 33, 17, 0.22);
+  }
+
+  #view-house-arena .house-link-ticket header > div {
+    display: flex;
+    justify-content: space-between;
+    color: #86651f;
+    font-size: 0.55rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+  }
+
+  #view-house-arena .house-link-ticket header > strong {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 1.05rem;
+  }
+
+  #view-house-arena .house-link-order-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    padding: 0.65rem;
+  }
+
+  #view-house-arena .house-link-order-details span {
+    display: flex;
+    min-width: 0;
+    gap: 0.4rem;
+    align-items: center;
+    padding: 0.45rem;
+    border-radius: 0.65rem;
+    background: rgba(44, 33, 17, 0.065);
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  #view-house-arena .house-link-order-details b {
+    font-size: 0.9rem;
+  }
+
+  #view-house-arena .house-link-signal-console,
+  #view-house-arena .house-link-tray-review,
+  #view-house-arena .house-link-assembly,
+  #view-house-arena .house-link-kitchen-order {
+    margin-top: 0.65rem;
+  }
+
+  #view-house-arena .house-link-signal-console > div:first-child,
+  #view-house-arena .house-link-tray-review {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-signal-console > div:first-child strong,
+  #view-house-arena .house-link-tray-review > strong {
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+  }
+
+  #view-house-arena .house-link-signal-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+  }
+
+  #view-house-arena .house-link-signal-grid button {
+    display: flex;
+    min-width: 0;
+    min-height: 4.7rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.2rem;
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 0.8rem;
+    color: var(--hl-white);
+    background: rgba(34, 211, 238, 0.06);
+  }
+
+  #view-house-arena .house-link-signal-grid button > span {
+    font-size: 1.15rem;
+  }
+
+  #view-house-arena .house-link-signal-grid button > b {
+    overflow: hidden;
+    max-width: 100%;
+    margin-top: 0.1rem;
+    font-size: 0.61rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-signal-grid button > small {
+    margin-top: 0.15rem;
+    color: var(--hl-cyan);
+    font-size: 0.43rem;
+    font-weight: 900;
+  }
+
+  #view-house-arena .house-link-signal-grid button.is-sent {
+    border-color: rgba(163, 230, 53, 0.24);
+    color: #dff7b5;
+    background: rgba(163, 230, 53, 0.08);
+    opacity: 0.78;
+  }
+
+  #view-house-arena .house-link-signal-grid button.is-sent small {
+    color: var(--hl-lime);
+  }
+
+  #view-house-arena .house-link-awaiting-tray {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.55rem;
+    color: var(--hl-muted);
+    font-size: 0.65rem;
+  }
+
+  #view-house-arena .house-link-awaiting-tray i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--hl-cyan);
+    animation: house-link-live 1.5s ease-out infinite;
+  }
+
+  #view-house-arena .house-link-kitchen-product {
+    display: grid;
+    grid-template-columns: 3.2rem minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0.6rem;
+    border: 1px solid rgba(251, 191, 36, 0.18);
+    border-radius: 0.9rem;
+    background: rgba(251, 191, 36, 0.07);
+  }
+
+  #view-house-arena .house-link-kitchen-product > span {
+    display: grid;
+    width: 3.2rem;
+    height: 3.2rem;
+    place-items: center;
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 1.65rem;
+  }
+
+  #view-house-arena .house-link-kitchen-product > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-kitchen-product small {
+    color: var(--hl-gold);
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+  }
+
+  #view-house-arena .house-link-kitchen-product strong {
+    overflow: hidden;
+    font-size: 0.88rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-kitchen-product > b {
+    padding: 0.3rem 0.4rem;
+    border-radius: 99rem;
+    color: #2b1c02;
+    background: var(--hl-gold);
+    font-size: 0.5rem;
+  }
+
+  #view-house-arena .house-link-incoming-signals {
+    margin-top: 0.55rem;
+    padding: 0.55rem;
+    border: 1px dashed rgba(34, 211, 238, 0.22);
+    border-radius: 0.8rem;
+    background: rgba(34, 211, 238, 0.035);
+  }
+
+  #view-house-arena .house-link-incoming-signals > small {
+    color: var(--hl-cyan);
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+  }
+
+  #view-house-arena .house-link-incoming-signals > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.35rem;
+  }
+
+  #view-house-arena .house-link-incoming-signals span {
+    display: inline-flex;
+    gap: 0.28rem;
+    align-items: center;
+    padding: 0.35rem 0.45rem;
+    border-radius: 99rem;
+    color: #e6fbff;
+    background: rgba(34, 211, 238, 0.11);
+    font-size: 0.58rem;
+    font-weight: 800;
+    animation: house-link-chip-in 0.35s ease-out both;
+  }
+
+  #view-house-arena .house-link-incoming-signals em {
+    color: var(--hl-muted);
+    font-size: 0.62rem;
+    font-style: normal;
+  }
+
+  #view-house-arena .house-link-choice-group {
+    min-width: 0;
+    margin: 0 0 0.55rem;
+    padding: 0;
+    border: 0;
+  }
+
+  #view-house-arena .house-link-choice-group legend {
+    margin-bottom: 0.3rem;
+    color: var(--hl-muted);
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  #view-house-arena .house-link-choice-group > div {
+    display: flex;
+    gap: 0.35rem;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+    scrollbar-width: none;
+  }
+
+  #view-house-arena .house-link-choice-group > div::-webkit-scrollbar {
+    display: none;
+  }
+
+  #view-house-arena .house-link-choice-group button {
+    display: flex;
+    min-width: max(5rem, 28%);
+    min-height: 3.25rem;
+    flex: 1;
+    gap: 0.25rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.75rem;
+    color: var(--hl-white);
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  #view-house-arena .house-link-choice-group button > span {
+    font-size: 0.95rem;
+  }
+
+  #view-house-arena .house-link-choice-group button > b {
+    font-size: 0.58rem;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-choice-group button.is-selected {
+    border-color: var(--hl-cyan);
+    color: #dffbff;
+    background: rgba(34, 211, 238, 0.13);
+    box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.18);
+  }
+
+  #view-house-arena .house-link-send-tray {
+    display: grid;
+    grid-template-columns: 2.3rem minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+    min-height: 4rem;
+    padding: 0.65rem 0.8rem;
+    text-align: left;
+  }
+
+  #view-house-arena .house-link-send-tray > span {
+    font-size: 1.5rem;
+  }
+
+  #view-house-arena .house-link-send-tray > div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-send-tray small {
+    margin-top: 0.1rem;
+    font-size: 0.55rem;
+    opacity: 0.68;
+  }
+
+  #view-house-arena .house-link-send-tray > b {
+    font-size: 1.4rem;
+  }
+
+  #view-house-arena .house-link-send-tray.is-sending {
+    animation: house-link-send 0.6s ease-in both;
+  }
+
+  #view-house-arena .house-link-tray-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    margin-top: 0.55rem;
+  }
+
+  #view-house-arena .house-link-tray-summary span {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.45rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.7rem;
+    color: var(--hl-white);
+    background: rgba(255, 255, 255, 0.045);
+    font-size: 0.63rem;
+    font-weight: 800;
+  }
+
+  #view-house-arena .house-link-tray-review > div:last-child {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 0.45rem;
+    margin-top: 0.6rem;
+  }
+
+  #view-house-arena .house-link-tray-in-transit {
+    display: flex;
+    min-height: 10rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.75rem;
+    border: 1px dashed rgba(34, 211, 238, 0.25);
+    border-radius: 1rem;
+    background: rgba(34, 211, 238, 0.04);
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-mini-portal {
+    position: relative;
+    display: grid;
+    width: 4.5rem;
+    height: 4.5rem;
+    margin-bottom: 0.55rem;
+    place-items: center;
+    border: 2px solid var(--hl-cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 1.5rem rgba(34, 211, 238, 0.28);
+  }
+
+  #view-house-arena .house-link-mini-portal i {
+    position: absolute;
+    inset: 0.35rem;
+    border: 1px dashed var(--hl-violet);
+    border-radius: 50%;
+    animation: house-link-spin 2.5s linear infinite;
+  }
+
+  #view-house-arena .house-link-tray-in-transit strong {
+    font-size: 0.9rem;
+  }
+
+  #view-house-arena .house-link-tray-in-transit small {
+    margin-top: 0.2rem;
+    color: var(--hl-muted);
+    font-size: 0.65rem;
+  }
+
+  /* Portal e eventos */
+  #view-house-arena .house-link-portal {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    width: 4.2rem;
+    height: 4.2rem;
+    margin: -0.35rem auto -0.2rem;
+    place-items: center;
+    border: 1px solid rgba(34, 211, 238, 0.45);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.22), rgba(139, 92, 246, 0.12) 48%, var(--hl-bg) 72%);
+    box-shadow:
+      0 0 1.5rem rgba(34, 211, 238, 0.2),
+      inset 0 0 1rem rgba(139, 92, 246, 0.28);
+  }
+
+  #view-house-arena .house-link-portal > i {
+    position: absolute;
+    inset: 0.25rem;
+    border: 1px dashed rgba(168, 85, 247, 0.7);
+    border-radius: 50%;
+    animation: house-link-spin 3s linear infinite;
+  }
+
+  #view-house-arena .house-link-portal > i:nth-child(2) {
+    inset: 0.65rem;
+    border-color: var(--hl-cyan) transparent;
+    animation-direction: reverse;
+    animation-duration: 1.8s;
+  }
+
+  #view-house-arena .house-link-portal > i:nth-child(3) {
+    inset: -0.35rem;
+    border-color: rgba(163, 230, 53, 0.25) transparent;
+    animation-duration: 5s;
+  }
+
+  #view-house-arena .house-link-portal > span {
+    position: relative;
+    z-index: 2;
+    font-size: 1.35rem;
+  }
+
+  #view-house-arena .house-link-portal > small {
+    position: absolute;
+    bottom: -0.72rem;
+    padding: 0.15rem 0.35rem;
+    border-radius: 99rem;
+    color: var(--hl-cyan);
+    background: var(--hl-bg);
+    font-size: 0.38rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-portal.is-receiving {
+    animation: house-link-portal-pop 0.8s ease-out both;
+  }
+
+  #view-house-arena .house-link-emotes {
+    display: flex;
+    gap: 0.45rem;
+    justify-content: center;
+    margin-top: 0.75rem;
+  }
+
+  #view-house-arena .house-link-emotes button {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.05);
+    font-size: 1.15rem;
+  }
+
+  #view-house-arena .house-link-event-feed {
+    display: flex;
+    max-width: 42rem;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.65rem auto 0;
+  }
+
+  #view-house-arena .house-link-event-feed > span {
+    display: flex;
+    min-height: 1.75rem;
+    gap: 0.45rem;
+    align-items: center;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 0.6rem;
+    color: #918ba8;
+    background: rgba(255, 255, 255, 0.025);
+    font-size: 0.56rem;
+  }
+
+  #view-house-arena .house-link-event-feed i {
+    font-style: normal;
+  }
+
+  #view-house-arena .house-link-portal-fx {
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  #view-house-arena .house-link-flying-tray {
+    position: absolute;
+    top: 54%;
+    left: -4rem;
+    font-size: 2.3rem;
+    filter: drop-shadow(0 0 1rem rgba(34, 211, 238, 0.8));
+    animation: house-link-fly 1.2s cubic-bezier(0.16, 0.75, 0.25, 1) both;
+  }
+
+  #view-house-arena .house-link-portal-fx i {
+    position: absolute;
+    top: 58%;
+    left: 50%;
+    font-style: normal;
+    animation: house-link-particle 1.2s ease-out var(--delay) both;
+  }
+
+  #view-house-arena .house-link-floating-emote {
+    position: fixed;
+    z-index: 110;
+    right: max(1.2rem, env(safe-area-inset-right));
+    bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4rem));
+    font-size: 3rem;
+    filter: drop-shadow(0 0.5rem 1rem rgba(0, 0, 0, 0.3));
+    animation: house-link-emote 1.7s ease-out both;
+  }
+
+  /* Incidente */
+  #view-house-arena .house-link-incident {
+    display: flex;
+    min-height: 17rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-incident-rings {
+    position: relative;
+    display: grid;
+    width: 5.5rem;
+    height: 5.5rem;
+    margin-bottom: 0.7rem;
+    place-items: center;
+  }
+
+  #view-house-arena .house-link-incident-rings i {
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--hl-coral);
+    border-radius: 50%;
+    animation: house-link-alarm 1.3s ease-out infinite;
+  }
+
+  #view-house-arena .house-link-incident-rings i:nth-child(2) {
+    inset: 0.65rem;
+    border-color: var(--hl-gold);
+    animation-delay: -0.45s;
+  }
+
+  #view-house-arena .house-link-incident-rings span {
+    font-size: 2.2rem;
+  }
+
+  #view-house-arena .house-link-incident h3 {
+    margin: 0.2rem 0 0.25rem;
+    font-size: 1.35rem;
+  }
+
+  #view-house-arena .house-link-incident p {
+    max-width: 26rem;
+    margin: 0;
+    color: var(--hl-muted);
+    font-size: 0.72rem;
+    line-height: 1.45;
+  }
+
+  #view-house-arena .house-link-sync-status {
+    display: grid;
+    grid-template-columns: 1fr 3.2rem 1fr;
+    gap: 0.4rem;
+    align-items: center;
+    width: min(100%, 24rem);
+    margin: 0.8rem 0;
+  }
+
+  #view-house-arena .house-link-sync-status span {
+    display: flex;
+    min-height: 2.7rem;
+    gap: 0.4rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.75rem;
+    color: var(--hl-muted);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.52rem;
+    font-weight: 900;
+  }
+
+  #view-house-arena .house-link-sync-status span.is-ready {
+    border-color: rgba(163, 230, 53, 0.3);
+    color: var(--hl-lime);
+    background: rgba(163, 230, 53, 0.08);
+  }
+
+  #view-house-arena .house-link-sync-status b {
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    place-items: center;
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 0.52rem;
+  }
+
+  #view-house-arena .house-link-sync-status i {
+    height: 1px;
+    background: linear-gradient(90deg, var(--hl-purple), var(--hl-cyan));
+  }
+
+  #view-house-arena .house-link-pulse-btn {
+    display: flex;
+    width: min(100%, 23rem);
+    min-height: 4.3rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    border-radius: 1rem;
+    color: #241500;
+    background: linear-gradient(135deg, var(--hl-gold), #fde68a);
+    box-shadow: 0 0.8rem 2rem rgba(251, 191, 36, 0.18);
+  }
+
+  #view-house-arena .house-link-pulse-btn > span {
+    font-size: 1.25rem;
+  }
+
+  #view-house-arena .house-link-pulse-btn > strong {
+    font-size: 0.85rem;
+  }
+
+  #view-house-arena .house-link-pulse-btn > small {
+    font-size: 0.55rem;
+    opacity: 0.7;
+  }
+
+  #view-house-arena .house-link-pulse-btn.is-ready {
+    border-color: rgba(163, 230, 53, 0.35);
+    color: #dff7b5;
+    background: rgba(163, 230, 53, 0.1);
+    box-shadow: none;
+  }
+
+  /* Countdown, troca e sintonia */
+  #view-house-arena .house-link-countdown,
+  #view-house-arena .house-link-role-swap {
+    position: fixed;
+    z-index: 120;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--hl-white);
+    background:
+      radial-gradient(circle, rgba(139, 92, 246, 0.5), transparent 46%),
+      rgba(7, 5, 18, 0.94);
+    text-align: center;
+    backdrop-filter: blur(12px);
+  }
+
+  #view-house-arena .house-link-countdown > span,
+  #view-house-arena .house-link-role-swap > strong {
+    color: var(--hl-cyan);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+  }
+
+  #view-house-arena .house-link-countdown > strong,
+  #view-house-arena .house-link-role-swap > span {
+    margin: 0.3rem 0;
+    font-size: clamp(5rem, 26vw, 9rem);
+    line-height: 1;
+    text-shadow: 0 0 3rem rgba(34, 211, 238, 0.42);
+    animation: house-link-count 0.9s ease-out infinite;
+  }
+
+  #view-house-arena .house-link-countdown > small,
+  #view-house-arena .house-link-role-swap > small {
+    color: var(--hl-muted);
+  }
+
+  #view-house-arena .house-link-game.is-harmony::before {
+    position: fixed;
+    z-index: 70;
+    inset: 0;
+    border: 0.25rem solid transparent;
+    border-image: linear-gradient(135deg, var(--hl-gold), var(--hl-cyan), var(--hl-violet)) 1;
+    box-shadow: inset 0 0 2.5rem rgba(251, 191, 36, 0.16);
+    pointer-events: none;
+    content: "";
+    animation: house-link-harmony 1.3s ease-in-out infinite alternate;
+  }
+
+  #view-house-arena .house-link-game.is-harmony .house-link-power {
+    border-color: rgba(251, 191, 36, 0.42);
+    box-shadow: 0 0 1rem rgba(251, 191, 36, 0.12);
+  }
+
+  #view-house-arena .house-link-game.is-harmony .house-link-power > span,
+  #view-house-arena .house-link-game.is-harmony .house-link-power > strong {
+    color: var(--hl-gold);
+  }
+
+  /* Resultado */
+  #view-house-arena .house-link-result-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-result-grade {
+    position: relative;
+    display: grid;
+    width: 6.5rem;
+    height: 6.5rem;
+    margin-bottom: 0.75rem;
+    place-items: center;
+    border: 2px solid var(--hl-gold);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.25), transparent 68%);
+    box-shadow: 0 0 2.4rem rgba(251, 191, 36, 0.22);
+  }
+
+  #view-house-arena .house-link-result-grade i {
+    position: absolute;
+    inset: -0.45rem;
+    border: 1px dashed rgba(34, 211, 238, 0.58);
+    border-radius: 50%;
+    animation: house-link-spin 8s linear infinite;
+  }
+
+  #view-house-arena .house-link-result-grade span {
+    font-size: 3rem;
+    font-weight: 950;
+  }
+
+  #view-house-arena .house-link-result-hero h2 {
+    margin: 0.25rem 0;
+    font-size: clamp(1.8rem, 8vw, 3.2rem);
+    letter-spacing: -0.05em;
+  }
+
+  #view-house-arena .house-link-result-hero > strong {
+    color: var(--hl-cyan);
+    font-size: clamp(1.6rem, 8vw, 2.8rem);
+  }
+
+  #view-house-arena .house-link-result-hero > strong small {
+    color: var(--hl-muted);
+    font-size: 0.7rem;
+  }
+
+  #view-house-arena .house-link-result-hero p {
+    max-width: 30rem;
+    margin: 0.45rem 0 0;
+    color: var(--hl-muted);
+    font-size: 0.72rem;
+  }
+
+  #view-house-arena .house-link-result-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+    max-width: 42rem;
+    margin: 0.4rem auto 0.75rem;
+  }
+
+  #view-house-arena .house-link-result-stats > div {
+    display: flex;
+    min-height: 3.7rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  #view-house-arena .house-link-result-stats small {
+    color: var(--hl-muted);
+    font-size: 0.46rem;
+    font-weight: 900;
+  }
+
+  #view-house-arena .house-link-result-stats strong {
+    margin-top: 0.1rem;
+    font-size: 0.9rem;
+  }
+
+  #view-house-arena .house-link-medals {
+    display: grid;
+    max-width: 42rem;
+    gap: 0.5rem;
+    margin: 0 auto;
+  }
+
+  #view-house-arena .house-link-medal-card {
+    display: grid;
+    grid-template-columns: 2.8rem minmax(0, 1fr) 2rem;
+    gap: 0.65rem;
+    align-items: center;
+    padding: 0.65rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  #view-house-arena .house-link-medal-card.is-me {
+    border-color: rgba(34, 211, 238, 0.24);
+  }
+
+  #view-house-arena .house-link-medal-card > span {
+    display: grid;
+    width: 2.8rem;
+    height: 2.8rem;
+    place-items: center;
+    border-radius: 0.8rem;
+    background: rgba(251, 191, 36, 0.1);
+    font-size: 1.4rem;
+  }
+
+  #view-house-arena .house-link-medal-card > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  #view-house-arena .house-link-medal-card small {
+    color: var(--hl-gold);
+    font-size: 0.47rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+  }
+
+  #view-house-arena .house-link-medal-card strong {
+    overflow: hidden;
+    margin-top: 0.08rem;
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #view-house-arena .house-link-medal-card p {
+    margin: 0.08rem 0 0;
+    color: var(--hl-muted);
+    font-size: 0.58rem;
+  }
+
+  #view-house-arena .house-link-medal-card > b {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 1px solid var(--hl-line);
+    border-radius: 0.65rem;
+    font-size: 0.58rem;
+  }
+
+  #view-house-arena .house-link-result-actions {
+    display: grid;
+    max-width: 36rem;
+    gap: 0.45rem;
+    margin: 0.85rem auto 0;
+  }
+
+  #view-house-arena .house-link-result-actions > small {
+    margin: -0.15rem 0 0.2rem;
+    color: var(--hl-muted);
+    font-size: 0.6rem;
+    text-align: center;
+  }
+
+  #view-house-arena .house-link-result.is-cancelled .house-link-result-grade {
+    border-color: var(--hl-muted);
+    box-shadow: none;
+    opacity: 0.7;
+  }
+
+  /* Modal de saída */
+  #view-house-arena .house-link-exit-sheet {
+    position: fixed;
+    z-index: 200;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 1rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    background: rgba(5, 3, 14, 0.76);
+    backdrop-filter: blur(10px);
+  }
+
+  #view-house-arena .house-link-exit-sheet > section {
+    display: flex;
+    width: min(100%, 30rem);
+    flex-direction: column;
+    padding: 1rem;
+    border: 1px solid var(--hl-line);
+    border-radius: 1.25rem;
+    background: var(--hl-card-strong);
+    box-shadow: 0 -1rem 4rem rgba(0, 0, 0, 0.35);
+    text-align: center;
+    animation: house-link-sheet-in 0.32s ease-out both;
+  }
+
+  #view-house-arena .house-link-exit-sheet > section > span {
+    font-size: 2rem;
+  }
+
+  #view-house-arena .house-link-exit-sheet h3 {
+    margin: 0.35rem 0 0.2rem;
+  }
+
+  #view-house-arena .house-link-exit-sheet p {
+    margin: 0 0 0.8rem;
+    color: var(--hl-muted);
+    font-size: 0.72rem;
+  }
+
+  #view-house-arena .house-link-exit-sheet button + button {
+    margin-top: 0.45rem;
+  }
+
+  #view-house-arena .house-link-mission-skeleton {
+    display: flex;
+    min-height: 16rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #view-house-arena .house-link-mission-skeleton i {
+    width: 70%;
+    height: 0.75rem;
+    margin-bottom: 0.45rem;
+    border-radius: 99rem;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+    background-size: 200% 100%;
+    animation: house-link-shimmer 1.2s linear infinite;
+  }
+
+  #view-house-arena .house-link-mission-skeleton i:nth-child(2) {
+    width: 52%;
+  }
+
+  #view-house-arena .house-link-mission-skeleton i:nth-child(3) {
+    width: 62%;
+  }
+
+  #view-house-arena .house-link-mission-skeleton span {
+    margin-top: 0.55rem;
+    color: var(--hl-muted);
+    font-size: 0.65rem;
+  }
+
+  #view-house-arena .house-link-app.is-busy button {
+    pointer-events: none;
+  }
+
+  #view-house-arena .house-link-app.is-error {
+    animation: house-link-shake 0.45s ease;
+  }
+
+  #view-house-arena.arena-high-contrast {
+    --hl-muted: #e2dff0;
+    --hl-line: rgba(255, 255, 255, 0.46);
+  }
+
+  #view-house-arena.arena-high-contrast .house-link-shell button,
+  #view-house-arena.arena-high-contrast .house-link-mission,
+  #view-house-arena.arena-high-contrast .house-link-player-card,
+  #view-house-arena.arena-high-contrast .house-link-game-hud > div {
+    border-color: rgba(255, 255, 255, 0.56);
+  }
+
+  #view-house-arena.arena-low-power .house-link-aurora,
+  #view-house-arena.arena-low-power .house-link-logo-orbit i,
+  #view-house-arena.arena-low-power .house-link-portal > i:nth-child(3) {
+    display: none;
+  }
+
+  #view-house-arena.arena-low-power .house-link-shell *,
+  #view-house-arena.arena-low-power .house-link-shell *::before,
+  #view-house-arena.arena-low-power .house-link-shell *::after {
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+
+  @media (min-width: 700px) {
+    #view-house-arena .house-link-shell {
+      padding-inline: max(1.5rem, env(safe-area-inset-left));
+    }
+
+    #view-house-arena .house-link-entry-grid {
+      grid-template-columns: 1fr 1fr;
+      align-items: stretch;
+    }
+
+    #view-house-arena .house-link-create,
+    #view-house-arena .house-link-join {
+      min-height: 5.2rem;
+    }
+
+    #view-house-arena .house-link-ready-panel {
+      grid-template-columns: minmax(0, 1fr) minmax(13rem, 0.7fr);
+      align-items: center;
+    }
+
+    #view-house-arena .house-link-game {
+      max-width: 56rem;
+      min-height: 52rem;
+      margin: 0 auto;
+      border-radius: 1.4rem;
+    }
+
+    #view-house-arena .house-link-mission {
+      padding: 1rem;
+    }
+
+    #view-house-arena .house-link-signal-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 359px) {
+    #view-house-arena .house-link-shell {
+      padding-inline: 0.55rem;
+    }
+
+    #view-house-arena .house-link-topbar {
+      grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+      gap: 0.4rem;
+    }
+
+    #view-house-arena .house-link-topbar > button {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    #view-house-arena .house-link-net {
+      min-width: 3.7rem;
+      padding-inline: 0.35rem;
+      font-size: 0.5rem;
+    }
+
+    #view-house-arena .house-link-feature-row span:nth-child(2) {
+      display: none;
+    }
+
+    #view-house-arena .house-link-pairing {
+      grid-template-columns: minmax(0, 1fr) 2.5rem minmax(0, 1fr);
+    }
+
+    #view-house-arena .house-link-player-card {
+      min-height: 10.5rem;
+    }
+
+    #view-house-arena .house-link-role-banner {
+      grid-template-columns: 2.5rem minmax(0, 1fr);
+    }
+
+    #view-house-arena .house-link-partner-mini {
+      display: none;
+    }
+
+    #view-house-arena .house-link-mission {
+      padding: 0.55rem;
+    }
+
+    #view-house-arena .house-link-signal-grid {
+      gap: 0.3rem;
+    }
+
+    #view-house-arena .house-link-signal-grid button {
+      min-height: 4.35rem;
+    }
+
+    #view-house-arena .house-link-result-stats {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (orientation: landscape) and (max-height: 520px) {
+    #view-house-arena .house-link-shell {
+      min-height: max(100dvh, 32rem);
+    }
+
+    #view-house-arena .house-link-launch-hero {
+      display: grid;
+      grid-template-columns: 7rem 1fr;
+      gap: 0 1rem;
+      align-content: center;
+      text-align: left;
+    }
+
+    #view-house-arena .house-link-logo-orbit {
+      grid-row: span 4;
+      width: 6.5rem;
+      height: 6.5rem;
+      margin: 0;
+    }
+
+    #view-house-arena .house-link-feature-row {
+      justify-content: flex-start;
+    }
+
+    #view-house-arena .house-link-countdown,
+    #view-house-arena .house-link-role-swap {
+      min-height: 100dvh;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #view-house-arena .house-link-shell *,
+    #view-house-arena .house-link-shell *::before,
+    #view-house-arena .house-link-shell *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  @keyframes house-link-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes house-link-live {
+    0% {
+      box-shadow: 0 0 0 0 rgba(163, 230, 53, 0.32);
+    }
+    70% {
+      box-shadow: 0 0 0 0.45rem rgba(163, 230, 53, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(163, 230, 53, 0);
+    }
+  }
+
+  @keyframes house-link-aurora {
+    to {
+      transform: translate3d(3rem, -2rem, 0) scale(1.15);
+    }
+  }
+
+  @keyframes house-link-chip-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.4rem) scale(0.92);
+    }
+  }
+
+  @keyframes house-link-send {
+    to {
+      opacity: 0;
+      transform: translateX(70%) scale(0.75);
+    }
+  }
+
+  @keyframes house-link-portal-pop {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    45% {
+      filter: brightness(1.7);
+      transform: scale(1.35);
+    }
+  }
+
+  @keyframes house-link-fly {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 2rem, 0) rotate(-18deg) scale(0.6);
+    }
+    35% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(calc(100vw + 7rem), -3rem, 0) rotate(18deg) scale(1.25);
+    }
+  }
+
+  @keyframes house-link-particle {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(0.5);
+    }
+    to {
+      opacity: 0;
+      transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(1.25) rotate(180deg);
+    }
+  }
+
+  @keyframes house-link-emote {
+    0% {
+      opacity: 0;
+      transform: translateY(3rem) scale(0.4) rotate(-12deg);
+    }
+    25% {
+      opacity: 1;
+      transform: translateY(0) scale(1.15) rotate(5deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-8rem) scale(0.8) rotate(14deg);
+    }
+  }
+
+  @keyframes house-link-alarm {
+    0% {
+      opacity: 0.9;
+      transform: scale(0.7);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.35);
+    }
+  }
+
+  @keyframes house-link-count {
+    0% {
+      opacity: 0;
+      transform: scale(1.5);
+    }
+    30%,
+    75% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.82);
+    }
+  }
+
+  @keyframes house-link-harmony {
+    to {
+      filter: hue-rotate(55deg) brightness(1.35);
+    }
+  }
+
+  @keyframes house-link-sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(3rem);
+    }
+  }
+
+  @keyframes house-link-shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes house-link-shake {
+    20%,
+    60% {
+      transform: translateX(-0.45rem);
+    }
+    40%,
+    80% {
+      transform: translateX(0.45rem);
+    }
+  }
+</style>

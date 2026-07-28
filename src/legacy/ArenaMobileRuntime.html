@@ -1,0 +1,746 @@
+<script>
+  /*
+   * House Arena Remix — runtime móvel.
+   *
+   * Tudo que é transitório permanece no aparelho. O servidor continua sendo
+   * chamado somente no início, no fim e ao abrir/atualizar o ranking.
+   */
+  const HOUSE_ARENA_SETTINGS_KEY_ = "gf-house-arena-settings-v4";
+  const HOUSE_ARENA_SESSION_KEY_ = "gf-house-arena-active-v5";
+  const HOUSE_ARENA_SYNC_KEY_ = "gf-house-arena-sync-v5";
+  const HOUSE_ARENA_PAUSE_BUDGET_MS_ = 60000;
+  const HOUSE_ARENA_RESUME_WINDOW_MS_ = 60000;
+
+  let HOUSE_ARENA_RUNTIME_BOUND_ = false;
+  let HOUSE_ARENA_PAUSE_INTERVAL_ = 0;
+  let HOUSE_ARENA_RESUME_CANDIDATE_ = null;
+  let HOUSE_ARENA_COACH_TIMER_ = 0;
+  let HOUSE_ARENA_SYNCING_ = false;
+  let HOUSE_ARENA_VIEWPORT_FRAME_ = 0;
+
+  function bindHouseArenaMobileRuntime_() {
+    if (HOUSE_ARENA_RUNTIME_BOUND_) return;
+    HOUSE_ARENA_RUNTIME_BOUND_ = true;
+
+    loadHouseArenaSettings_();
+
+    $$("[data-arena-filter]").forEach((button) => {
+      button.onclick = () =>
+        filterHouseArenaGames_(button.dataset.arenaFilter || "todos");
+    });
+
+    $("#arenaSettingsBtn").onclick = openHouseArenaSettings_;
+    $("#arenaSettingsClose").onclick = closeHouseArenaSettings_;
+    $("#arenaSettingsBackdrop").onclick = closeHouseArenaSettings_;
+    $("#arenaSettingsDone").onclick = saveHouseArenaSettings_;
+
+    $("#arenaPauseBtn").onclick = () => pauseHouseArenaGame_("manual");
+    $("#arenaExitBtn").onclick = () => pauseHouseArenaGame_("exit");
+    $("#arenaResumePauseBtn").onclick = resumePausedHouseArenaGame_;
+    $("#arenaQuitPauseBtn").onclick = quitPausedHouseArenaGame_;
+
+    $("#arenaResumeBtn").onclick = resumeHouseArenaSession_;
+    $("#arenaDiscardResumeBtn").onclick = () => {
+      clearHouseArenaSession_();
+      hideHouseArenaResumeOffer_();
+    };
+    $("#arenaRetrySyncBtn").onclick = retryPendingHouseArenaSync_;
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && state.arena.playing && !state.arena.paused) {
+        pauseHouseArenaGame_("visibility");
+        return;
+      }
+      if (!document.hidden && state.arena.paused) updateHouseArenaPauseClock_();
+    });
+
+    document.addEventListener(
+      "click",
+      (event) => {
+        const navigation = event.target.closest(
+          '.nav-item[data-view], [data-view-target]',
+        );
+        if (
+          !navigation ||
+          !state.arena.playing ||
+          state.arena.finishing ||
+          state.currentView !== "house-arena"
+        )
+          return;
+        const targetView =
+          navigation.dataset.view || navigation.dataset.viewTarget || "";
+        if (!targetView || targetView === "house-arena") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        pauseHouseArenaGame_("navigation");
+        toast("A partida foi pausada. Encerre-a para sair da Arena.");
+      },
+      true,
+    );
+
+    window.addEventListener("online", () => {
+      updateHouseArenaConnection_();
+      retryPendingHouseArenaSync_(true);
+    });
+    window.addEventListener("offline", updateHouseArenaConnection_);
+    window.addEventListener("pagehide", () => {
+      if (state.arena.playing || state.arena.paused)
+        arenaPersistSession_(true);
+    });
+    window.addEventListener("orientationchange", () => {
+      window.setTimeout(updateHouseArenaViewport_, 120);
+    });
+    window.addEventListener("resize", scheduleHouseArenaViewportUpdate_);
+    window.visualViewport?.addEventListener(
+      "resize",
+      scheduleHouseArenaViewportUpdate_,
+    );
+
+    updateHouseArenaViewport_();
+    updateHouseArenaConnection_();
+    retryPendingHouseArenaSync_(true);
+  }
+
+  function filterHouseArenaGames_(filter) {
+    const valid = [
+      "todos",
+      "reflexo",
+      "estrategia",
+      "memoria",
+      "precisao",
+      "percepcao",
+      "online",
+    ];
+    filter = valid.includes(filter) ? filter : "todos";
+    state.arena.filter = filter;
+    $$("[data-arena-filter]").forEach((button) => {
+      const active = button.dataset.arenaFilter === filter;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    $$("#arenaGameGrid [data-arena-game]").forEach((card) => {
+      card.classList.toggle(
+        "hidden",
+        filter !== "todos" && card.dataset.arenaCategory !== filter,
+      );
+    });
+  }
+
+  function updateHouseArenaViewport_() {
+    const root = $("#view-house-arena");
+    if (!root) return;
+    const viewportHeight =
+      Number(window.visualViewport?.height) || window.innerHeight;
+    root.style.setProperty("--arena-vh", viewportHeight * 0.01 + "px");
+    root.classList.toggle(
+      "arena-landscape-phone",
+      window.innerWidth > window.innerHeight && window.innerHeight < 560,
+    );
+  }
+
+  function scheduleHouseArenaViewportUpdate_() {
+    cancelAnimationFrame(HOUSE_ARENA_VIEWPORT_FRAME_);
+    HOUSE_ARENA_VIEWPORT_FRAME_ = requestAnimationFrame(
+      updateHouseArenaViewport_,
+    );
+  }
+
+  function loadHouseArenaSettings_() {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(HOUSE_ARENA_SETTINGS_KEY_) || "{}");
+    } catch (ignored) {}
+    const systemReduced =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    state.arena.sound = saved.sound !== false;
+    state.arena.haptics = saved.haptics !== false;
+    state.arena.reducedMotion =
+      saved.reducedMotion === true ||
+      (saved.reducedMotion === undefined && systemReduced);
+    state.arena.highContrast = saved.highContrast === true;
+    state.arena.lowPower =
+      navigator.connection?.saveData === true ||
+      (Number(navigator.deviceMemory || 0) > 0 &&
+        Number(navigator.deviceMemory) <= 4) ||
+      (Number(navigator.hardwareConcurrency || 0) > 0 &&
+        Number(navigator.hardwareConcurrency) <= 4);
+    applyHouseArenaSettings_();
+  }
+
+  function applyHouseArenaSettings_() {
+    const root = $("#view-house-arena");
+    root?.classList.toggle(
+      "arena-reduce-motion",
+      state.arena.reducedMotion === true,
+    );
+    root?.classList.toggle(
+      "arena-high-contrast",
+      state.arena.highContrast === true,
+    );
+    root?.classList.toggle("arena-low-power", state.arena.lowPower === true);
+    const mapping = {
+      arenaSettingSound: state.arena.sound,
+      arenaSettingHaptics: state.arena.haptics,
+      arenaSettingMotion: state.arena.reducedMotion,
+      arenaSettingContrast: state.arena.highContrast,
+    };
+    Object.entries(mapping).forEach(([id, value]) => {
+      const input = $("#" + id);
+      if (input) input.checked = value === true;
+    });
+    syncHouseArenaSoundButton_();
+  }
+
+  function persistHouseArenaSettings_() {
+    try {
+      localStorage.setItem(
+        HOUSE_ARENA_SETTINGS_KEY_,
+        JSON.stringify({
+          sound: state.arena.sound === true,
+          haptics: state.arena.haptics === true,
+          reducedMotion: state.arena.reducedMotion === true,
+          highContrast: state.arena.highContrast === true,
+        }),
+      );
+    } catch (ignored) {}
+    applyHouseArenaSettings_();
+  }
+
+  function openHouseArenaSettings_() {
+    const sheet = $("#arenaSettingsSheet");
+    if (!sheet) return;
+    applyHouseArenaSettings_();
+    sheet.classList.remove("hidden");
+    document.body.classList.add("arena-sheet-open");
+    window.setTimeout(() => $("#arenaSettingsClose")?.focus(), 30);
+  }
+
+  function closeHouseArenaSettings_() {
+    $("#arenaSettingsSheet")?.classList.add("hidden");
+    document.body.classList.remove("arena-sheet-open");
+    $("#arenaSettingsBtn")?.focus();
+  }
+
+  function saveHouseArenaSettings_() {
+    state.arena.sound = $("#arenaSettingSound")?.checked === true;
+    state.arena.haptics = $("#arenaSettingHaptics")?.checked === true;
+    state.arena.reducedMotion = $("#arenaSettingMotion")?.checked === true;
+    state.arena.highContrast = $("#arenaSettingContrast")?.checked === true;
+    persistHouseArenaSettings_();
+    closeHouseArenaSettings_();
+    if (state.arena.sound) {
+      prepareHouseArenaAudio_();
+      houseArenaSound_("correct");
+    }
+    arenaHaptic_(14);
+  }
+
+  function syncHouseArenaSoundButton_() {
+    const button = $("#arenaSoundToggle");
+    const icon = $("#arenaSoundIcon");
+    const label = $("#arenaSoundLabel");
+    if (icon) icon.textContent = state.arena.sound ? "🔊" : "🔇";
+    if (label) label.textContent = state.arena.sound ? "Som" : "Sem som";
+    if (!button) return;
+    button.setAttribute(
+      "aria-label",
+      state.arena.sound ? "Desativar sons" : "Ativar sons",
+    );
+    button.classList.toggle("is-muted", !state.arena.sound);
+  }
+
+  function arenaHaptic_(pattern) {
+    if (
+      state.arena.haptics !== true ||
+      typeof navigator.vibrate !== "function"
+    )
+      return;
+    try {
+      navigator.vibrate(pattern);
+    } catch (ignored) {}
+  }
+
+  function arenaCoach_(gameId, message) {
+    if (state.arena.round !== 0 || !message) return;
+    const key = "gf-house-arena-coach-v4-" + String(gameId || "game");
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch (ignored) {}
+    const coach = $("#arenaCoach");
+    if (!coach) return;
+    window.clearTimeout(HOUSE_ARENA_COACH_TIMER_);
+    coach.innerHTML =
+      '<span aria-hidden="true">👆</span><div><b>DICA RÁPIDA</b><small></small></div><button type="button" aria-label="Fechar dica">×</button>';
+    coach.querySelector("small").textContent = message;
+    coach.querySelector("button").onclick = () => coach.classList.add("hidden");
+    coach.classList.remove("hidden");
+    HOUSE_ARENA_COACH_TIMER_ = window.setTimeout(
+      () => coach.classList.add("hidden"),
+      5200,
+    );
+  }
+
+  function arenaBindSwipe_(element, handlers) {
+    if (!element) return;
+    let startX = 0;
+    let startY = 0;
+    let pointerId = null;
+    element.style.touchAction = "pan-y";
+    element.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      startX = event.clientX;
+      startY = event.clientY;
+      pointerId = event.pointerId;
+      element.setPointerCapture?.(pointerId);
+      element.classList.add("is-touching");
+    });
+    element.addEventListener("pointerup", (event) => {
+      if (pointerId !== event.pointerId) return;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      pointerId = null;
+      element.classList.remove("is-touching");
+      if (Math.abs(dx) >= 34 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+        event.preventDefault();
+        if (dx < 0) handlers.left?.();
+        else handlers.right?.();
+        return;
+      }
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) handlers.tap?.();
+    });
+    element.addEventListener("pointercancel", () => {
+      pointerId = null;
+      element.classList.remove("is-touching");
+    });
+  }
+
+  function pauseHouseArenaGame_(reason) {
+    if (
+      !state.arena.playing ||
+      state.arena.paused ||
+      state.arena.finishing
+    )
+      return;
+    state.arena.paused = true;
+    state.arena.pauseReason = reason || "manual";
+    state.arena.pauseStartedAt = performance.now();
+    state.arena.renderToken++;
+    cancelAnimationFrame(state.arena.timerFrame);
+    cancelAnimationFrame(state.arena.roundFrame);
+    $("#arenaStage")?.classList.remove("arena-stage-shake");
+    $("#arenaStage")?.classList.add("is-paused");
+    $("#arenaPauseOverlay")?.classList.remove("hidden");
+    $("#arenaCoach")?.classList.add("hidden");
+    $("#arenaResumePauseBtn")?.focus();
+    arenaPersistSession_(true);
+    updateHouseArenaPauseClock_();
+    window.clearInterval(HOUSE_ARENA_PAUSE_INTERVAL_);
+    HOUSE_ARENA_PAUSE_INTERVAL_ = window.setInterval(
+      updateHouseArenaPauseClock_,
+      250,
+    );
+  }
+
+  function updateHouseArenaPauseClock_() {
+    if (!state.arena.paused) return;
+    const current = Math.max(
+      0,
+      performance.now() - Number(state.arena.pauseStartedAt || 0),
+    );
+    const remaining = Math.max(
+      0,
+      HOUSE_ARENA_PAUSE_BUDGET_MS_ -
+        Number(state.arena.pauseTotal || 0) -
+        current,
+    );
+    const clock = $("#arenaPauseClock");
+    if (clock) clock.textContent = Math.ceil(remaining / 1000) + "s";
+    if (remaining > 0) return;
+    window.clearInterval(HOUSE_ARENA_PAUSE_INTERVAL_);
+    state.arena.paused = false;
+    $("#arenaPauseOverlay")?.classList.add("hidden");
+    $("#arenaStage")?.classList.remove("is-paused");
+    toast("A pausa terminou e a rodada foi encerrada.");
+    finishHouseArenaGameUI_();
+  }
+
+  function resumePausedHouseArenaGame_() {
+    if (!state.arena.playing || !state.arena.paused) return;
+    const pauseDuration = Math.max(
+      0,
+      performance.now() - Number(state.arena.pauseStartedAt || 0),
+    );
+    state.arena.pauseTotal =
+      Number(state.arena.pauseTotal || 0) + pauseDuration;
+    if (state.arena.pauseTotal >= HOUSE_ARENA_PAUSE_BUDGET_MS_) {
+      updateHouseArenaPauseClock_();
+      return;
+    }
+    state.arena.startedAt += pauseDuration;
+    state.arena.roundStartedAt += pauseDuration;
+    state.arena.pauseStartedAt = 0;
+    state.arena.paused = false;
+    window.clearInterval(HOUSE_ARENA_PAUSE_INTERVAL_);
+    $("#arenaPauseOverlay")?.classList.add("hidden");
+    $("#arenaStage")?.classList.remove("is-paused");
+    renderHouseArenaRound_();
+    updateHouseArenaTimer_();
+    arenaPersistSession_(true);
+    houseArenaSound_("start");
+    arenaHaptic_([10, 18, 14]);
+  }
+
+  function quitPausedHouseArenaGame_() {
+    window.clearInterval(HOUSE_ARENA_PAUSE_INTERVAL_);
+    state.arena.paused = false;
+    state.arena.playing = false;
+    state.arena.pauseStartedAt = 0;
+    state.arena.renderToken++;
+    clearHouseArenaSession_();
+    $("#arenaPauseOverlay")?.classList.add("hidden");
+    $("#arenaStage")?.classList.remove("is-paused");
+    showHouseArenaLobby_();
+    toast("Partida encerrada. Nenhum resultado foi enviado.");
+  }
+
+  function arenaUserKey_() {
+    return String(
+      val(
+        state.user || {},
+        "usuarioId",
+        "UsuarioID",
+        "email",
+        "Email",
+        "id",
+      ) || "",
+    ).trim();
+  }
+
+  function arenaPersistSession_(force) {
+    if (
+      !state.arena.run?.token ||
+      (!state.arena.playing && !state.arena.paused)
+    )
+      return;
+    const now = Date.now();
+    if (
+      !force &&
+      now - Number(state.arena.lastLocalSave || 0) < 1500
+    )
+      return;
+    state.arena.lastLocalSave = now;
+    const pauseNow = state.arena.paused
+      ? Math.max(
+          0,
+          performance.now() - Number(state.arena.pauseStartedAt || 0),
+        )
+      : 0;
+    const elapsed = Math.max(
+      0,
+      performance.now() - Number(state.arena.startedAt || 0) - pauseNow,
+    );
+    const snapshot = {
+      version: 4,
+      userKey: arenaUserKey_(),
+      savedAt: now,
+      gameId: state.arena.gameId,
+      run: state.arena.run,
+      durationMs: state.arena.durationMs,
+      products: state.arena.products,
+      ingredients: state.arena.ingredients,
+      events: state.arena.events,
+      round: state.arena.round,
+      score: state.arena.score,
+      combo: state.arena.combo,
+      bestCombo: state.arena.bestCombo,
+      hits: state.arena.hits,
+      errors: state.arena.errors,
+      elapsed: Math.min(state.arena.durationMs, elapsed),
+      pauseTotal:
+        Number(state.arena.pauseTotal || 0) + Math.min(pauseNow, 60000),
+    };
+    try {
+      sessionStorage.setItem(
+        HOUSE_ARENA_SESSION_KEY_,
+        JSON.stringify(snapshot),
+      );
+    } catch (ignored) {}
+  }
+
+  function readHouseArenaSession_() {
+    try {
+      const snapshot = JSON.parse(
+        sessionStorage.getItem(HOUSE_ARENA_SESSION_KEY_) || "null",
+      );
+      if (
+        !snapshot ||
+        snapshot.version !== 4 ||
+        !/^[a-f0-9]{64}$/i.test(String(snapshot.run?.token || "")) ||
+        snapshot.userKey !== arenaUserKey_() ||
+        Date.now() - Number(snapshot.savedAt || 0) >
+          HOUSE_ARENA_RESUME_WINDOW_MS_ ||
+        Number(snapshot.elapsed || 0) >= Number(snapshot.durationMs || 0)
+      )
+        return null;
+      return snapshot;
+    } catch (ignored) {
+      return null;
+    }
+  }
+
+  function offerHouseArenaResume_() {
+    if (state.arena.playing || state.arena.finishing) return;
+    const snapshot = readHouseArenaSession_();
+    if (!snapshot) {
+      clearHouseArenaSession_();
+      hideHouseArenaResumeOffer_();
+      return;
+    }
+    HOUSE_ARENA_RESUME_CANDIDATE_ = snapshot;
+    const banner = $("#arenaResumeBanner");
+    banner?.classList.remove("hidden");
+    const game = arenaGameMeta_(snapshot.gameId);
+    const copy = banner?.querySelector("small");
+    if (copy)
+      copy.textContent =
+        game.name +
+        " · " +
+        Math.max(
+          1,
+          Math.ceil(
+            (Number(snapshot.durationMs || 0) -
+              Number(snapshot.elapsed || 0)) /
+              1000,
+          ),
+        ) +
+        "s restantes";
+  }
+
+  function hideHouseArenaResumeOffer_() {
+    HOUSE_ARENA_RESUME_CANDIDATE_ = null;
+    $("#arenaResumeBanner")?.classList.add("hidden");
+  }
+
+  function resumeHouseArenaSession_() {
+    const snapshot =
+      HOUSE_ARENA_RESUME_CANDIDATE_ || readHouseArenaSession_();
+    if (!snapshot) {
+      clearHouseArenaSession_();
+      hideHouseArenaResumeOffer_();
+      toast("Essa partida já não pode ser retomada.", true);
+      return;
+    }
+    state.arena.gameId = snapshot.gameId;
+    state.arena.rankingGameId = snapshot.gameId;
+    state.arena.run = snapshot.run;
+    state.arena.durationMs = Number(snapshot.durationMs || 45000);
+    state.arena.products = arr(snapshot.products);
+    state.arena.ingredients = arr(snapshot.ingredients);
+    state.arena.productMap = {};
+    state.arena.ingredientMap = {};
+    state.arena.products.forEach(
+      (product) => (state.arena.productMap[product.id] = product),
+    );
+    state.arena.ingredients.forEach(
+      (ingredient) =>
+        (state.arena.ingredientMap[ingredient.id] = ingredient),
+    );
+    state.arena.events = arr(snapshot.events);
+    state.arena.input = [];
+    state.arena.round = Number(snapshot.round || 0);
+    state.arena.score = Number(snapshot.score || 0);
+    state.arena.combo = Number(snapshot.combo || 0);
+    state.arena.bestCombo = Number(snapshot.bestCombo || 0);
+    state.arena.hits = Number(snapshot.hits || 0);
+    state.arena.errors = Number(snapshot.errors || 0);
+    state.arena.pauseTotal = Number(snapshot.pauseTotal || 0);
+    state.arena.paused = false;
+    state.arena.finishing = false;
+    state.arena.playing = true;
+    state.arena.renderToken++;
+    state.arena.startedAt =
+      performance.now() - Number(snapshot.elapsed || 0);
+
+    $("#arenaLobby")?.classList.add("hidden");
+    $("#arenaResult")?.classList.add("hidden");
+    $("#arenaGamePickerShell")?.classList.add("hidden");
+    $("#arenaPlay")?.classList.remove("hidden");
+    $("#arenaStage").className = "arena-stage";
+    $("#arenaStage").dataset.game = state.arena.gameId;
+    $("#view-house-arena")?.classList.add("arena-game-active");
+    $("#arenaPlayingName").textContent = arenaGameMeta_(
+      state.arena.gameId,
+    ).name;
+    hideHouseArenaResumeOffer_();
+    updateHouseArenaHud_();
+    renderHouseArenaRound_();
+    updateHouseArenaTimer_();
+    arenaPersistSession_(true);
+    houseArenaSound_("start");
+    toast("Partida retomada.");
+  }
+
+  function clearHouseArenaSession_() {
+    try {
+      sessionStorage.removeItem(HOUSE_ARENA_SESSION_KEY_);
+    } catch (ignored) {}
+    hideHouseArenaResumeOffer_();
+  }
+
+  function readHouseArenaSyncQueue_() {
+    try {
+      const queue = JSON.parse(
+        localStorage.getItem(HOUSE_ARENA_SYNC_KEY_) || "[]",
+      );
+      if (!Array.isArray(queue)) return [];
+      const cutoff = Date.now() - 4.5 * 60 * 1000;
+      return queue.filter(
+        (item) =>
+          item &&
+          /^[a-f0-9]{64}$/i.test(String(item.token || "")) &&
+          Number(item.createdAt || 0) >= cutoff,
+      );
+    } catch (ignored) {
+      return [];
+    }
+  }
+
+  function writeHouseArenaSyncQueue_(queue) {
+    try {
+      localStorage.setItem(
+        HOUSE_ARENA_SYNC_KEY_,
+        JSON.stringify(arr(queue).slice(-3)),
+      );
+    } catch (ignored) {}
+    updateHouseArenaConnection_();
+  }
+
+  function queueHouseArenaResult_() {
+    if (!state.arena.run?.token) return;
+    const token = String(state.arena.run.token);
+    const queue = readHouseArenaSyncQueue_().filter(
+      (item) => item.token !== token,
+    );
+    const total = state.arena.hits + state.arena.errors;
+    queue.push({
+      token,
+      userKey: arenaUserKey_(),
+      gameId: state.arena.gameId,
+      events: state.arena.events,
+      createdAt: Date.now(),
+      localResult: {
+        score: state.arena.score,
+        hits: state.arena.hits,
+        errors: state.arena.errors,
+        bestCombo: state.arena.bestCombo,
+        accuracy: total
+          ? Math.round((state.arena.hits / total) * 1000) / 10
+          : 0,
+      },
+    });
+    writeHouseArenaSyncQueue_(queue);
+    clearHouseArenaSession_();
+  }
+
+  function completeHouseArenaSync_(token) {
+    writeHouseArenaSyncQueue_(
+      readHouseArenaSyncQueue_().filter(
+        (item) => String(item.token) !== String(token),
+      ),
+    );
+    clearHouseArenaSession_();
+  }
+
+  function markHouseArenaSyncPending_(token, message) {
+    const queue = readHouseArenaSyncQueue_();
+    const item = queue.find(
+      (candidate) => String(candidate.token) === String(token),
+    );
+    if (item) {
+      item.lastError = String(message || "Falha de conexão");
+      item.lastAttemptAt = Date.now();
+    }
+    writeHouseArenaSyncQueue_(queue);
+  }
+
+  async function retryPendingHouseArenaSync_(silent) {
+    const userKey = arenaUserKey_();
+    if (
+      HOUSE_ARENA_SYNCING_ ||
+      state.arena.finishing ||
+      !navigator.onLine ||
+      !userKey
+    )
+      return;
+    const allItems = readHouseArenaSyncQueue_();
+    const queue = allItems.filter((item) => item.userKey === userKey);
+    if (!queue.length) {
+      writeHouseArenaSyncQueue_(allItems);
+      return;
+    }
+    const item = queue[0];
+    const retryButton = $("#arenaRetrySyncBtn");
+    HOUSE_ARENA_SYNCING_ = true;
+    if (retryButton) retryButton.disabled = true;
+    updateHouseArenaConnection_("syncing");
+    try {
+      const result = await call(FN.arenaFinish, {
+        token: item.token,
+        events: item.events,
+        clientScore: item.localResult?.score,
+        clientHits: item.localResult?.hits,
+        clientErrors: item.localResult?.errors,
+        clientBestCombo: item.localResult?.bestCombo,
+      });
+      completeHouseArenaSync_(item.token);
+      state.arena.gameId = item.gameId || state.arena.gameId;
+      state.arena.rankingGameId = state.arena.gameId;
+      showHouseArenaResult_(result);
+      state.arena.ranking = null;
+      if (!silent) toast("Resultado validado e enviado ao ranking.");
+    } catch (error) {
+      const terminal =
+        /expirou|já foi enviada|ja foi enviada|inválida|invalida/i.test(
+          String(error.message || ""),
+        );
+      if (terminal) completeHouseArenaSync_(item.token);
+      else markHouseArenaSyncPending_(item.token, error.message);
+      if (!silent)
+        toast(
+          terminal
+            ? "A partida já expirou e não pode mais ser enviada."
+            : "Ainda não foi possível enviar. Tentaremos novamente.",
+          true,
+        );
+    } finally {
+      HOUSE_ARENA_SYNCING_ = false;
+      if (retryButton) retryButton.disabled = false;
+      updateHouseArenaConnection_();
+    }
+  }
+
+  function updateHouseArenaConnection_(mode) {
+    const status = $("#arenaConnectionStatus");
+    if (!status) return;
+    const userKey = arenaUserKey_();
+    const pending = userKey
+      ? readHouseArenaSyncQueue_().filter((item) => item.userKey === userKey)
+          .length
+      : 0;
+    const offline = navigator.onLine === false;
+    status.classList.toggle("is-offline", offline);
+    status.classList.toggle("is-pending", pending > 0 && !offline);
+    status.classList.toggle("is-syncing", mode === "syncing");
+    const label = status.querySelector("b");
+    if (!label) return;
+    label.textContent =
+      mode === "syncing"
+        ? "Enviando resultado…"
+        : offline
+          ? "Sem conexão · a partida continua"
+          : pending
+            ? pending + " resultado pendente"
+            : "Pronto para jogar";
+  }
+</script>

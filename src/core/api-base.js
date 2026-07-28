@@ -1,0 +1,936 @@
+import { APP, PERMISSIONS } from "./constants.js";
+import { runtime } from "./runtime.js";
+import {
+  asBoolean,
+  assert,
+  csvDataUrl,
+  dateRange,
+  normalizeEmail,
+  nowIso,
+  todayIso,
+  uuid,
+} from "./utils.js";
+
+export const success = (data, message = "") => ({
+  success: true,
+  message,
+  data,
+});
+
+export const sessionUser = (profile) => ({
+  id: profile.FuncionarioID || profile.UsuarioID,
+  usuarioId: profile.UsuarioID,
+  funcionarioId: profile.FuncionarioID || "",
+  nome: profile.Nome || "",
+  email: profile.Email || "",
+  perfil: profile.Perfil || "",
+  lojaId: profile.LojaID || "",
+  nomeLoja: profile.NomeLoja || "",
+  cargo: profile.Cargo || "",
+  fotoPerfil: profile.FotoPerfil || "",
+  ativo: asBoolean(profile.Ativo),
+});
+
+const dropClientToken = (args) => {
+  const values = Array.isArray(args) ? [...args] : [];
+  if (
+    typeof values[0] === "string" &&
+    (values[0].split(".").length === 3 || values[0].length > 80)
+  ) {
+    values.shift();
+  }
+  return values;
+};
+
+const role = (profile) => String(profile?.Perfil || "").toLowerCase();
+const isAdmin = (profile) => role(profile).includes("admin");
+const isManager = (profile) =>
+  isAdmin(profile) ||
+  role(profile).includes("respons") ||
+  role(profile).includes("gerente");
+
+const requireAdmin = (profile) =>
+  assert(isAdmin(profile), "Somente o Administrador pode executar esta ação.");
+
+const requireManager = (profile) =>
+  assert(
+    isManager(profile),
+    "Esta ação exige perfil de responsável ou administrador.",
+  );
+
+const scopeRecord = (profile, record) => {
+  if (isAdmin(profile)) return true;
+  if (isManager(profile)) {
+    assert(
+      !record?.LojaID ||
+        String(record.LojaID) === String(profile.LojaID || ""),
+      "Este perfil só pode operar dados da própria loja.",
+    );
+    return true;
+  }
+  assert(
+    !record?.FuncionarioID ||
+      String(record.FuncionarioID) === String(profile.FuncionarioID || ""),
+    "O funcionário só pode operar os próprios registros.",
+  );
+  return true;
+};
+
+export async function audit(action, module, recordId, details = {}) {
+  const profile = await runtime.requireProfile();
+  const entry = {
+    AuditoriaID: uuid(),
+    DataHora: nowIso(),
+    EmailUtilizador: profile.Email,
+    NomeUtilizador: profile.Nome,
+    LojaID: profile.LojaID || details.LojaID || "",
+    FuncionarioID: profile.FuncionarioID || "",
+    Acao: action,
+    Modulo: module,
+    RegistoID: recordId || "",
+    DadosAnteriores: details.before || "",
+    DadosNovos: details.after || details,
+    EnderecoOuOrigem: "Aplicação Firebase",
+    Resultado: "Sucesso",
+    Mensagem: details.message || "",
+  };
+  await runtime.upsert("Auditoria", entry).catch((error) => {
+    console.warn("Auditoria não gravada:", error.message);
+  });
+}
+
+export async function createNotification({
+  employeeId = "",
+  email = "",
+  storeId = "",
+  subject,
+  message,
+  type = "Sistema",
+  relatedId = "",
+}) {
+  return runtime.upsert("Notificacoes", {
+    NotificacaoID: uuid(),
+    Destinatario: normalizeEmail(email),
+    DestinatarioID: employeeId,
+    LojaID: storeId,
+    Assunto: subject,
+    Mensagem: message,
+    Tipo: type,
+    Status: "Pendente",
+    DataCriacao: nowIso(),
+    DataEnvio: nowIso(),
+    DataLeitura: "",
+    LidoPor: "",
+    Canal: "Aplicação",
+    TentativasEnvio: 0,
+    LinkAcao: "",
+    Erro: "",
+    RegistoRelacionadoID: relatedId,
+  });
+}
+
+const dashboardFrom = (stores, employees, records) => {
+  const today = todayIso();
+  const next = new Date(`${today}T12:00:00`);
+  next.setDate(next.getDate() + 7);
+  const nextKey = todayIso(next);
+  const active = records.filter((record) =>
+    [APP.status.approved, APP.status.pending].includes(record.Status),
+  );
+  return {
+    cards: {
+      totalFuncionariosAtivos: employees.filter((item) =>
+        asBoolean(item.Ativo),
+      ).length,
+      totalLojasAtivas: stores.filter((item) => asBoolean(item.Ativa)).length,
+      folgasHoje: active.filter(
+        (item) =>
+          String(item.DataInicio || "") <= today &&
+          String(item.DataFim || item.DataInicio || "") >= today,
+      ).length,
+      folgasProximos7Dias: active.filter(
+        (item) =>
+          String(item.DataInicio || "") >= today &&
+          String(item.DataInicio || "") <= nextKey,
+      ).length,
+      pedidosPendentes: records.filter(
+        (item) => item.Status === APP.status.pending,
+      ).length,
+    },
+    proximasFolgas: active
+      .filter(
+        (item) => String(item.DataFim || item.DataInicio || "") >= today,
+      )
+      .sort((a, b) =>
+        String(a.DataInicio || "").localeCompare(String(b.DataInicio || "")),
+      )
+      .slice(0, 10),
+  };
+};
+
+async function bootstrap() {
+  const profile = await runtime.requireProfile();
+  const [stores, employees, timeOff, holidays] = await Promise.all([
+    runtime.list("Lojas", { profile }),
+    runtime.list("Funcionarios", { profile }),
+    runtime.list("Folgas", { profile }),
+    runtime.list("Feriados", { profile }),
+  ]);
+  return {
+    app: { name: APP.name, version: APP.version },
+    user: sessionUser(profile),
+    permissions: PERMISSIONS[profile.Perfil] || [],
+    stores,
+    employees,
+    timeOff,
+    holidays,
+    users: [],
+    dashboard: dashboardFrom(stores, employees, timeOff),
+    deferred: false,
+    usersDeferred: isAdmin(profile),
+    performance: { mode: "firebase-direct", serverMs: 0 },
+  };
+}
+
+const normalizeStore = (payload, current, profile) => ({
+  ...(current || {}),
+  ...payload,
+  LojaID: current?.LojaID || payload.LojaID || uuid(),
+  NomeLoja: String(payload.NomeLoja || "").trim(),
+  CodigoLoja: String(payload.CodigoLoja || "").trim(),
+  CNPJ: String(payload.CNPJ || "").trim(),
+  Morada: String(payload.Morada || "").trim(),
+  Cidade: String(payload.Cidade || "").trim(),
+  ResponsavelNome: String(payload.ResponsavelNome || "").trim(),
+  ResponsavelEmail: normalizeEmail(payload.ResponsavelEmail),
+  CalendarID: String(payload.CalendarID || "").trim(),
+  LimiteFolgasPorDia: Math.max(1, Number(payload.LimiteFolgasPorDia || 1)),
+  DiasFuncionamento: payload.DiasFuncionamento || "1,2,3,4,5,6",
+  HorarioAbertura: payload.HorarioAbertura || "",
+  HorarioFecho: payload.HorarioFecho || "",
+  Ativa: payload.Ativa !== false,
+  DataCriacao: current?.DataCriacao || nowIso(),
+  CriadoPor: current?.CriadoPor || profile.Email,
+  DataAtualizacao: nowIso(),
+});
+
+const normalizeEmployee = async (payload, current, profile) => {
+  const store = payload.LojaID
+    ? await runtime.getById("Lojas", payload.LojaID)
+    : null;
+  return {
+    ...(current || {}),
+    ...payload,
+    FuncionarioID: current?.FuncionarioID || payload.FuncionarioID || uuid(),
+    Nome: String(payload.Nome || "").trim(),
+    Email: normalizeEmail(payload.Email),
+    Telefone: String(payload.Telefone || "").trim(),
+    LojaID: String(payload.LojaID || ""),
+    NomeLoja: store?.NomeLoja || payload.NomeLoja || "",
+    Cargo: String(payload.Cargo || "").trim(),
+    Perfil: payload.Perfil || APP.profiles.employee,
+    DataAdmissao: payload.DataAdmissao || "",
+    TipoContrato: payload.TipoContrato || "",
+    DiasTrabalhoSemana: payload.DiasTrabalhoSemana || "",
+    DiaFolgaPreferencial: payload.DiaFolgaPreferencial || "",
+    SegundoDiaFolgaPreferencial: payload.SegundoDiaFolgaPreferencial || "",
+    SaldoFolgas: Number(payload.SaldoFolgas || 0),
+    Ativo: payload.Ativo !== false,
+    DataCriacao: current?.DataCriacao || nowIso(),
+    CriadoPor: current?.CriadoPor || profile.Email,
+    DataAtualizacao: nowIso(),
+    CPF: String(payload.CPF || "").trim(),
+  };
+};
+
+const createOrUpdateTimeOff = async (payload, current = null) => {
+  const profile = await runtime.requireProfile();
+  const employeeId =
+    payload.FuncionarioID ||
+    payload.funcionarioId ||
+    current?.FuncionarioID ||
+    profile.FuncionarioID;
+  const employee = await runtime.getById("Funcionarios", employeeId);
+  assert(employee, "Funcionário não encontrado.");
+  scopeRecord(profile, employee);
+  const start = String(payload.DataInicio || payload.dataInicio || "");
+  const end = String(payload.DataFim || payload.dataFim || start);
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(start), "Informe a data inicial.");
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(end), "Informe a data final.");
+  assert(end >= start, "A data final não pode ser anterior à data inicial.");
+  assert(
+    dateRange(start, end).length <= 30,
+    "Uma folga pode ter no máximo 30 dias.",
+  );
+  const records = await runtime.list("Folgas", { profile });
+  const conflict = records.find(
+    (item) =>
+      item.FolgaID !== current?.FolgaID &&
+      item.FuncionarioID === employeeId &&
+      ![APP.status.cancelled, APP.status.rejected].includes(item.Status) &&
+      String(item.DataInicio) <= end &&
+      String(item.DataFim || item.DataInicio) >= start,
+  );
+  assert(!conflict, "Já existe uma folga deste funcionário nesse período.");
+
+  const employeeRequest = role(profile).includes("funcion");
+  return {
+    ...(current || {}),
+    ...payload,
+    FolgaID: current?.FolgaID || payload.FolgaID || uuid(),
+    FuncionarioID: employee.FuncionarioID,
+    NomeFuncionario: employee.Nome,
+    EmailFuncionario: employee.Email,
+    LojaID: employee.LojaID,
+    NomeLoja: employee.NomeLoja,
+    DataInicio: start,
+    DataFim: end,
+    TipoFolga: payload.TipoFolga || "Folga",
+    Periodo: payload.Periodo || "Dia inteiro",
+    Motivo: String(payload.Motivo || ""),
+    Origem: employeeRequest ? "Pedido do funcionário" : payload.Origem || "Manual",
+    Status:
+      current?.Status ||
+      (employeeRequest ? APP.status.pending : payload.Status || APP.status.approved),
+    SolicitadoPor: current?.SolicitadoPor || profile.Email,
+    DataSolicitacao: current?.DataSolicitacao || nowIso(),
+    DataCriacao: current?.DataCriacao || nowIso(),
+    DataAtualizacao: nowIso(),
+  };
+};
+
+const timeOffDecision = async (id, approved, observation = "") => {
+  const profile = await runtime.requireProfile();
+  requireManager(profile);
+  const current = await runtime.getById("Folgas", id);
+  assert(current, "Pedido de folga não encontrado.");
+  scopeRecord(profile, current);
+  const updated = await runtime.patch("Folgas", id, {
+    Status: approved ? APP.status.approved : APP.status.rejected,
+    AprovadoPor: profile.Email,
+    DataAprovacao: nowIso(),
+    ObservacaoAprovacao: String(observation || ""),
+    DataAtualizacao: nowIso(),
+  });
+  await createNotification({
+    employeeId: updated.FuncionarioID,
+    email: updated.EmailFuncionario,
+    storeId: updated.LojaID,
+    subject: approved ? "Folga aprovada" : "Folga rejeitada",
+    message: `Seu pedido para ${updated.DataInicio} foi ${
+      approved ? "aprovado" : "rejeitado"
+    }.`,
+    type: "Folga",
+    relatedId: id,
+  });
+  await audit(
+    approved ? "Aprovar folga" : "Rejeitar folga",
+    "Folgas",
+    id,
+    { before: current, after: updated },
+  );
+  return updated;
+};
+
+const preferredWeekdayIndex = (value) => {
+  const normalized = String(value || "").toLowerCase();
+  const names = [
+    "domingo",
+    "segunda",
+    "terça",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sábado",
+  ];
+  const index = names.findIndex((name) => normalized.startsWith(name.slice(0, 5)));
+  return index >= 0 ? index : null;
+};
+
+async function simulateSchedule(payload) {
+  const profile = await runtime.requireProfile();
+  requireManager(profile);
+  const employees = (await runtime.list("Funcionarios", { profile })).filter(
+    (item) =>
+      asBoolean(item.Ativo) &&
+      String(item.LojaID) === String(payload.LojaID || profile.LojaID),
+  );
+  const start = String(payload.DataInicio || "");
+  const end = String(payload.DataFim || start);
+  const days = dateRange(start, end);
+  const used = {};
+  const maximum = Math.max(1, Number(payload.MaximoPorDia || 1));
+  return employees.map((employee, index) => {
+    const preferred = preferredWeekdayIndex(employee.DiaFolgaPreferencial);
+    const candidates = days.filter((day) => {
+      const weekday = new Date(`${day}T12:00:00`).getDay();
+      return (
+        (preferred === null || weekday === preferred) &&
+        (asBoolean(payload.PermitirFimDeSemana) || ![0, 6].includes(weekday)) &&
+        Number(used[day] || 0) < maximum
+      );
+    });
+    const fallback = days.filter(
+      (day) => Number(used[day] || 0) < maximum,
+    );
+    const day =
+      candidates[index % Math.max(1, candidates.length)] ||
+      fallback[index % Math.max(1, fallback.length)] ||
+      days[index % Math.max(1, days.length)];
+    used[day] = Number(used[day] || 0) + 1;
+    return {
+      FuncionarioID: employee.FuncionarioID,
+      Funcionario: employee.Nome,
+      NomeFuncionario: employee.Nome,
+      LojaID: employee.LojaID,
+      DataSugerida: day,
+      DataInicio: day,
+      DataFim: day,
+      FolgaFixa: preferred !== null,
+      SaldoAntes: Number(employee.SaldoFolgas || 0),
+      Pontuacao: Math.max(10, 100 - Number(used[day] || 1) * 5),
+      MotivoEscolha:
+        preferred !== null
+          ? "Preferência de folga fixa respeitada"
+          : "Distribuição equilibrada na equipe",
+    };
+  });
+}
+
+export function createBaseHandlers(getArenaBundle) {
+  return {
+    async loginUser(args) {
+      const payload = args[0] || {};
+      const user = await runtime.login(
+        payload.email || payload.Email,
+        payload.senha || payload.password || payload.Senha,
+        asBoolean(payload.remember || payload.ManterConectado),
+      );
+      const data = await bootstrap();
+      const token = await user.getIdToken();
+      return success(
+        {
+          token,
+          sessionToken: token,
+          user: data.user,
+          rememberPersisted: asBoolean(
+            payload.remember || payload.ManterConectado,
+          ),
+          rememberExpiresAt: asBoolean(
+            payload.remember || payload.ManterConectado,
+          )
+            ? Date.now() + 7 * 24 * 60 * 60 * 1000
+            : 0,
+          bootstrap: data,
+        },
+        "Login realizado.",
+      );
+    },
+
+    async logoutUser() {
+      await runtime.logout();
+      return success({}, "Sessão encerrada.");
+    },
+
+    async requestPasswordReset(args) {
+      await runtime.sendPasswordReset(args[0]?.email || args[0]?.Email);
+      return success({}, "E-mail de redefinição enviado.");
+    },
+
+    async confirmPasswordReset() {
+      throw new Error(
+        "Use o link seguro enviado pelo Firebase para concluir a redefinição.",
+      );
+    },
+
+    async getBootstrapDataWithSession() {
+      return success(await bootstrap(), "Aplicação carregada.");
+    },
+
+    async getClientModuleBundle(args) {
+      assert(args[0] === "house-arena", "Módulo de interface inválido.");
+      return success(getArenaBundle(), "Módulo carregado.");
+    },
+
+    async getDashboardData() {
+      const data = await bootstrap();
+      return success(data.dashboard, "Dashboard carregado.");
+    },
+
+    async getStores() {
+      return success(await runtime.list("Lojas"));
+    },
+
+    async createStore(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const payload = args[0] || {};
+      assert(String(payload.NomeLoja || "").trim(), "Informe o nome da loja.");
+      const saved = await runtime.upsert(
+        "Lojas",
+        normalizeStore(payload, null, profile),
+      );
+      await audit("Criar loja", "Lojas", saved.LojaID, { after: saved });
+      return success(saved, "Loja criada.");
+    },
+
+    async updateStore(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const [id, payload] = args;
+      const current = await runtime.getById("Lojas", id);
+      assert(current, "Loja não encontrada.");
+      const saved = await runtime.upsert(
+        "Lojas",
+        normalizeStore(payload || {}, current, profile),
+      );
+      await audit("Atualizar loja", "Lojas", id, {
+        before: current,
+        after: saved,
+      });
+      return success(saved, "Loja atualizada.");
+    },
+
+    async disableStore(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const saved = await runtime.patch("Lojas", args[0], {
+        Ativa: false,
+        DataAtualizacao: nowIso(),
+      });
+      return success(saved, "Loja desativada.");
+    },
+
+    async activateStore(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const saved = await runtime.patch("Lojas", args[0], {
+        Ativa: true,
+        DataAtualizacao: nowIso(),
+      });
+      return success(saved, "Loja ativada.");
+    },
+
+    async getEmployees() {
+      return success(await runtime.list("Funcionarios"));
+    },
+
+    async createEmployee(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const payload = args[0] || {};
+      assert(String(payload.Nome || "").trim(), "Informe o nome.");
+      assert(normalizeEmail(payload.Email), "Informe um e-mail válido.");
+      const saved = await runtime.upsert(
+        "Funcionarios",
+        await normalizeEmployee(payload, null, profile),
+      );
+      await audit("Criar funcionário", "Funcionarios", saved.FuncionarioID, {
+        after: saved,
+      });
+      return success(saved, "Funcionário criado.");
+    },
+
+    async updateEmployee(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const [id, payload] = args;
+      const current = await runtime.getById("Funcionarios", id);
+      assert(current, "Funcionário não encontrado.");
+      scopeRecord(profile, current);
+      const saved = await runtime.upsert(
+        "Funcionarios",
+        await normalizeEmployee(payload || {}, current, profile),
+      );
+      await audit("Atualizar funcionário", "Funcionarios", id, {
+        before: current,
+        after: saved,
+      });
+      return success(saved, "Funcionário atualizado.");
+    },
+
+    async disableEmployee(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const id = args[0];
+      const saved = await runtime.patch("Funcionarios", id, {
+        Ativo: false,
+        DataAtualizacao: nowIso(),
+      });
+      const access = (await runtime.listAccess()).find(
+        (item) => item.FuncionarioID === id,
+      );
+      if (access) {
+        await runtime.saveAccess(access.UsuarioID, {
+          ...access,
+          Ativo: false,
+          DataAtualizacao: nowIso(),
+        });
+      }
+      return success(saved, "Funcionário desativado.");
+    },
+
+    async activateEmployee(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const id = args[0];
+      const saved = await runtime.patch("Funcionarios", id, {
+        Ativo: true,
+        DataAtualizacao: nowIso(),
+      });
+      const access = (await runtime.listAccess()).find(
+        (item) => item.FuncionarioID === id,
+      );
+      if (access) {
+        await runtime.saveAccess(access.UsuarioID, {
+          ...access,
+          Ativo: true,
+          DataAtualizacao: nowIso(),
+        });
+      }
+      return success(saved, "Funcionário ativado.");
+    },
+
+    async getTimeOffRecords() {
+      return success(await runtime.list("Folgas"));
+    },
+
+    async validateTimeOffRequest(args) {
+      const payload = args[0] || {};
+      await createOrUpdateTimeOff(payload);
+      return success({ valid: true }, "Pedido válido.");
+    },
+
+    async createTimeOff(args) {
+      const saved = await runtime.upsert(
+        "Folgas",
+        await createOrUpdateTimeOff(args[0] || {}),
+      );
+      await audit("Criar folga", "Folgas", saved.FolgaID, { after: saved });
+      return success(saved, "Folga criada.");
+    },
+
+    async createEmployeeTimeOffRequest(args) {
+      const values = dropClientToken(args);
+      const saved = await runtime.upsert(
+        "Folgas",
+        await createOrUpdateTimeOff(values[0] || {}),
+      );
+      await createNotification({
+        storeId: saved.LojaID,
+        subject: "Novo pedido de folga",
+        message: `${saved.NomeFuncionario} solicitou folga para ${saved.DataInicio}.`,
+        type: "Folga",
+        relatedId: saved.FolgaID,
+      });
+      return success(saved, "Pedido de folga enviado.");
+    },
+
+    async updateTimeOff(args) {
+      const [id, payload] = args;
+      const current = await runtime.getById("Folgas", id);
+      assert(current, "Folga não encontrada.");
+      const saved = await runtime.upsert(
+        "Folgas",
+        await createOrUpdateTimeOff(payload || {}, current),
+      );
+      await audit("Atualizar folga", "Folgas", id, {
+        before: current,
+        after: saved,
+      });
+      return success(saved, "Folga atualizada.");
+    },
+
+    async cancelTimeOff(args) {
+      const [id, reason] = args;
+      const profile = await runtime.requireProfile();
+      const current = await runtime.getById("Folgas", id);
+      assert(current, "Folga não encontrada.");
+      scopeRecord(profile, current);
+      const saved = await runtime.patch("Folgas", id, {
+        Status: APP.status.cancelled,
+        CanceladoPor: profile.Email,
+        DataCancelamento: nowIso(),
+        MotivoCancelamento: String(reason || ""),
+        DataAtualizacao: nowIso(),
+      });
+      await audit("Cancelar folga", "Folgas", id, {
+        before: current,
+        after: saved,
+      });
+      return success(saved, "Folga cancelada.");
+    },
+
+    async approveTimeOff(args) {
+      return success(
+        await timeOffDecision(args[0], true, args[1]),
+        "Pedido aprovado.",
+      );
+    },
+
+    async rejectTimeOff(args) {
+      return success(
+        await timeOffDecision(args[0], false, args[1]),
+        "Pedido rejeitado.",
+      );
+    },
+
+    async decideTimeOffWithSession(args) {
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const approved =
+        String(payload.acao || "").toLowerCase() === "aprovar" ||
+        payload.approved === true;
+      return success(
+        await timeOffDecision(
+          payload.folgaId || payload.FolgaID || payload.id,
+          approved,
+          payload.observacao || payload.ObservacaoAprovacao,
+        ),
+        approved ? "Pedido aprovado." : "Pedido rejeitado.",
+      );
+    },
+
+    async getHolidays() {
+      return success(await runtime.list("Feriados"));
+    },
+
+    async createHoliday(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const payload = args[0] || {};
+      const saved = await runtime.upsert("Feriados", {
+        ...payload,
+        FeriadoID: payload.FeriadoID || uuid(),
+        Nacional: payload.Tipo === "Nacional",
+        Regional: payload.Tipo === "Regional",
+        Municipal: payload.Tipo === "Municipal",
+        Ativo: payload.Ativo !== false,
+        DataCriacao: nowIso(),
+        CriadoPor: profile.Email,
+      });
+      return success(saved, "Feriado criado.");
+    },
+
+    async updateHoliday(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const [id, payload] = args;
+      const current = await runtime.getById("Feriados", id);
+      assert(current, "Feriado não encontrado.");
+      const saved = await runtime.upsert("Feriados", {
+        ...current,
+        ...payload,
+        FeriadoID: id,
+      });
+      return success(saved, "Feriado atualizado.");
+    },
+
+    async simulateAutomaticTimeOff(args) {
+      const suggestions = await simulateSchedule(args[0] || {});
+      return success(
+        { suggestions, simulacao: suggestions },
+        "Simulação concluída.",
+      );
+    },
+
+    async simulateAutomaticTimeOffWithAI(args) {
+      const suggestions = (await simulateSchedule(args[0] || {})).map(
+        (item) => ({
+          ...item,
+          AnaliseIA: "Aprovado",
+          ObservacaoIA:
+            "Distribuição revisada localmente, sem enviar dados a serviços externos.",
+        }),
+      );
+      return success({
+        sugestoes: suggestions,
+        resumoIA:
+          "A escala foi revisada com regras locais para preservar o plano gratuito.",
+        alertasIA: [],
+      });
+    },
+
+    async generateAutomaticTimeOff(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const suggestions = Array.isArray(args[1]) ? args[1] : [];
+      const saved = [];
+      for (const item of suggestions) {
+        saved.push(
+          await runtime.upsert(
+            "Folgas",
+            await createOrUpdateTimeOff({
+              ...item,
+              DataInicio: item.DataInicio || item.DataSugerida,
+              DataFim: item.DataFim || item.DataSugerida,
+              Origem: "Geração automática",
+              Status: APP.status.approved,
+            }),
+          ),
+        );
+      }
+      return success(saved, `${saved.length} folga(s) gerada(s).`);
+    },
+
+    async getAuditLogs() {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const rows = await runtime.list("Auditoria", { profile });
+      return success(
+        rows
+          .sort((a, b) => String(b.DataHora).localeCompare(String(a.DataHora)))
+          .slice(0, 500),
+      );
+    },
+
+    async exportReportToCsv() {
+      const profile = await runtime.requireProfile();
+      const rows = await runtime.list("Folgas", { profile });
+      const columns = [
+        "FolgaID",
+        "NomeFuncionario",
+        "NomeLoja",
+        "DataInicio",
+        "DataFim",
+        "TipoFolga",
+        "Status",
+        "Motivo",
+      ];
+      return success({
+        url: csvDataUrl(rows, columns),
+        name: "relatorio-folgas.csv",
+      });
+    },
+
+    async exportReportToPdf() {
+      throw new Error(
+        "Use a opção de impressão do navegador e escolha “Salvar como PDF”.",
+      );
+    },
+
+    async exportCalendarToPdf() {
+      throw new Error("Use a versão de impressão do calendário.");
+    },
+
+    async getUsers() {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      return success(await runtime.listAccess());
+    },
+
+    async createUser(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      assert(
+        String(payload.Senha || "").length >= 10,
+        "A senha inicial deve ter pelo menos 10 caracteres.",
+      );
+      const uid = await runtime.createAuthUser(payload.Email, payload.Senha);
+      const employee = payload.FuncionarioID
+        ? await runtime.getById("Funcionarios", payload.FuncionarioID)
+        : null;
+      const saved = {
+        UsuarioID: uid,
+        FuncionarioID: payload.FuncionarioID || "",
+        Nome: payload.Nome || employee?.Nome || "",
+        Email: normalizeEmail(payload.Email || employee?.Email),
+        Perfil: payload.Perfil || employee?.Perfil || APP.profiles.employee,
+        LojaID: payload.LojaID || employee?.LojaID || "",
+        NomeLoja: employee?.NomeLoja || "",
+        Cargo: employee?.Cargo || "",
+        FotoPerfil: "",
+        PrimeiroAcesso: payload.PrimeiroAcesso !== false,
+        Ativo: payload.Ativo !== false,
+        DataCriacao: nowIso(),
+        DataAtualizacao: nowIso(),
+      };
+      await runtime.saveAccess(uid, saved);
+      if (employee) {
+        await runtime.patch("Funcionarios", employee.FuncionarioID, {
+          AuthUID: uid,
+          Email: saved.Email,
+          Perfil: saved.Perfil,
+        });
+      }
+      await audit("Criar acesso", "Usuarios", uid, { after: saved });
+      return success(saved, "Acesso criado.");
+    },
+
+    async updateUser(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const values = dropClientToken(args);
+      const [id, payload] = values;
+      const current = await runtime.getAccess(id);
+      assert(current, "Acesso não encontrado.");
+      const saved = {
+        ...current,
+        ...payload,
+        UsuarioID: id,
+        Email: normalizeEmail(payload.Email || current.Email),
+        Ativo: payload.Ativo !== false,
+        DataAtualizacao: nowIso(),
+      };
+      delete saved.Senha;
+      await runtime.saveAccess(id, saved);
+      if (payload.Senha) {
+        await runtime.sendPasswordReset(saved.Email);
+      }
+      if (saved.FuncionarioID) {
+        await runtime.patch("Funcionarios", saved.FuncionarioID, {
+          Email: saved.Email,
+          Perfil: saved.Perfil,
+          LojaID: saved.LojaID,
+          Ativo: saved.Ativo,
+          DataAtualizacao: nowIso(),
+        });
+      }
+      await audit("Atualizar acesso", "Usuarios", id, {
+        before: current,
+        after: saved,
+      });
+      return success(saved, "Acesso atualizado.");
+    },
+
+    async updateOwnProfile(args) {
+      const profile = await runtime.requireProfile();
+      const payload = args[0] || {};
+      const email = normalizeEmail(payload.Email || profile.Email);
+      const password =
+        payload.NovaSenha || payload.novaSenha || payload.newPassword || "";
+      if (password) {
+        assert(password.length >= 10, "A nova senha deve ter 10 caracteres.");
+        assert(
+          password ===
+            (payload.ConfirmarNovaSenha ||
+              payload.confirmarNovaSenha ||
+              payload.passwordConfirmation),
+          "A confirmação da nova senha não confere.",
+        );
+      }
+      await runtime.updateOwnAuth({ email, password });
+      const saved = {
+        ...profile,
+        Email: email,
+        FotoPerfil: asBoolean(payload.RemoverFoto)
+          ? ""
+          : payload.FotoPerfil ?? profile.FotoPerfil ?? "",
+        PrimeiroAcesso: password ? false : profile.PrimeiroAcesso,
+        DataAtualizacao: nowIso(),
+      };
+      await runtime.saveAccess(profile.UsuarioID, saved);
+      if (saved.FuncionarioID) {
+        await runtime.patch("Funcionarios", saved.FuncionarioID, {
+          Email: email,
+          DataAtualizacao: nowIso(),
+        });
+      }
+      return success(saved, "Perfil atualizado.");
+    },
+  };
+}
+
+export { bootstrap, dropClientToken, isAdmin, isManager, requireAdmin, requireManager, scopeRecord };

@@ -1,0 +1,2317 @@
+<script>
+  const HOUSE_ARENA_GAMES_UI_ = Object.freeze([
+    {
+      id: "corrida_pedidos",
+      name: "Rush de Pedidos",
+      icon: "🛎️",
+      accent: "#f97316",
+      category: "reflexo",
+      categoryLabel: "Reflexo",
+      difficulty: "Fácil de aprender",
+      mechanic: "Toque rápido",
+      description:
+        "Priorize comandas, reconheça os produtos e mantenha a cozinha no ritmo.",
+      how: ["Leia a comanda", "Ache o produto", "Proteja seu combo"],
+      duration: 45,
+    },
+    {
+      id: "bandeja_perfeita",
+      name: "Bandeja Neon",
+      icon: "🧠",
+      accent: "#8b5cf6",
+      category: "memoria",
+      categoryLabel: "Memória",
+      difficulty: "Progressivo",
+      mechanic: "Sequência",
+      description:
+        "Memorize pedidos cada vez maiores e reconstrua a bandeja na ordem exata.",
+      how: ["Observe os flashes", "Guarde a ordem", "Reconstrua a bandeja"],
+      duration: 45,
+    },
+    {
+      id: "caixa_turbo",
+      name: "Caixa Turbo",
+      icon: "🧾",
+      accent: "#06b6d4",
+      category: "estrategia",
+      categoryLabel: "Estratégia",
+      difficulty: "Cálculo rápido",
+      mechanic: "Monte o troco",
+      description:
+        "Abra a gaveta, combine notas e entregue o troco exato antes da fila crescer.",
+      how: ["Calcule o troco", "Some as notas", "Confirme o valor"],
+      duration: 45,
+    },
+    {
+      id: "molho_no_ponto",
+      name: "Molho no Ponto 2",
+      icon: "🌶️",
+      accent: "#ef4444",
+      category: "precisao",
+      categoryLabel: "Precisão",
+      difficulty: "Ritmo",
+      mechanic: "Segure e solte",
+      description:
+        "Controle a bisnaga com o dedo e solte exatamente dentro da faixa saborosa.",
+      how: ["Segure para dosar", "Acompanhe a faixa", "Solte no ponto"],
+      duration: 40,
+    },
+    {
+      id: "monte_lanche",
+      name: "Burger Stack",
+      icon: "🍔",
+      accent: "#eab308",
+      category: "estrategia",
+      categoryLabel: "Estratégia",
+      difficulty: "Receitas",
+      mechanic: "Construção",
+      description:
+        "Leia a comanda e construa lanches altos sem inverter nenhum ingrediente.",
+      how: ["Leia a receita", "Empilhe em ordem", "Desfaça se precisar"],
+      duration: 50,
+    },
+    {
+      id: "caca_erro",
+      name: "Intruso na Chapa",
+      icon: "🔎",
+      accent: "#22c55e",
+      category: "percepcao",
+      categoryLabel: "Percepção",
+      difficulty: "Foco visual",
+      mechanic: "Caça ao intruso",
+      description:
+        "Varra o tabuleiro, encontre o único item diferente e ataque antes do tempo.",
+      how: ["Varra o tabuleiro", "Ache o intruso", "Toque uma vez"],
+      duration: 45,
+    },
+    {
+      id: "delivery_relampago",
+      name: "Delivery Relâmpago",
+      icon: "🛵",
+      accent: "#2563eb",
+      category: "reflexo",
+      categoryLabel: "Reflexo",
+      difficulty: "Gestos",
+      mechanic: "Deslize a moto",
+      description:
+        "Leia a avenida, deslize a moto para a pista livre e acelere para entregar.",
+      how: ["Veja os bloqueios", "Deslize a moto", "Acelere na pista livre"],
+      duration: 45,
+    },
+    {
+      id: "cozinha_panico",
+      name: "Cozinha em Pânico",
+      icon: "🚨",
+      accent: "#dc2626",
+      category: "percepcao",
+      categoryLabel: "Percepção",
+      difficulty: "Prioridade",
+      mechanic: "Triagem",
+      description:
+        "Interprete o alerta e resolva primeiro a estação realmente crítica.",
+      how: ["Leia o alerta", "Compare as estações", "Resolva a prioridade"],
+      duration: 45,
+    },
+    {
+      id: "pega_ladrao_batata",
+      name: "Operação Batata",
+      icon: "🥷",
+      accent: "#9333ea",
+      category: "memoria",
+      categoryLabel: "Memória",
+      difficulty: "Atenção",
+      mechanic: "Siga a caixa",
+      description:
+        "Memorize o esconderijo, acompanhe a confusão e capture o ladrão.",
+      how: ["Veja onde ele entrou", "Acompanhe as caixas", "Faça a captura"],
+      duration: 45,
+    },
+    {
+      id: "rota_motoboy",
+      name: "Central de Rotas",
+      icon: "🗺️",
+      accent: "#0891b2",
+      category: "estrategia",
+      categoryLabel: "Estratégia",
+      difficulty: "Decisão",
+      mechanic: "Leitura de rota",
+      description:
+        "Compare distância, semáforos e trânsito para despachar a rota mais rápida.",
+      how: ["Leia os indicadores", "Compare os tempos", "Despache a melhor rota"],
+      duration: 45,
+    },
+    {
+      id: "garcom_equilibrista",
+      name: "Bandeja em Jogo",
+      icon: "🍽️",
+      accent: "#d97706",
+      category: "precisao",
+      categoryLabel: "Precisão",
+      difficulty: "Gestos",
+      mechanic: "Deslize para equilibrar",
+      description:
+        "Leia a inclinação e faça um gesto curto para salvar bebidas e pedidos.",
+      how: ["Veja a inclinação", "Deslize ao contrário", "Estabilize a bandeja"],
+      duration: 45,
+    },
+    {
+      id: "house_link",
+      name: "House Link",
+      icon: "🔗",
+      accent: "#7c3aed",
+      category: "online",
+      categoryLabel: "Online em dupla",
+      difficulty: "Cooperação real",
+      mechanic: "Dois celulares conectados",
+      description:
+        "Atendimento e Cozinha dividem a mesma operação, enviando sinais e bandejas por um portal entre celulares.",
+      how: [
+        "Convide outro funcionário",
+        "Cada um recebe metade da missão",
+        "Sincronizem o portal e troquem de função",
+      ],
+      duration: 84,
+    },
+  ]);
+
+  function bindHouseArena() {
+    const start = $("#arenaStartBtn"),
+      again = $("#arenaPlayAgainBtn"),
+      back = $("#arenaBackLobbyBtn"),
+      next = $("#arenaNextGameBtn"),
+      sound = $("#arenaSoundToggle"),
+      refresh = $("#arenaRefreshRanking");
+    if (!start) return;
+    start.onclick = startHouseArenaGameUI_;
+    again.onclick = startHouseArenaGameUI_;
+    back.onclick = showHouseArenaLobby_;
+    if (next) next.onclick = selectNextHouseArenaGame_;
+    sound.onclick = toggleHouseArenaSound_;
+    refresh.onclick = () => loadHouseArenaRanking_(true);
+    $$("[data-arena-period]").forEach((button) => {
+      button.onclick = () => {
+        if (state.arena.playing) return;
+        state.arena.period = button.dataset.arenaPeriod;
+        state.arena.ranking = null;
+        syncHouseArenaTabs_();
+        loadHouseArenaRanking_(true);
+      };
+    });
+    $$("[data-arena-scope]").forEach((button) => {
+      button.onclick = () => {
+        if (state.arena.playing) return;
+        state.arena.scope = button.dataset.arenaScope;
+        state.arena.ranking = null;
+        syncHouseArenaTabs_();
+        loadHouseArenaRanking_(true);
+      };
+    });
+    renderHouseArenaGamePicker_();
+    renderHouseArenaRankingGameTabs_();
+    if (typeof bindHouseArenaMobileRuntime_ === "function")
+      bindHouseArenaMobileRuntime_();
+    if (typeof bindHouseLink_ === "function") bindHouseLink_();
+  }
+
+  async function loadHouseArena() {
+    renderHouseArenaGamePicker_();
+    renderHouseArenaSelectedGame_();
+    renderHouseArenaRankingGameTabs_();
+    syncHouseArenaTabs_();
+    if (
+      state.houseLink?.viewActive &&
+      state.houseLink.roomId &&
+      typeof houseLinkPoll_ === "function"
+    ) {
+      $("#arenaLobby")?.classList.add("hidden");
+      $("#arenaPlay")?.classList.add("hidden");
+      $("#arenaResult")?.classList.add("hidden");
+      $("#arenaGamePickerShell")?.classList.add("hidden");
+      $("#houseLinkApp")?.classList.remove("hidden");
+      $("#view-house-arena")?.classList.add("arena-game-active");
+      await houseLinkPoll_(true).catch(() => {});
+      return;
+    }
+    if (typeof offerHouseArenaResume_ === "function")
+      offerHouseArenaResume_();
+    if (typeof retryPendingHouseArenaSync_ === "function")
+      await retryPendingHouseArenaSync_(true);
+    if (!state.arena.ranking) await loadHouseArenaRanking_(false);
+    else renderHouseArenaRanking_();
+  }
+
+  function arenaGameMeta_(gameId) {
+    return (
+      HOUSE_ARENA_GAMES_UI_.find((game) => game.id === gameId) ||
+      HOUSE_ARENA_GAMES_UI_[0]
+    );
+  }
+
+  function renderHouseArenaGamePicker_() {
+    const grid = $("#arenaGameGrid");
+    if (!grid) return;
+    grid.innerHTML = HOUSE_ARENA_GAMES_UI_.map(
+      (game, index) => `
+        <button type="button" class="arena-game-card ${
+          game.id === state.arena.gameId ? "active" : ""
+        }" data-arena-game="${game.id}" data-arena-category="${game.category}" style="--game-accent:${game.accent};--game-delay:${index * 35}ms" aria-pressed="${
+          game.id === state.arena.gameId
+        }">
+          <span class="arena-card-icon">${game.icon}</span>
+          <span class="arena-card-copy"><strong>${esc(game.name)}</strong><small>${esc(game.categoryLabel)} · ${game.duration}s</small></span>
+          <i aria-hidden="true">›</i>
+        </button>`,
+    ).join("");
+    grid.querySelectorAll("[data-arena-game]").forEach((button) => {
+      button.onclick = () => selectHouseArenaGame_(button.dataset.arenaGame);
+    });
+    if (typeof filterHouseArenaGames_ === "function")
+      filterHouseArenaGames_(state.arena.filter || "todos");
+  }
+
+  function renderHouseArenaRankingGameTabs_() {
+    const row = $("#arenaRankingGameTabs");
+    if (!row) return;
+    const options = [
+      { id: "todos", name: "Todos", icon: "🏆" },
+      ...HOUSE_ARENA_GAMES_UI_.map((game) => ({
+        id: game.id,
+        name: game.name,
+        icon: game.icon,
+      })),
+    ];
+    row.innerHTML = options
+      .map(
+        (game) => `<button type="button" data-arena-ranking-game="${game.id}" class="${
+          game.id === state.arena.rankingGameId ? "active" : ""
+        }" title="${esc(game.name)}">${game.icon}<span>${esc(
+          game.name,
+        )}</span></button>`,
+      )
+      .join("");
+    row.querySelectorAll("[data-arena-ranking-game]").forEach((button) => {
+      button.onclick = () => {
+        if (state.arena.playing) return;
+        state.arena.rankingGameId = button.dataset.arenaRankingGame;
+        state.arena.ranking = null;
+        renderHouseArenaRankingGameTabs_();
+        loadHouseArenaRanking_(true);
+      };
+    });
+  }
+
+  function selectHouseArenaGame_(gameId) {
+    if (state.arena.playing || !arenaGameMeta_(gameId)) return;
+    state.arena.gameId = gameId;
+    state.arena.rankingGameId = gameId;
+    state.arena.ranking = null;
+    renderHouseArenaGamePicker_();
+    renderHouseArenaSelectedGame_();
+    renderHouseArenaRankingGameTabs_();
+    loadHouseArenaRanking_(true);
+    houseArenaSound_("select");
+    if (typeof arenaHaptic_ === "function") arenaHaptic_(12);
+  }
+
+  function selectNextHouseArenaGame_() {
+    const current = HOUSE_ARENA_GAMES_UI_.findIndex(
+      (game) => game.id === state.arena.gameId,
+    );
+    const next =
+      HOUSE_ARENA_GAMES_UI_[(Math.max(0, current) + 1) % HOUSE_ARENA_GAMES_UI_.length];
+    state.arena.gameId = next.id;
+    state.arena.rankingGameId = next.id;
+    state.arena.ranking = null;
+    showHouseArenaLobby_();
+    houseArenaSound_("select");
+    if (typeof arenaHaptic_ === "function") arenaHaptic_(12);
+    $("#arenaGameShell")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderHouseArenaSelectedGame_() {
+    const game = arenaGameMeta_(state.arena.gameId);
+    const shell = $("#arenaGameShell");
+    if (shell) shell.style.setProperty("--selected-game", game.accent);
+    $("#arenaSelectedIcon").textContent = game.icon;
+    $("#arenaSelectedName").textContent = game.name;
+    $("#arenaSelectedIntro").textContent = game.description;
+    $("#arenaStartBtnLabel").textContent =
+      game.id === "house_link"
+        ? "Conectar minha dupla"
+        : "Jogar " + game.name;
+    const meta = $("#arenaSelectedMeta");
+    if (meta)
+      meta.innerHTML = `
+        <span>${esc(game.categoryLabel)}</span>
+        <span>${esc(game.difficulty)}</span>
+        <span>${esc(game.mechanic)}</span>`;
+    const how = $("#arenaHowTo");
+    how.innerHTML = game.how
+      .map(
+        (text, index) =>
+          `<span><b>${index + 1}</b>${esc(text)}</span>`,
+      )
+      .join("");
+  }
+
+  async function loadHouseArenaRanking_(force) {
+    const list = $("#arenaRankingList");
+    if (!list) return null;
+    const generation = state.arena.generation;
+    if (!force && state.arena.ranking) {
+      renderHouseArenaRanking_();
+      return state.arena.ranking;
+    }
+    const requestId = Number(state.arena.rankingRequest || 0) + 1;
+    state.arena.rankingRequest = requestId;
+    list.innerHTML =
+      '<div class="arena-ranking-loading"><i></i><span>Carregando campeonato…</span></div>';
+    const refresh = $("#arenaRefreshRanking");
+    if (refresh) refresh.classList.add("is-spinning");
+    try {
+      const data = await call(FN.arenaRankings, {
+        period: state.arena.period,
+        scope: state.arena.scope,
+        gameId: state.arena.rankingGameId,
+        limit: 20,
+      });
+      if (
+        generation !== state.arena.generation ||
+        requestId !== state.arena.rankingRequest
+      )
+        return null;
+      state.arena.ranking = data || {};
+      if (data?.scope && data.scope !== state.arena.scope)
+        state.arena.scope = data.scope;
+      if (data?.gameId) state.arena.rankingGameId = data.gameId;
+      syncHouseArenaTabs_();
+      renderHouseArenaRankingGameTabs_();
+      renderHouseArenaRanking_();
+      return data;
+    } catch (error) {
+      if (
+        generation !== state.arena.generation ||
+        requestId !== state.arena.rankingRequest
+      )
+        return null;
+      list.innerHTML =
+        '<div class="arena-ranking-empty"><span>⚠️</span><p>' +
+        esc(error.message) +
+        "</p></div>";
+      $("#arenaRankedStatus").textContent =
+        "Não foi possível carregar o campeonato.";
+      return null;
+    } finally {
+      if (refresh && requestId === state.arena.rankingRequest)
+        refresh.classList.remove("is-spinning");
+    }
+  }
+
+  function syncHouseArenaTabs_() {
+    $$("[data-arena-period]").forEach((button) =>
+      button.classList.toggle(
+        "active",
+        button.dataset.arenaPeriod === state.arena.period,
+      ),
+    );
+    $$("[data-arena-scope]").forEach((button) =>
+      button.classList.toggle(
+        "active",
+        button.dataset.arenaScope === state.arena.scope,
+      ),
+    );
+  }
+
+  function renderHouseArenaRanking_() {
+    const data = state.arena.ranking || {},
+      items = arr(data.items),
+      isUnits = data.scope === "unidades",
+      ownScore = Number(data.me?.score || 0),
+      ownPosition = Number(
+        isUnits ? data.myUnitPosition || 0 : data.myPosition || 0,
+      ),
+      gamesToday = Number(data.gamesToday || 0),
+      limit = Number(data.rankedLimit || 20);
+    $("#arenaMyBest").textContent = formatArenaScore_(ownScore);
+    $("#arenaMyPosition").textContent = ownPosition
+      ? "#" + ownPosition
+      : "–";
+    $("#arenaGamesToday").textContent = gamesToday + "/" + limit;
+    $("#arenaMyBestLobby").textContent = formatArenaScore_(ownScore);
+    $("#arenaMyRankLobby").textContent = ownPosition
+      ? "#" + ownPosition
+      : "–";
+    $("#arenaGamesLobby").textContent = gamesToday + "/" + limit;
+    $("#arenaRankedStatus").innerHTML =
+      gamesToday < limit
+        ? `<span>🏅</span> Vale ranking · faltam ${limit - gamesToday} partidas competitivas hoje`
+        : '<span>🎮</span> Limite competitivo atingido; agora as rodadas são treino';
+    const nav = $("#arenaNavBadge");
+    if (nav && !nav.dataset.welcome) {
+      nav.textContent = ownPosition ? "#" + ownPosition : "NOVO";
+      nav.style.display = "inline-flex";
+    }
+    const periodNames = {
+      dia: "de hoje",
+      semana: "da semana",
+      mes: "do mês",
+      geral: "de todos os tempos",
+    };
+    const gameLabel =
+      data.gameId === "todos"
+        ? " · campeonato completo"
+        : " · " + (data.gameName || arenaGameMeta_(data.gameId).name);
+    $("#arenaRankingLabel").textContent =
+      (isUnits ? "Unidades campeãs " : "Melhores jogadores ") +
+      (periodNames[data.period || state.arena.period] || "") +
+      gameLabel;
+    const list = $("#arenaRankingList");
+    if (!items.length) {
+      list.innerHTML =
+        '<div class="arena-ranking-empty"><span>🏁</span><strong>Esse pódio está livre</strong><p>Jogue agora e coloque seu nome no primeiro lugar.</p></div>';
+      return;
+    }
+    const maxScore = Math.max(
+      1,
+      ...items.map((item) => Number(item.score || 0)),
+    );
+    list.innerHTML = items
+      .map((item, index) => {
+        const position = index + 1,
+          medal =
+            position === 1
+              ? "🥇"
+              : position === 2
+                ? "🥈"
+                : position === 3
+                  ? "🥉"
+                  : position,
+          mine = !isUnits && item.isMe === true,
+          width = Math.max(
+            5,
+            Math.round((Number(item.score || 0) / maxScore) * 100),
+          );
+        if (isUnits) {
+          return `<div class="arena-rank-row ${position <= 3 ? "podium" : ""} ${item.isMine === true ? "is-mine" : ""}">
+            <span class="arena-rank-position">${medal}</span>
+            <div class="arena-rank-avatar arena-unit-avatar">🏪</div>
+            <div class="arena-rank-copy"><strong>${esc(item.storeName || "Unidade")}</strong><small>${Number(item.players || 0)} jogador(es) · recorde ${formatArenaScore_(item.bestScore)}</small><i style="--arena-progress:${width}%"></i></div>
+            <div class="arena-rank-score"><strong>${formatArenaScore_(item.score)}</strong><small>média</small></div>
+          </div>`;
+        }
+        const detail =
+          data.gameId === "todos"
+            ? `${Number(item.gamesCount || 0)}/${HOUSE_ARENA_GAMES_UI_.length} jogos · ${Number(item.games || 0)} partidas`
+            : `${esc(item.storeName || "Sem unidade")} · combo ${Number(item.combo || 0)}`;
+        return `<div class="arena-rank-row ${position <= 3 ? "podium" : ""} ${mine ? "is-mine" : ""}">
+          <span class="arena-rank-position">${medal}</span>
+          <div class="arena-rank-avatar">${esc(initials(item.playerName || "J"))}</div>
+          <div class="arena-rank-copy"><strong>${esc(item.playerName || "Jogador")}${mine ? " <em>VOCÊ</em>" : ""}</strong><small>${detail}</small><i style="--arena-progress:${width}%"></i></div>
+          <div class="arena-rank-score"><strong>${formatArenaScore_(item.score)}</strong><small>pontos</small></div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  async function startHouseArenaGameUI_() {
+    if (state.arena.playing || state.arena.finishing) return;
+    if (
+      state.arena.gameId === "house_link" &&
+      typeof openHouseLinkHub_ === "function"
+    ) {
+      openHouseLinkHub_();
+      return;
+    }
+    const generation = state.arena.generation;
+    const startButton = $("#arenaStartBtn"),
+      againButton = $("#arenaPlayAgainBtn");
+    [startButton, againButton].forEach((button) => {
+      if (button) {
+        button.disabled = true;
+        button.classList.add("is-loading");
+      }
+    });
+    try {
+      prepareHouseArenaAudio_();
+      const run = await call(FN.arenaStart, {
+        gameId: state.arena.gameId,
+      });
+      if (generation !== state.arena.generation) return;
+      state.arena.run = run;
+      state.arena.gameId = run.gameId || state.arena.gameId;
+      state.arena.durationMs = Number(run.durationMs || 45000);
+      state.arena.products = arr(run.products);
+      state.arena.ingredients = arr(run.ingredients);
+      state.arena.productMap = {};
+      state.arena.ingredientMap = {};
+      state.arena.products.forEach(
+        (product) => (state.arena.productMap[product.id] = product),
+      );
+      state.arena.ingredients.forEach(
+        (ingredient) =>
+          (state.arena.ingredientMap[ingredient.id] = ingredient),
+      );
+      state.arena.events = [];
+      state.arena.input = [];
+      state.arena.round = 0;
+      state.arena.score = 0;
+      state.arena.combo = 0;
+      state.arena.bestCombo = 0;
+      state.arena.hits = 0;
+      state.arena.errors = 0;
+      state.arena.finishing = false;
+      state.arena.paused = false;
+      state.arena.pauseStartedAt = 0;
+      state.arena.pauseTotal = 0;
+      state.arena.renderToken++;
+      $("#arenaLobby").classList.add("hidden");
+      $("#arenaResult").classList.add("hidden");
+      $("#arenaGamePickerShell").classList.add("hidden");
+      $("#arenaPlay").classList.remove("hidden");
+      $("#arenaStage").className = "arena-stage";
+      $("#arenaStage").dataset.game = state.arena.gameId;
+      $("#view-house-arena").classList.add("arena-game-active");
+      $("#arenaPlayingName").textContent =
+        arenaGameMeta_(state.arena.gameId).name;
+      updateHouseArenaHud_();
+      $("#arenaGameShell").scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+      await runHouseArenaCountdown_();
+      if (generation !== state.arena.generation) return;
+      state.arena.startedAt = performance.now();
+      state.arena.playing = true;
+      if (typeof arenaPersistSession_ === "function")
+        arenaPersistSession_(true);
+      if (
+        document.hidden &&
+        typeof pauseHouseArenaGame_ === "function"
+      ) {
+        pauseHouseArenaGame_("visibility");
+        return;
+      }
+      renderHouseArenaRound_();
+      updateHouseArenaTimer_();
+      houseArenaSound_("start");
+    } catch (error) {
+      if (generation !== state.arena.generation) return;
+      showHouseArenaLobby_();
+      toast(error.message, true);
+    } finally {
+      [startButton, againButton].forEach((button) => {
+        if (button) {
+          button.disabled = false;
+          button.classList.remove("is-loading");
+        }
+      });
+    }
+  }
+
+  async function runHouseArenaCountdown_() {
+    const countdown = $("#arenaCountdown");
+    countdown.classList.remove("hidden");
+    for (const value of ["3", "2", "1", "VAI!"]) {
+      countdown.textContent = value;
+      countdown.classList.remove("arena-count-pop");
+      void countdown.offsetWidth;
+      countdown.classList.add("arena-count-pop");
+      houseArenaSound_(value === "VAI!" ? "start" : "tick");
+      await arenaDelay_(value === "VAI!" ? 420 : 560);
+    }
+    countdown.classList.add("hidden");
+  }
+
+  function renderHouseArenaRound_() {
+    if (!state.arena.playing) return;
+    cancelAnimationFrame(state.arena.roundFrame);
+    state.arena.renderToken++;
+    const renderers = {
+      corrida_pedidos: renderArenaOrdersRound_,
+      bandeja_perfeita: renderArenaTrayRound_,
+      caixa_turbo: renderArenaCashierRound_,
+      molho_no_ponto: renderArenaTimingRound_,
+      monte_lanche: renderArenaBurgerRound_,
+      caca_erro: renderArenaFindErrorRound_,
+      delivery_relampago: renderArenaDeliveryRound_,
+      cozinha_panico: renderArenaKitchenPanicRound_,
+      pega_ladrao_batata: renderArenaPotatoThiefRound_,
+      rota_motoboy: renderArenaMotoboyRouteRound_,
+      garcom_equilibrista: renderArenaWaiterBalanceRound_,
+    };
+    (renderers[state.arena.gameId] || renderArenaOrdersRound_)();
+    if (typeof arenaCoach_ === "function") {
+      const tips = {
+        corrida_pedidos:
+          "Leia primeiro o nome da comanda; o emoji serve como confirmação visual.",
+        bandeja_perfeita:
+          "Cada flash é uma posição. Repita todos os itens exatamente na mesma ordem.",
+        caixa_turbo:
+          "Some notas e moedas. Você pode retirar a última antes de entregar.",
+        molho_no_ponto:
+          "Segure o botão e solte quando o marcador estiver dentro da faixa clara.",
+        monte_lanche:
+          "A receita começa embaixo. Use desfazer se tocar no ingrediente errado.",
+        caca_erro:
+          "Varra o tabuleiro por linhas para encontrar mais rápido o único intruso.",
+        delivery_relampago:
+          "Mova a moto para a pista com o marcador de destino e acelere.",
+        cozinha_panico:
+          "Leia o alerta e procure a estação com o mesmo símbolo, sem seguir apenas a cor.",
+        pega_ladrao_batata:
+          "O ladrão aparece por um instante. Memorize a posição antes das caixas fecharem.",
+        rota_motoboy:
+          "O tempo em minutos já combina distância, semáforos e trânsito.",
+        garcom_equilibrista:
+          "Deslize na direção oposta à queda. Se estiver reto, apenas toque.",
+      };
+      window.setTimeout(
+        () => arenaCoach_(state.arena.gameId, tips[state.arena.gameId]),
+        120,
+      );
+    }
+  }
+
+  function arenaSurface_(html) {
+    const surface = $("#arenaGameSurface");
+    surface.innerHTML = html;
+    surface.classList.remove("arena-surface-pop");
+    void surface.offsetWidth;
+    surface.classList.add("arena-surface-pop");
+    return surface;
+  }
+
+  function renderArenaOrdersRound_() {
+    const challenge = arenaOrderChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    const product = state.arena.productMap[challenge.target];
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>PEDIDO Nº ${state.arena.round + 1}</span><strong>Encontre agora</strong></div>
+      <div class="arena-order-ticket">
+        <div class="arena-order-emoji">${esc(product?.emoji || "🍽️")}</div>
+        <small>O CLIENTE PEDIU…</small>
+        <strong>${esc(product?.nome || "Pedido")}</strong>
+      </div>
+      <div class="arena-option-grid arena-product-options">
+        ${challenge.choices
+          .map((id, index) => {
+            const item = state.arena.productMap[id] || {};
+            return `<button type="button" class="arena-option" data-arena-answer="${esc(id)}" style="--choice-color:${esc(item.cor || "#8b5cf6")};--choice-delay:${index * 40}ms"><span>${esc(item.emoji || "🍽️")}</span><strong>${esc(item.nome || "Produto")}</strong></button>`;
+          })
+          .join("")}
+      </div>`);
+    surface.querySelectorAll("[data-arena-answer]").forEach((button) => {
+      button.onclick = () =>
+        answerArenaSimple_(button, challenge.target, "orders");
+    });
+  }
+
+  function renderArenaCashierRound_() {
+    const challenge = arenaCashierChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    state.arena.cashTotal = 0;
+    state.arena.cashStack = [];
+    const notes = [5000, 2000, 1000, 500, 200, 100, 50];
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>CAIXA ${state.arena.round + 1}</span><strong>Monte o troco exato</strong></div>
+      <div class="arena-cash-top">
+        <div class="arena-receipt arena-receipt-compact">
+          <span>HOUSE 190 · COMPROVANTE</span>
+          <div><small>COMPRA</small><strong>${arenaMoney_(challenge.price)}</strong></div>
+          <div><small>RECEBIDO</small><strong>${arenaMoney_(challenge.payment)}</strong></div>
+        </div>
+        <div class="arena-cash-display" aria-live="polite">
+          <small>NA MÃO</small>
+          <strong id="arenaCashTotal">R$ 0,00</strong>
+          <span id="arenaCashHint">Toque nas notas e moedas</span>
+        </div>
+      </div>
+      <div class="arena-cash-drawer" aria-label="Gaveta de dinheiro">
+        ${notes
+          .map(
+            (value, index) =>
+              `<button type="button" class="arena-cash-note ${value < 500 ? "is-coin" : ""}" data-arena-cash="${value}" style="--choice-delay:${index * 28}ms"><span>R$</span><strong>${arenaMoney_(value, false)}</strong></button>`,
+          )
+          .join("")}
+      </div>
+      <div class="arena-cash-actions">
+        <button type="button" id="arenaCashUndo" class="arena-cash-secondary" disabled>↶ Tirar última</button>
+        <button type="button" id="arenaCashConfirm" class="arena-cash-confirm" data-arena-answer="0" disabled>Entregar troco</button>
+      </div>`);
+    surface.querySelectorAll("[data-arena-cash]").forEach((button) => {
+      button.addEventListener("pointerup", (event) => {
+        event.preventDefault();
+        addArenaCash_(Number(button.dataset.arenaCash), challenge);
+      });
+      button.onclick = (event) => {
+        if (event.detail === 0)
+          addArenaCash_(Number(button.dataset.arenaCash), challenge);
+      };
+    });
+    $("#arenaCashUndo").onclick = () => undoArenaCash_(challenge);
+    $("#arenaCashConfirm").onclick = () => {
+      const confirm = $("#arenaCashConfirm");
+      confirm.dataset.arenaAnswer = String(state.arena.cashTotal || 0);
+      answerArenaSimple_(confirm, String(challenge.change), "cashier");
+    };
+    if (typeof arenaCoach_ === "function")
+      arenaCoach_(
+        "caixa_turbo",
+        "Some notas e moedas. Você pode retirar a última antes de entregar.",
+      );
+  }
+
+  function addArenaCash_(value, challenge) {
+    if (!state.arena.playing || !Number.isFinite(value)) return;
+    if (state.arena.cashTotal + value > 50000) {
+      $("#arenaCashHint").textContent =
+        "Limite da gaveta atingido. Retire uma nota.";
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([24, 24, 24]);
+      return;
+    }
+    state.arena.cashStack.push(value);
+    state.arena.cashTotal += value;
+    updateArenaCashDrawer_(challenge);
+    houseArenaSound_("tap");
+    if (typeof arenaHaptic_ === "function") arenaHaptic_(7);
+  }
+
+  function undoArenaCash_(challenge) {
+    if (!state.arena.cashStack.length) return;
+    state.arena.cashTotal -= Number(state.arena.cashStack.pop() || 0);
+    updateArenaCashDrawer_(challenge);
+    houseArenaSound_("select");
+  }
+
+  function updateArenaCashDrawer_(challenge) {
+    const total = Math.max(0, Number(state.arena.cashTotal || 0));
+    const display = $("#arenaCashTotal");
+    const hint = $("#arenaCashHint");
+    const confirm = $("#arenaCashConfirm");
+    const undo = $("#arenaCashUndo");
+    if (display) display.textContent = arenaMoney_(total);
+    if (hint) {
+      const distance = Math.abs(Number(challenge.change || 0) - total);
+      hint.textContent =
+        total === challenge.change
+          ? "Valor exato! Pode entregar."
+          : total > challenge.change
+            ? "Passou do valor. Retire uma nota."
+            : "Faltam " + arenaMoney_(distance);
+      hint.classList.toggle("is-ready", total === challenge.change);
+      hint.classList.toggle("is-over", total > challenge.change);
+    }
+    if (confirm) confirm.disabled = total <= 0;
+    if (undo) undo.disabled = !state.arena.cashStack.length;
+  }
+
+  function renderArenaFindErrorRound_() {
+    const challenge = arenaFindErrorChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    const base = state.arena.productMap[challenge.base] || {};
+    const odd = state.arena.productMap[challenge.odd] || {};
+    const cells = Array.from({ length: challenge.size }, (_, index) => {
+      const item = index === challenge.oddIndex ? odd : base;
+      return `<button type="button" class="arena-error-cell" data-arena-answer="${index}" aria-label="Opção ${index + 1}">${esc(item.emoji || "🍔")}</button>`;
+    }).join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>NÍVEL ${state.arena.round + 1}</span><strong>Tem um intruso aqui!</strong></div>
+      <div class="arena-error-board ${challenge.size > 12 ? "is-hard" : ""}">${cells}</div>
+      <p class="arena-mobile-tip">Toque no item diferente</p>`);
+    surface.querySelectorAll("[data-arena-answer]").forEach((button) => {
+      button.onclick = () =>
+        answerArenaSimple_(
+          button,
+          String(challenge.oddIndex),
+          "find",
+        );
+    });
+  }
+
+  function renderArenaDeliveryRound_() {
+    const challenge = arenaDeliveryChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    state.arena.deliveryLane = 1;
+    const lanes = challenge.objects
+      .map(
+        (object, index) => `
+          <button type="button" class="arena-road-lane ${index === 1 ? "is-selected" : ""}" data-arena-lane="${index}" aria-label="Mover para a pista ${index + 1}">
+            <i></i><i></i><i></i>
+            <span>${esc(object)}</span>
+            <b>PISTA ${index + 1}</b>
+          </button>`,
+      )
+      .join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>ENTREGA ${state.arena.round + 1} · ${challenge.weather}</span><strong>Encontre a pista livre</strong></div>
+      <div class="arena-delivery-city"><span>🏙️</span><b>Destino à frente</b><small>Deslize ou toque para trocar de pista</small></div>
+      <div id="arenaDeliveryRoad" class="arena-road-grid arena-road-control" style="--delivery-speed:${challenge.speed}">
+        ${lanes}
+        <div id="arenaDeliveryRider" class="arena-delivery-rider" style="--lane:1">🛵</div>
+      </div>
+      <div class="arena-delivery-actions">
+        <span>← DESLIZE A MOTO →</span>
+        <button type="button" id="arenaDeliveryGo" data-arena-answer="1">ACELERAR</button>
+      </div>`);
+    surface.querySelectorAll("[data-arena-lane]").forEach((button) => {
+      button.onclick = () =>
+        selectArenaDeliveryLane_(Number(button.dataset.arenaLane));
+    });
+    if (typeof arenaBindSwipe_ === "function")
+      arenaBindSwipe_($("#arenaDeliveryRoad"), {
+        left: () => selectArenaDeliveryLane_(state.arena.deliveryLane - 1),
+        right: () => selectArenaDeliveryLane_(state.arena.deliveryLane + 1),
+      });
+    $("#arenaDeliveryGo").onclick = () => {
+      const button = $("#arenaDeliveryGo");
+      button.dataset.arenaAnswer = String(state.arena.deliveryLane);
+      answerArenaFastChoice_(button, challenge.target, "delivery_relampago");
+    };
+    if (typeof arenaCoach_ === "function")
+      arenaCoach_(
+        "delivery_relampago",
+        "Mova a moto para a pista com o marcador de destino e acelere.",
+      );
+  }
+
+  function selectArenaDeliveryLane_(lane) {
+    lane = Math.max(0, Math.min(2, Number(lane || 0)));
+    state.arena.deliveryLane = lane;
+    const rider = $("#arenaDeliveryRider");
+    if (rider) rider.style.setProperty("--lane", lane);
+    $$("#arenaDeliveryRoad [data-arena-lane]").forEach((button) =>
+      button.classList.toggle(
+        "is-selected",
+        Number(button.dataset.arenaLane) === lane,
+      ),
+    );
+    const go = $("#arenaDeliveryGo");
+    if (go) go.dataset.arenaAnswer = String(lane);
+    houseArenaSound_("select");
+    if (typeof arenaHaptic_ === "function") arenaHaptic_(8);
+  }
+
+  function renderArenaKitchenPanicRound_() {
+    const challenge = arenaKitchenPanicChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    const stations = challenge.cells
+      .map(
+        (icon, index) => `
+          <button type="button" class="arena-panic-station" data-arena-answer="${index}" aria-label="Estação ${index + 1}: ${esc(icon)}">
+            <span>${esc(icon)}</span>
+            <b>Estação ${index + 1}</b>
+          </button>`,
+      )
+      .join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>ALERTA ${state.arena.round + 1}</span><strong>${esc(challenge.instruction)}</strong></div>
+      <div class="arena-panic-alarm" style="--panic-level:${challenge.urgency}"><span>🚨</span><b>PRIORIDADE ${challenge.urgency}/3</b><small>Encontre o símbolo citado no alerta</small></div>
+      <div class="arena-panic-grid">${stations}</div>`);
+    surface.querySelectorAll("[data-arena-answer]").forEach((button) => {
+      button.onclick = () =>
+        answerArenaFastChoice_(
+          button,
+          challenge.target,
+          "cozinha_panico",
+        );
+    });
+  }
+
+  function renderArenaPotatoThiefRound_() {
+    const renderToken = state.arena.renderToken;
+    const challenge = arenaPotatoThiefChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    const cells = challenge.cells
+      .map(
+        (icon, index) => `
+          <button type="button" class="arena-thief-cell ${
+            index === challenge.thiefIndex ? "is-thief" : ""
+          }" data-arena-answer="${index}" aria-label="Caixa ${index + 1}">
+            <span>${esc(icon)}</span>
+            <small>caixa ${index + 1}</small>
+          </button>`,
+      )
+      .join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>VIGILÂNCIA ${state.arena.round + 1}</span><strong id="arenaThiefInstruction">Memorize o esconderijo!</strong></div>
+      <div class="arena-thief-banner"><span>🍟</span><b id="arenaThiefCountdown">OLHE AGORA</b><span>👀</span></div>
+      <div class="arena-thief-grid ${challenge.size > 9 ? "is-hard" : ""}">${cells}</div>`);
+    surface.querySelectorAll("[data-arena-answer]").forEach((button) => {
+      button.disabled = true;
+    });
+    setTimeout(() => {
+      if (!state.arena.playing || renderToken !== state.arena.renderToken) return;
+      surface.querySelectorAll("[data-arena-answer]").forEach((button) => {
+        button.classList.add("is-covered");
+        button.classList.remove("is-thief");
+        button.querySelector("span").textContent = "📦";
+        button.disabled = false;
+        button.onclick = () =>
+          answerArenaFastChoice_(
+            button,
+            challenge.target,
+            "pega_ladrao_batata",
+          );
+      });
+      $("#arenaThiefInstruction").textContent = "Em qual caixa ele entrou?";
+      $("#arenaThiefCountdown").textContent = "FAÇA A CAPTURA";
+      houseArenaSound_("start");
+    }, Math.max(520, 920 - state.arena.round * 30));
+    if (typeof arenaCoach_ === "function")
+      arenaCoach_(
+        "pega_ladrao_batata",
+        "O ladrão aparece por um instante. Memorize a posição antes das caixas fecharem.",
+      );
+  }
+
+  function renderArenaMotoboyRouteRound_() {
+    const challenge = arenaMotoboyRouteChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    const routes = challenge.routes
+      .map(
+        (route, index) => `
+          <button type="button" class="arena-route-card" data-arena-answer="${index}" aria-label="Escolher rota ${index + 1}">
+            <span>ROTA ${String.fromCharCode(65 + index)}</span>
+            <strong>${route.eta}<small>min</small></strong>
+            <div><b>${route.trafficIcon} ${esc(route.traffic)}</b><i>${route.distance} km</i><i>${route.signals} semáforos</i></div>
+            <em>ESCOLHER</em>
+          </button>`,
+      )
+      .join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>CORRIDA ${state.arena.round + 1}</span><strong>Escolha o menor tempo</strong></div>
+      <div class="arena-route-map"><span>🏪</span><i></i><b>🛵</b><i></i><span>🏠</span></div>
+      <div class="arena-route-grid">${routes}</div>`);
+    surface.querySelectorAll("[data-arena-answer]").forEach((button) => {
+      button.onclick = () =>
+        answerArenaFastChoice_(
+          button,
+          challenge.target,
+          "rota_motoboy",
+        );
+    });
+  }
+
+  function renderArenaWaiterBalanceRound_() {
+    const challenge = arenaWaiterBalanceChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    const tiltClass =
+      challenge.tilt < 0
+        ? "tilt-left"
+        : challenge.tilt > 0
+          ? "tilt-right"
+          : "tilt-center";
+    const drinks = Array.from(
+      { length: challenge.drinks },
+      (_, index) => `<span>${["🥤", "☕", "🧃"][index % 3]}</span>`,
+    ).join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>MESA ${state.arena.round + 1}</span><strong>Não deixe a bandeja cair!</strong></div>
+      <div id="arenaWaiterGesture" class="arena-waiter-scene ${tiltClass}" style="--wobble:${challenge.wobble}">
+        <div class="arena-waiter-tray"><div>${drinks}</div><i></i></div>
+        <span class="arena-waiter-character">🤵</span>
+        <small>${
+          challenge.tilt < 0
+            ? "CAINDO PARA A ESQUERDA"
+            : challenge.tilt > 0
+              ? "CAINDO PARA A DIREITA"
+              : "BANDEJA CENTRALIZADA"
+        }</small>
+        <b class="arena-swipe-cue">DESLIZE PARA COMPENSAR</b>
+      </div>
+      <div class="arena-balance-controls">
+        <button type="button" data-arena-answer="left"><span>←</span><b>Deslizar</b></button>
+        <button type="button" data-arena-answer="center"><span>●</span><b>Estabilizar</b></button>
+        <button type="button" data-arena-answer="right"><span>→</span><b>Deslizar</b></button>
+      </div>`);
+    const submit = (direction) => {
+      const button = surface.querySelector(
+        `[data-arena-answer="${direction}"]`,
+      );
+      if (button)
+        answerArenaFastChoice_(
+          button,
+          challenge.target,
+          "garcom_equilibrista",
+        );
+    };
+    surface.querySelectorAll("[data-arena-answer]").forEach((button) => {
+      button.onclick = () => submit(button.dataset.arenaAnswer);
+    });
+    if (typeof arenaBindSwipe_ === "function")
+      arenaBindSwipe_($("#arenaWaiterGesture"), {
+        left: () => submit("left"),
+        right: () => submit("right"),
+        tap: () => submit("center"),
+      });
+    if (typeof arenaCoach_ === "function")
+      arenaCoach_(
+        "garcom_equilibrista",
+        "Deslize na direção oposta à queda. Se estiver reto, apenas toque.",
+      );
+  }
+
+  async function renderArenaTrayRound_() {
+    const renderToken = state.arena.renderToken;
+    const challenge = arenaTrayChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    state.arena.input = [];
+    const palette = challenge.palette
+      .map((id) => {
+        const item = state.arena.productMap[id] || {};
+        return `<button type="button" class="arena-memory-choice" data-arena-memory="${esc(id)}" disabled><span>${esc(item.emoji || "🍽️")}</span><small>${esc(item.nome || "Item")}</small></button>`;
+      })
+      .join("");
+    const slots = challenge.sequence
+      .map(() => "<i>?</i>")
+      .join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>SEQUÊNCIA ${state.arena.round + 1}</span><strong id="arenaMemoryInstruction">Observe e memorize</strong></div>
+      <div class="arena-memory-show"><span id="arenaMemoryFlash">👀</span><small id="arenaMemoryCounter">${challenge.sequence.length} itens</small></div>
+      <div id="arenaMemorySlots" class="arena-memory-slots">${slots}</div>
+      <div class="arena-memory-palette">${palette}</div>`);
+    await arenaDelay_(260);
+    for (let index = 0; index < challenge.sequence.length; index++) {
+      if (
+        !state.arena.playing ||
+        renderToken !== state.arena.renderToken
+      )
+        return;
+      const item = state.arena.productMap[challenge.sequence[index]] || {};
+      $("#arenaMemoryFlash").textContent = item.emoji || "🍽️";
+      $("#arenaMemoryCounter").textContent =
+        index + 1 + " de " + challenge.sequence.length;
+      $("#arenaMemoryFlash").classList.remove("arena-memory-flash");
+      void $("#arenaMemoryFlash").offsetWidth;
+      $("#arenaMemoryFlash").classList.add("arena-memory-flash");
+      houseArenaSound_("tick");
+      await arenaDelay_(Math.max(260, 390 - state.arena.round * 16));
+      $("#arenaMemoryFlash").textContent = "•";
+      await arenaDelay_(85);
+    }
+    if (!state.arena.playing || renderToken !== state.arena.renderToken) return;
+    $("#arenaMemoryFlash").textContent = "👆";
+    $("#arenaMemoryCounter").textContent = "Sua vez!";
+    $("#arenaMemoryInstruction").textContent = "Repita na mesma ordem";
+    surface.querySelectorAll("[data-arena-memory]").forEach((button) => {
+      button.disabled = false;
+      button.onclick = () =>
+        chooseArenaSequenceItem_(button.dataset.arenaMemory, challenge, "tray");
+    });
+  }
+
+  function renderArenaBurgerRound_() {
+    const challenge = arenaBurgerChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    state.arena.input = [];
+    const recipe = challenge.sequence
+      .map((id, index) => {
+        const item = state.arena.ingredientMap[id] || {};
+        return `<span><b>${index + 1}</b>${esc(item.emoji || "•")}</span>`;
+      })
+      .join("");
+    const palette = challenge.palette
+      .map((id) => {
+        const item = state.arena.ingredientMap[id] || {};
+        return `<button type="button" class="arena-ingredient" data-arena-ingredient="${esc(id)}"><span>${esc(item.emoji || "•")}</span><small>${esc(item.nome || "Ingrediente")}</small></button>`;
+      })
+      .join("");
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>PEDIDO ${state.arena.round + 1}</span><strong>Monte de baixo para cima</strong></div>
+      <div class="arena-recipe-strip">${recipe}</div>
+      <div id="arenaBurgerBuild" class="arena-burger-build"><span>🍽️</span><small>Comece pelo pão de baixo</small></div>
+      <div class="arena-ingredient-grid">${palette}</div>
+      <button type="button" id="arenaBurgerUndo" class="arena-undo-btn" disabled>↶ Desfazer último</button>`);
+    surface.querySelectorAll("[data-arena-ingredient]").forEach((button) => {
+      button.onclick = () =>
+        chooseArenaSequenceItem_(
+          button.dataset.arenaIngredient,
+          challenge,
+          "burger",
+        );
+    });
+    $("#arenaBurgerUndo").onclick = () => {
+      state.arena.input.pop();
+      renderArenaBurgerBuild_();
+    };
+  }
+
+  function chooseArenaSequenceItem_(choice, challenge, type) {
+    if (!state.arena.playing) return;
+    state.arena.input.push(choice);
+    if (type === "tray") {
+      const slots = $$("#arenaMemorySlots i");
+      const item = state.arena.productMap[choice] || {};
+      const position = state.arena.input.length - 1;
+      if (slots[position]) {
+        slots[position].textContent = item.emoji || "•";
+        slots[position].classList.add("filled");
+      }
+    } else {
+      renderArenaBurgerBuild_();
+    }
+    houseArenaSound_("tap");
+    if (typeof arenaHaptic_ === "function") arenaHaptic_(8);
+    if (state.arena.input.length < challenge.sequence.length) return;
+    const surface = $("#arenaGameSurface");
+    surface
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = true));
+    const time = arenaElapsed_();
+    state.arena.events.push({
+      r: state.arena.round,
+      c: state.arena.input.join("|"),
+      t: time,
+    });
+    let correctCount = 0;
+    state.arena.input.forEach((value, index) => {
+      if (value === challenge.sequence[index]) correctCount++;
+    });
+    const perfect = correctCount === challenge.sequence.length;
+    state.arena.hits += correctCount;
+    state.arena.errors += challenge.sequence.length - correctCount;
+    state.arena.score +=
+      correctCount * (type === "tray" ? 135 : 115);
+    if (perfect) {
+      state.arena.combo++;
+      state.arena.score +=
+        (type === "tray" ? 260 : 320) +
+        Math.min(
+          type === "tray" ? 220 : 240,
+          state.arena.combo * (type === "tray" ? 35 : 40),
+        );
+      state.arena.bestCombo = Math.max(
+        state.arena.bestCombo,
+        state.arena.combo,
+      );
+      showHouseArenaFeedback_(
+        type === "tray" ? "MEMÓRIA PERFEITA!" : "LANCHE PERFEITO!",
+        true,
+      );
+      burstHouseArenaParticles_(type === "tray" ? "✨" : "🍔", 14);
+      houseArenaSound_("perfect");
+    } else {
+      state.arena.combo = 0;
+      showHouseArenaFeedback_(
+        `${correctCount}/${challenge.sequence.length} na ordem certa`,
+        false,
+      );
+      $("#arenaStage").classList.add("arena-stage-shake");
+      setTimeout(
+        () => $("#arenaStage")?.classList.remove("arena-stage-shake"),
+        320,
+      );
+      houseArenaSound_("wrong");
+    }
+    updateHouseArenaHud_();
+    announceArenaCombo_();
+    state.arena.round++;
+    if (typeof arenaPersistSession_ === "function")
+      arenaPersistSession_(true);
+    setTimeout(() => {
+      if (state.arena.playing) renderHouseArenaRound_();
+    }, perfect ? 520 : 680);
+  }
+
+  function renderArenaBurgerBuild_() {
+    const build = $("#arenaBurgerBuild");
+    if (!build) return;
+    if (!state.arena.input.length) {
+      build.innerHTML = "<span>🍽️</span><small>Comece pelo pão de baixo</small>";
+    } else {
+      build.innerHTML =
+        '<div class="arena-burger-stack">' +
+        state.arena.input
+          .slice()
+          .reverse()
+          .map((id) => {
+            const item = state.arena.ingredientMap[id] || {};
+            return `<i>${esc(item.emoji || "•")}</i>`;
+          })
+          .join("") +
+        "</div><small>" +
+        state.arena.input.length +
+        " ingrediente(s)</small>";
+    }
+    const undo = $("#arenaBurgerUndo");
+    if (undo) undo.disabled = !state.arena.input.length;
+  }
+
+  function renderArenaTimingRound_() {
+    const challenge = arenaTimingChallenge_(
+      Number(state.arena.run.seed),
+      state.arena.round,
+    );
+    const surface = arenaSurface_(`
+      <div class="arena-challenge-heading"><span>DOSE ${state.arena.round + 1}</span><strong>Acerte a faixa saborosa</strong></div>
+      <div class="arena-sauce-scene"><span>🌶️</span><b>Molho especial</b><small>Nem pouco, nem demais</small></div>
+      <div class="arena-timing-wrap">
+        <div class="arena-timing-bar">
+          <i class="arena-timing-target" style="left:${challenge.center - challenge.width / 2}%;width:${challenge.width}%"></i>
+          <b id="arenaTimingPointer"></b>
+        </div>
+        <div class="arena-timing-labels"><span>CEDO</span><strong>PERFEITO</strong><span>TARDE</span></div>
+      </div>
+      <button type="button" id="arenaTimingStop" class="arena-smash-btn arena-hold-btn" disabled>
+        <span>☝️</span><b>SEGURE E SOLTE NO PONTO</b><small>também funciona com um toque</small>
+      </button>`);
+    const pointer = $("#arenaTimingPointer");
+    state.arena.roundStartedAt = performance.now();
+    const animate = () => {
+      if (!state.arena.playing) return;
+      const elapsed = performance.now() - state.arena.roundStartedAt;
+      const position = arenaTimingPosition_(challenge, elapsed);
+      pointer.style.left = position + "%";
+      state.arena.roundFrame = requestAnimationFrame(animate);
+    };
+    animate();
+    setTimeout(() => {
+      const button = $("#arenaTimingStop");
+      if (button && state.arena.playing) button.disabled = false;
+    }, 180);
+    const stop = $("#arenaTimingStop");
+    let pressed = false;
+    stop.addEventListener("pointerdown", (event) => {
+      if (stop.disabled) return;
+      pressed = true;
+      stop.setPointerCapture?.(event.pointerId);
+      stop.classList.add("is-holding");
+      stop.querySelector("b").textContent = "DOSANDO… SOLTE AGORA";
+      if (typeof arenaHaptic_ === "function") arenaHaptic_(8);
+    });
+    stop.addEventListener("pointerup", () => {
+      if (!pressed || stop.disabled) return;
+      pressed = false;
+      answerArenaTiming_(challenge);
+    });
+    stop.addEventListener("pointercancel", () => {
+      pressed = false;
+      stop.classList.remove("is-holding");
+    });
+    stop.onclick = (event) => {
+      if (event.detail === 0 && !stop.disabled) answerArenaTiming_(challenge);
+    };
+    if (typeof arenaCoach_ === "function")
+      arenaCoach_(
+        "molho_no_ponto",
+        "Segure o botão e solte quando o marcador estiver dentro da faixa clara.",
+      );
+  }
+
+  function answerArenaTiming_(challenge) {
+    const button = $("#arenaTimingStop");
+    if (!state.arena.playing || button.disabled) return;
+    button.disabled = true;
+    cancelAnimationFrame(state.arena.roundFrame);
+    const elapsedRound = Math.round(
+      performance.now() - state.arena.roundStartedAt,
+    );
+    const position = arenaTimingPosition_(challenge, elapsedRound);
+    const time = arenaElapsed_();
+    state.arena.events.push({
+      r: state.arena.round,
+      c: position,
+      d: elapsedRound,
+      t: time,
+    });
+    const distance = Math.abs(position - challenge.center);
+    const success = distance <= challenge.width / 2;
+    if (success) {
+      state.arena.combo++;
+      state.arena.hits++;
+      state.arena.bestCombo = Math.max(
+        state.arena.bestCombo,
+        state.arena.combo,
+      );
+      const precision = Math.max(
+        0,
+        1 - distance / Math.max(1, challenge.width / 2),
+      );
+      const gain =
+        190 +
+        Math.round(precision * 260) +
+        Math.min(230, state.arena.combo * 18);
+      state.arena.score += gain;
+      button.classList.add("is-perfect");
+      showHouseArenaFeedback_(
+        distance <= 2 ? `NO CENTRO! +${gain}` : `PERFEITO! +${gain}`,
+        true,
+      );
+      burstHouseArenaParticles_("🌶️", 12);
+      houseArenaSound_(distance <= 2 ? "perfect" : "correct");
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([18, 20, 28]);
+    } else {
+      state.arena.combo = 0;
+      state.arena.errors++;
+      state.arena.score = Math.max(0, state.arena.score - 40);
+      showHouseArenaFeedback_(
+        distance <= challenge.width / 2 + 7 ? "QUASE! TENTE DE NOVO" : "PASSOU LONGE!",
+        false,
+      );
+      $("#arenaStage").classList.add("arena-stage-shake");
+      houseArenaSound_("wrong");
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([35, 35, 35]);
+    }
+    updateHouseArenaHud_();
+    announceArenaCombo_();
+    state.arena.round++;
+    if (typeof arenaPersistSession_ === "function")
+      arenaPersistSession_(true);
+    setTimeout(() => {
+      $("#arenaStage")?.classList.remove("arena-stage-shake");
+      if (state.arena.playing) renderHouseArenaRound_();
+    }, success ? 500 : 650);
+  }
+
+  function answerArenaFastChoice_(button, expected, gameId) {
+    if (!state.arena.playing || button.disabled) return;
+    const settings = arenaFastChoiceSettings_(gameId);
+    const choice = button.dataset.arenaAnswer;
+    const correct = String(choice) === String(expected);
+    const previous = state.arena.events.length
+      ? Number(state.arena.events[state.arena.events.length - 1].t)
+      : 0;
+    const time = arenaElapsed_();
+    const delta = time - previous;
+    state.arena.events.push({
+      r: state.arena.round,
+      c: choice,
+      t: time,
+    });
+    $("#arenaGameSurface")
+      .querySelectorAll("button")
+      .forEach((choiceButton) => (choiceButton.disabled = true));
+    if (correct) {
+      state.arena.combo++;
+      state.arena.hits++;
+      state.arena.bestCombo = Math.max(
+        state.arena.bestCombo,
+        state.arena.combo,
+      );
+      const gain =
+        settings.base +
+        Math.max(
+          0,
+          settings.speedMax - Math.floor(delta / settings.speedDivisor),
+        ) +
+        Math.min(
+          settings.comboCap,
+          state.arena.combo * settings.comboStep,
+        );
+      state.arena.score += gain;
+      button.classList.add("is-correct");
+      showHouseArenaFeedback_(
+        state.arena.combo >= 10
+          ? `MEGA COMBO! +${gain}`
+          : `${settings.success} +${gain}`,
+        true,
+      );
+      burstHouseArenaParticles_(settings.particle, 12);
+      houseArenaSound_(
+        state.arena.combo > 0 && state.arena.combo % 5 === 0
+          ? "perfect"
+          : "correct",
+      );
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([16, 18, 24]);
+    } else {
+      state.arena.combo = 0;
+      state.arena.errors++;
+      state.arena.score = Math.max(
+        0,
+        state.arena.score - settings.penalty,
+      );
+      button.classList.add("is-wrong");
+      const correctButton = Array.from(
+        $("#arenaGameSurface").querySelectorAll("[data-arena-answer]"),
+      ).find(
+        (candidate) =>
+          String(candidate.dataset.arenaAnswer) === String(expected),
+      );
+      if (correctButton)
+        correctButton.classList.add("is-correct", "is-answer");
+      $("#arenaStage").classList.remove("arena-stage-shake");
+      void $("#arenaStage").offsetWidth;
+      $("#arenaStage").classList.add("arena-stage-shake");
+      showHouseArenaFeedback_(`ESCAPOU! −${settings.penalty}`, false);
+      houseArenaSound_("wrong");
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([35, 25, 35]);
+    }
+    updateHouseArenaHud_();
+    announceArenaCombo_();
+    state.arena.round++;
+    if (typeof arenaPersistSession_ === "function")
+      arenaPersistSession_(true);
+    setTimeout(() => {
+      $("#arenaStage")?.classList.remove("arena-stage-shake");
+      if (state.arena.playing) renderHouseArenaRound_();
+    }, correct ? settings.transition : settings.transition + 170);
+  }
+
+  function arenaFastChoiceSettings_(gameId) {
+    return {
+      delivery_relampago: {
+        base: 210,
+        speedMax: 145,
+        speedDivisor: 22,
+        comboCap: 190,
+        comboStep: 12,
+        penalty: 55,
+        transition: 300,
+        success: "ENTREGA PERFEITA!",
+        particle: "🛵",
+      },
+      cozinha_panico: {
+        base: 200,
+        speedMax: 140,
+        speedDivisor: 20,
+        comboCap: 190,
+        comboStep: 12,
+        penalty: 50,
+        transition: 290,
+        success: "EMERGÊNCIA RESOLVIDA!",
+        particle: "✨",
+      },
+      pega_ladrao_batata: {
+        base: 220,
+        speedMax: 150,
+        speedDivisor: 21,
+        comboCap: 200,
+        comboStep: 13,
+        penalty: 55,
+        transition: 300,
+        success: "LADRÃO PEGO!",
+        particle: "🍟",
+      },
+      rota_motoboy: {
+        base: 260,
+        speedMax: 180,
+        speedDivisor: 28,
+        comboCap: 180,
+        comboStep: 14,
+        penalty: 60,
+        transition: 420,
+        success: "ROTA MAIS RÁPIDA!",
+        particle: "⚡",
+      },
+      garcom_equilibrista: {
+        base: 230,
+        speedMax: 150,
+        speedDivisor: 23,
+        comboCap: 200,
+        comboStep: 13,
+        penalty: 55,
+        transition: 320,
+        success: "BANDEJA SALVA!",
+        particle: "🥤",
+      },
+    }[gameId];
+  }
+
+  function answerArenaSimple_(button, expected, type) {
+    if (!state.arena.playing || button.disabled) return;
+    const choice = button.dataset.arenaAnswer;
+    const correct = String(choice) === String(expected);
+    const previous = state.arena.events.length
+      ? Number(state.arena.events[state.arena.events.length - 1].t)
+      : 0;
+    const time = arenaElapsed_();
+    const delta = time - previous;
+    state.arena.events.push({
+      r: state.arena.round,
+      c: choice,
+      t: time,
+    });
+    $("#arenaGameSurface")
+      .querySelectorAll("button")
+      .forEach((choiceButton) => (choiceButton.disabled = true));
+    if (correct) {
+      state.arena.combo++;
+      state.arena.hits++;
+      state.arena.bestCombo = Math.max(
+        state.arena.bestCombo,
+        state.arena.combo,
+      );
+      let gain = 0;
+      if (type === "orders") {
+        const base = 100 + Math.max(0, 90 - Math.floor(delta / 30));
+        const comboBonus = Math.min(160, state.arena.combo * 8);
+        const multiplier =
+          state.arena.combo >= 15
+            ? 2
+            : state.arena.combo >= 8
+              ? 1.5
+              : 1;
+        gain = Math.floor((base + comboBonus) * multiplier);
+      } else if (type === "cashier") {
+        gain =
+          165 +
+          Math.max(0, 125 - Math.floor(delta / 28)) +
+          Math.min(180, state.arena.combo * 12);
+      } else {
+        gain =
+          190 +
+          Math.max(0, 150 - Math.floor(delta / 24)) +
+          Math.min(170, state.arena.combo * 10);
+      }
+      state.arena.score += gain;
+      button.classList.add("is-correct");
+      showHouseArenaFeedback_(
+        state.arena.combo >= 15
+          ? `TURBO x2! +${gain}`
+          : state.arena.combo >= 8
+            ? `MEGA COMBO! +${gain}`
+            : `PERFEITO! +${gain}`,
+        true,
+      );
+      burstHouseArenaParticles_(
+        type === "cashier" ? "💰" : type === "find" ? "✨" : "⭐",
+      );
+      houseArenaSound_(
+        state.arena.combo > 0 && state.arena.combo % 5 === 0
+          ? "perfect"
+          : "correct",
+      );
+      if (typeof arenaHaptic_ === "function") arenaHaptic_(22);
+    } else {
+      state.arena.combo = 0;
+      state.arena.errors++;
+      const penalty = type === "cashier" ? 60 : type === "find" ? 55 : 45;
+      state.arena.score = Math.max(0, state.arena.score - penalty);
+      button.classList.add("is-wrong");
+      const correctButton = Array.from(
+        $("#arenaGameSurface").querySelectorAll("[data-arena-answer]"),
+      ).find(
+        (candidate) =>
+          String(candidate.dataset.arenaAnswer) === String(expected),
+      );
+      if (correctButton)
+        correctButton.classList.add("is-correct", "is-answer");
+      $("#arenaStage").classList.remove("arena-stage-shake");
+      void $("#arenaStage").offsetWidth;
+      $("#arenaStage").classList.add("arena-stage-shake");
+      showHouseArenaFeedback_(`OPS! −${penalty}`, false);
+      houseArenaSound_("wrong");
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([35, 30, 35]);
+    }
+    updateHouseArenaHud_();
+    announceArenaCombo_();
+    state.arena.round++;
+    if (typeof arenaPersistSession_ === "function")
+      arenaPersistSession_(true);
+    setTimeout(() => {
+      if (state.arena.playing) renderHouseArenaRound_();
+    }, correct ? 260 : 480);
+  }
+
+  function announceArenaCombo_() {
+    const combo = state.arena.combo;
+    if (![5, 8, 10, 15, 20].includes(combo)) return;
+    const banner = $("#arenaComboBanner");
+    banner.innerHTML =
+      combo >= 15
+        ? `<strong>TURBO!</strong><span>COMBO ${combo} · pontuação multiplicada</span>`
+        : `<strong>COMBO ${combo}!</strong><span>Você está pegando fogo 🔥</span>`;
+    banner.classList.remove("hidden", "arena-combo-show");
+    void banner.offsetWidth;
+    banner.classList.add("arena-combo-show");
+    setTimeout(() => banner.classList.add("hidden"), 1050);
+  }
+
+  function updateHouseArenaHud_() {
+    $("#arenaScore").textContent = formatArenaScore_(state.arena.score);
+    $("#arenaCombo").textContent = "x" + state.arena.combo;
+    $("#arenaCombo").classList.toggle(
+      "is-turbo",
+      state.arena.combo >= 8,
+    );
+    $("#arenaRoundHud").textContent = state.arena.round + 1;
+    const momentum = $("#arenaMomentumFill");
+    if (momentum)
+      momentum.style.transform = `scaleX(${Math.min(1, state.arena.combo / 10)})`;
+    const mode = $("#arenaMomentumLabel");
+    if (mode)
+      mode.textContent =
+        state.arena.combo >= 10
+          ? "TURBO"
+          : state.arena.combo >= 5
+            ? "QUENTE"
+            : "RITMO";
+    if (typeof arenaPersistSession_ === "function")
+      arenaPersistSession_(true);
+  }
+
+  function updateHouseArenaTimer_() {
+    if (!state.arena.playing || state.arena.paused) return;
+    cancelAnimationFrame(state.arena.timerFrame);
+    const elapsed = performance.now() - state.arena.startedAt,
+      remaining = Math.max(0, state.arena.durationMs - elapsed),
+      ratio = remaining / state.arena.durationMs;
+    $("#arenaTimer").textContent = (remaining / 1000)
+      .toFixed(1)
+      .replace(".", ",");
+    $("#arenaTimerBar").style.transform = `scaleX(${ratio})`;
+    $("#arenaTimerBar").classList.toggle("is-urgent", remaining <= 10000);
+    $("#arenaTimer").classList.toggle("is-urgent", remaining <= 10000);
+    if (remaining <= 0) {
+      finishHouseArenaGameUI_();
+      return;
+    }
+    if (typeof arenaPersistSession_ === "function")
+      arenaPersistSession_(false);
+    state.arena.timerFrame = requestAnimationFrame(updateHouseArenaTimer_);
+  }
+
+  async function finishHouseArenaGameUI_() {
+    if (!state.arena.playing || state.arena.finishing) return;
+    const generation = state.arena.generation;
+    state.arena.playing = false;
+    state.arena.finishing = true;
+    state.arena.renderToken++;
+    cancelAnimationFrame(state.arena.timerFrame);
+    cancelAnimationFrame(state.arena.roundFrame);
+    $("#arenaGameSurface")
+      ?.querySelectorAll("button")
+      .forEach((button) => (button.disabled = true));
+    $("#arenaStage").classList.add("arena-stage-finished");
+    $("#arenaTimer").textContent = "0,0";
+    $("#arenaTimerBar").style.transform = "scaleX(0)";
+    houseArenaSound_("finish");
+    if (typeof queueHouseArenaResult_ === "function")
+      queueHouseArenaResult_();
+    try {
+      const result = await call(FN.arenaFinish, {
+        token: state.arena.run.token,
+        events: state.arena.events,
+        clientScore: state.arena.score,
+        clientHits: state.arena.hits,
+        clientErrors: state.arena.errors,
+        clientBestCombo: state.arena.bestCombo,
+      });
+      if (generation !== state.arena.generation) return;
+      if (typeof completeHouseArenaSync_ === "function")
+        completeHouseArenaSync_(state.arena.run.token);
+      showHouseArenaResult_(result);
+      state.arena.ranking = null;
+      state.arena.rankingGameId = state.arena.gameId;
+    } catch (error) {
+      if (generation !== state.arena.generation) return;
+      if (typeof markHouseArenaSyncPending_ === "function")
+        markHouseArenaSyncPending_(state.arena.run.token, error.message);
+      showHouseArenaResult_({
+        score: state.arena.score,
+        hits: state.arena.hits,
+        errors: state.arena.errors,
+        bestCombo: state.arena.bestCombo,
+        accuracy:
+          state.arena.hits + state.arena.errors
+            ? Math.round(
+                (state.arena.hits /
+                  (state.arena.hits + state.arena.errors)) *
+                  1000,
+              ) / 10
+            : 0,
+        ranked: false,
+        error: error.message,
+      });
+    } finally {
+      state.arena.finishing = false;
+    }
+  }
+
+  function showHouseArenaResult_(result) {
+    $("#arenaPlay").classList.add("hidden");
+    $("#arenaResult").classList.remove("hidden");
+    $("#arenaResultGame").textContent =
+      arenaGameMeta_(state.arena.gameId).icon +
+      " " +
+      arenaGameMeta_(state.arena.gameId).name;
+    $("#arenaResultScore").textContent = formatArenaScore_(result.score);
+    $("#arenaResultHits").textContent = Number(result.hits || 0);
+    $("#arenaResultCombo").textContent = Number(result.bestCombo || 0);
+    $("#arenaResultAccuracy").textContent =
+      Number(result.accuracy || 0).toLocaleString("pt-BR", {
+        maximumFractionDigits: 1,
+      }) + "%";
+    const score = Number(result.score || 0);
+    const grade =
+      score >= 10000
+        ? "S"
+        : score >= 7000
+          ? "A"
+          : score >= 4500
+            ? "B"
+            : score >= 2500
+              ? "C"
+              : "D";
+    const gradeNode = $("#arenaResultGrade");
+    if (gradeNode) gradeNode.textContent = grade;
+    const tip = $("#arenaResultTip");
+    if (tip)
+      tip.textContent =
+        Number(result.accuracy || 0) >= 90
+          ? "Precisão excelente. Agora tente acelerar sem quebrar o combo."
+          : Number(result.bestCombo || 0) >= 5
+            ? "Seu ritmo está bom. Foque nos toques que encerram o combo."
+            : "Comece priorizando a precisão; a velocidade vem na próxima rodada.";
+    $("#arenaResultTitle").textContent =
+      score >= 10000
+        ? "Você virou uma lenda!"
+        : score >= 7000
+          ? "Que partida absurda!"
+          : score >= 3500
+            ? "Mandou muito bem!"
+            : "Boa rodada!";
+    $("#arenaResultRank").textContent = result.error
+      ? "Resultado salvo neste aparelho; enviaremos quando a conexão voltar. " +
+        result.error
+      : result.ranked
+        ? result.myPosition
+          ? `Resultado validado · você está em #${result.myPosition}`
+          : "Resultado validado no campeonato!"
+        : "Rodada de treino concluída. O ranking não foi alterado.";
+    const retry = $("#arenaRetrySyncBtn");
+    if (retry) retry.classList.toggle("hidden", !result.error);
+    burstHouseArenaParticles_("⭐", 22);
+    if (score >= 7000) burstHouseArenaParticles_("🏆", 8);
+  }
+
+  function showHouseArenaLobby_() {
+    state.arena.playing = false;
+    state.arena.finishing = false;
+    state.arena.paused = false;
+    state.arena.pauseStartedAt = 0;
+    state.arena.renderToken++;
+    cancelAnimationFrame(state.arena.timerFrame);
+    cancelAnimationFrame(state.arena.roundFrame);
+    if (typeof HOUSE_ARENA_PAUSE_INTERVAL_ !== "undefined")
+      clearInterval(HOUSE_ARENA_PAUSE_INTERVAL_);
+    $("#arenaPlay")?.classList.add("hidden");
+    $("#arenaResult")?.classList.add("hidden");
+    $("#houseLinkApp")?.classList.add("hidden");
+    $("#arenaLobby")?.classList.remove("hidden");
+    $("#arenaGamePickerShell")?.classList.remove("hidden");
+    $("#arenaPauseOverlay")?.classList.add("hidden");
+    $("#arenaCoach")?.classList.add("hidden");
+    $("#arenaStage")?.classList.remove("is-paused");
+    $("#view-house-arena")?.classList.remove("arena-game-active");
+    if (typeof closeHouseLinkView_ === "function")
+      closeHouseLinkView_(false);
+    if (typeof clearHouseArenaSession_ === "function")
+      clearHouseArenaSession_();
+    renderHouseArenaGamePicker_();
+    renderHouseArenaSelectedGame_();
+    if (!state.arena.ranking) loadHouseArenaRanking_(false);
+  }
+
+  function resetHouseArenaState_() {
+    cancelAnimationFrame(state.arena.timerFrame);
+    cancelAnimationFrame(state.arena.roundFrame);
+    const nextGeneration = Number(state.arena.generation || 0) + 1;
+    Object.assign(state.arena, {
+      gameId: "corrida_pedidos",
+      rankingGameId: "corrida_pedidos",
+      ranking: null,
+      rankingRequest: Number(state.arena.rankingRequest || 0) + 1,
+      products: [],
+      ingredients: [],
+      productMap: {},
+      ingredientMap: {},
+      run: null,
+      events: [],
+      input: [],
+      round: 0,
+      score: 0,
+      combo: 0,
+      bestCombo: 0,
+      hits: 0,
+      errors: 0,
+      startedAt: 0,
+      roundStartedAt: 0,
+      timerFrame: 0,
+      roundFrame: 0,
+      renderToken: Number(state.arena.renderToken || 0) + 1,
+      generation: nextGeneration,
+      paused: false,
+      pauseStartedAt: 0,
+      pauseTotal: 0,
+      lastLocalSave: 0,
+      cashTotal: 0,
+      cashStack: [],
+      deliveryLane: 1,
+      playing: false,
+      finishing: false,
+    });
+    if (typeof clearHouseArenaSession_ === "function")
+      clearHouseArenaSession_();
+    $("#arenaNavBadge")?.style.setProperty("display", "none");
+    $("#arenaPlay")?.classList.add("hidden");
+    $("#arenaResult")?.classList.add("hidden");
+    $("#houseLinkApp")?.classList.add("hidden");
+    $("#arenaLobby")?.classList.remove("hidden");
+    $("#arenaGamePickerShell")?.classList.remove("hidden");
+    $("#view-house-arena")?.classList.remove("arena-game-active");
+    if (typeof closeHouseLinkView_ === "function")
+      closeHouseLinkView_(false);
+  }
+
+  function showHouseArenaWelcomeOnce_() {
+    const nav = $('.nav-item[data-view="house-arena"]');
+    if (!nav || !state.user) return;
+    const identity = String(
+      val(
+        state.user,
+        "usuarioId",
+        "UsuarioID",
+        "email",
+        "Email",
+        "id",
+      ) || "",
+    ).trim();
+    if (!identity) return;
+    let hash = 5381;
+    for (let index = 0; index < identity.length; index++)
+      hash = ((hash << 5) + hash) ^ identity.charCodeAt(index);
+    const key = "gf-house-arena-welcome-5_5-" + (hash >>> 0).toString(36);
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, String(Date.now()));
+    } catch (ignored) {}
+    const badge = $("#arenaNavBadge");
+    if (badge) {
+      badge.textContent = "NOVO";
+      badge.dataset.welcome = "1";
+      badge.style.display = "inline-flex";
+    }
+    $("#arenaWelcomeHint")?.remove();
+    const hint = document.createElement("button");
+    hint.id = "arenaWelcomeHint";
+    hint.type = "button";
+    hint.className = "arena-welcome-hint";
+    hint.innerHTML =
+      '<span>🎮</span><div><strong>House Arena Remix!</strong><small>Doze jogos, incluindo o novo House Link online para dois celulares.</small></div><b>×</b>';
+    hint.onclick = () => {
+      hint.remove();
+      if (badge) {
+        delete badge.dataset.welcome;
+        badge.style.display = "none";
+      }
+      switchView("house-arena");
+    };
+    document.body.appendChild(hint);
+    setTimeout(() => hint.classList.add("show"), 500);
+    setTimeout(() => {
+      if (!hint.isConnected) return;
+      hint.classList.remove("show");
+      setTimeout(() => hint.remove(), 350);
+      if (badge) delete badge.dataset.welcome;
+    }, 10500);
+  }
+
+  function showHouseArenaFeedback_(message, correct) {
+    const feedback = $("#arenaFeedback");
+    feedback.textContent = message;
+    feedback.className =
+      "arena-feedback " +
+      (correct ? "is-correct" : "is-wrong") +
+      " arena-feedback-pop";
+    setTimeout(() => {
+      if (feedback.textContent === message)
+        feedback.className = "arena-feedback";
+    }, 720);
+  }
+
+  function burstHouseArenaParticles_(symbol, count = 10) {
+    const box = $("#arenaParticles");
+    if (!box || state.arena.reducedMotion) return;
+    const safeCount = state.arena.lowPower
+      ? Math.min(count, 5)
+      : window.matchMedia("(max-width: 700px)").matches
+        ? Math.min(count, 14)
+        : Math.min(count, 24);
+    for (let index = 0; index < safeCount; index++) {
+      const particle = document.createElement("i");
+      particle.textContent = symbol;
+      particle.style.setProperty(
+        "--particle-x",
+        (Math.random() * 240 - 120).toFixed(0) + "px",
+      );
+      particle.style.setProperty(
+        "--particle-y",
+        (-80 - Math.random() * 160).toFixed(0) + "px",
+      );
+      particle.style.setProperty(
+        "--particle-r",
+        (Math.random() * 220 - 110).toFixed(0) + "deg",
+      );
+      particle.style.left = 35 + Math.random() * 30 + "%";
+      particle.style.top = 55 + Math.random() * 15 + "%";
+      box.appendChild(particle);
+      setTimeout(() => particle.remove(), 900);
+    }
+  }
+
+  function arenaRandomForRound_(seed, round, salt) {
+    const modulus = 2147483647;
+    let randomState =
+      (Number(seed || 1) +
+        (Number(round || 0) + 1) * 104729 +
+        Number(salt || 0) * 13007) %
+      modulus;
+    if (randomState <= 0) randomState += modulus - 1;
+    return () => {
+      randomState = (randomState * 48271) % modulus;
+      return randomState;
+    };
+  }
+
+  function arenaShuffle_(values, next) {
+    values = values.slice();
+    for (let index = values.length - 1; index > 0; index--) {
+      const swapIndex = next() % (index + 1);
+      [values[index], values[swapIndex]] = [
+        values[swapIndex],
+        values[index],
+      ];
+    }
+    return values;
+  }
+
+  function arenaOrderChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 1);
+    const target =
+      state.arena.products[next() % state.arena.products.length].id;
+    const choices = [target];
+    while (choices.length < 4) {
+      const candidate =
+        state.arena.products[next() % state.arena.products.length].id;
+      if (!choices.includes(candidate)) choices.push(candidate);
+    }
+    return { target, choices: arenaShuffle_(choices, next) };
+  }
+
+  function houseArenaRoundClient_(seed, round) {
+    return arenaOrderChallenge_(seed, round);
+  }
+
+  function arenaCashierChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 2);
+    const price = 500 + (next() % 91) * 50;
+    let payments = [2000, 5000, 10000].filter((value) => value > price);
+    if (!payments.length) payments = [10000];
+    const payment = payments[next() % payments.length];
+    const change = payment - price;
+    const choices = [change];
+    const offsets = [100, -100, 200, -200, 500, -500, 50, -50];
+    for (let index = 0; choices.length < 4 && index < offsets.length; index++) {
+      const candidate =
+        change + offsets[(index + (next() % 3)) % offsets.length];
+      if (candidate >= 0 && !choices.includes(candidate))
+        choices.push(candidate);
+    }
+    while (choices.length < 4) {
+      const fallback = change + choices.length * 150;
+      if (!choices.includes(fallback)) choices.push(fallback);
+    }
+    return {
+      price,
+      payment,
+      change,
+      choices: arenaShuffle_(choices, next),
+    };
+  }
+
+  function arenaFindErrorChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 3);
+    const baseIndex = next() % state.arena.products.length;
+    let oddIndexProduct = next() % state.arena.products.length;
+    if (oddIndexProduct === baseIndex)
+      oddIndexProduct = (oddIndexProduct + 1) % state.arena.products.length;
+    const size = round >= 5 ? 16 : 12;
+    return {
+      size,
+      base: state.arena.products[baseIndex].id,
+      odd: state.arena.products[oddIndexProduct].id,
+      oddIndex: next() % size,
+    };
+  }
+
+  function arenaTrayChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 4);
+    const palette = state.arena.products.slice(0, 6).map((item) => item.id);
+    const length = 3 + Math.min(5, round);
+    const sequence = [];
+    for (let index = 0; index < length; index++)
+      sequence.push(palette[next() % palette.length]);
+    return { palette, sequence };
+  }
+
+  function arenaBurgerChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 5);
+    const middle = state.arena.ingredients.slice(1, -1).map((item) => item.id);
+    const sequence = ["pao_base"];
+    const middleLength = 3 + (round % 3);
+    for (let index = 0; index < middleLength; index++)
+      sequence.push(middle[next() % middle.length]);
+    sequence.push("pao_topo");
+    return {
+      palette: state.arena.ingredients.map((item) => item.id),
+      sequence,
+    };
+  }
+
+  function arenaTimingChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 6);
+    return {
+      center: 24 + (next() % 53),
+      width: 20 + (next() % 7),
+      period: 1150 + (next() % 551),
+      phase: next() % 900,
+    };
+  }
+
+  function arenaTimingPosition_(challenge, elapsedMs) {
+    const period = Math.max(500, Number(challenge.period || 1200));
+    const ratio =
+      ((Number(elapsedMs || 0) + Number(challenge.phase || 0)) % period) /
+      period;
+    return Math.round(
+      (ratio <= 0.5 ? ratio * 2 : (1 - ratio) * 2) * 100,
+    );
+  }
+
+  function arenaDeliveryChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 7);
+    const safeLane = next() % 3;
+    const hazards = ["🚧", "🚗", "📦", "🕳️"];
+    const objects = [];
+    for (let lane = 0; lane < 3; lane++) {
+      objects.push(
+        lane === safeLane ? "📍" : hazards[next() % hazards.length],
+      );
+    }
+    return {
+      choices: ["0", "1", "2"],
+      target: String(safeLane),
+      safeLane,
+      objects,
+      weather: ["☀️", "🌧️", "🌙"][next() % 3],
+      speed: 1 + (round % 3),
+    };
+  }
+
+  function arenaKitchenPanicChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 8);
+    const targetIndex = next() % 6;
+    const emergencies = [
+      { icon: "🔥", instruction: "Apague o fogo!" },
+      { icon: "⏲️", instruction: "O timer disparou!" },
+      { icon: "💦", instruction: "Limpe o derramamento!" },
+    ];
+    const emergency = emergencies[next() % emergencies.length];
+    const calm = ["🍳", "🍔", "🍟", "🥤", "🧾", "🔔"];
+    const cells = [];
+    for (let index = 0; index < 6; index++) {
+      cells.push(
+        index === targetIndex
+          ? emergency.icon
+          : calm[(next() + index) % calm.length],
+      );
+    }
+    return {
+      choices: ["0", "1", "2", "3", "4", "5"],
+      target: String(targetIndex),
+      targetIndex,
+      targetIcon: emergency.icon,
+      instruction: emergency.instruction,
+      cells,
+      urgency: 1 + (round % 3),
+    };
+  }
+
+  function arenaPotatoThiefChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 9);
+    const size = round >= 7 ? 12 : 9;
+    const thiefIndex = next() % size;
+    const decoys = ["📦", "🍟", "🧺", "🥔"];
+    const cells = [];
+    for (let index = 0; index < size; index++) {
+      cells.push(
+        index === thiefIndex
+          ? "🥷"
+          : decoys[(next() + index) % decoys.length],
+      );
+    }
+    return {
+      choices: Array.from({ length: size }, (_, index) => String(index)),
+      target: String(thiefIndex),
+      thiefIndex,
+      size,
+      cells,
+    };
+  }
+
+  function arenaMotoboyRouteChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 10);
+    const routes = [];
+    const usedEta = {};
+    const trafficLabels = ["Livre", "Moderado", "Pesado"];
+    const trafficIcons = ["🟢", "🟡", "🔴"];
+    for (let index = 0; index < 3; index++) {
+      const distance = 2 + (next() % 8);
+      const traffic = next() % 3;
+      const signals = 1 + (next() % 5);
+      let eta = 4 + distance * 2 + traffic * 5 + signals;
+      while (usedEta[eta]) eta++;
+      usedEta[eta] = true;
+      routes.push({
+        id: String(index),
+        distance,
+        traffic: trafficLabels[traffic],
+        trafficIcon: trafficIcons[traffic],
+        signals,
+        eta,
+      });
+    }
+    let targetIndex = 0;
+    routes.forEach((route, index) => {
+      if (route.eta < routes[targetIndex].eta) targetIndex = index;
+    });
+    return {
+      choices: ["0", "1", "2"],
+      target: String(targetIndex),
+      targetIndex,
+      routes,
+    };
+  }
+
+  function arenaWaiterBalanceChallenge_(seed, round) {
+    const next = arenaRandomForRound_(seed, round, 11);
+    const tilt = [-1, 0, 1][next() % 3];
+    return {
+      choices: ["left", "center", "right"],
+      target: tilt < 0 ? "right" : tilt > 0 ? "left" : "center",
+      tilt,
+      drinks: 2 + (next() % 5),
+      wobble: 1 + (round % 3),
+    };
+  }
+
+  function arenaElapsed_() {
+    return Math.max(
+      180,
+      Math.min(
+        state.arena.durationMs + 500,
+        Math.round(performance.now() - state.arena.startedAt),
+      ),
+    );
+  }
+
+  function arenaMoney_(cents, symbol = true) {
+    const value = (Number(cents || 0) / 100).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return symbol ? "R$ " + value : value;
+  }
+
+  function arenaDelay_(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  let HOUSE_ARENA_AUDIO_CONTEXT_ = null;
+  function prepareHouseArenaAudio_() {
+    if (!state.arena.sound) return;
+    try {
+      const Context = window.AudioContext || window.webkitAudioContext;
+      if (!Context) return;
+      if (!HOUSE_ARENA_AUDIO_CONTEXT_)
+        HOUSE_ARENA_AUDIO_CONTEXT_ = new Context();
+      if (HOUSE_ARENA_AUDIO_CONTEXT_.state === "suspended")
+        HOUSE_ARENA_AUDIO_CONTEXT_.resume();
+    } catch (ignored) {}
+  }
+
+  function houseArenaSound_(type) {
+    if (!state.arena.sound) return;
+    prepareHouseArenaAudio_();
+    const context = HOUSE_ARENA_AUDIO_CONTEXT_;
+    if (!context) return;
+    const settings = {
+        tick: [420, 0.04, "sine", 0.018],
+        tap: [520, 0.025, "sine", 0.014],
+        select: [610, 0.055, "triangle", 0.022],
+        start: [760, 0.09, "triangle", 0.04],
+        correct: [920, 0.075, "sine", 0.035],
+        perfect: [1120, 0.13, "triangle", 0.04],
+        wrong: [170, 0.1, "sawtooth", 0.03],
+        finish: [560, 0.2, "triangle", 0.04],
+      }[type] || [440, 0.05, "sine", 0.02],
+      oscillator = context.createOscillator(),
+      gain = context.createGain(),
+      now = context.currentTime;
+    oscillator.type = settings[2];
+    oscillator.frequency.setValueAtTime(settings[0], now);
+    if (type === "correct" || type === "perfect")
+      oscillator.frequency.exponentialRampToValueAtTime(
+        settings[0] * 1.45,
+        now + settings[1],
+      );
+    if (type === "finish")
+      oscillator.frequency.exponentialRampToValueAtTime(
+        settings[0] * 1.8,
+        now + settings[1],
+      );
+    gain.gain.setValueAtTime(settings[3], now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + settings[1]);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + settings[1]);
+  }
+
+  function toggleHouseArenaSound_() {
+    state.arena.sound = !state.arena.sound;
+    const button = $("#arenaSoundToggle");
+    const icon = $("#arenaSoundIcon");
+    const label = $("#arenaSoundLabel");
+    if (icon) icon.textContent = state.arena.sound ? "🔊" : "🔇";
+    if (label) label.textContent = state.arena.sound ? "Som" : "Sem som";
+    button.setAttribute(
+      "aria-label",
+      state.arena.sound ? "Desativar sons" : "Ativar sons",
+    );
+    button.classList.toggle("is-muted", !state.arena.sound);
+    if (state.arena.sound) {
+      prepareHouseArenaAudio_();
+      houseArenaSound_("correct");
+    }
+    if (typeof persistHouseArenaSettings_ === "function")
+      persistHouseArenaSettings_();
+  }
+
+  function formatArenaScore_(value) {
+    return Math.max(0, Number(value || 0)).toLocaleString("pt-BR");
+  }
+</script>

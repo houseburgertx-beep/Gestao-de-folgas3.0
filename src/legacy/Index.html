@@ -1,0 +1,2163 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <base target="_top" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta
+      name="app-version"
+      content="<?= (typeof appVersion !== 'undefined' ? String(appVersion).replace(/[<>]/g, '') : 'unknown') ?>"
+    />
+    <title>
+      <?= (typeof appName !== 'undefined' ? String(appName).replace(/[<>]/g, '')
+      : 'Gestão de Folgas') ?>
+    </title>
+    <?!= include_('Styles'); ?>
+  </head>
+  <body>
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="quantum-loader quantum-loader--overlay" aria-hidden="true">
+        <i class="quantum-particle"></i><i class="quantum-particle"></i
+        ><i class="quantum-particle"></i> <i class="quantum-particle"></i
+        ><i class="quantum-particle"></i><i class="quantum-particle"></i>
+        <i class="quantum-particle"></i><i class="quantum-particle"></i
+        ><i class="quantum-particle"></i> <i class="quantum-particle"></i
+        ><i class="quantum-particle"></i><i class="quantum-particle"></i>
+        <i class="quantum-particle"></i>
+      </div>
+      <p>A carregar o sistema…</p>
+    </div>
+    <section id="loginScreen" class="login-screen hidden">
+      <div class="login-shell">
+        <div class="login-brand-panel">
+          <div class="login-brand-content">
+            <div
+              class="brand-logo login-logo"
+              aria-label="Grupo House 190"
+            ></div>
+            <strong class="login-group-name">Grupo House 190</strong
+            ><span class="eyebrow">PORTAL INTERNO DE EQUIPES</span>
+            <h1>Nossas equipes.<br />Todas conectadas.</h1>
+            <p>
+              Um só lugar para organizar folgas, escalas e aprovações das marcas
+              do Grupo House 190.
+            </p>
+            <div class="login-feature">
+              <i>✓</i><span>Gestão integrada de todas as unidades</span>
+            </div>
+            <div class="login-feature">
+              <i>✓</i><span>Escalas claras para cada equipe</span>
+            </div>
+            <div class="login-feature">
+              <i>✓</i><span>Acesso seguro por perfil e loja</span>
+            </div>
+          </div>
+        </div>
+        <div class="login-form-panel">
+          <form id="loginForm" class="login-card">
+            <div class="mobile-login-brand">
+              <div class="brand-logo"></div>
+              <div>
+                <strong>Grupo House 190</strong
+                ><span>Portal interno de equipes</span>
+              </div>
+            </div>
+            <span class="eyebrow">BEM-VINDO AO GRUPO HOUSE 190</span>
+            <h2>Acesse sua área</h2>
+            <p>
+              Consulte sua escala, suas folgas e as informações da sua unidade.
+            </p>
+            <label
+              >E-mail<input
+                id="loginEmail"
+                type="email"
+                autocomplete="username"
+                placeholder="seuemail@grupohouse190.com"
+                required /></label
+            ><label
+              >Senha
+              <div class="password-field">
+                <input
+                  id="loginPassword"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="Digite sua senha"
+                  required
+                /><button
+                  id="togglePassword"
+                  type="button"
+                  aria-label="Mostrar senha"
+                >
+                  ◉
+                </button>
+              </div></label
+            >
+            <div class="login-options">
+              <label
+                ><input id="rememberLogin" type="checkbox" /> Manter conectado
+                por 7 dias</label
+              ><button id="forgotPasswordBtn" type="button">
+                Esqueci a senha
+              </button>
+            </div>
+            <button class="btn btn-primary login-submit" type="submit">
+              Entrar no portal
+            </button>
+            <p id="loginError" class="login-error hidden"></p>
+          </form>
+          <form id="resetPasswordForm" class="login-card hidden">
+            <button
+              id="resetPasswordBack"
+              class="reset-password-back"
+              type="button"
+            >
+              ← Voltar ao login
+            </button>
+            <span class="eyebrow">RECUPERAÇÃO SEGURA</span>
+            <h2>Crie uma nova senha</h2>
+            <p class="reset-password-hint">
+              Digite o código enviado ao seu e-mail. A senha atual só será
+              alterada depois da confirmação.
+            </p>
+            <label
+              >E-mail<input
+                id="resetPasswordEmail"
+                type="email"
+                autocomplete="username"
+                required /></label
+            ><label
+              >Código<input
+                id="resetPasswordCode"
+                type="text"
+                inputmode="text"
+                autocomplete="one-time-code"
+                maxlength="13"
+                placeholder="ABC123-DEF456"
+                required /></label
+            ><label
+              >Nova senha<input
+                id="resetPasswordNew"
+                type="password"
+                autocomplete="new-password"
+                minlength="10"
+                required /></label
+            ><label
+              >Confirmar nova senha<input
+                id="resetPasswordConfirm"
+                type="password"
+                autocomplete="new-password"
+                minlength="10"
+                required /></label
+            >
+            <small class="reset-password-policy"
+              >Use 10 caracteres e pelo menos três tipos entre maiúscula,
+              minúscula, número e símbolo.</small
+            >
+            <button class="btn btn-primary login-submit" type="submit">
+              Confirmar nova senha
+            </button>
+            <button
+              id="resetPasswordResend"
+              class="btn btn-ghost"
+              type="button"
+            >
+              Reenviar código
+            </button>
+            <p id="resetPasswordError" class="login-error hidden"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+    <section id="unauthorized" class="auth-state hidden">
+      <div class="auth-card">
+        <div class="brand-mark">GF</div>
+        <h1>Acesso indisponível</h1>
+        <p id="unauthorizedMessage">Não foi possível iniciar a aplicação.</p>
+        <button class="btn btn-primary" onclick="location.reload()">
+          Tentar novamente
+        </button>
+      </div>
+    </section>
+
+    <div id="app" class="app-shell hidden">
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-head">
+          <div class="brand-logo" aria-label="Grupo House 190"></div>
+          <div class="brand-copy">
+            <strong>Gestão de Folgas</strong><span>Grupo House 190</span>
+          </div>
+          <button id="sidebarToggle" class="icon-btn" aria-label="Fechar menu">
+            ✕
+          </button>
+        </div>
+        <nav class="nav-list" aria-label="Navegação principal">
+          <button class="nav-item active" data-view="dashboard">
+            <span>⌂</span><b>Dashboard</b>
+          </button>
+          <button class="nav-item" data-view="calendar">
+            <span>▦</span><b>Calendário</b>
+          </button>
+          <button class="nav-item" data-view="timeoff">
+            <span>✓</span><b>Folgas</b>
+          </button>
+          <button class="nav-item" data-view="timeclock">
+            <span>◉</span><b>Meu ponto</b>
+          </button>
+          <button class="nav-item" data-view="pending-center" type="button">
+            <span>▣</span><b>Caixa de pendências</b
+            ><em id="pendingCenterBadge" class="nav-badge">0</em>
+          </button>
+          <button class="nav-item permission-manager" data-view="scheduler">
+            <span>✦</span><b>Geração automática</b>
+          </button>
+          <div class="nav-label">Gestão</div>
+          <button class="nav-item permission-manager" data-view="employees">
+            <span>♙</span><b>Funcionários</b>
+          </button>
+          <button class="nav-item permission-manager" data-view="stores">
+            <span>⌂</span><b>Lojas</b>
+          </button>
+          <button class="nav-item permission-manager" data-view="holidays">
+            <span>☆</span><b>Feriados</b>
+          </button>
+          <button class="nav-item permission-admin" data-view="access">
+            <span>♢</span><b>Controle de acesso</b>
+          </button>
+          <button class="nav-item permission-manager" data-view="operations">
+            <span>⚙</span><b>Regras operacionais</b>
+          </button>
+          <button class="nav-item" data-view="house-arena">
+            <span class="arena-nav-icon" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <path
+                  d="M8 7h8a5 5 0 0 1 4.8 3.7l.9 3.6a2.8 2.8 0 0 1-5 2.3L15.6 15H8.4l-1.1 1.6a2.8 2.8 0 0 1-5-2.3l.9-3.6A5 5 0 0 1 8 7Z"
+                ></path>
+                <path d="M8 10v4M6 12h4"></path>
+                <circle cx="16.5" cy="11" r=".8"></circle>
+                <circle cx="18.5" cy="13" r=".8"></circle></svg></span
+            ><b>House Arena</b
+            ><em id="arenaNavBadge" class="nav-badge" style="display: none"
+              >–</em
+            >
+          </button>
+          <button class="nav-item" data-view="notifications">
+            <span class="notification-nav-icon"
+              ><svg
+                class="notification-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
+                ></path>
+                <path d="M10 21h4"></path></svg></span
+            ><b>Notificações</b
+            ><em id="notificationBadge" class="nav-badge">0</em>
+          </button>
+          <button class="nav-item" data-view="communication">
+            <span>◈</span><b>Comunicação</b>
+          </button>
+          <button
+            class="nav-item permission-manager"
+            data-view="monthly-closing"
+          >
+            <span>▣</span><b>Fechamento mensal</b>
+          </button>
+          <button
+            class="nav-item permission-manager"
+            data-view="advanced-reports"
+          >
+            <span>▤</span><b>Gestão avançada</b>
+          </button>
+          <button class="nav-item permission-admin" data-view="governance">
+            <span>♢</span><b>Governança</b>
+          </button>
+          <button class="nav-item permission-manager" data-view="reports">
+            <span>▥</span><b>Relatórios</b>
+          </button>
+          <button class="nav-item permission-admin" data-view="audit">
+            <span>≡</span><b>Auditoria</b>
+          </button>
+        </nav>
+        <div class="sidebar-foot">
+          <button id="themeToggle" class="nav-item">
+            <span>◐</span><b>Alternar tema</b></button
+          ><button id="logoutBtn" class="nav-item">
+            <span>↪</span><b>Sair</b>
+          </button>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button id="mobileMenu" class="icon-btn mobile-only">☰</button>
+            <div>
+              <p id="breadcrumb">Workspace / Dashboard</p>
+              <h1 id="pageTitle">Dashboard</h1>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button
+              id="notificationTopBtn"
+              class="icon-btn notification-top-btn"
+              title="Notificações"
+              aria-label="Abrir notificações"
+            >
+              <svg
+                class="notification-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
+                ></path>
+                <path d="M10 21h4"></path></svg
+              ><em id="notificationTopBadge" class="nav-badge">0</em></button
+            ><button
+              class="app-download-btn"
+              id="appDownloadBtn"
+              title="Como adicionar o aplicativo à tela inicial"
+              aria-label="Como adicionar o aplicativo à tela inicial"
+            >
+              <span class="app-download-icon" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M12 3v11m0 0-4-4m4 4 4-4"></path>
+                  <path d="M5 18.5h14"></path></svg
+              ></span>
+              <span class="app-download-copy"
+                ><strong>Baixar app</strong
+                ><small>Criar atalho no celular</small></span
+              >
+              <span class="app-download-arrow" aria-hidden="true"
+                >›</span
+              ></button
+            ><button
+              class="icon-btn quantum-refresh"
+              id="refreshBtn"
+              title="Atualizar"
+              aria-label="Atualizar dados"
+            >
+              <span class="refresh-glyph" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5"></path>
+                  <path
+                    d="M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"
+                  ></path></svg></span
+              ><span
+                class="quantum-loader quantum-loader--small"
+                aria-hidden="true"
+                ><i class="quantum-particle"></i><i class="quantum-particle"></i
+                ><i class="quantum-particle"></i><i class="quantum-particle"></i
+                ><i class="quantum-particle"></i><i class="quantum-particle"></i
+                ><i class="quantum-particle"></i><i class="quantum-particle"></i
+                ><i class="quantum-particle"></i><i class="quantum-particle"></i
+                ><i class="quantum-particle"></i><i class="quantum-particle"></i
+                ><i class="quantum-particle"></i
+              ></span></button
+            ><button
+              type="button"
+              id="profileMenuBtn"
+              class="user-menu"
+              title="Abrir meu perfil"
+              aria-label="Abrir meu perfil"
+            >
+              <div id="userAvatar" class="avatar">U</div>
+              <div class="user-menu-copy">
+                <strong id="userName">Utilizador</strong
+                ><span id="userRole">Perfil</span>
+              </div>
+              <span class="user-menu-chevron" aria-hidden="true">⌄</span>
+            </button>
+          </div>
+        </header>
+
+        <main class="content">
+          <section id="view-dashboard" class="view active">
+            <div class="hero-row">
+              <div>
+                <span class="eyebrow">VISÃO GERAL</span>
+                <h2 id="greeting">Olá! Vamos organizar a escala?</h2>
+                <p>
+                  Acompanhe folgas, pedidos e capacidade das lojas num só lugar.
+                </p>
+              </div>
+              <div class="hero-actions">
+                <button class="btn btn-secondary" data-view-target="calendar">
+                  Ver calendário</button
+                ><button class="btn btn-primary" id="dashboardNewTimeOff">
+                  ＋ Criar folga
+                </button>
+              </div>
+            </div>
+            <div id="cards" class="metric-grid"></div>
+            <div id="proxima-folga"></div>
+            <div class="dashboard-grid">
+              <article class="panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">PLANEAMENTO</span>
+                    <h3>Calendário do mês</h3>
+                  </div>
+                  <button class="btn btn-ghost" data-view-target="calendar">
+                    Abrir calendário →
+                  </button>
+                </div>
+                <div id="dashboardMiniCalendar" class="mini-calendar"></div>
+              </article>
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">ATENÇÃO</span>
+                    <h3>Pedidos pendentes</h3>
+                  </div>
+                  <div class="dashboard-pending-head-actions">
+                    <span id="pendingCount" class="count-pill">0</span>
+                    <button
+                      class="btn btn-ghost"
+                      data-view-target="pending-center"
+                    >
+                      Ver central →
+                    </button>
+                  </div>
+                </div>
+                <div id="dashboardRequests" class="activity-list"></div>
+              </article>
+              <article class="panel span-2">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">PRÓXIMOS DIAS</span>
+                    <h3>Próximas folgas</h3>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Funcionário</th>
+                        <th>Loja</th>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="upcomingBody"></tbody>
+                  </table>
+                </div>
+              </article>
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">DISTRIBUIÇÃO</span>
+                    <h3>Folgas por loja</h3>
+                  </div>
+                </div>
+                <div id="storeChart" class="bar-chart"></div>
+              </article>
+            </div>
+          </section>
+
+          <section id="view-calendar" class="view">
+            <div class="section-toolbar">
+              <div class="segmented">
+                <button id="calendarPrev">‹</button
+                ><button id="calendarToday">Hoje</button
+                ><button id="calendarNext">›</button>
+              </div>
+              <h2 id="calendarTitle"></h2>
+              <div class="toolbar-actions">
+                <select id="calendarStoreFilter">
+                  <option value="">Todas as lojas</option></select
+                ><select id="calendarEmployeeFilter">
+                  <option value="">Todos os funcionários</option></select
+                ><button id="calendarPdfBtn" class="btn btn-secondary">
+                  ⇩ PDF</button
+                ><button id="calendarNewBtn" class="btn btn-primary">
+                  ＋ Nova folga
+                </button>
+              </div>
+            </div>
+            <div class="calendar-layout">
+              <div class="calendar-main panel">
+                <div class="calendar-weekdays">
+                  <span>Dom</span><span>Seg</span><span>Ter</span
+                  ><span>Qua</span><span>Qui</span><span>Sex</span
+                  ><span>Sáb</span>
+                </div>
+                <div id="calendarGrid" class="calendar-grid"></div>
+              </div>
+              <aside class="calendar-side panel">
+                <h3>Legenda</h3>
+                <div class="legend">
+                  <span><i class="dot purple"></i>Aprovada</span
+                  ><span><i class="dot amber"></i>Pendente</span
+                  ><span><i class="dot blue"></i>Folga fixa</span
+                  ><span><i class="dot red"></i>Conflito</span>
+                </div>
+                <hr />
+                <h3>Resumo do mês</h3>
+                <div id="calendarSummary" class="summary-list"></div>
+              </aside>
+            </div>
+          </section>
+
+          <section id="view-timeoff" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">REGISTOS</span>
+                <h2>Folgas</h2>
+              </div>
+              <div class="toolbar-actions">
+                <input
+                  id="timeOffSearch"
+                  class="search-input"
+                  placeholder="Pesquisar funcionário…"
+                /><select id="timeOffStatusFilter">
+                  <option value="">Todos os status</option>
+                  <option>Pendente</option>
+                  <option>Aprovada</option>
+                  <option>Rejeitada</option>
+                  <option>Cancelada</option></select
+                ><button id="newTimeOffBtn" class="btn btn-primary">
+                  ＋ Nova folga
+                </button>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Funcionário</th>
+                      <th>Loja</th>
+                      <th>Período</th>
+                      <th>Tipo</th>
+                      <th>Origem</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="timeOffBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section
+            id="view-pending-center"
+            class="view advanced-view pending-center-view"
+          >
+            <div class="section-toolbar pending-center-hero">
+              <div>
+                <span class="eyebrow" id="pendingCenterEyebrow"
+                  >CENTRAL OPERACIONAL</span
+                >
+                <h2 id="pendingCenterTitle">Caixa de pendências</h2>
+                <p id="pendingCenterSubtitle">
+                  Tudo que precisa da sua atenção em um só lugar.
+                </p>
+              </div>
+              <div class="pending-hero-actions">
+                <button
+                  id="pendingNewTimeOff"
+                  class="btn btn-primary"
+                  type="button"
+                >
+                  ＋ Pedir folga
+                </button>
+                <button
+                  id="pendingRefreshBtn"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  ↻ Atualizar
+                </button>
+              </div>
+            </div>
+
+            <div
+              class="pending-summary-grid"
+              role="region"
+              aria-label="Resumo da central"
+            >
+              <article class="pending-summary-card is-total">
+                <span class="pending-summary-icon">◷</span>
+                <div>
+                  <strong id="pendingTotalMetric">0</strong
+                  ><small>Aguardando</small>
+                </div>
+              </article>
+              <article class="pending-summary-card is-timeoff">
+                <span class="pending-summary-icon">✓</span>
+                <div>
+                  <strong id="pendingTimeOffMetric">0</strong
+                  ><small>Folgas</small>
+                </div>
+              </article>
+              <article class="pending-summary-card is-clock">
+                <span class="pending-summary-icon">⌁</span>
+                <div>
+                  <strong id="pendingClockMetric">0</strong
+                  ><small>Ajustes de ponto</small>
+                </div>
+              </article>
+              <article class="pending-summary-card is-swaps">
+                <span class="pending-summary-icon">⇄</span>
+                <div>
+                  <strong id="pendingSwapMetric">0</strong><small>Trocas</small>
+                </div>
+              </article>
+              <article class="pending-summary-card is-documents">
+                <span class="pending-summary-icon">▤</span>
+                <div>
+                  <strong id="pendingDocumentMetric">0</strong
+                  ><small>Documentos</small>
+                </div>
+              </article>
+            </div>
+
+            <div
+              class="pending-filter-bar"
+              role="tablist"
+              aria-label="Filtrar central"
+            >
+              <button
+                class="pending-filter-btn active"
+                data-pending-filter="all"
+                type="button"
+              >
+                Todas
+              </button>
+              <button
+                class="pending-filter-btn"
+                data-pending-filter="timeoff"
+                type="button"
+              >
+                Folgas <em id="pendingTimeOffFilterCount">0</em>
+              </button>
+              <button
+                class="pending-filter-btn"
+                data-pending-filter="clock"
+                type="button"
+              >
+                Ponto <em id="pendingClockFilterCount">0</em>
+              </button>
+              <button
+                class="pending-filter-btn"
+                data-pending-filter="swaps"
+                type="button"
+              >
+                Trocas <em id="pendingSwapFilterCount">0</em>
+              </button>
+              <button
+                class="pending-filter-btn"
+                data-pending-filter="documents"
+                type="button"
+              >
+                Documentos <em id="pendingDocumentFilterCount">0</em>
+              </button>
+            </div>
+
+            <div class="pending-center-content">
+              <section class="pending-category" data-pending-category="timeoff">
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon timeoff">✓</span>
+                    <div>
+                      <span class="eyebrow">FOLGAS</span>
+                      <h3 id="pendingTimeOffTitle">Pedidos de folga</h3>
+                      <p id="pendingTimeOffDescription">
+                        Analise solicitações enviadas pela equipe.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    id="pendingTimeOffAction"
+                    class="btn btn-primary"
+                    type="button"
+                  >
+                    ＋ Pedir folga
+                  </button>
+                </div>
+                <div id="requestCards" class="request-grid"></div>
+                <div class="pending-related-tools permission-manager">
+                  <details>
+                    <summary>Cobertura e substituição de folga</summary>
+                    <div class="pending-inline-tool">
+                      <label
+                        >Folga aprovada<select id="substituteTimeOff"></select
+                      ></label>
+                      <button
+                        id="substituteSuggestBtn"
+                        class="btn btn-secondary"
+                        type="button"
+                      >
+                        Sugerir substitutos
+                      </button>
+                      <div
+                        id="substituteResult"
+                        class="feature-result empty-state"
+                      >
+                        Escolha uma folga aprovada.
+                      </div>
+                    </div>
+                  </details>
+                </div>
+                <div class="pending-related-tools">
+                  <details id="vacationTool">
+                    <summary>Férias CLT — solicitar e acompanhar</summary>
+                    <form
+                      id="vacationForm"
+                      class="pending-inline-tool vacation-inline-tool"
+                    >
+                      <label
+                        >Funcionário<select
+                          id="vacationEmployee"
+                          required
+                        ></select
+                      ></label>
+                      <label
+                        >Início<input
+                          id="vacationStart"
+                          type="date"
+                          required
+                        />
+                      </label>
+                      <label
+                        >Fim<input id="vacationEnd" type="date" required />
+                      </label>
+                      <label
+                        >Parcela<input
+                          id="vacationInstallment"
+                          type="number"
+                          min="1"
+                          max="3"
+                          value="1"
+                          required
+                        />
+                      </label>
+                      <label
+                        >Total de parcelas<input
+                          id="vacationInstallments"
+                          type="number"
+                          min="1"
+                          max="3"
+                          value="1"
+                          required
+                        />
+                      </label>
+                      <label
+                        >Abono (dias)<input
+                          id="vacationAllowance"
+                          type="number"
+                          min="0"
+                          max="10"
+                          value="0"
+                          required
+                        />
+                      </label>
+                      <label class="vacation-wide"
+                        >Observações<textarea
+                          id="vacationNotes"
+                          rows="2"
+                          maxlength="1000"
+                        ></textarea>
+                      </label>
+                      <div class="vacation-actions">
+                        <button class="btn btn-primary" type="submit">
+                          Solicitar férias
+                        </button>
+                        <button
+                          id="vacationRefreshBtn"
+                          class="btn btn-secondary"
+                          type="button"
+                        >
+                          Atualizar lista
+                        </button>
+                      </div>
+                      <div
+                        id="vacationResult"
+                        class="feature-result empty-state"
+                      >
+                        Nenhuma solicitação carregada.
+                      </div>
+                    </form>
+                  </details>
+                </div>
+              </section>
+
+              <section class="pending-category" data-pending-category="clock">
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon clock">⌁</span>
+                    <div>
+                      <span class="eyebrow">PONTO</span>
+                      <h3 id="pendingClockTitle">Ajustes de ponto</h3>
+                      <p id="pendingClockDescription">
+                        Revise divergências e solicitações de correção.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    id="pendingClockAction"
+                    class="btn btn-secondary"
+                    type="button"
+                  >
+                    Abrir meu ponto
+                  </button>
+                </div>
+                <div id="clockAdjustmentCards" class="request-grid"></div>
+              </section>
+
+              <section class="pending-category" data-pending-category="swaps">
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon swaps">⇄</span>
+                    <div>
+                      <span class="eyebrow">TROCAS</span>
+                      <h3>Trocas de folga</h3>
+                      <p>
+                        Acompanhe cada solicitação até o aceite e a decisão
+                        final.
+                      </p>
+                    </div>
+                  </div>
+                  <button id="newSwapBtn" class="btn btn-primary" type="button">
+                    ＋ Solicitar troca
+                  </button>
+                </div>
+                <div
+                  class="swap-flow"
+                  role="group"
+                  aria-label="Etapas da troca de folga"
+                >
+                  <span><b>1</b> Solicitação</span><i>→</i>
+                  <span><b>2</b> Aceite do colega</span><i>→</i>
+                  <span><b>3</b> Decisão do gestor</span>
+                </div>
+                <div id="swapCards" class="request-grid swap-grid"></div>
+              </section>
+
+              <section
+                class="pending-category"
+                data-pending-category="documents"
+              >
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon documents">▤</span>
+                    <div>
+                      <span class="eyebrow">DOCUMENTOS</span>
+                      <h3 id="pendingDocumentsTitle">Documentos da equipe</h3>
+                      <p id="pendingDocumentsDescription">
+                        Envie, visualize e acompanhe documentos em um só lugar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div class="pending-documents-grid">
+                  <form
+                    id="documentForm"
+                    class="panel feature-panel pending-document-form"
+                  >
+                    <span class="feature-icon">＋</span>
+                    <h3>Enviar documento</h3>
+                    <label
+                      >Funcionário<select
+                        id="documentEmployee"
+                        required
+                      ></select
+                    ></label>
+                    <label
+                      >Tipo<input
+                        id="documentType"
+                        type="text"
+                        placeholder="Atestado, certificado, contrato…"
+                        required
+                    /></label>
+                    <label
+                      >Descrição<textarea
+                        id="documentDescription"
+                        placeholder="Contexto ou observação do documento"
+                      ></textarea>
+                    </label>
+                    <div class="form-grid">
+                      <label
+                        >Emissão<input id="documentIssuedAt" type="date"
+                      /></label>
+                      <label
+                        >Vencimento<input id="documentExpiry" type="date"
+                      /></label>
+                    </div>
+                    <label class="document-upload-field"
+                      >Selecionar documento<input
+                        id="documentFile"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,application/pdf,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        required
+                      /><small
+                        >PDF, imagem ou Word · máximo de 8 MB.</small
+                      ></label
+                    >
+                    <button class="btn btn-primary" type="submit">
+                      Enviar documento
+                    </button>
+                  </form>
+                  <div class="panel feature-panel document-library-panel">
+                    <div class="feature-panel-heading">
+                      <div>
+                        <span class="feature-icon">▤</span>
+                        <h3>Documentos enviados</h3>
+                      </div>
+                      <button
+                        id="documentsRefreshBtn"
+                        class="btn btn-ghost"
+                        type="button"
+                      >
+                        Atualizar
+                      </button>
+                    </div>
+                    <div id="documentsList" class="document-library-list">
+                      <div class="empty-state">Carregando documentos…</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="pending-related-tools permission-manager">
+                  <details>
+                    <summary>Acompanhar onboarding de funcionário</summary>
+                    <div class="pending-inline-tool">
+                      <label
+                        >Funcionário<select id="onboardingEmployee"></select
+                      ></label>
+                      <button
+                        id="onboardingLoadBtn"
+                        class="btn btn-secondary"
+                        type="button"
+                      >
+                        Ver progresso
+                      </button>
+                      <div
+                        id="onboardingResult"
+                        class="feature-result empty-state"
+                      >
+                        Selecione um funcionário.
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              </section>
+            </div>
+          </section>
+          <section id="view-timeclock" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">JORNADA</span>
+                <h2>Controle de ponto</h2>
+                <p>Registre sua jornada com selfie e localização na loja.</p>
+              </div>
+              <div class="toolbar-actions permission-team-read">
+                <input id="clockMonth" type="month" /><select
+                  id="clockEmployeeFilter"
+                >
+                  <option value="">Todos os funcionários</option></select
+                ><button
+                  id="clockExportBtn"
+                  class="btn btn-secondary permission-manager"
+                >
+                  Gerar planilha mensal
+                </button>
+                <button
+                  id="clockManualPunchBtn"
+                  class="btn btn-primary permission-admin"
+                  type="button"
+                >
+                  ＋ Lançar ponto
+                </button>
+                <button
+                  id="clockRepairDuplicatesBtn"
+                  class="btn btn-secondary permission-admin"
+                  type="button"
+                >
+                  Corrigir pontos duplicados
+                </button>
+              </div>
+            </div>
+            <div id="clockPrimaryLayout" class="clock-layout">
+              <article class="panel clock-punch-card">
+                <div class="clock-punch-summary">
+                  <span class="eyebrow">AGORA</span>
+                  <div id="clockLiveTime" class="clock-live-time">--:--</div>
+                  <p id="clockLocationHint">
+                    Selfie e localização serão validadas no momento do registro.
+                  </p>
+                </div>
+                <div class="clock-punch-actions">
+                  <button
+                    id="clockPunchBtn"
+                    class="btn btn-primary clock-punch-btn"
+                  >
+                    Carregando ponto…</button
+                  ><button
+                    id="clockSkipBreakBtn"
+                    class="btn btn-secondary clock-skip-break-btn hidden"
+                    type="button"
+                  >
+                    Não tirar descanso</button
+                  ><button id="clockRefreshBtn" class="btn btn-ghost">
+                    ↻ Atualizar
+                  </button>
+                </div>
+              </article>
+              <article id="clockTodayPanel" class="panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="eyebrow">HOJE</span>
+                    <h3>Marcações da jornada</h3>
+                  </div>
+                </div>
+                <div id="clockTodayList" class="clock-timeline"></div>
+              </article>
+            </div>
+            <div class="metric-grid clock-metrics">
+              <div class="metric-card">
+                <span>Trabalhado no mês</span
+                ><strong id="clockWorkedMetric">0h 00min</strong>
+              </div>
+              <div class="metric-card">
+                <span>Previsto no mês</span
+                ><strong id="clockExpectedMetric">0h 00min</strong>
+              </div>
+              <div class="metric-card">
+                <span>Saldo de horas</span
+                ><strong id="clockBalanceMetric">0h 00min</strong>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="panel-head clock-history-head">
+                <div>
+                  <span class="eyebrow">ESPELHO</span>
+                  <h3>Registros do dia</h3>
+                  <p id="clockDaySummary">Mostrando somente o dia selecionado.</p>
+                </div>
+                <div class="clock-day-picker" aria-label="Selecionar dia do ponto">
+                  <label for="clockDayFilter">Dia exibido</label>
+                  <div>
+                    <input id="clockDayFilter" type="date" />
+                    <button
+                      id="clockTodayBtn"
+                      class="btn btn-secondary"
+                      type="button"
+                    >
+                      Hoje
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Funcionário</th>
+                      <th>Data</th>
+                      <th>Entrada</th>
+                      <th>Intervalo</th>
+                      <th>Retorno</th>
+                      <th>Saída</th>
+                      <th>Trabalhado</th>
+                      <th>Saldo</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="clockHistoryBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-scheduler" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">AUTOMAÇÃO</span>
+                <h2>Geração automática</h2>
+                <p>Distribua folgas conforme saldo, dias fixos e capacidade.</p>
+              </div>
+            </div>
+            <div class="scheduler-grid">
+              <form id="schedulerForm" class="panel form-panel">
+                <h3>Configurar distribuição</h3>
+                <div class="form-grid">
+                  <label
+                    >Loja<select id="schedulerStore" required>
+                      <option value="">Selecione</option>
+                    </select></label
+                  ><label
+                    >Mês<input
+                      id="schedulerMonth"
+                      type="month"
+                      required /></label
+                  ><label
+                    >Máximo de folgas por dia<input
+                      id="schedulerMaxPerDay"
+                      type="number"
+                      min="1"
+                      value="1" /></label
+                  ><label
+                    >Mínimo trabalhando<input
+                      id="schedulerMinWorking"
+                      type="number"
+                      min="0"
+                      value="1"
+                  /></label>
+                </div>
+                <div class="check-grid">
+                  <label
+                    ><input id="schedulerUseBalance" type="checkbox" checked />
+                    Usar saldo de folgas</label
+                  ><label
+                    ><input id="schedulerFixedDays" type="checkbox" checked />
+                    Priorizar folgas fixas</label
+                  ><label
+                    ><input id="schedulerWeekends" type="checkbox" /> Permitir
+                    fins de semana</label
+                  ><label
+                    ><input
+                      id="schedulerDeductBalance"
+                      type="checkbox"
+                      checked
+                    />
+                    Baixar saldo ao confirmar</label
+                  >
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    id="clearSimulationBtn"
+                    class="btn btn-ghost"
+                  >
+                    Limpar</button
+                  ><button type="submit" class="btn btn-primary">
+                    ✦ Simular distribuição</button
+                  ><button
+                    type="button"
+                    id="aiSimulateBtn"
+                    class="btn btn-secondary"
+                  >
+                    ✨ Simular com IA
+                  </button>
+                </div>
+              </form>
+              <article class="panel scheduler-help">
+                <span class="feature-icon">✦</span>
+                <h3>Distribuição equilibrada</h3>
+                <p>
+                  O motor considera saldo, folgas fixas, histórico, limites da
+                  loja e conflitos existentes.
+                </p>
+                <ul>
+                  <li>Prioridade explicável por pontuação</li>
+                  <li>Visualização em tabela e calendário</li>
+                  <li>Ajustes antes da confirmação</li>
+                </ul>
+              </article>
+            </div>
+            <div id="simulationArea" class="hidden">
+              <div id="simulationAIHint" class="ai-hint hidden"></div>
+              <div class="section-toolbar compact">
+                <div>
+                  <h3>Resultado da simulação</h3>
+                  <p id="simulationSummary"></p>
+                </div>
+                <div class="toolbar-actions">
+                  <button
+                    id="simulationTableView"
+                    class="btn btn-secondary active"
+                  >
+                    Tabela</button
+                  ><button
+                    id="simulationCalendarView"
+                    class="btn btn-secondary"
+                  >
+                    Calendário</button
+                  ><button id="simulationPdfBtn" class="btn btn-secondary">
+                    ⇩ PDF</button
+                  ><button id="confirmSimulationBtn" class="btn btn-primary">
+                    Confirmar e gravar
+                  </button>
+                </div>
+              </div>
+              <div id="simulationTablePanel" class="panel table-panel">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th></th>
+                        <th>Funcionário</th>
+                        <th>Data</th>
+                        <th>Folga fixa</th>
+                        <th>Saldo</th>
+                        <th>Pontuação</th>
+                        <th>Motivo</th>
+                        <th id="simulationAIColumnHead" class="hidden">
+                          Análise IA
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody id="simulationBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div id="simulationCalendarPanel" class="panel hidden">
+                <div class="calendar-weekdays">
+                  <span>Dom</span><span>Seg</span><span>Ter</span
+                  ><span>Qua</span><span>Qui</span><span>Sex</span
+                  ><span>Sáb</span>
+                </div>
+                <div id="simulationCalendarGrid" class="calendar-grid"></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-employees" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">EQUIPA</span>
+                <h2>Funcionários</h2>
+              </div>
+              <div class="toolbar-actions">
+                <input
+                  id="employeeSearch"
+                  class="search-input"
+                  placeholder="Pesquisar…"
+                /><select id="employeeStoreFilter">
+                  <option value="">Todas as lojas</option></select
+                ><button id="newEmployeeBtn" class="btn btn-primary">
+                  ＋ Novo funcionário
+                </button>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Funcionário</th>
+                      <th>Loja</th>
+                      <th>Cargo</th>
+                      <th>Perfil</th>
+                      <th>Saldo</th>
+                      <th>Folgas fixas</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="employeeBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-stores" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">ESTRUTURA</span>
+                <h2>Lojas</h2>
+              </div>
+              <button id="newStoreBtn" class="btn btn-primary">
+                ＋ Nova loja
+              </button>
+            </div>
+            <div id="storeCards" class="store-grid"></div>
+          </section>
+          <section id="view-holidays" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">CALENDÁRIO</span>
+                <h2>Feriados</h2>
+              </div>
+              <button id="newHolidayBtn" class="btn btn-primary">
+                ＋ Novo feriado
+              </button>
+            </div>
+            <div class="panel table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Feriado</th>
+                      <th>Data</th>
+                      <th>Tipo</th>
+                      <th>Loja</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="holidayBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-access" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">SEGURANÇA</span>
+                <h2>Controle de acesso</h2>
+                <p>Gerencie perfis, vínculos e estado de acesso.</p>
+              </div>
+              <button id="newAccessBtn" class="btn btn-primary">
+                ＋ Criar acesso
+              </button>
+            </div>
+            <div class="access-metrics">
+              <div class="metric-card">
+                <span>Utilizadores ativos</span
+                ><strong id="activeUsersMetric">0</strong>
+              </div>
+              <div class="metric-card">
+                <span>Administradores</span
+                ><strong id="adminUsersMetric">0</strong>
+              </div>
+              <div class="metric-card">
+                <span>Bloqueados</span
+                ><strong id="blockedUsersMetric">0</strong>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Utilizador</th>
+                      <th>Perfil</th>
+                      <th>Loja</th>
+                      <th>Último acesso</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="accessBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-operations" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">CAPACIDADE</span>
+                <h2>Regras operacionais</h2>
+                <p>
+                  Defina limite de folgas e equipe mínima por loja, cargo e dia.
+                </p>
+              </div>
+              <div class="toolbar-actions">
+                <button id="newOperationalRuleBtn" class="btn btn-primary">
+                  ＋ Nova regra
+                </button>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Loja</th>
+                      <th>Cargo</th>
+                      <th>Dia</th>
+                      <th>Limite de folgas</th>
+                      <th>Mínimo trabalhando</th>
+                      <th>Modo</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="operationalRulesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-notifications" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">CENTRAL</span>
+                <h2>Notificações</h2>
+              </div>
+              <button id="refreshNotificationsBtn" class="btn btn-secondary">
+                ↻ Atualizar
+              </button>
+            </div>
+            <div id="notificationsList" class="activity-list panel"></div>
+          </section>
+
+          <section id="view-house-arena" class="view">
+            <div
+              id="arenaConnectionStatus"
+              class="arena-connection-status"
+              role="status"
+              aria-live="polite"
+            >
+              <span></span><b>Pronto para jogar</b>
+            </div>
+            <div class="arena-hero">
+              <div class="arena-hero-copy">
+                <span class="arena-kicker">TEMPORADA MOBILE · HOUSE 190</span>
+                <h2>House Arena <em>Remix</em></h2>
+                <p>
+                  Doze missões refeitas para o toque, incluindo uma experiência
+                  online para dois celulares conectados.
+                </p>
+                <div class="arena-hero-pills">
+                  <span>⚡ Solo de 40–50s</span>
+                  <span>🔗 Duplas ao vivo</span>
+                  <span>🏆 Campeonato validado</span>
+                </div>
+              </div>
+              <div class="arena-hero-art" aria-hidden="true">
+                <div class="arena-orbit arena-orbit-one">🍔</div>
+                <div class="arena-orbit arena-orbit-two">🧾</div>
+                <div class="arena-orbit arena-orbit-three">🌶️</div>
+                <div class="arena-trophy">🏆</div>
+                <div class="arena-burst"></div>
+              </div>
+            </div>
+
+            <section
+              id="arenaGamePickerShell"
+              class="panel arena-game-picker-shell"
+              aria-labelledby="arenaGamePickerTitle"
+            >
+              <div class="arena-picker-head">
+                <div>
+                  <span class="eyebrow">CENTRAL DE MISSÕES</span>
+                  <h3 id="arenaGamePickerTitle">Escolha seu próximo desafio</h3>
+                </div>
+                <span>Arraste a lista ou filtre por habilidade</span>
+              </div>
+              <div
+                id="arenaGameFilters"
+                class="arena-game-filters"
+                aria-label="Filtrar jogos"
+              >
+                <button type="button" data-arena-filter="todos" class="active">
+                  Todos
+                </button>
+                <button type="button" data-arena-filter="reflexo">
+                  ⚡ Reflexo
+                </button>
+                <button type="button" data-arena-filter="estrategia">
+                  🧩 Estratégia
+                </button>
+                <button type="button" data-arena-filter="memoria">
+                  🧠 Memória
+                </button>
+                <button type="button" data-arena-filter="precisao">
+                  🎯 Precisão
+                </button>
+                <button type="button" data-arena-filter="percepcao">
+                  👁 Percepção
+                </button>
+                <button type="button" data-arena-filter="online">
+                  ◉ Online
+                </button>
+              </div>
+              <div id="arenaGameGrid" class="arena-game-grid"></div>
+            </section>
+
+            <div class="arena-dashboard">
+              <article id="arenaGameShell" class="panel arena-game-shell">
+                <div id="arenaLobby" class="arena-lobby">
+                  <div class="arena-game-brand">
+                    <span id="arenaSelectedIcon" class="arena-game-icon"
+                      >🛎️</span
+                    >
+                    <div>
+                      <span>JOGO SELECIONADO</span>
+                      <h3 id="arenaSelectedName">Corrida dos Pedidos</h3>
+                    </div>
+                  </div>
+                  <p id="arenaSelectedIntro" class="arena-game-intro">
+                    Ache o pedido certo antes que a cozinha vire uma loucura.
+                  </p>
+                  <div id="arenaSelectedMeta" class="arena-selected-meta">
+                    <span>Reflexo</span><span>Fácil de aprender</span
+                    ><span>Toque rápido</span>
+                  </div>
+                  <div class="arena-lobby-stats">
+                    <div>
+                      <small>Seu recorde</small
+                      ><strong id="arenaMyBestLobby">0</strong>
+                    </div>
+                    <div>
+                      <small>Posição</small
+                      ><strong id="arenaMyRankLobby">–</strong>
+                    </div>
+                    <div>
+                      <small>Partidas hoje</small
+                      ><strong id="arenaGamesLobby">0/20</strong>
+                    </div>
+                  </div>
+                  <div id="arenaHowTo" class="arena-how-to"></div>
+                  <div id="arenaRankedStatus" class="arena-ranked-status">
+                    Carregando campeonato…
+                  </div>
+                  <div id="arenaResumeBanner" class="arena-resume-banner hidden">
+                    <span>⏯</span>
+                    <div>
+                      <strong>Partida interrompida</strong>
+                      <small>Continue de onde parou sem nova leitura no banco.</small>
+                    </div>
+                    <button id="arenaResumeBtn" type="button">Continuar</button>
+                    <button
+                      id="arenaDiscardResumeBtn"
+                      type="button"
+                      aria-label="Descartar partida"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div class="arena-lobby-actions">
+                    <button
+                      id="arenaStartBtn"
+                      class="btn btn-primary arena-start-btn"
+                      type="button"
+                    >
+                      <span>▶</span>
+                      <b id="arenaStartBtnLabel">Jogar Corrida dos Pedidos</b>
+                    </button>
+                    <button
+                      id="arenaSoundToggle"
+                      class="btn btn-secondary arena-sound-btn"
+                      type="button"
+                      aria-label="Ativar ou desativar sons"
+                    >
+                      <span id="arenaSoundIcon" aria-hidden="true">🔊</span>
+                      <b id="arenaSoundLabel">Som</b>
+                    </button>
+                    <button
+                      id="arenaSettingsBtn"
+                      class="btn btn-secondary arena-settings-btn"
+                      type="button"
+                      aria-label="Abrir preferências dos jogos"
+                    >
+                      <span aria-hidden="true">⚙</span>
+                      <b>Preferências</b>
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  id="houseLinkApp"
+                  class="house-link-app hidden"
+                  aria-live="polite"
+                ></div>
+
+                <div id="arenaPlay" class="arena-play hidden">
+                  <div class="arena-play-title">
+                    <div>
+                      <button
+                        id="arenaExitBtn"
+                        type="button"
+                        aria-label="Sair da partida"
+                      >
+                        ×
+                      </button>
+                      <span id="arenaPlayingName">Rush de Pedidos</span>
+                    </div>
+                    <div>
+                      <small>MISSÃO <b id="arenaRoundHud">1</b></small>
+                      <button
+                        id="arenaPauseBtn"
+                        type="button"
+                        aria-label="Pausar partida"
+                      >
+                        Ⅱ
+                      </button>
+                    </div>
+                  </div>
+                  <div class="arena-hud">
+                    <div class="arena-hud-item">
+                      <span>PONTOS</span><strong id="arenaScore">0</strong>
+                    </div>
+                    <div class="arena-hud-item arena-hud-timer">
+                      <span>TEMPO</span><strong id="arenaTimer">45,0</strong>
+                    </div>
+                    <div class="arena-hud-item">
+                      <span>COMBO</span><strong id="arenaCombo">x0</strong>
+                    </div>
+                  </div>
+                  <div class="arena-timer-track">
+                    <i id="arenaTimerBar"></i>
+                  </div>
+                  <div class="arena-momentum">
+                    <span id="arenaMomentumLabel">RITMO</span>
+                    <i><b id="arenaMomentumFill"></b></i>
+                    <small>combo 10 ativa o turbo</small>
+                  </div>
+                  <div id="arenaStage" class="arena-stage">
+                    <div class="arena-stage-lights"></div>
+                    <div id="arenaCountdown" class="arena-countdown hidden">
+                      3
+                    </div>
+                    <div
+                      id="arenaComboBanner"
+                      class="arena-combo-banner hidden"
+                    ></div>
+                    <div
+                      id="arenaCoach"
+                      class="arena-coach hidden"
+                      role="status"
+                      aria-live="polite"
+                    ></div>
+                    <div id="arenaGameSurface" class="arena-game-surface"></div>
+                    <div id="arenaFeedback" class="arena-feedback"></div>
+                    <div class="arena-conveyor">
+                      <i></i><i></i><i></i><i></i><i></i><i></i>
+                    </div>
+                    <div id="arenaParticles" class="arena-particles"></div>
+                    <div
+                      id="arenaPauseOverlay"
+                      class="arena-pause-overlay hidden"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="arenaPauseTitle"
+                    >
+                      <span>⏸</span>
+                      <small>PAUSA RÁPIDA</small>
+                      <h3 id="arenaPauseTitle">Respire. Seu ritmo está salvo.</h3>
+                      <p>
+                        A pausa segura dura até 60 segundos para manter a
+                        validação da partida.
+                      </p>
+                      <strong id="arenaPauseClock">60s</strong>
+                      <button id="arenaResumePauseBtn" type="button">
+                        Continuar
+                      </button>
+                      <button id="arenaQuitPauseBtn" type="button">
+                        Encerrar partida
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="arenaResult" class="arena-result hidden">
+                  <div class="arena-result-crown">
+                    <span>🏆</span><b id="arenaResultGrade">A</b>
+                  </div>
+                  <span id="arenaResultGame">HOUSE ARENA</span>
+                  <h3 id="arenaResultTitle">Mandou muito bem!</h3>
+                  <strong id="arenaResultScore">0</strong>
+                  <small>PONTOS</small>
+                  <div class="arena-result-grid">
+                    <div><span>✓</span><b id="arenaResultHits">0</b><small>Acertos</small></div>
+                    <div><span>🔥</span><b id="arenaResultCombo">0</b><small>Melhor combo</small></div>
+                    <div><span>🎯</span><b id="arenaResultAccuracy">0%</b><small>Precisão</small></div>
+                  </div>
+                  <p id="arenaResultRank">Atualizando o ranking…</p>
+                  <small id="arenaResultTip" class="arena-result-tip"
+                    >Seu próximo objetivo aparecerá aqui.</small
+                  >
+                  <button
+                    id="arenaRetrySyncBtn"
+                    class="arena-retry-sync hidden"
+                    type="button"
+                  >
+                    ↻ Tentar enviar o resultado
+                  </button>
+                  <div class="arena-result-actions">
+                    <button
+                      id="arenaPlayAgainBtn"
+                      class="btn btn-primary"
+                      type="button"
+                    >
+                      Jogar novamente
+                    </button>
+                    <button
+                      id="arenaBackLobbyBtn"
+                      class="btn btn-secondary"
+                      type="button"
+                    >
+                      Ver todos
+                    </button>
+                    <button
+                      id="arenaNextGameBtn"
+                      class="btn btn-secondary"
+                      type="button"
+                    >
+                      Próximo jogo
+                    </button>
+                  </div>
+                </div>
+              </article>
+
+              <aside class="panel arena-ranking-shell">
+                <div class="arena-ranking-head">
+                  <div>
+                    <span class="eyebrow">PLACAR AO VIVO</span>
+                    <h3>Ranking</h3>
+                  </div>
+                  <button
+                    id="arenaRefreshRanking"
+                    class="icon-btn"
+                    type="button"
+                    title="Atualizar ranking"
+                    aria-label="Atualizar ranking"
+                  >
+                    ↻
+                  </button>
+                </div>
+                <div class="arena-ranking-summary">
+                  <div>
+                    <small>Seu melhor</small
+                    ><strong id="arenaMyBest">0</strong>
+                  </div>
+                  <div>
+                    <small>Sua posição</small
+                    ><strong id="arenaMyPosition">–</strong>
+                  </div>
+                  <div>
+                    <small>Jogos hoje</small
+                    ><strong id="arenaGamesToday">0/20</strong>
+                  </div>
+                </div>
+                <div
+                  id="arenaRankingGameTabs"
+                  class="arena-ranking-game-tabs"
+                  aria-label="Jogo do ranking"
+                ></div>
+                <div class="arena-tab-row" aria-label="Período do ranking">
+                  <button data-arena-period="dia">Hoje</button>
+                  <button data-arena-period="semana">Semana</button>
+                  <button data-arena-period="mes" class="active">Mês</button>
+                  <button data-arena-period="geral">Geral</button>
+                </div>
+                <div
+                  class="arena-tab-row arena-scope-tabs"
+                  aria-label="Tipo de ranking"
+                >
+                  <button data-arena-scope="loja" class="active">
+                    Minha unidade
+                  </button>
+                  <button data-arena-scope="geral">Jogadores</button>
+                  <button data-arena-scope="unidades">Unidades</button>
+                </div>
+                <div id="arenaRankingLabel" class="arena-ranking-label">
+                  Melhores do mês
+                </div>
+                <div id="arenaRankingList" class="arena-ranking-list">
+                  <div class="arena-ranking-loading">
+                    <i></i><span>Carregando ranking…</span>
+                  </div>
+                </div>
+                <p class="arena-ranking-note">
+                  O ranking das unidades usa a média dos cinco melhores
+                  jogadores. Assim, unidades pequenas e grandes competem de
+                  forma justa.
+                </p>
+              </aside>
+            </div>
+            <div
+              id="arenaSettingsSheet"
+              class="arena-settings-sheet hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="arenaSettingsTitle"
+            >
+              <button
+                id="arenaSettingsBackdrop"
+                class="arena-settings-backdrop"
+                type="button"
+                aria-label="Fechar preferências"
+              ></button>
+              <section>
+                <div class="arena-sheet-handle"></div>
+                <div class="arena-sheet-head">
+                  <div>
+                    <span>PREFERÊNCIAS</span>
+                    <h3 id="arenaSettingsTitle">Jogue do seu jeito</h3>
+                  </div>
+                  <button
+                    id="arenaSettingsClose"
+                    type="button"
+                    aria-label="Fechar"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p>
+                  Estas opções ficam somente neste aparelho e não geram
+                  gravações no Firebase.
+                </p>
+                <label class="arena-setting-row">
+                  <span
+                    ><b>🔊 Sons</b
+                    ><small>Efeitos leves após o toque</small></span
+                  >
+                  <input id="arenaSettingSound" type="checkbox" checked />
+                  <i></i>
+                </label>
+                <label class="arena-setting-row">
+                  <span
+                    ><b>📳 Vibração</b
+                    ><small>Feedback tátil discreto</small></span
+                  >
+                  <input id="arenaSettingHaptics" type="checkbox" checked />
+                  <i></i>
+                </label>
+                <label class="arena-setting-row">
+                  <span
+                    ><b>🌙 Reduzir movimentos</b
+                    ><small>Remove partículas e animações intensas</small></span
+                  >
+                  <input id="arenaSettingMotion" type="checkbox" />
+                  <i></i>
+                </label>
+                <label class="arena-setting-row">
+                  <span
+                    ><b>◐ Alto contraste</b
+                    ><small>Reforça contornos e textos</small></span
+                  >
+                  <input id="arenaSettingContrast" type="checkbox" />
+                  <i></i>
+                </label>
+                <button
+                  id="arenaSettingsDone"
+                  class="btn btn-primary"
+                  type="button"
+                >
+                  Salvar preferências
+                </button>
+              </section>
+            </div>
+          </section>
+          <section id="view-communication" class="view advanced-view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">EQUIPE</span>
+                <h2>Comunicação</h2>
+                <p>Comunicados e enquetes em um só lugar.</p>
+              </div>
+              <button id="communicationRefreshBtn" class="btn btn-secondary">
+                ↻ Atualizar
+              </button>
+            </div>
+            <div class="advanced-grid">
+              <form
+                id="announcementForm"
+                class="panel feature-panel permission-manager"
+              >
+                <span class="feature-icon">◈</span>
+                <h3>Novo comunicado</h3>
+                <label>Título<input id="announcementTitle" required /></label
+                ><label
+                  >Mensagem<textarea
+                    id="announcementMessage"
+                    required
+                  ></textarea>
+                </label>
+                <div class="form-grid">
+                  <label>Loja<select id="announcementStore"></select></label
+                  ><label
+                    >Público<select id="announcementAudience">
+                      <option value="TODOS">Todos</option>
+                      <option value="FUNCIONARIOS">Funcionários</option>
+                      <option value="GESTORES">Gestores</option>
+                    </select></label
+                  >
+                </div>
+                <label
+                  >Validade<input
+                    id="announcementExpiresAt"
+                    type="datetime-local"
+                /></label>
+                <label class="switch-label"
+                  ><input
+                    id="announcementRequiresConfirmation"
+                    type="checkbox"
+                    checked
+                  />
+                  Exigir confirmação de leitura</label
+                >
+                <button class="btn btn-primary" type="submit">Publicar</button>
+              </form>
+              <form
+                id="pollForm"
+                class="panel feature-panel permission-manager"
+              >
+                <span class="feature-icon">▥</span>
+                <h3>Nova enquete</h3>
+                <label>Pergunta<input id="pollQuestion" required /></label>
+                <div class="poll-options-field">
+                  <div class="poll-options-head">
+                    <label>Opções</label
+                    ><span id="pollOptionCount">2 de 10</span>
+                  </div>
+                  <div id="pollOptionList" class="poll-option-list"></div>
+                  <button
+                    id="pollAddOption"
+                    class="btn btn-ghost poll-add-option"
+                    type="button"
+                  >
+                    ＋ Adicionar outra opção
+                  </button>
+                  <small>Você pode criar de 2 a 10 alternativas.</small>
+                </div>
+                <label>Loja<select id="pollStore"></select></label
+                ><label
+                  >Encerrar em<input
+                    id="pollClosesAt"
+                    type="datetime-local" /></label
+                ><button class="btn btn-primary" type="submit">
+                  Criar enquete
+                </button>
+              </form>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">MURAL</span>
+                  <h3>Comunicados ativos</h3>
+                </div>
+              </div>
+              <div id="announcementList" class="communication-feed empty-state">
+                Carregando comunicados…
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">PARTICIPE</span>
+                  <h3>Enquetes abertas</h3>
+                </div>
+              </div>
+              <div id="pollList" class="communication-feed empty-state">
+                Carregando enquetes…
+              </div>
+            </div>
+          </section>
+
+          <section id="view-monthly-closing" class="view advanced-view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">FOLHA</span>
+                <h2>Fechamento mensal</h2>
+                <p>
+                  Feche o período, consulte o histórico e reabra com
+                  justificativa.
+                </p>
+              </div>
+              <div class="toolbar-actions">
+                <select id="closingStore"></select
+                ><input id="closingMonth" type="month" /><button
+                  id="closingRunBtn"
+                  class="btn btn-primary"
+                >
+                  Fechar mês
+                </button>
+              </div>
+            </div>
+            <div class="metric-grid">
+              <div class="metric-card">
+                <span>Período selecionado</span
+                ><strong id="closingPeriodMetric">—</strong>
+              </div>
+              <div class="metric-card">
+                <span>Status</span
+                ><strong id="closingStatusMetric">Aberto</strong>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="panel-head">
+                <h3>Histórico de fechamentos</h3>
+                <button id="closingRefreshBtn" class="btn btn-secondary">
+                  ↻ Atualizar
+                </button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mês</th>
+                      <th>Loja</th>
+                      <th>Funcionários</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="closingBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-advanced-reports" class="view advanced-view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">INTELIGÊNCIA</span>
+                <h2>Gestão avançada</h2>
+                <p>Assiduidade, banco de horas e exportação AFD.</p>
+              </div>
+            </div>
+            <div class="advanced-grid">
+              <div class="panel feature-panel">
+                <span class="feature-icon">★</span>
+                <h3>Ranking de assiduidade</h3>
+                <label>Loja<select id="attendanceStore"></select></label
+                ><label>Mês<input id="attendanceMonth" type="month" /></label
+                ><button id="attendanceLoadBtn" class="btn btn-primary">
+                  Gerar ranking
+                </button>
+                <div id="attendanceResult" class="feature-result"></div>
+              </div>
+              <form id="afdForm" class="panel feature-panel permission-admin">
+                <span class="feature-icon">⇩</span>
+                <h3>Exportar AFD</h3>
+                <label>Loja<select id="afdStore" required></select></label>
+                <div class="form-grid">
+                  <label
+                    >Início<input id="afdStart" type="date" required /></label
+                  ><label>Fim<input id="afdEnd" type="date" required /></label>
+                </div>
+                <button class="btn btn-primary" type="submit">
+                  Gerar arquivo AFD
+                </button>
+                <div id="afdResult" class="feature-result"></div>
+              </form>
+              <form id="hourCompensationForm" class="panel feature-panel">
+                <span class="feature-icon">◷</span>
+                <h3>Compensar com banco de horas</h3>
+                <label
+                  >Funcionário<select
+                    id="hourCompensationEmployee"
+                    required
+                  ></select
+                ></label>
+                <div class="form-grid">
+                  <label
+                    >Data<input
+                      id="hourCompensationDate"
+                      type="date"
+                      required /></label
+                  ><label
+                    >Horas<input
+                      id="hourCompensationHours"
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      required
+                  /></label>
+                </div>
+                <button class="btn btn-primary" type="submit">
+                  Compensar folga
+                </button>
+              </form>
+            </div>
+          </section>
+
+          <section id="view-governance" class="view advanced-view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">SEGURANÇA</span>
+                <h2>Governança</h2>
+                <p>Delegações temporárias de perfil e ações administrativas.</p>
+              </div>
+            </div>
+            <div class="advanced-grid">
+              <form id="delegationForm" class="panel feature-panel">
+                <span class="feature-icon">♢</span>
+                <h3>Delegar perfil</h3>
+                <label
+                  >E-mail<input
+                    id="delegationEmail"
+                    type="email"
+                    required /></label
+                ><label
+                  >Perfil<select id="delegationProfile">
+                    <option>Administrador</option>
+                    <option>Responsável de loja</option>
+                  </select></label
+                >
+                <label
+                  >Loja para o perfil responsável<select
+                    id="delegationStore"
+                  ></select
+                ></label>
+                <div class="form-grid">
+                  <label
+                    >Início<input
+                      id="delegationStart"
+                      type="datetime-local"
+                      required /></label
+                  ><label
+                    >Fim<input
+                      id="delegationEnd"
+                      type="datetime-local"
+                      required
+                  /></label>
+                </div>
+                <label
+                  >Motivo<textarea
+                    id="delegationReason"
+                    required
+                  ></textarea></label
+                ><button class="btn btn-primary" type="submit">
+                  Criar delegação
+                </button>
+              </form>
+            </div>
+          </section>
+
+          <section id="view-reports" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">ANÁLISE</span>
+                <h2>Relatórios</h2>
+              </div>
+              <div class="toolbar-actions">
+                <button id="exportCsvBtn" class="btn btn-secondary">
+                  ⇩ CSV</button
+                ><button id="exportPdfBtn" class="btn btn-primary">
+                  ⇩ PDF
+                </button>
+              </div>
+            </div>
+            <div id="reportCards" class="metric-grid"></div>
+            <div class="panel">
+              <div class="panel-head"><h3>Distribuição mensal</h3></div>
+              <div id="reportChart" class="large-chart"></div>
+            </div>
+          </section>
+          <section id="view-audit" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">HISTÓRICO</span>
+                <h2>Auditoria</h2>
+              </div>
+              <button id="refreshAuditBtn" class="btn btn-secondary">
+                ↻ Atualizar
+              </button>
+            </div>
+            <div class="panel table-panel">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Utilizador</th>
+                      <th>Ação</th>
+                      <th>Módulo</th>
+                      <th>Registo</th>
+                      <th>Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+    <?!= include_('Dialogs'); ?>
+    <?!= include_('Scripts'); ?>
+  </body>
+</html>

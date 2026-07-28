@@ -1,0 +1,25 @@
+{
+  "name": "gestao-folgas-firebase",
+  "version": "6.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gestão de Folgas do Grupo House 190, convertida para GitHub Pages e Firebase.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "predev": "node scripts/build-index.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/build-index.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm test && npm run build"
+  },
+  "dependencies": {
+    "firebase": "12.16.0"
+  },
+  "devDependencies": {
+    "vite": "7.1.7"
+  }
+}

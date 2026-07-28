@@ -1,0 +1,930 @@
+<dialog id="timeOffDialog">
+  <form id="timeOffForm">
+    <div class="dialog-head">
+      <h3 id="timeOffDialogTitle">Nova folga</h3>
+      <button type="button" class="icon-btn" data-close="timeOffDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="timeOffId" type="hidden" />
+      <div class="dialog-grid">
+        <label>Loja<select id="timeOffStore" required></select></label>
+        <label
+          >Funcionário<select id="timeOffEmployee" required></select
+        ></label>
+        <label id="timeOffSingleDateField"
+          >Data da folga<input id="timeOffSingleDate" type="date"
+        /></label>
+        <label id="timeOffStartField" class="hidden"
+          >Data inicial<input id="timeOffStart" type="date"
+        /></label>
+        <label id="timeOffEndField" class="hidden"
+          >Data final<input id="timeOffEnd" type="date"
+        /></label>
+        <label
+          >Tipo<select id="timeOffType">
+            <option>Folga semanal</option>
+            <option>Folga manual</option>
+            <option>Folga automática</option>
+            <option>Folga compensatória</option>
+            <option>Folga de feriado</option>
+            <option>Férias</option>
+            <option>Licença</option>
+            <option>Banco de horas</option>
+            <option>Meia folga</option>
+            <option>Outro</option>
+          </select></label
+        >
+        <label
+          >Período<select id="timeOffPeriod">
+            <option>Dia inteiro</option>
+            <option>Manhã</option>
+            <option>Tarde</option>
+            <option>Horário personalizado</option>
+          </select></label
+        >
+        <label class="full"
+          >Motivo<textarea
+            id="timeOffReason"
+            placeholder="Adicione um motivo ou observação"
+          ></textarea>
+        </label>
+        <label class="switch-label"
+          ><input id="timeOffImmediate" type="checkbox" /> Aprovar
+          imediatamente</label
+        >
+        <label class="switch-label"
+          ><input id="timeOffCalendar" type="checkbox" checked /> Criar no
+          Google Calendar</label
+        >
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="timeOffDialog"
+      >
+        Cancelar</button
+      ><button
+        type="button"
+        id="validateTimeOffButton"
+        class="btn btn-secondary"
+      >
+        Validar</button
+      ><button class="btn btn-primary" type="submit">Guardar folga</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="approvalDialog">
+  <form id="approvalForm">
+    <div class="dialog-head">
+      <h3 id="approvalTitle">Aprovar pedido</h3>
+      <button type="button" class="icon-btn" data-close="approvalDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="approvalId" type="hidden" /><input
+        id="approvalAction"
+        type="hidden"
+      /><label>Observação<textarea id="approvalObs"></textarea></label
+      ><label class="switch-label"
+        ><input id="approvalCalendar" type="checkbox" checked /> Criar evento no
+        Calendar</label
+      >
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="approvalDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">Confirmar</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="cancelDialog">
+  <form id="cancelForm">
+    <div class="dialog-head">
+      <h3>Cancelar folga</h3>
+      <button type="button" class="icon-btn" data-close="cancelDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="cancelId" type="hidden" /><label
+        >Motivo do cancelamento<textarea id="cancelReason" required></textarea>
+      </label>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="cancelDialog">
+        Voltar</button
+      ><button class="btn btn-danger" type="submit">Cancelar folga</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="employeeDialog">
+  <form id="employeeForm">
+    <div class="dialog-head">
+      <h3 id="employeeDialogTitle">Novo funcionário</h3>
+      <button type="button" class="icon-btn" data-close="employeeDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="employeeId" type="hidden" />
+      <div class="dialog-grid">
+        <label>Nome<input id="employeeName" required /></label
+        ><label>E-mail<input id="employeeEmail" type="email" required /></label
+        ><label>Telefone<input id="employeePhone" /></label
+        ><label
+          >CPF<input
+            id="employeeCpf"
+            inputmode="numeric"
+            maxlength="14"
+            placeholder="000.000.000-00" /></label
+        ><label>Loja<select id="employeeStore" required></select></label
+        ><label>Cargo<input id="employeeRole" /></label
+        ><label
+          >Perfil<select id="employeeProfile">
+            <option>Funcionário</option>
+            <option>Chefe de cozinha</option>
+            <option>Responsável de loja</option>
+            <option>Administrador</option>
+          </select></label
+        ><label
+          >Data de admissão<input id="employeeAdmission" type="date" /></label
+        ><label>Tipo de contrato<input id="employeeContract" /></label
+        ><label
+          >Saldo de folgas<input
+            id="employeeBalance"
+            type="number"
+            value="0" /></label
+        ><label
+          >Folga fixa<select id="employeeFixedDay1">
+            <option value="">Nenhuma</option>
+            <option>Domingo</option>
+            <option>Segunda-feira</option>
+            <option>Terça-feira</option>
+            <option>Quarta-feira</option>
+            <option>Quinta-feira</option>
+            <option>Sexta-feira</option>
+            <option>Sábado</option>
+          </select></label
+        >
+      </div>
+      <h4 class="dialog-section-title">Jornada e ponto</h4>
+      <div class="dialog-grid">
+        <label
+          >Tipo de jornada<select id="employeeJourneyType">
+            <option>Integral</option>
+            <option>Meio período</option>
+            <option>Personalizada</option>
+          </select></label
+        ><label
+          >Carga diária líquida (automática)<input
+            id="employeeDailyHours"
+            type="number"
+            min="0.01"
+            max="16"
+            step="0.01"
+            readonly
+            value="8" /></label
+        ><label
+          >Entrada<input
+            id="employeeClockIn"
+            type="time"
+            value="08:00" /></label
+        ><label
+          >Saída para intervalo<input
+            id="employeeBreakOut"
+            type="time"
+            value="12:00" /></label
+        ><label
+          >Retorno do intervalo<input
+            id="employeeBreakIn"
+            type="time"
+            value="13:00" /></label
+        ><label
+          >Saída final<input
+            id="employeeClockOut"
+            type="time"
+            value="17:00" /></label
+        ><label
+          >Duração do intervalo (minutos)<input
+            id="employeeBreakMinutes"
+            type="number"
+            min="0"
+            value="60" /></label
+        ><label
+          >Tolerância (minutos)<input
+            id="employeeTolerance"
+            type="number"
+            min="0"
+            value="5" /></label
+        ><label
+          >Dias de trabalho<input
+            id="employeeWorkDays"
+            value="1,2,3,4,5"
+            placeholder="1,2,3,4,5" /></label
+        ><label class="switch-label"
+          ><input id="employeeHourBank" type="checkbox" checked /> Controlar
+          banco de horas</label
+        ><label class="switch-label"
+          ><input id="employeeActive" type="checkbox" checked /> Funcionário
+          ativo</label
+        >
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="employeeDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">
+        Guardar funcionário
+      </button>
+    </div>
+  </form>
+</dialog>
+<dialog id="storeDialog">
+  <form id="storeForm">
+    <div class="dialog-head">
+      <h3 id="storeDialogTitle">Nova loja</h3>
+      <button type="button" class="icon-btn" data-close="storeDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <input id="storeId" type="hidden" />
+      <div class="dialog-grid">
+        <label>Nome da loja<input id="storeName" required /></label
+        ><label>Código<input id="storeCode" required /></label
+        ><label
+          >CNPJ<input
+            id="storeCnpj"
+            inputmode="numeric"
+            maxlength="18"
+            placeholder="00.000.000/0000-00" /></label
+        ><label>Morada<input id="storeAddress" /></label
+        ><label>Cidade<input id="storeCity" /></label
+        ><label>Responsável<input id="storeManager" /></label
+        ><label
+          >E-mail do responsável<input
+            id="storeManagerEmail"
+            type="email" /></label
+        ><label>ID do Google Calendar<input id="storeCalendar" /></label
+        ><label
+          >Limite diário de folgas<input
+            id="storeLimit"
+            type="number"
+            min="1"
+            value="1" /></label
+        ><label
+          >Horário de abertura<input id="storeOpening" type="time" /></label
+        ><label>Horário de fecho<input id="storeClosing" type="time" /></label>
+      </div>
+      <h4 class="dialog-section-title">Local permitido para bater ponto</h4>
+      <div class="dialog-grid">
+        <label
+          >Latitude<input id="storeLatitude" type="number" step="any" /></label
+        ><label
+          >Longitude<input
+            id="storeLongitude"
+            type="number"
+            step="any" /></label
+        ><label
+          >Raio permitido (metros)<input
+            id="storeClockRadius"
+            type="number"
+            min="20"
+            value="150" /></label
+        ><button
+          id="captureStoreLocation"
+          type="button"
+          class="btn btn-secondary"
+        >
+          Usar localização atual</button
+        ><label class="switch-label"
+          ><input id="storeActive" type="checkbox" checked /> Loja ativa</label
+        >
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="storeDialog">
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">Guardar loja</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="clockManualPunchDialog">
+  <form id="clockManualPunchForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">LANÇAMENTO ADMINISTRATIVO</span>
+        <h3>Registrar ponto para funcionário</h3>
+      </div>
+      <button
+        type="button"
+        class="icon-btn"
+        data-close="clockManualPunchDialog"
+      >
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <p class="clock-manual-notice">
+        Use quando o funcionário esquecer uma marcação. O lançamento ficará
+        identificado com seu usuário e registrado na auditoria.
+      </p>
+      <div class="dialog-grid">
+        <label class="full"
+          >Funcionário<select id="clockManualEmployee" required></select
+        ></label>
+        <label
+          >Tipo de marcação<select id="clockManualType" required>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SAIDA_INTERVALO">Saída para intervalo</option>
+            <option value="RETORNO_INTERVALO">Retorno do intervalo</option>
+            <option value="SEM_DESCANSO">Não realizou o descanso</option>
+            <option value="SAIDA_FINAL">Saída final</option>
+          </select></label
+        >
+        <label
+          >Dia e horário reais<input
+            id="clockManualDateTime"
+            type="datetime-local"
+            required /></label
+        >
+        <label
+          >Dia da jornada<input
+            id="clockManualOperationalDay"
+            type="date"
+            required /><small
+            >Se a saída ocorreu após meia-noite, informe o dia em que o turno
+            começou.</small
+          ></label
+        >
+        <label class="full"
+          >Motivo<textarea
+            id="clockManualReason"
+            maxlength="1000"
+            required
+            placeholder="Ex.: funcionário esqueceu de registrar a saída"
+          ></textarea>
+        </label>
+      </div>
+      <p class="clock-manual-footnote">
+        Se o horário for depois da meia-noite e o turno anterior ainda estiver
+        aberto, o sistema manterá automaticamente a mesma jornada. Ao chegar a
+        próxima jornada, o funcionário volta a ver Entrada normalmente.
+      </p>
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="clockManualPunchDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">
+        Registrar marcação
+      </button>
+    </div>
+  </form>
+</dialog>
+<dialog id="clockAdjustmentDialog">
+  <form id="clockAdjustmentForm">
+    <div class="dialog-head">
+      <h3>Solicitar ajuste de ponto</h3>
+      <button type="button" class="icon-btn" data-close="clockAdjustmentDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="clockAdjustmentRecordId" type="hidden" /><label
+        >Marcação que deseja corrigir<select
+          id="clockAdjustmentRecord"
+          required
+        ></select></label
+      ><label
+        >Novo dia e horário<input
+          id="clockAdjustmentDateTime"
+          type="datetime-local"
+          required /></label
+      ><label
+        >Motivo<textarea
+          id="clockAdjustmentReason"
+          required
+          placeholder="Explique o motivo da correção"
+        ></textarea>
+      </label>
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="clockAdjustmentDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">Enviar pedido</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="clockDecisionDialog">
+  <form id="clockDecisionForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">REVISÃO DO PONTO</span>
+        <h3>Analisar pedido de ajuste</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="clockDecisionDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="clockDecisionId" type="hidden" />
+      <div class="clock-review-person">
+        <div id="clockDecisionAvatar" class="avatar">—</div>
+        <div>
+          <strong id="clockDecisionEmployee">Funcionário</strong
+          ><span id="clockDecisionType">Marcação</span>
+        </div>
+      </div>
+      <div class="clock-change-grid">
+        <div class="clock-change-box old">
+          <span>Horário registrado</span
+          ><strong id="clockDecisionOriginal">—</strong>
+        </div>
+        <div class="clock-change-arrow">→</div>
+        <div class="clock-change-box new">
+          <span>Horário solicitado</span
+          ><strong id="clockDecisionRequested">—</strong>
+        </div>
+      </div>
+      <label
+        >Horário que será aprovado<input
+          id="clockDecisionApprovedDateTime"
+          type="datetime-local"
+          required
+        /><small>Você pode corrigir o horário antes de aprovar.</small></label
+      >
+      <div class="clock-review-reason">
+        <span>Motivo informado pelo funcionário</span>
+        <p id="clockDecisionReason">—</p>
+      </div>
+      <label
+        >Observação do responsável<textarea
+          id="clockDecisionObservation"
+          placeholder="Opcional. Registre uma orientação ou justificativa."
+        ></textarea>
+      </label>
+    </div>
+    <div class="dialog-actions clock-decision-actions">
+      <button id="clockDecisionReject" type="button" class="btn btn-danger">
+        Rejeitar pedido</button
+      ><button
+        type="button"
+        class="btn btn-secondary"
+        data-close="clockDecisionDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">
+        Aprovar e alterar ponto
+      </button>
+    </div>
+  </form>
+</dialog>
+<dialog id="clockSelfieDialog" class="clock-selfie-dialog">
+  <form id="clockSelfieForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">PONTO SEGURO</span>
+        <h3>Selfie e localização</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="clockSelfieDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <div class="clock-selfie-stage">
+        <video id="clockSelfieVideo" autoplay muted playsinline></video>
+        <canvas id="clockSelfieCanvas" class="hidden"></canvas>
+        <div id="clockSelfiePlaceholder" class="clock-selfie-placeholder">
+          <span>◉</span>
+          <strong>Preparando a câmera</strong>
+          <small>Posicione o rosto dentro da área indicada.</small>
+        </div>
+        <span class="clock-selfie-badge">Selfie frontal</span>
+      </div>
+      <input
+        id="clockSelfieFile"
+        class="hidden"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="user"
+      />
+      <div class="clock-proof-list">
+        <div>
+          <i>✓</i
+          ><span
+            ><strong>Selfie atual</strong
+            ><small>Capturada agora, sem escolher arquivo.</small></span
+          >
+        </div>
+        <div>
+          <i>⌖</i
+          ><span
+            ><strong>Localização precisa</strong
+            ><small>Validada somente ao confirmar o ponto.</small></span
+          >
+        </div>
+      </div>
+      <p id="clockSelfieStatus" class="clock-selfie-status" aria-live="polite">
+        Autorize o uso da câmera para continuar.
+      </p>
+    </div>
+    <div class="dialog-actions clock-selfie-actions">
+      <button
+        id="clockSelfieRetake"
+        type="button"
+        class="btn btn-secondary hidden"
+      >
+        Tirar novamente
+      </button>
+      <button id="clockSelfieCapture" type="button" class="btn btn-secondary">
+        Capturar selfie
+      </button>
+      <button
+        id="clockSelfieNative"
+        type="button"
+        class="btn btn-secondary hidden"
+      >
+        Abrir câmera do celular
+      </button>
+      <button
+        id="clockSelfieConfirm"
+        class="btn btn-primary"
+        type="submit"
+        disabled
+      >
+        Confirmar ponto
+      </button>
+    </div>
+  </form>
+</dialog>
+<dialog id="holidayDialog">
+  <form id="holidayForm">
+    <div class="dialog-head">
+      <h3 id="holidayDialogTitle">Novo feriado</h3>
+      <button type="button" class="icon-btn" data-close="holidayDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="holidayId" type="hidden" />
+      <div class="dialog-grid">
+        <label>Nome<input id="holidayName" required /></label
+        ><label>Data<input id="holidayDate" type="date" required /></label
+        ><label
+          >Tipo<select id="holidayType">
+            <option>Nacional</option>
+            <option>Regional</option>
+            <option>Municipal</option>
+            <option>Interno da empresa</option>
+            <option>Encerramento da loja</option>
+          </select></label
+        ><label
+          >Loja<select id="holidayStore">
+            <option value="">Todas as lojas</option>
+          </select></label
+        ><label class="switch-label"
+          ><input id="holidayAutoTimeOff" type="checkbox" /> Criar folga
+          automática</label
+        ><label class="switch-label"
+          ><input id="holidayActive" type="checkbox" checked /> Ativo</label
+        ><label class="full"
+          >Observações<textarea id="holidayNotes"></textarea>
+        </label>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="holidayDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">Guardar feriado</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="accessDialog">
+  <form id="accessForm">
+    <div class="dialog-head">
+      <h3 id="accessDialogTitle">Criar acesso</h3>
+      <button type="button" class="icon-btn" data-close="accessDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="accessId" type="hidden" />
+      <div class="dialog-grid">
+        <label
+          >Funcionário relacionado<select id="accessEmployee">
+            <option value="">Sem vínculo</option>
+          </select></label
+        ><label>Nome<input id="accessName" required /></label
+        ><label>E-mail<input id="accessEmail" type="email" required /></label
+        ><label
+          >Perfil<select id="accessProfile">
+            <option>Funcionário</option>
+            <option>Chefe de cozinha</option>
+            <option>Responsável de loja</option>
+            <option>Administrador</option>
+          </select></label
+        ><label
+          >Loja<select id="accessStore">
+            <option value="">Todas / não aplicável</option>
+          </select></label
+        ><label
+          >Senha provisória<input
+            id="accessPassword"
+            type="password"
+            minlength="10"
+            placeholder="Mínimo 10 caracteres" /></label
+        ><label class="switch-label"
+          ><input id="accessFirstLogin" type="checkbox" checked /> Exigir troca
+          no primeiro acesso</label
+        ><label class="switch-label"
+          ><input id="accessActive" type="checkbox" checked /> Acesso
+          ativo</label
+        >
+      </div>
+      <p class="profile-security-note">
+        A senha provisória deverá ser alterada no primeiro acesso quando essa
+        opção estiver marcada.
+      </p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="accessDialog">
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">Guardar acesso</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="confirmDialog">
+  <div class="dialog-head">
+    <h3 id="confirmTitle">Confirmar ação</h3>
+    <button type="button" class="icon-btn" data-close="confirmDialog">✕</button>
+  </div>
+  <div class="dialog-body"><p id="confirmMessage"></p></div>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-secondary" data-close="confirmDialog">
+      Cancelar</button
+    ><button id="confirmActionBtn" class="btn btn-danger">Confirmar</button>
+  </div>
+</dialog>
+<dialog id="profileDialog">
+  <form id="profileForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">MINHA CONTA</span>
+        <h3>Meu perfil</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="profileDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <div class="profile-photo-editor">
+        <div id="profilePhotoPreview" class="avatar profile-photo-preview">
+          U
+        </div>
+        <div class="profile-photo-actions">
+          <strong>Foto do perfil</strong
+          ><span>Use uma imagem JPG, PNG ou WebP.</span>
+          <div>
+            <button
+              id="profilePhotoChoose"
+              type="button"
+              class="btn btn-secondary"
+            >
+              Escolher foto</button
+            ><button
+              id="profilePhotoRemove"
+              type="button"
+              class="btn btn-ghost"
+            >
+              Remover
+            </button>
+          </div>
+          <input
+            id="profilePhotoInput"
+            class="hidden"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+          />
+        </div>
+      </div>
+      <div class="dialog-grid profile-fields">
+        <label>Nome<input id="profileName" readonly /></label
+        ><label
+          >E-mail<input
+            id="profileEmail"
+            type="email"
+            autocomplete="email"
+            required /></label
+        ><label class="full"
+          >Senha atual<input
+            id="profileCurrentPassword"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Obrigatória para trocar e-mail ou senha"
+        /></label>
+      </div>
+      <h4 class="dialog-section-title">Alterar senha</h4>
+      <div class="dialog-grid">
+        <label
+          >Nova senha<input
+            id="profileNewPassword"
+            type="password"
+            minlength="10"
+            autocomplete="new-password"
+            placeholder="Mínimo 10 caracteres" /></label
+        ><label
+          >Confirmar nova senha<input
+            id="profileConfirmPassword"
+            type="password"
+            minlength="10"
+            autocomplete="new-password"
+        /></label>
+      </div>
+      <p class="profile-security-note">
+        Por segurança, informe a senha atual quando trocar o e-mail ou criar uma
+        nova senha.
+      </p>
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="profileDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">Guardar alterações</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Regra operacional: limite diário e equipe mínima -->
+<dialog id="operationalRuleDialog">
+  <form id="operationalRuleForm">
+    <div class="dialog-head">
+      <h3>Regra operacional</h3>
+      <button type="button" class="icon-btn" data-close="operationalRuleDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="operationalRuleId" type="hidden" />
+      <div class="dialog-grid">
+        <label>Loja<select id="operationalRuleStore" required></select></label
+        ><label
+          >Cargo<input
+            id="operationalRuleRole"
+            placeholder="Vazio = toda a loja" /></label
+        ><label
+          >Dia da semana<select id="operationalRuleDay">
+            <option>Todos</option>
+            <option>Domingo</option>
+            <option>Segunda-feira</option>
+            <option>Terça-feira</option>
+            <option>Quarta-feira</option>
+            <option>Quinta-feira</option>
+            <option>Sexta-feira</option>
+            <option>Sábado</option>
+          </select></label
+        ><label
+          >Máximo de folgas no dia<input
+            id="operationalRuleLimit"
+            type="number"
+            min="0"
+            value="1"
+            required /></label
+        ><label
+          >Mínimo trabalhando<input
+            id="operationalRuleMinimum"
+            type="number"
+            min="0"
+            value="1"
+            required /></label
+        ><label
+          >Ao detectar conflito<select id="operationalRuleMode">
+            <option>Bloquear</option>
+            <option>Alertar</option>
+          </select></label
+        ><label class="switch-label"
+          ><input id="operationalRuleActive" type="checkbox" checked /> Regra
+          ativa</label
+        >
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-close="operationalRuleDialog"
+      >
+        Cancelar</button
+      ><button class="btn btn-primary" type="submit">Guardar regra</button>
+    </div>
+  </form>
+</dialog>
+<!-- Ciência do funcionário -->
+<dialog id="swapDialog" class="swap-dialog">
+  <form id="swapForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">NOVA SOLICITAÇÃO</span>
+        <h3>Trocar folga</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="swapDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <div class="swap-dialog-intro">
+        <span>⇄</span>
+        <p>
+          Escolha duas folgas já aprovadas. O colega confirma primeiro e o
+          gestor conclui a troca.
+        </p>
+      </div>
+      <div class="dialog-grid">
+        <label
+          >Minha folga aprovada<select id="swapSourceTimeOff" required></select
+        ></label>
+        <label
+          >Colega da mesma loja<select
+            id="swapDestinationEmployee"
+            required
+          ></select
+        ></label>
+        <label class="full"
+          >Folga aprovada do colega em<input
+            id="swapDestinationDate"
+            type="date"
+            required
+        /></label>
+        <label class="full"
+          >Motivo<textarea
+            id="swapReason"
+            required
+            placeholder="Explique brevemente o motivo da troca"
+          ></textarea>
+        </label>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="swapDialog">
+        Cancelar
+      </button>
+      <button class="btn btn-primary" type="submit">Enviar solicitação</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Ciência do funcionário -->
+<dialog id="acknowledgementDialog">
+  <form id="acknowledgementForm">
+    <div class="dialog-head">
+      <h3>Confirmar ciência</h3>
+      <button type="button" class="icon-btn" data-close="acknowledgementDialog">
+        ✕
+      </button>
+    </div>
+    <div class="dialog-body">
+      <input id="acknowledgementTimeOffId" type="hidden" />
+      <p id="acknowledgementText"></p>
+      <label
+        >Observação<textarea
+          id="acknowledgementObservation"
+          placeholder="Opcional"
+        ></textarea>
+      </label>
+    </div>
+    <div class="dialog-actions">
+      <button
+        id="requestTimeOffChangeBtn"
+        type="button"
+        class="btn btn-secondary"
+      >
+        Solicitar alteração</button
+      ><button class="btn btn-primary" type="submit">
+        Confirmar que estou ciente
+      </button>
+    </div>
+  </form>
+</dialog>

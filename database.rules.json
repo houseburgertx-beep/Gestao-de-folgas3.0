@@ -1,0 +1,86 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "gestao-folgas": {
+      "v2": {
+        "meta": {
+          "initialized": {
+            ".read": true,
+            ".write": "auth != null && !data.exists() && newData.val() === true"
+          },
+          "$other": {
+            ".read": "auth != null",
+            ".write": "auth != null && root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador'"
+          }
+        },
+        "access": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador')",
+            ".write": "auth != null && ((auth.uid === $uid && !root.child('gestao-folgas').child('v2').child('meta').child('initialized').exists() && newData.child('Perfil').val() === 'Administrador') || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador')",
+            ".validate": "newData.hasChildren(['UsuarioID','Nome','Email','Perfil','Ativo']) && newData.child('UsuarioID').val() === $uid"
+          }
+        },
+        "tables": {
+          "$table": {
+            ".indexOn": [
+              "LojaID",
+              "FuncionarioID",
+              "FuncionarioOrigem",
+              "FuncionarioOrigemID",
+              "FuncionarioDestinoID",
+              "DestinatarioID",
+              "FolgaID",
+              "EnqID",
+              "RegistroPontoID",
+              "PeriodoTipo",
+              "PeriodoChave",
+              "UsuarioID",
+              "Data",
+              "DataInicio",
+              "Status"
+            ],
+            ".read": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || $table === 'Configuracoes' || $table === 'Feriados' || $table === 'RegrasFolga' || $table === 'ArenaRanking' || $table === 'Comunicados' || $table === 'Enquetes' || ($table === 'LocaisPonto' && query.orderByChild === 'LojaID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()) || ((root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja' || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Chefe de cozinha') && query.orderByChild === 'LojaID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()) || (query.orderByChild === 'FuncionarioID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val()) || ($table === 'Notificacoes' && query.orderByChild === 'DestinatarioID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val()))",
+            "$record": {
+              ".read": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || $table === 'Configuracoes' || $table === 'Feriados' || $table === 'RegrasFolga' || $table === 'ArenaRanking' || $table === 'Comunicados' || $table === 'Enquetes' || data.child('UsuarioID').val() === auth.uid || data.child('AuthUID').val() === auth.uid || data.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val() || data.child('FuncionarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val() || data.child('DestinatarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val())",
+              ".write": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja' && ((newData.exists() && newData.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()) || (!newData.exists() && data.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()))) || ($table === 'ArenaRanking' && newData.child('UsuarioID').val() === auth.uid) || (($table === 'Folgas' || $table === 'CienciasFolga' || $table === 'TrocasFolga' || $table === 'RegistrosPonto' || $table === 'AjustesPonto' || $table === 'Ferias' || $table === 'Documentos' || $table === 'Onboarding' || $table === 'ComunicadosLeituras' || $table === 'EnquetesVotos' || $table === 'Notificacoes') && ((newData.exists() && (newData.child('FuncionarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val() || newData.child('DestinatarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val() || newData.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val())) || (!newData.exists() && (data.child('FuncionarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val() || data.child('DestinatarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val())))))"
+            }
+          }
+        },
+        "blobs": {
+          "$category": {
+            "$id": {
+              ".read": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || data.child('FuncionarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val() || data.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val())",
+              ".write": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || newData.child('FuncionarioID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val() || (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja' && newData.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()))"
+            }
+          }
+        },
+        "arenaRuns": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "arenaLink": {
+          "codes": {
+            "$code": {
+              ".read": "auth != null",
+              ".write": "auth != null && (!data.exists() || root.child('gestao-folgas').child('v2').child('arenaLink').child('rooms').child(newData.child('roomId').val()).child('players/p1/usuarioId').val() === auth.uid)"
+            }
+          },
+          "rooms": {
+            "$room": {
+              ".read": "auth != null && (data.child('players/p1/usuarioId').val() === auth.uid || data.child('players/p2/usuarioId').val() === auth.uid || (data.child('status').val() === 'waiting' && !data.child('players/p2').exists()))",
+              ".write": "auth != null && ((!data.exists() && newData.child('players/p1/usuarioId').val() === auth.uid) || data.child('players/p1/usuarioId').val() === auth.uid || data.child('players/p2/usuarioId').val() === auth.uid || (data.child('status').val() === 'waiting' && !data.child('players/p2').exists() && newData.child('players/p2/usuarioId').val() === auth.uid))",
+              ".indexOn": [
+                "expiresAt",
+                "status",
+                "code"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,1308 @@
+<script>
+  const HOUSE_LINK_SESSION_KEY_ = "gf-house-link-room-v1";
+  const HOUSE_LINK_POLL_PLAYING_MS_ = 1400;
+  const HOUSE_LINK_POLL_WAITING_MS_ = 2300;
+  const HOUSE_LINK_POLL_IDLE_MS_ = 5000;
+  let HOUSE_LINK_BOUND_ = false;
+  let HOUSE_LINK_THRESHOLD_POLL_ = 0;
+
+  function bindHouseLink_() {
+    if (HOUSE_LINK_BOUND_) return;
+    HOUSE_LINK_BOUND_ = true;
+    window.addEventListener("online", () => {
+      state.houseLink.connection = "online";
+      if (state.houseLink.viewActive) houseLinkPoll_(true);
+    });
+    window.addEventListener("offline", () => {
+      state.houseLink.connection = "offline";
+      houseLinkUpdateConnection_();
+    });
+    window.addEventListener("pagehide", houseLinkPersistSession_);
+    document.addEventListener("visibilitychange", () => {
+      if (!state.houseLink.viewActive) return;
+      if (document.hidden) {
+        window.clearTimeout(state.houseLink.pollTimer);
+        return;
+      }
+      houseLinkPoll_(true);
+    });
+  }
+
+  async function openHouseLinkHub_() {
+    const root = $("#houseLinkApp");
+    if (!root) return;
+    state.houseLink.viewActive = true;
+    state.arena.playing = false;
+    $("#arenaLobby")?.classList.add("hidden");
+    $("#arenaPlay")?.classList.add("hidden");
+    $("#arenaResult")?.classList.add("hidden");
+    $("#arenaGamePickerShell")?.classList.add("hidden");
+    root.classList.remove("hidden");
+    $("#view-house-arena")?.classList.add("arena-game-active");
+    houseLinkRenderLoading_("Abrindo o portal…");
+    houseLinkScrollIntoView_();
+
+    const saved = houseLinkReadSession_();
+    if (saved?.roomId) {
+      state.houseLink.roomId = saved.roomId;
+      state.houseLink.code = saved.code || "";
+      try {
+        await houseLinkPoll_(true);
+        return;
+      } catch (ignored) {}
+    }
+    houseLinkClearSession_();
+    houseLinkRenderLanding_();
+    const inviteCode = houseLinkInviteFromUrl_();
+    if (inviteCode) {
+      const input = $("#houseLinkCodeInput");
+      if (input) input.value = inviteCode;
+      houseLinkJoin_();
+    }
+  }
+
+  function houseLinkScrollIntoView_() {
+    const shell = $("#arenaGameShell");
+    if (!shell) return;
+    const topbarHeight = Number(
+      $(".topbar")?.getBoundingClientRect().height || 0,
+    );
+    const top = Math.max(
+      0,
+      window.scrollY + shell.getBoundingClientRect().top - topbarHeight - 8,
+    );
+    window.scrollTo({ top, left: 0, behavior: "auto" });
+  }
+
+  function closeHouseLinkView_(forgetRoom) {
+    state.houseLink.viewActive = false;
+    state.houseLink.polling = false;
+    window.clearTimeout(state.houseLink.pollTimer);
+    window.clearInterval(state.houseLink.tickTimer);
+    state.houseLink.pollTimer = 0;
+    state.houseLink.tickTimer = 0;
+    $("#houseLinkApp")?.classList.add("hidden");
+    if (forgetRoom === true) houseLinkClearSession_();
+  }
+
+  function houseLinkRenderLoading_(message) {
+    const root = $("#houseLinkApp");
+    if (!root) return;
+    root.innerHTML = `
+      <div class="house-link-shell house-link-loading">
+        <div class="house-link-aurora"></div>
+        <div class="house-link-loader" aria-hidden="true">
+          <i></i><i></i><i></i><span>🔗</span>
+        </div>
+        <strong>${esc(message || "Conectando…")}</strong>
+        <small>Sincronização segura entre os dois aparelhos</small>
+      </div>`;
+  }
+
+  function houseLinkRenderLanding_() {
+    const root = $("#houseLinkApp");
+    if (!root) return;
+    root.innerHTML = `
+      <div class="house-link-shell house-link-landing">
+        <div class="house-link-aurora"></div>
+        ${houseLinkTopbar_("HOUSE LINK · ONLINE")}
+        <section class="house-link-launch-hero">
+          <div class="house-link-logo-orbit" aria-hidden="true">
+            <i></i><i></i><span>🔗</span><b>LIVE</b>
+          </div>
+          <span class="house-link-overline">DOIS CELULARES · UMA OPERAÇÃO</span>
+          <h2>Cozinha <em>Conectada</em></h2>
+          <p>
+            Cada jogador recebe metade da missão. Troquem sinais, atravessem
+            bandejas pelo portal e salvem a satisfação dos clientes juntos.
+          </p>
+          <div class="house-link-feature-row">
+            <span>⚡ 84 segundos</span>
+            <span>🤝 Cooperação real</span>
+            <span>🛸 Portal entre telas</span>
+          </div>
+        </section>
+        <section class="house-link-entry-grid">
+          <button id="houseLinkCreateBtn" class="house-link-primary house-link-create" type="button">
+            <span>＋</span>
+            <div><strong>Criar uma dupla</strong><small>Gere o código e convide alguém</small></div>
+            <b>›</b>
+          </button>
+          <form id="houseLinkJoinForm" class="house-link-join">
+            <label for="houseLinkCodeInput">JÁ RECEBEU UM CÓDIGO?</label>
+            <div>
+              <input
+                id="houseLinkCodeInput"
+                inputmode="text"
+                autocomplete="one-time-code"
+                autocapitalize="characters"
+                maxlength="6"
+                placeholder="ABC234"
+                aria-label="Código da dupla"
+              />
+              <button type="submit">Entrar</button>
+            </div>
+          </form>
+        </section>
+        <div class="house-link-tech-strip">
+          <span><i></i> Presença ao vivo</span>
+          <span><i></i> Reconexão automática</span>
+          <span><i></i> Resultado validado</span>
+        </div>
+      </div>`;
+    houseLinkBindRendered_();
+  }
+
+  function houseLinkTopbar_(label) {
+    return `
+      <header class="house-link-topbar">
+        <button type="button" data-hl-back aria-label="Voltar">‹</button>
+        <div><span class="house-link-live-dot"></span><b>${esc(label)}</b></div>
+        <span class="house-link-net" data-hl-connection>${
+          navigator.onLine ? "ONLINE" : "OFFLINE"
+        }</span>
+      </header>`;
+  }
+
+  function houseLinkRender_() {
+    const snapshot = state.houseLink.snapshot;
+    if (!snapshot) {
+      houseLinkRenderLanding_();
+      return;
+    }
+    if (snapshot.status === "waiting") {
+      houseLinkRenderWaiting_(snapshot);
+      return;
+    }
+    if (snapshot.status === "finished" || snapshot.status === "cancelled") {
+      houseLinkRenderResult_(snapshot);
+      return;
+    }
+    houseLinkRenderGame_(snapshot);
+  }
+
+  function houseLinkRenderWaiting_(snapshot) {
+    const root = $("#houseLinkApp");
+    const me = snapshot.player || {};
+    const partner = snapshot.partner;
+    root.innerHTML = `
+      <div class="house-link-shell house-link-waiting">
+        <div class="house-link-aurora"></div>
+        ${houseLinkTopbar_("SALA " + snapshot.code)}
+        <section class="house-link-room-code">
+          <span>CÓDIGO DA CONEXÃO</span>
+          <strong>${esc(snapshot.code)}</strong>
+          <p>Envie este código para outro funcionário entrar pelo celular dele.</p>
+          <div>
+            <button id="houseLinkCopyBtn" type="button">⧉ Copiar</button>
+            <button id="houseLinkShareBtn" type="button">↗ Compartilhar</button>
+          </div>
+        </section>
+        <section class="house-link-pairing" aria-label="Jogadores da dupla">
+          ${houseLinkPlayerCard_(me, true, snapshot.ready.me)}
+          <div class="house-link-pair-beam ${partner ? "is-linked" : ""}">
+            <i></i><span>${partner ? "🔗" : "…"}</span><i></i>
+          </div>
+          ${
+            partner
+              ? houseLinkPlayerCard_(
+                  partner,
+                  false,
+                  snapshot.ready.partner,
+                )
+              : `<article class="house-link-player-card is-empty">
+                  <div class="house-link-avatar"><span>?</span></div>
+                  <strong>Aguardando parceiro</strong>
+                  <small>O portal abrirá quando alguém entrar</small>
+                </article>`
+          }
+        </section>
+        <section class="house-link-ready-panel">
+          ${
+            partner
+              ? `<div>
+                  <span class="house-link-overline">CHECK DE CONEXÃO</span>
+                  <strong>${
+                    snapshot.ready.me
+                      ? "Você está pronto!"
+                      : "Confirme quando estiver pronto"
+                  }</strong>
+                  <small>${
+                    snapshot.ready.partner
+                      ? "Seu parceiro já confirmou."
+                      : "A partida começa quando os dois confirmarem."
+                  }</small>
+                </div>
+                <button
+                  type="button"
+                  data-hl-action="ready"
+                  data-ready="${snapshot.ready.me ? "false" : "true"}"
+                  class="house-link-primary ${snapshot.ready.me ? "is-ready" : ""}"
+                >
+                  ${snapshot.ready.me ? "✓ Pronto · toque para cancelar" : "Estou pronto"}
+                </button>`
+              : `<div class="house-link-wait-pulse"><i></i><span>Buscando o segundo celular…</span></div>`
+          }
+        </section>
+        ${houseLinkEventFeed_(snapshot.events)}
+      </div>`;
+    houseLinkBindRendered_();
+    houseLinkUpdateConnection_();
+  }
+
+  function houseLinkPlayerCard_(player, mine, ready) {
+    return `
+      <article class="house-link-player-card ${mine ? "is-me" : ""}">
+        <div class="house-link-avatar ${player.online ? "is-online" : ""}">
+          <span>${esc(player.initials || "?")}</span><i></i>
+        </div>
+        <small>${mine ? "VOCÊ" : "PARCEIRO"}</small>
+        <strong>${esc(player.name || "Jogador")}</strong>
+        <em>${esc(player.storeName || "Unidade")}</em>
+        <b class="${ready ? "is-ready" : ""}">${
+          ready ? "✓ PRONTO" : "AGUARDANDO"
+        }</b>
+      </article>`;
+  }
+
+  function houseLinkRenderGame_(snapshot) {
+    const root = $("#houseLinkApp");
+    const role = snapshot.player?.role || "front";
+    const isFront = role === "front";
+    const now = houseLinkNow_();
+    const harmony = Number(snapshot.harmonyUntil || 0) > now;
+    const countdown = snapshot.status === "countdown";
+    root.innerHTML = `
+      <div class="house-link-shell house-link-game ${
+        harmony ? "is-harmony" : ""
+      }" data-role="${esc(role)}">
+        <div class="house-link-aurora"></div>
+        ${houseLinkTopbar_(
+          (isFront ? "ATENDIMENTO" : "COZINHA") +
+            " · FASE " +
+            (Number(snapshot.phase || 0) + 1),
+        )}
+        <section class="house-link-game-hud">
+          <div><small>PONTOS DA DUPLA</small><strong data-hl-score>${houseLinkScore_(snapshot.score)}</strong></div>
+          <div class="house-link-hud-time"><small>TEMPO</small><strong data-hl-time>84,0</strong></div>
+          <div><small>COMBO</small><strong>x${Number(snapshot.combo || 0)}</strong></div>
+        </section>
+        <div class="house-link-time-track"><i data-hl-timebar></i></div>
+        <section class="house-link-status-deck">
+          <div class="house-link-satisfaction">
+            <span>😊 SATISFAÇÃO</span>
+            <i><b style="width:${Math.max(0, Math.min(100, Number(snapshot.satisfaction || 0)))}%"></b></i>
+            <strong>${Number(snapshot.satisfaction || 0)}%</strong>
+          </div>
+          <div class="house-link-power">
+            <span>${harmony ? "✨ MODO SINTONIA" : "⚡ CONEXÃO"}</span>
+            <i><b style="width:${harmony ? 100 : Math.max(0, Math.min(100, Number(snapshot.linkPower || 0)))}%"></b></i>
+            <strong data-hl-harmony>${harmony ? "2×" : Number(snapshot.linkPower || 0) + "%"}</strong>
+          </div>
+        </section>
+        <section class="house-link-role-banner">
+          <div class="house-link-role-icon">${isFront ? "🛎️" : "👨‍🍳"}</div>
+          <div>
+            <span>SEU PAPEL AGORA</span>
+            <strong>${isFront ? "Atendimento" : "Cozinha"}</strong>
+            <small>${
+              isFront
+                ? "Leia a comanda e oriente seu parceiro."
+                : "Monte a bandeja com as pistas recebidas."
+            }</small>
+          </div>
+          <div class="house-link-partner-mini ${
+            snapshot.partner?.online ? "is-online" : ""
+          }">
+            <span>${esc(snapshot.partner?.initials || "?")}</span>
+            <small>${snapshot.partner?.online ? "AO VIVO" : "RECONECTANDO"}</small>
+          </div>
+        </section>
+        <main class="house-link-mission">
+          ${
+            snapshot.incident
+              ? houseLinkIncident_(snapshot)
+              : isFront
+                ? houseLinkFrontMission_(snapshot)
+                : houseLinkKitchenMission_(snapshot)
+          }
+        </main>
+        ${houseLinkPortal_(snapshot)}
+        ${houseLinkEmotes_(snapshot.emotes)}
+        ${houseLinkEventFeed_(snapshot.events)}
+        ${
+          countdown
+            ? `<div class="house-link-countdown" data-hl-countdown>
+                <span>CONEXÃO ESTABELECIDA</span><strong>4</strong><small>Prepare sua função</small>
+              </div>`
+            : ""
+        }
+        <div class="house-link-role-swap hidden" data-hl-role-swap>
+          <span>↻</span><strong>TROCA DE TURNO</strong><small>Os papéis foram invertidos</small>
+        </div>
+        <div class="house-link-portal-fx" aria-hidden="true"></div>
+      </div>`;
+    houseLinkBindRendered_();
+    houseLinkStartTick_();
+    houseLinkUpdateConnection_();
+  }
+
+  function houseLinkFrontMission_(snapshot) {
+    const order = snapshot.order;
+    if (!order) return houseLinkMissionSkeleton_();
+    const detailGroups = ["size", "side", "drink", "restriction"];
+    const sent = new Set((snapshot.signals || []).map((item) => item.id));
+    const tray = snapshot.tray;
+    return `
+      <section class="house-link-ticket ${order.vip ? "is-vip" : ""}">
+        <header>
+          <div><span>${order.vip ? "👑 PEDIDO VIP" : order.urgent ? "⚡ URGENTE" : "NOVA COMANDA"}</span><b>#${Number(order.index || 0) + 1}</b></div>
+          <strong>${esc(order.product?.emoji || "🍽️")} ${esc(order.product?.name || "Pedido")}</strong>
+        </header>
+        <div class="house-link-order-details">
+          ${detailGroups
+            .map((group) => {
+              const option = houseLinkOptionClient_(
+                snapshot.options,
+                group,
+                order.details?.[group],
+              );
+              return `<span><b>${esc(option?.emoji || "•")}</b>${esc(option?.label || "")}</span>`;
+            })
+            .join("")}
+        </div>
+      </section>
+      ${
+        tray
+          ? `<section class="house-link-tray-review">
+              <span class="house-link-overline">BANDEJA RECEBIDA PELO PORTAL</span>
+              <strong>Confira antes de entregar</strong>
+              ${houseLinkTraySummary_(snapshot, tray.selection)}
+              <div>
+                <button type="button" data-hl-action="return_tray" class="house-link-secondary">↩ Corrigir</button>
+                <button type="button" data-hl-action="deliver" class="house-link-primary">Entregar ao cliente ✓</button>
+              </div>
+            </section>`
+          : `<section class="house-link-signal-console">
+              <div>
+                <span class="house-link-overline">ETIQUETAS RÁPIDAS</span>
+                <strong>Envie as pistas certas para a Cozinha</strong>
+              </div>
+              <div class="house-link-signal-grid">
+                ${(order.signalChoices || [])
+                  .map(
+                    (signal) => `
+                    <button
+                      type="button"
+                      data-hl-signal="${esc(signal.id)}"
+                      class="${sent.has(signal.id) ? "is-sent" : ""}"
+                      ${sent.has(signal.id) ? "disabled" : ""}
+                    >
+                      <span>${esc(signal.emoji || "📡")}</span>
+                      <b>${esc(signal.label)}</b>
+                      <small>${sent.has(signal.id) ? "ENVIADO" : "ENVIAR"}</small>
+                    </button>`,
+                  )
+                  .join("")}
+              </div>
+              <div class="house-link-awaiting-tray"><i></i><span>Aguardando a bandeja do parceiro…</span></div>
+            </section>`
+      }`;
+  }
+
+  function houseLinkKitchenMission_(snapshot) {
+    const order = snapshot.order;
+    if (!order) return houseLinkMissionSkeleton_();
+    const tray = snapshot.tray;
+    const groups = [
+      ["size", "Tamanho"],
+      ["side", "Acompanhamento"],
+      ["drink", "Bebida"],
+      ["restriction", "Observação"],
+    ];
+    return `
+      <section class="house-link-kitchen-order">
+        <div class="house-link-kitchen-product">
+          <span>${esc(order.product?.emoji || "🍽️")}</span>
+          <div><small>BASE DO PEDIDO</small><strong>${esc(order.product?.name || "Pedido")}</strong></div>
+          ${order.vip ? "<b>VIP</b>" : order.urgent ? "<b>RÁPIDO</b>" : ""}
+        </div>
+        <div class="house-link-incoming-signals">
+          <small>SINAIS DO ATENDIMENTO</small>
+          <div>
+            ${
+              (snapshot.signals || []).length
+                ? snapshot.signals
+                    .map(
+                      (signal) =>
+                        `<span><b>${esc(signal.emoji || "📡")}</b>${esc(signal.label)}</span>`,
+                    )
+                    .join("")
+                : "<em>As etiquetas aparecerão aqui em tempo real…</em>"
+            }
+          </div>
+        </div>
+      </section>
+      ${
+        tray
+          ? `<section class="house-link-tray-in-transit">
+              <div class="house-link-mini-portal"><i></i><span>🛸</span></div>
+              <strong>Bandeja no outro celular</strong>
+              <small>O Atendimento está conferindo o pedido.</small>
+            </section>`
+          : `<section class="house-link-assembly">
+              ${groups
+                .map(([group, label]) =>
+                  houseLinkChoiceGroup_(snapshot, group, label),
+                )
+                .join("")}
+              <button
+                id="houseLinkSendTray"
+                type="button"
+                data-hl-action="submit_tray"
+                class="house-link-primary house-link-send-tray"
+                ${houseLinkSelectionComplete_() ? "" : "disabled"}
+              >
+                <span>🛸</span><div><strong>Enviar pelo portal</strong><small>Deslize a bandeja para o parceiro</small></div><b>→</b>
+              </button>
+            </section>`
+      }`;
+  }
+
+  function houseLinkChoiceGroup_(snapshot, group, label) {
+    const options = snapshot.options?.[group] || [];
+    const selected = state.houseLink.selected[group] || "";
+    return `
+      <fieldset class="house-link-choice-group">
+        <legend>${esc(label)}</legend>
+        <div>
+          ${options
+            .map(
+              (option) => `
+              <button
+                type="button"
+                data-hl-select="${esc(group)}"
+                data-value="${esc(option.id)}"
+                class="${selected === option.id ? "is-selected" : ""}"
+                aria-pressed="${selected === option.id}"
+              >
+                <span>${esc(option.emoji || "•")}</span><b>${esc(option.label)}</b>
+              </button>`,
+            )
+            .join("")}
+        </div>
+      </fieldset>`;
+  }
+
+  function houseLinkIncident_(snapshot) {
+    const incident = snapshot.incident;
+    return `
+      <section class="house-link-incident">
+        <div class="house-link-incident-rings"><i></i><i></i><span>${esc(incident.emoji || "⚡")}</span></div>
+        <span class="house-link-overline">EVENTO SURPRESA</span>
+        <h3>${esc(incident.title)}</h3>
+        <p>${esc(incident.message)}</p>
+        <div class="house-link-sync-status">
+          <span class="${incident.meReady ? "is-ready" : ""}"><b>${esc(snapshot.player?.initials || "EU")}</b>${incident.meReady ? "PRONTO" : "VOCÊ"}</span>
+          <i></i>
+          <span class="${incident.partnerReady ? "is-ready" : ""}"><b>${esc(snapshot.partner?.initials || "?")}</b>${incident.partnerReady ? "PRONTO" : "PARCEIRO"}</span>
+        </div>
+        <button
+          type="button"
+          data-hl-action="pulse"
+          class="house-link-pulse-btn ${incident.meReady ? "is-ready" : ""}"
+          ${incident.meReady ? "disabled" : ""}
+        >
+          <span>⚡</span><strong>${incident.meReady ? "Pulso preparado" : "Ativar Pulso Link"}</strong><small>${incident.meReady ? "Aguardando o parceiro…" : "Os dois precisam tocar"}</small>
+        </button>
+      </section>`;
+  }
+
+  function houseLinkPortal_(snapshot) {
+    const role = snapshot.player?.role;
+    const hasTray = !!snapshot.tray;
+    return `
+      <div class="house-link-portal ${hasTray ? "has-tray" : ""}" aria-hidden="true">
+        <i></i><i></i><i></i>
+        <span>${hasTray ? "🛸" : "🔗"}</span>
+        <small>${
+          hasTray
+            ? role === "front"
+              ? "RECEBIDO"
+              : "EM TRÂNSITO"
+            : "PORTAL ATIVO"
+        }</small>
+      </div>`;
+  }
+
+  function houseLinkEmotes_(emotes) {
+    return `
+      <div class="house-link-emotes" aria-label="Reações rápidas">
+        ${(emotes || [])
+          .map(
+            (emote) =>
+              `<button type="button" data-hl-emote="${esc(emote.id)}" title="${esc(emote.label)}">${esc(emote.emoji)}</button>`,
+          )
+          .join("")}
+      </div>`;
+  }
+
+  function houseLinkEventFeed_(events) {
+    const visible = (events || []).slice(-3).reverse();
+    if (!visible.length) return "";
+    return `
+      <div class="house-link-event-feed">
+        ${visible
+          .map(
+            (event) =>
+              `<span data-event-type="${esc(event.type)}"><i>${houseLinkEventIcon_(event.type)}</i>${esc(event.data?.text || houseLinkEventText_(event.type))}</span>`,
+          )
+          .join("")}
+      </div>`;
+  }
+
+  function houseLinkRenderResult_(snapshot) {
+    const root = $("#houseLinkApp");
+    const result = snapshot.result || {};
+    const cancelled = result.cancelled === true || snapshot.status === "cancelled";
+    const myMedal = result.medals?.[snapshot.player?.slot] || {};
+    const partnerMedal = result.medals?.[snapshot.partner?.slot] || {};
+    root.innerHTML = `
+      <div class="house-link-shell house-link-result ${cancelled ? "is-cancelled" : ""}">
+        <div class="house-link-aurora"></div>
+        ${houseLinkTopbar_("RESULTADO DA DUPLA")}
+        <section class="house-link-result-hero">
+          <div class="house-link-result-grade"><i></i><span>${esc(result.grade || "—")}</span></div>
+          <span class="house-link-overline">${cancelled ? "CONEXÃO ENCERRADA" : "OPERAÇÃO FINALIZADA"}</span>
+          <h2>${esc(result.title || "Partida concluída")}</h2>
+          <strong>${houseLinkScore_(result.score)} <small>pontos juntos</small></strong>
+          <p>${
+            cancelled
+              ? "A sala foi encerrada antes do fim e não alterou o campeonato."
+              : "O mesmo resultado foi validado para os dois integrantes da dupla."
+          }</p>
+        </section>
+        <section class="house-link-result-stats">
+          <div><small>PRECISÃO</small><strong>${Number(result.accuracy || 0).toFixed(1).replace(".", ",")}%</strong></div>
+          <div><small>PEDIDOS</small><strong>${Number(result.hits || 0)}</strong></div>
+          <div><small>MELHOR COMBO</small><strong>x${Number(result.bestCombo || 0)}</strong></div>
+          <div><small>SATISFAÇÃO</small><strong>${Number(result.satisfaction || 0)}%</strong></div>
+        </section>
+        ${
+          !cancelled
+            ? `<section class="house-link-medals">
+                <span class="house-link-overline">DESTAQUES DA OPERAÇÃO</span>
+                ${houseLinkMedalCard_(snapshot.player, myMedal, true)}
+                ${houseLinkMedalCard_(snapshot.partner, partnerMedal, false)}
+              </section>`
+            : ""
+        }
+        <section class="house-link-result-actions">
+          ${
+            !cancelled
+              ? `<button
+                  type="button"
+                  data-hl-action="rematch"
+                  data-ready="${snapshot.rematch?.me ? "false" : "true"}"
+                  class="house-link-primary ${snapshot.rematch?.me ? "is-ready" : ""}"
+                >
+                  ${snapshot.rematch?.me ? "✓ Revanche confirmada" : "↻ Jogar revanche"}
+                </button>
+                <small>${
+                  snapshot.rematch?.partner
+                    ? "Seu parceiro também quer revanche!"
+                    : "A revanche começa quando os dois confirmarem."
+                }</small>`
+              : ""
+          }
+          <button id="houseLinkNewDuoBtn" type="button" class="house-link-secondary">Criar nova dupla</button>
+          <button type="button" data-hl-back class="house-link-text-btn">Voltar à Arena</button>
+        </section>
+      </div>`;
+    houseLinkBindRendered_();
+    houseLinkUpdateConnection_();
+  }
+
+  function houseLinkMedalCard_(player, medal, mine) {
+    if (!player) return "";
+    return `
+      <article class="house-link-medal-card ${mine ? "is-me" : ""}">
+        <span>${esc(medal.icon || "🤝")}</span>
+        <div>
+          <small>${mine ? "SUA MEDALHA" : esc(player.name || "PARCEIRO")}</small>
+          <strong>${esc(medal.title || "Parceiro House")}</strong>
+          <p>${esc(medal.text || "Manteve a dupla conectada.")}</p>
+        </div>
+        <b>${esc(player.initials || "?")}</b>
+      </article>`;
+  }
+
+  function houseLinkMissionSkeleton_() {
+    return `
+      <div class="house-link-mission-skeleton">
+        <i></i><i></i><i></i><span>Sincronizando a próxima comanda…</span>
+      </div>`;
+  }
+
+  function houseLinkTraySummary_(snapshot, selection) {
+    return `
+      <div class="house-link-tray-summary">
+        ${["size", "side", "drink", "restriction"]
+          .map((group) => {
+            const option = houseLinkOptionClient_(
+              snapshot.options,
+              group,
+              selection?.[group],
+            );
+            return `<span><b>${esc(option?.emoji || "•")}</b>${esc(option?.label || "")}</span>`;
+          })
+          .join("")}
+      </div>`;
+  }
+
+  function houseLinkBindRendered_() {
+    const root = $("#houseLinkApp");
+    if (!root) return;
+    root.querySelectorAll("[data-hl-back]").forEach(
+      (button) => (button.onclick = houseLinkBack_),
+    );
+    const create = $("#houseLinkCreateBtn");
+    if (create) create.onclick = houseLinkCreate_;
+    const form = $("#houseLinkJoinForm");
+    if (form) {
+      form.onsubmit = (event) => {
+        event.preventDefault();
+        houseLinkJoin_();
+      };
+      const input = $("#houseLinkCodeInput");
+      input.oninput = () => {
+        input.value = input.value
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
+          .slice(0, 6);
+      };
+    }
+    const copy = $("#houseLinkCopyBtn");
+    if (copy) copy.onclick = houseLinkCopyCode_;
+    const share = $("#houseLinkShareBtn");
+    if (share) share.onclick = houseLinkShareCode_;
+    const newDuo = $("#houseLinkNewDuoBtn");
+    if (newDuo) newDuo.onclick = houseLinkNewDuo_;
+
+    root.querySelectorAll("[data-hl-select]").forEach((button) => {
+      button.onclick = () => {
+        state.houseLink.selected[button.dataset.hlSelect] =
+          button.dataset.value;
+        if (typeof arenaHaptic_ === "function") arenaHaptic_(8);
+        houseLinkRender_();
+      };
+    });
+    root.querySelectorAll("[data-hl-signal]").forEach((button) => {
+      button.onclick = () =>
+        houseLinkAction_("signal", { signal: button.dataset.hlSignal });
+    });
+    root.querySelectorAll("[data-hl-emote]").forEach((button) => {
+      button.onclick = () =>
+        houseLinkAction_("emote", { emote: button.dataset.hlEmote }, true);
+    });
+    root.querySelectorAll("[data-hl-action]").forEach((button) => {
+      button.onclick = () => {
+        const type = button.dataset.hlAction;
+        if (type === "submit_tray") {
+          houseLinkAnimateSend_();
+          houseLinkAction_("submit_tray", {
+            selection: { ...state.houseLink.selected },
+          });
+          return;
+        }
+        if (type === "ready" || type === "rematch") {
+          houseLinkAction_(type, {
+            ready: button.dataset.ready !== "false",
+          });
+          return;
+        }
+        houseLinkAction_(type, {});
+      };
+    });
+  }
+
+  async function houseLinkCreate_() {
+    if (state.houseLink.busy) return;
+    state.houseLink.busy = true;
+    houseLinkRenderLoading_("Criando uma sala exclusiva…");
+    try {
+      const snapshot = await call(FN.houseLinkCreate, {});
+      houseLinkAcceptSnapshot_(snapshot, true);
+      houseArenaSound_("start");
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([18, 35, 18]);
+    } catch (error) {
+      houseLinkRenderLanding_();
+      toast(error.message, true);
+    } finally {
+      state.houseLink.busy = false;
+    }
+  }
+
+  async function houseLinkJoin_() {
+    if (state.houseLink.busy) return;
+    const code = String($("#houseLinkCodeInput")?.value || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 6);
+    if (code.length !== 6) {
+      toast("Digite os seis caracteres do código.", true);
+      $("#houseLinkCodeInput")?.focus();
+      return;
+    }
+    state.houseLink.busy = true;
+    houseLinkRenderLoading_("Encontrando o outro celular…");
+    try {
+      const snapshot = await call(FN.houseLinkJoin, { code });
+      houseLinkAcceptSnapshot_(snapshot, true);
+      houseArenaSound_("start");
+      if (typeof arenaHaptic_ === "function") arenaHaptic_([20, 35, 20]);
+    } catch (error) {
+      houseLinkRenderLanding_();
+      toast(error.message, true);
+    } finally {
+      state.houseLink.busy = false;
+    }
+  }
+
+  async function houseLinkAction_(type, data, quiet) {
+    if (
+      state.houseLink.busy ||
+      !state.houseLink.roomId ||
+      navigator.onLine === false
+    ) {
+      if (navigator.onLine === false)
+        toast("Sem internet. A conexão retomará automaticamente.", true);
+      return;
+    }
+    state.houseLink.busy = true;
+    $("#houseLinkApp")?.classList.add("is-busy");
+    try {
+      const snapshot = await call(FN.houseLinkAction, {
+        roomId: state.houseLink.roomId,
+        actionId: houseLinkActionId_(),
+        type,
+        data: data || {},
+      });
+      houseLinkAcceptSnapshot_(snapshot);
+    } catch (error) {
+      if (!quiet) toast(error.message, true);
+      houseLinkPoll_(true);
+    } finally {
+      state.houseLink.busy = false;
+      $("#houseLinkApp")?.classList.remove("is-busy");
+    }
+  }
+
+  async function houseLinkPoll_(immediate) {
+    if (
+      !state.houseLink.viewActive ||
+      !state.houseLink.roomId ||
+      state.houseLink.polling ||
+      state.houseLink.busy ||
+      document.hidden
+    )
+      return null;
+    window.clearTimeout(state.houseLink.pollTimer);
+    state.houseLink.polling = true;
+    try {
+      const now = Date.now();
+      const useHeartbeat =
+        now - Number(state.houseLink.heartbeatAt || 0) >= 12000;
+      const snapshot = useHeartbeat
+        ? await call(FN.houseLinkHeartbeat, {
+            roomId: state.houseLink.roomId,
+          })
+        : await call(FN.houseLinkState, {
+            roomId: state.houseLink.roomId,
+            revision: state.houseLink.revision,
+          });
+      if (useHeartbeat) state.houseLink.heartbeatAt = now;
+      state.houseLink.connection = "online";
+      houseLinkAcceptSnapshot_(snapshot, false, immediate === true);
+      return snapshot;
+    } catch (error) {
+      state.houseLink.connection =
+        navigator.onLine === false ? "offline" : "unstable";
+      houseLinkUpdateConnection_();
+      if (
+        /não existe|expirou|não faz parte|versão antiga/i.test(
+          error.message || "",
+        )
+      ) {
+        houseLinkClearSession_();
+        houseLinkRenderLanding_();
+        toast(error.message, true);
+      }
+      throw error;
+    } finally {
+      state.houseLink.polling = false;
+      houseLinkSchedulePoll_();
+    }
+  }
+
+  function houseLinkAcceptSnapshot_(snapshot, initial, silent) {
+    if (!snapshot || !snapshot.roomId) return;
+    if (
+      snapshot.roomId === state.houseLink.roomId &&
+      Number(snapshot.revision || 0) <
+        Number(state.houseLink.revision || 0)
+    )
+      return;
+    const previous = state.houseLink.snapshot;
+    const previousEvents = previous?.events || [];
+    const previousIds = new Set(previousEvents.map((event) => event.id));
+    const newEvents =
+      initial || !previous
+        ? []
+        : (snapshot.events || []).filter(
+            (event) => !previousIds.has(event.id),
+          );
+    state.houseLink.roomId = snapshot.roomId;
+    state.houseLink.code = snapshot.code || "";
+    state.houseLink.revision = Number(snapshot.revision || 0);
+    state.houseLink.serverOffset =
+      Number(snapshot.serverNow || Date.now()) - Date.now();
+    state.houseLink.snapshot = snapshot;
+    if (state.houseLink.selectedOrderId !== snapshot.order?.id) {
+      state.houseLink.selectedOrderId = snapshot.order?.id || "";
+      state.houseLink.selected = {};
+    }
+    houseLinkPersistSession_();
+    houseLinkRender_();
+    if (!silent) houseLinkReactToEvents_(newEvents);
+    houseLinkSchedulePoll_();
+  }
+
+  function houseLinkSchedulePoll_() {
+    window.clearTimeout(state.houseLink.pollTimer);
+    if (
+      !state.houseLink.viewActive ||
+      !state.houseLink.roomId ||
+      document.hidden ||
+      state.currentView !== "house-arena"
+    )
+      return;
+    const status = state.houseLink.snapshot?.status;
+    const delay =
+      status === "playing" || status === "countdown"
+        ? HOUSE_LINK_POLL_PLAYING_MS_
+        : status === "waiting"
+          ? HOUSE_LINK_POLL_WAITING_MS_
+          : HOUSE_LINK_POLL_IDLE_MS_;
+    const adaptiveDelay = Math.round(
+      delay * (state.arena.lowPower ? 1.45 : 1),
+    );
+    state.houseLink.pollTimer = window.setTimeout(
+      () => houseLinkPoll_().catch(() => {}),
+      adaptiveDelay,
+    );
+  }
+
+  function houseLinkStartTick_() {
+    window.clearInterval(state.houseLink.tickTimer);
+    houseLinkTick_();
+    state.houseLink.tickTimer = window.setInterval(houseLinkTick_, 100);
+  }
+
+  function houseLinkTick_() {
+    const snapshot = state.houseLink.snapshot;
+    if (!snapshot || !state.houseLink.viewActive) return;
+    const now = houseLinkNow_();
+    if (snapshot.status === "countdown") {
+      const remaining = Math.max(0, Number(snapshot.startedAt || 0) - now);
+      const count = Math.max(1, Math.ceil(remaining / 1000));
+      const overlay = $("[data-hl-countdown]", $("#houseLinkApp"));
+      if (overlay) overlay.querySelector("strong").textContent = count;
+      if (remaining <= 0 && now - HOUSE_LINK_THRESHOLD_POLL_ > 800) {
+        HOUSE_LINK_THRESHOLD_POLL_ = now;
+        houseLinkPoll_(true).catch(() => {});
+      }
+      return;
+    }
+    if (snapshot.status !== "playing") return;
+    const total = Math.max(
+      1,
+      Number(snapshot.endsAt || 0) - Number(snapshot.startedAt || 0),
+    );
+    const remaining = Math.max(0, Number(snapshot.endsAt || 0) - now);
+    const time = $("[data-hl-time]", $("#houseLinkApp"));
+    const bar = $("[data-hl-timebar]", $("#houseLinkApp"));
+    if (time)
+      time.textContent = (remaining / 1000)
+        .toFixed(1)
+        .replace(".", ",");
+    if (bar) bar.style.width = Math.max(0, (remaining / total) * 100) + "%";
+    const harmony = Math.max(0, Number(snapshot.harmonyUntil || 0) - now);
+    const harmonyNode = $("[data-hl-harmony]", $("#houseLinkApp"));
+    if (harmonyNode && harmony > 0)
+      harmonyNode.textContent = "2× · " + Math.ceil(harmony / 1000) + "s";
+    if (
+      ((Number(snapshot.phase || 0) === 0 &&
+        now >= Number(snapshot.swapAt || 0)) ||
+        remaining <= 0) &&
+      now - HOUSE_LINK_THRESHOLD_POLL_ > 800
+    ) {
+      HOUSE_LINK_THRESHOLD_POLL_ = now;
+      houseLinkPoll_(true).catch(() => {});
+    }
+  }
+
+  function houseLinkReactToEvents_(events) {
+    if (!events?.length) return;
+    events.forEach((event, index) => {
+      window.setTimeout(() => {
+        const type = event.type;
+        if (type === "portal_transfer") {
+          houseLinkPortalBurst_(event.data?.product?.emoji || "🛸");
+          houseArenaSound_("perfect");
+          if (typeof arenaHaptic_ === "function")
+            arenaHaptic_([18, 25, 35]);
+        } else if (
+          [
+            "delivery_success",
+            "pulse_complete",
+            "harmony",
+            "match_finished",
+          ].includes(type)
+        ) {
+          houseLinkCelebration_(
+            type === "harmony"
+              ? "✨"
+              : type === "pulse_complete"
+                ? "⚡"
+                : type === "match_finished"
+                  ? "🏆"
+                  : "⭐",
+          );
+          houseArenaSound_("perfect");
+          if (typeof arenaHaptic_ === "function")
+            arenaHaptic_([25, 30, 25, 30, 45]);
+        } else if (type === "delivery_error") {
+          $("#houseLinkApp")?.classList.add("is-error");
+          window.setTimeout(
+            () => $("#houseLinkApp")?.classList.remove("is-error"),
+            500,
+          );
+          houseArenaSound_("error");
+          if (typeof arenaHaptic_ === "function") arenaHaptic_([70, 35, 70]);
+        } else if (type === "role_swap") {
+          const swap = $("[data-hl-role-swap]", $("#houseLinkApp"));
+          swap?.classList.remove("hidden");
+          window.setTimeout(() => swap?.classList.add("hidden"), 2200);
+          houseArenaSound_("start");
+        } else if (type === "emote") {
+          houseLinkFloatingEmote_(event.data?.emote?.emoji || "🙌");
+        } else if (type === "partner_joined") {
+          houseArenaSound_("start");
+        }
+      }, index * 90);
+    });
+  }
+
+  function houseLinkPortalBurst_(emoji) {
+    const portal = $(".house-link-portal", $("#houseLinkApp"));
+    const fx = $(".house-link-portal-fx", $("#houseLinkApp"));
+    portal?.classList.add("is-receiving");
+    if (fx) {
+      const item = document.createElement("span");
+      item.className = "house-link-flying-tray";
+      item.textContent = emoji;
+      fx.appendChild(item);
+      window.setTimeout(() => item.remove(), 1300);
+    }
+    window.setTimeout(() => portal?.classList.remove("is-receiving"), 900);
+  }
+
+  function houseLinkCelebration_(emoji) {
+    const fx = $(".house-link-portal-fx", $("#houseLinkApp"));
+    if (!fx) return;
+    for (let index = 0; index < 14; index++) {
+      const particle = document.createElement("i");
+      particle.textContent = emoji;
+      particle.style.setProperty("--x", (Math.random() * 220 - 110) + "px");
+      particle.style.setProperty("--y", (Math.random() * -190 - 25) + "px");
+      particle.style.setProperty("--delay", index * 22 + "ms");
+      fx.appendChild(particle);
+      window.setTimeout(() => particle.remove(), 1500);
+    }
+  }
+
+  function houseLinkFloatingEmote_(emoji) {
+    const root = $(".house-link-shell", $("#houseLinkApp"));
+    if (!root) return;
+    const bubble = document.createElement("span");
+    bubble.className = "house-link-floating-emote";
+    bubble.textContent = emoji;
+    root.appendChild(bubble);
+    window.setTimeout(() => bubble.remove(), 1800);
+  }
+
+  function houseLinkAnimateSend_() {
+    const button = $("#houseLinkSendTray");
+    button?.classList.add("is-sending");
+    houseLinkPortalBurst_("🛸");
+    if (typeof arenaHaptic_ === "function") arenaHaptic_([12, 20, 32]);
+  }
+
+  function houseLinkBack_() {
+    const snapshot = state.houseLink.snapshot;
+    if (
+      snapshot &&
+      ["waiting", "countdown", "playing"].includes(snapshot.status)
+    ) {
+      houseLinkShowExitSheet_();
+      return;
+    }
+    houseLinkClearSession_();
+    showHouseArenaLobby_();
+  }
+
+  function houseLinkShowExitSheet_() {
+    const root = $("#houseLinkApp");
+    if (!root || $("#houseLinkExitSheet")) return;
+    const backdrop = document.createElement("div");
+    backdrop.id = "houseLinkExitSheet";
+    backdrop.className = "house-link-exit-sheet";
+    const playing = ["countdown", "playing"].includes(
+      state.houseLink.snapshot?.status,
+    );
+    backdrop.innerHTML = `
+      <section role="dialog" aria-modal="true" aria-labelledby="houseLinkExitTitle">
+        <span>${playing ? "🔌" : "↩"}</span>
+        <h3 id="houseLinkExitTitle">${playing ? "Encerrar a conexão?" : "Sair desta sala?"}</h3>
+        <p>${
+          playing
+            ? "A partida será encerrada também para o parceiro e não valerá ranking."
+            : "Seu parceiro será avisado de que você saiu."
+        }</p>
+        <button type="button" class="house-link-danger">Sim, sair da dupla</button>
+        <button type="button" class="house-link-secondary">Continuar conectado</button>
+      </section>`;
+    backdrop.querySelector(".house-link-danger").onclick = houseLinkLeave_;
+    backdrop.querySelector(".house-link-secondary").onclick = () =>
+      backdrop.remove();
+    backdrop.onclick = (event) => {
+      if (event.target === backdrop) backdrop.remove();
+    };
+    root.appendChild(backdrop);
+  }
+
+  async function houseLinkLeave_() {
+    if (state.houseLink.busy) return;
+    state.houseLink.busy = true;
+    try {
+      if (state.houseLink.roomId && navigator.onLine)
+        await call(FN.houseLinkLeave, {
+          roomId: state.houseLink.roomId,
+        });
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      state.houseLink.busy = false;
+      houseLinkClearSession_();
+      showHouseArenaLobby_();
+    }
+  }
+
+  async function houseLinkNewDuo_() {
+    if (state.houseLink.roomId && navigator.onLine) {
+      try {
+        await call(FN.houseLinkLeave, {
+          roomId: state.houseLink.roomId,
+        });
+      } catch (ignored) {}
+    }
+    houseLinkClearSession_();
+    state.houseLink.snapshot = null;
+    houseLinkRenderLanding_();
+  }
+
+  async function houseLinkCopyCode_() {
+    try {
+      await navigator.clipboard.writeText(state.houseLink.code);
+      toast("Código " + state.houseLink.code + " copiado.");
+      if (typeof arenaHaptic_ === "function") arenaHaptic_(14);
+    } catch (error) {
+      toast("Código da dupla: " + state.houseLink.code);
+    }
+  }
+
+  async function houseLinkShareCode_() {
+    const text =
+      "Entre na minha dupla no House Link. Código: " +
+      state.houseLink.code;
+    let inviteUrl = location.href;
+    try {
+      const url = new URL(location.href);
+      url.searchParams.set("houseLink", state.houseLink.code);
+      inviteUrl = url.toString();
+    } catch (ignored) {}
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "House Link",
+          text,
+          url: inviteUrl,
+        });
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+    houseLinkCopyCode_();
+  }
+
+  function houseLinkInviteFromUrl_() {
+    try {
+      const url = new URL(location.href);
+      const code = String(url.searchParams.get("houseLink") || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 6);
+      if (code.length !== 6) return "";
+      url.searchParams.delete("houseLink");
+      window.history.replaceState({}, document.title, url.toString());
+      return code;
+    } catch (ignored) {
+      return "";
+    }
+  }
+
+  function houseLinkUpdateConnection_() {
+    const node = $("[data-hl-connection]", $("#houseLinkApp"));
+    if (!node) return;
+    const status =
+      navigator.onLine === false
+        ? "offline"
+        : state.houseLink.connection || "online";
+    node.textContent =
+      status === "online"
+        ? "ONLINE"
+        : status === "unstable"
+          ? "RECONECTANDO"
+          : "OFFLINE";
+    node.classList.toggle("is-offline", status !== "online");
+  }
+
+  function houseLinkPersistSession_() {
+    if (!state.houseLink.roomId) return;
+    try {
+      localStorage.setItem(
+        HOUSE_LINK_SESSION_KEY_,
+        JSON.stringify({
+          roomId: state.houseLink.roomId,
+          code: state.houseLink.code,
+          savedAt: Date.now(),
+        }),
+      );
+    } catch (ignored) {}
+  }
+
+  function houseLinkReadSession_() {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(HOUSE_LINK_SESSION_KEY_) || "null",
+      );
+      if (
+        !saved ||
+        !/^[a-f0-9]{32}$/.test(String(saved.roomId || "")) ||
+        Date.now() - Number(saved.savedAt || 0) > 35 * 60 * 1000
+      )
+        return null;
+      return saved;
+    } catch (ignored) {
+      return null;
+    }
+  }
+
+  function houseLinkClearSession_() {
+    window.clearTimeout(state.houseLink.pollTimer);
+    window.clearInterval(state.houseLink.tickTimer);
+    try {
+      localStorage.removeItem(HOUSE_LINK_SESSION_KEY_);
+    } catch (ignored) {}
+    Object.assign(state.houseLink, {
+      roomId: "",
+      code: "",
+      snapshot: null,
+      revision: 0,
+      polling: false,
+      busy: false,
+      selected: {},
+      selectedOrderId: "",
+      lastEventId: "",
+    });
+  }
+
+  function houseLinkOptionClient_(options, group, value) {
+    return (options?.[group] || []).find((item) => item.id === value);
+  }
+
+  function houseLinkSelectionComplete_() {
+    return ["size", "side", "drink", "restriction"].every(
+      (group) => !!state.houseLink.selected[group],
+    );
+  }
+
+  function houseLinkScore_(value) {
+    return Number(value || 0).toLocaleString("pt-BR");
+  }
+
+  function houseLinkNow_() {
+    return Date.now() + Number(state.houseLink.serverOffset || 0);
+  }
+
+  function houseLinkActionId_() {
+    if (window.crypto?.getRandomValues) {
+      const values = new Uint32Array(3);
+      window.crypto.getRandomValues(values);
+      return (
+        "hl_" +
+        Array.from(values)
+          .map((value) => value.toString(36))
+          .join("_")
+      );
+    }
+    return (
+      "hl_" +
+      Date.now().toString(36) +
+      "_" +
+      Math.random().toString(36).slice(2, 12)
+    );
+  }
+
+  function houseLinkEventIcon_(type) {
+    return {
+      partner_joined: "🔗",
+      ready: "✓",
+      countdown: "⚡",
+      match_started: "🚀",
+      signal: "📡",
+      portal_transfer: "🛸",
+      tray_returned: "↩",
+      delivery_success: "⭐",
+      delivery_error: "!",
+      incident: "⚡",
+      pulse_ready: "◉",
+      pulse_complete: "✨",
+      harmony: "✦",
+      role_swap: "↻",
+      emote: "💬",
+      match_finished: "🏆",
+    }[type] || "•";
+  }
+
+  function houseLinkEventText_(type) {
+    return {
+      ready: "Confirmação recebida.",
+      signal: "Nova etiqueta enviada.",
+      portal_transfer: "Bandeja atravessando o portal.",
+      emote: "Nova reação da dupla.",
+    }[type] || "Conexão atualizada.";
+  }
+</script>
