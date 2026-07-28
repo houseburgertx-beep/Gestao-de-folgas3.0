@@ -179,6 +179,7 @@
   };
   let CLOCK_EXPECTED_ACTION_ = "";
   let CLOCK_PUNCH_REQUEST_ID_ = "";
+  let CLOCK_QUICK_PROMISE_ = null;
   const APP_BOOT_STARTED_AT_ = Date.now();
   let CORE_BOOTSTRAP_PROMISE_ = null;
   let USERS_LOAD_PROMISE_ = null;
@@ -1328,6 +1329,7 @@
   function scheduleSecondaryLoads_() {
     if (state.secondaryStarted || !state.coreReady) return;
     state.secondaryStarted = true;
+    if (isEmployee()) loadTimeClockQuick_();
     /* As cargas abaixo enriquecem a tela, mas não são necessárias para abrir
        nem para bater ponto. Rodam quando o navegador estiver ocioso e nunca
        disputam conexão/CPU com o caminho crítico. */
@@ -3878,24 +3880,30 @@
   }
   async function loadTimeClockQuick_() {
     if (!sessionToken() || !isEmployee()) return null;
-    try {
-      const data = await call(FN.clockQuick, sessionToken());
-      data._quick = true;
-      data._cacheKey =
-        (data.month || iso(new Date()).slice(0, 7)) + "|";
-      data._loadedAt = Date.now();
-      state.timeClock = data;
-      renderTimeClock();
-      renderEmployeeDashboardCards();
-      saveTurboShellCache_();
-      console.info("[performance] ponto imediato pronto", {
-        elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
-      });
-      return data;
-    } catch (error) {
-      console.warn("Ponto imediato:", error.message);
-      return null;
-    }
+    if (CLOCK_QUICK_PROMISE_) return CLOCK_QUICK_PROMISE_;
+    CLOCK_QUICK_PROMISE_ = (async () => {
+      try {
+        const data = await call(FN.clockQuick, sessionToken());
+        data._quick = true;
+        data._cacheKey =
+          (data.month || iso(new Date()).slice(0, 7)) + "|";
+        data._loadedAt = Date.now();
+        state.timeClock = data;
+        renderTimeClock();
+        renderEmployeeDashboardCards();
+        saveTurboShellCache_();
+        console.info("[performance] ponto imediato pronto", {
+          elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
+        });
+        return data;
+      } catch (error) {
+        console.warn("Ponto imediato:", error.message);
+        return null;
+      } finally {
+        CLOCK_QUICK_PROMISE_ = null;
+      }
+    })();
+    return CLOCK_QUICK_PROMISE_;
   }
   function renderTimeClock() {
     const d = state.timeClock || {},
