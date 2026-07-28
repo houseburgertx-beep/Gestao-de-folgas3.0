@@ -80,6 +80,35 @@ const nextClockAction = (records, schedule) => {
   return sequenceFor(schedule).find((type) => !types.includes(type)) || "";
 };
 
+const exactMinutesBetween = (start, end) => {
+  const first = new Date(start).getTime();
+  const last = new Date(end).getTime();
+  return Number.isFinite(first) && Number.isFinite(last)
+    ? Math.max(0, (last - first) / 60000)
+    : 0;
+};
+
+const clockMinutes = (value) => {
+  const text = String(value || "");
+  const plain = text.match(/^(\d{1,2}):(\d{2})/);
+  if (plain) return Number(plain[1]) * 60 + Number(plain[2]);
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? date.getUTCHours() * 60 + date.getUTCMinutes()
+    : null;
+};
+
+const scheduleExpectedMinutes = (schedule) => {
+  const start = clockMinutes(schedule?.HoraEntrada);
+  const end = clockMinutes(schedule?.HoraSaida);
+  if (start !== null && end !== null) {
+    const gross = (end - start + 24 * 60) % (24 * 60);
+    const net = gross - Number(schedule?.DuracaoIntervaloMinutos || 0);
+    if (net > 0) return net;
+  }
+  return Number(schedule?.CargaDiariaMinutos || 0);
+};
+
 const dayMetrics = (records, schedule) => {
   const byType = {};
   records
@@ -95,9 +124,9 @@ const dayMetrics = (records, schedule) => {
   const exit = byType.SAIDA_FINAL;
   let worked = 0;
   if (entry && exit) {
-    worked = minutesBetween(entry.DataHora, exit.DataHora);
+    worked = exactMinutesBetween(entry.DataHora, exit.DataHora);
     if (breakOut && breakIn && !noBreak) {
-      worked -= minutesBetween(breakOut.DataHora, breakIn.DataHora);
+      worked -= exactMinutesBetween(breakOut.DataHora, breakIn.DataHora);
     }
   } else if (entry) {
     const last = records
@@ -105,10 +134,10 @@ const dayMetrics = (records, schedule) => {
       .sort((a, b) => String(b.DataHora).localeCompare(String(a.DataHora)))[0];
     worked = Math.min(
       24 * 60,
-      minutesBetween(entry.DataHora, last?.DataHora || entry.DataHora),
+      exactMinutesBetween(entry.DataHora, last?.DataHora || entry.DataHora),
     );
   }
-  const expected = Number(schedule?.CargaDiariaMinutos || 0);
+  const expected = scheduleExpectedMinutes(schedule);
   return {
     entrada: entry ? timeValue(entry.DataHora) : "",
     saidaIntervalo: breakOut ? timeValue(breakOut.DataHora) : noBreak ? "Sem descanso" : "",
@@ -735,15 +764,16 @@ export function createClockHandlers() {
           FuncionarioID: item.funcionarioId,
           Nome: item.nome,
           saldoMinutos: 0,
+          desde: item.data,
         };
         current.saldoMinutos += Number(item.saldoMinutos || 0);
+        if (item.data < current.desde) current.desde = item.data;
         employeeTotals.set(item.funcionarioId, current);
       });
       const employees = [...employeeTotals.values()].map((item) => ({
         ...item,
         saldoTexto:
           (item.saldoMinutos >= 0 ? "+" : "") + minutesText(item.saldoMinutos),
-        desde: `${context.month}-01`,
       }));
       const totalMinutos = employees.reduce(
         (sum, item) => sum + item.saldoMinutos,
@@ -759,4 +789,4 @@ export function createClockHandlers() {
   };
 }
 
-export { clockContext };
+export { clockContext, dayMetrics, scheduleExpectedMinutes };
