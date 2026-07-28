@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createApi } from "../src/core/api.js";
 import { nextTimeOffSummary } from "../src/core/api-advanced.js";
+import { periodFieldsFor } from "../src/core/runtime.js";
 import {
   balanceDays,
   dayMetrics,
@@ -50,6 +51,44 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
   assert.equal(rules.rules[".write"], false);
   assert.ok(rules.rules["gestao-folgas"].v2.access);
   assert.ok(rules.rules["gestao-folgas"].v2.tables);
+  const indexes =
+    rules.rules["gestao-folgas"].v2.tables.$table[".indexOn"];
+  assert.ok(indexes.includes("FuncionarioPeriodo"));
+  assert.ok(indexes.includes("LojaPeriodo"));
+});
+
+test("registros de ponto recebem índices mensais de acesso", () => {
+  assert.deepEqual(
+    periodFieldsFor("RegistrosPonto", {
+      Data: "2026-07-28",
+      FuncionarioID: "func-1",
+      LojaID: "loja-1",
+    }),
+    {
+      PeriodoChave: "2026-07",
+      FuncionarioPeriodo: "func-1|2026-07",
+      LojaPeriodo: "loja-1|2026-07",
+    },
+  );
+  assert.deepEqual(periodFieldsFor("Funcionarios", { Data: "2026-07-28" }), {});
+});
+
+test("ponto consulta somente os meses necessários", async () => {
+  const runtime = await readFile(
+    new URL("../src/core/runtime.js", import.meta.url),
+    "utf8",
+  );
+  const clock = await readFile(
+    new URL("../src/core/api-clock.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(runtime, /async listPeriods\(table, periods/);
+  assert.match(runtime, /timeClockPeriodIndexesV1/);
+  assert.match(clock, /listPeriods\("RegistrosPonto", \[\.\.\.recordPeriods\]/);
+  assert.match(
+    clock,
+    /listPeriods\([\s\S]*?"RegistrosPonto"[\s\S]*?previousDateKey\(todayIso\(\)\)/,
+  );
 });
 
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
