@@ -34,6 +34,21 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
   assert.ok(rules.rules["gestao-folgas"].v2.tables);
 });
 
+test("a configuração inicial pode retomar uma conta já criada", async () => {
+  const runtime = await readFile(
+    new URL("../src/core/runtime.js", import.meta.url),
+    "utf8",
+  );
+  const main = await readFile(
+    new URL("../src/main.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(runtime, /getInitialAdminCredential/);
+  assert.match(runtime, /auth\/email-already-in-use/);
+  assert.match(runtime, /signInWithEmailAndPassword/);
+  assert.match(main, /Publique database\.rules\.json/);
+});
+
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /Gestão de Folgas/);
@@ -41,6 +56,14 @@ test("o index preserva a interface sem marcação de template do Apps Script", a
   assert.doesNotMatch(html, /<\?(?:=|!=)/);
   assert.match(html, /id="view-timeclock"/);
   assert.match(html, /id="view-house-arena"/);
+  assert.match(
+    html,
+    /\$\$\s*=\s*\(s,\s*r\s*=\s*document\)\s*=>\s*\[\.\.\.r\.querySelectorAll\(s\)\]/,
+  );
+  assert.doesNotMatch(
+    html,
+    /const \$\s*=\s*[\s\S]*?querySelector\(s\),\s*\$\s*=\s*[\s\S]*?querySelectorAll\(s\)/,
+  );
 });
 
 test("utilitários de data, duração e geolocalização", () => {

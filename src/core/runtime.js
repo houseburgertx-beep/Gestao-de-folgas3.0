@@ -188,16 +188,43 @@ export class FirebaseRuntime {
     await sendPasswordResetEmail(this.auth, normalizeEmail(email));
   }
 
+  async getInitialAdminCredential(email, password) {
+    const normalizedEmail = normalizeEmail(email);
+    const currentUser = this.auth.currentUser;
+
+    if (
+      currentUser &&
+      normalizeEmail(currentUser.email) === normalizedEmail
+    ) {
+      return { user: currentUser };
+    }
+
+    if (currentUser) {
+      await signOut(this.auth);
+    }
+
+    try {
+      return await createUserWithEmailAndPassword(
+        this.auth,
+        normalizedEmail,
+        password,
+      );
+    } catch (error) {
+      if (error?.code !== "auth/email-already-in-use") throw error;
+      return signInWithEmailAndPassword(
+        this.auth,
+        normalizedEmail,
+        password,
+      );
+    }
+  }
+
   async setupInitialAdmin({ name, email, password, company }) {
     if (await this.isInitialized()) {
       throw new Error("A configuração inicial já foi concluída.");
     }
     await setPersistence(this.auth, browserLocalPersistence);
-    const credential = await createUserWithEmailAndPassword(
-      this.auth,
-      normalizeEmail(email),
-      password,
-    );
+    const credential = await this.getInitialAdminCredential(email, password);
     const employeeId = uuid();
     const createdAt = nowIso();
     const profile = {

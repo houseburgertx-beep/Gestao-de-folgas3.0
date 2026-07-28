@@ -27,11 +27,13 @@ let html = template
     /<title>[\s\S]*?<\/title>/,
     "<title>Gestão de Folgas</title>",
   )
-  .replace("<?!= include_('Styles'); ?>", styles)
-  .replace("<?!= include_('Dialogs'); ?>", dialogs)
+  // Use callbacks so JavaScript replacement tokens such as "$$" are copied
+  // verbatim instead of being collapsed to a single "$".
+  .replace("<?!= include_('Styles'); ?>", () => styles)
+  .replace("<?!= include_('Dialogs'); ?>", () => dialogs)
   .replace(
     "<?!= include_('Scripts'); ?>",
-    '<script type="module" src="./src/main.js"></script>\n' + scripts,
+    () => '<script type="module" src="./src/main.js"></script>\n' + scripts,
   )
   .replace(/<base\s+target="_top"\s*\/>/, '<base target="_self" />');
 
