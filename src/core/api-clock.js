@@ -109,6 +109,9 @@ const scheduleExpectedMinutes = (schedule) => {
   return Number(schedule?.CargaDiariaMinutos || 0);
 };
 
+const balanceDays = (days) =>
+  days.filter((item) => !item.folga && !item.folgaFixa);
+
 const dayMetrics = (records, schedule) => {
   const byType = {};
   records
@@ -313,12 +316,10 @@ async function clockContext(filters = {}) {
       });
     }
   }
-  const totals = days.reduce(
+  const totals = balanceDays(days).reduce(
     (result, item) => {
-      if (!item.folga && !item.folgaFixa) {
-        result.worked += item.trabalhadoMinutos;
-        result.expected += item.previstoMinutos;
-      }
+      result.worked += item.trabalhadoMinutos;
+      result.expected += item.previstoMinutos;
       return result;
     },
     { worked: 0, expected: 0 },
@@ -759,17 +760,17 @@ export function createClockHandlers() {
       dropClientToken(args);
       const context = await clockContext({ month: monthIso() });
       const employeeTotals = new Map();
-      context.days.forEach((item) => {
-        const current = employeeTotals.get(item.funcionarioId) || {
-          FuncionarioID: item.funcionarioId,
-          Nome: item.nome,
-          saldoMinutos: 0,
-          desde: item.data,
-        };
-        current.saldoMinutos += Number(item.saldoMinutos || 0);
-        if (item.data < current.desde) current.desde = item.data;
-        employeeTotals.set(item.funcionarioId, current);
-      });
+      balanceDays(context.days).forEach((item) => {
+          const current = employeeTotals.get(item.funcionarioId) || {
+            FuncionarioID: item.funcionarioId,
+            Nome: item.nome,
+            saldoMinutos: 0,
+            desde: item.data,
+          };
+          current.saldoMinutos += Number(item.saldoMinutos || 0);
+          if (item.data < current.desde) current.desde = item.data;
+          employeeTotals.set(item.funcionarioId, current);
+        });
       const employees = [...employeeTotals.values()].map((item) => ({
         ...item,
         saldoTexto:
@@ -789,4 +790,4 @@ export function createClockHandlers() {
   };
 }
 
-export { clockContext, dayMetrics, scheduleExpectedMinutes };
+export { balanceDays, clockContext, dayMetrics, scheduleExpectedMinutes };
