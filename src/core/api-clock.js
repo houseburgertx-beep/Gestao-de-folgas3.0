@@ -39,6 +39,11 @@ const timeValue = (dateTime) => {
     : "";
 };
 
+const normalizedDateKey = (value) => {
+  const text = String(value || "");
+  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
+};
+
 const workdayIndexes = (schedule) =>
   String(schedule?.DiasTrabalho || "1,2,3,4,5,6")
     .split(/[,;|\s]+/)
@@ -51,8 +56,8 @@ const scheduleFor = (schedules, employeeId, dateKey = todayIso()) => {
       (item) =>
         item.FuncionarioID === employeeId &&
         asBoolean(item.Ativa) &&
-        (!item.VigenteDe || item.VigenteDe <= dateKey) &&
-        (!item.VigenteAte || item.VigenteAte >= dateKey),
+        (!item.VigenteDe || normalizedDateKey(item.VigenteDe) <= dateKey) &&
+        (!item.VigenteAte || normalizedDateKey(item.VigenteAte) >= dateKey),
     )
     .sort((a, b) =>
       String(b.VigenteDe || "").localeCompare(String(a.VigenteDe || "")),
@@ -139,14 +144,14 @@ async function clockContext(filters = {}) {
     .filter(
       (item) =>
         allowedIds.has(item.FuncionarioID) &&
-        String(item.Data || "").slice(0, 7) === month &&
+        normalizedDateKey(item.Data).slice(0, 7) === month &&
         item.Status !== "Substituído",
     )
     .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
   const monthAdjustments = adjustments.filter(
     (item) =>
       allowedIds.has(item.FuncionarioID) &&
-      (String(item.Data || "").slice(0, 7) === month ||
+      (normalizedDateKey(item.Data).slice(0, 7) === month ||
         item.Status === "Pendente"),
   );
   const ownEmployee = allowed.find(
@@ -161,7 +166,7 @@ async function clockContext(filters = {}) {
         .filter(
           (item) =>
             item.FuncionarioID === ownEmployee.FuncionarioID &&
-            item.Data === operationalDay &&
+            normalizedDateKey(item.Data) === operationalDay &&
             item.Status !== "Substituído",
         )
         .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)))
@@ -171,8 +176,8 @@ async function clockContext(filters = {}) {
         (item) =>
           item.FuncionarioID === ownEmployee.FuncionarioID &&
           ["Aprovada", "Concluída"].includes(item.Status) &&
-          item.DataInicio <= operationalDay &&
-          (item.DataFim || item.DataInicio) >= operationalDay,
+          normalizedDateKey(item.DataInicio) <= operationalDay &&
+          normalizedDateKey(item.DataFim || item.DataInicio) >= operationalDay,
       )
     : null;
   const fixedOff =
@@ -196,22 +201,39 @@ async function clockContext(filters = {}) {
   const days = [];
   const [year, monthNumber] = month.split("-").map(Number);
   const monthDays = new Date(year, monthNumber, 0).getDate();
+  const trackingStartByEmployee = new Map();
+  records
+    .filter(
+      (item) =>
+        item.Status !== "Substituído" && normalizedDateKey(item.Data),
+    )
+    .forEach((item) => {
+      const current = trackingStartByEmployee.get(item.FuncionarioID);
+      const candidate = normalizedDateKey(item.Data);
+      if (!current || candidate < current) {
+        trackingStartByEmployee.set(item.FuncionarioID, candidate);
+      }
+    });
   for (const employee of allowed) {
     for (let day = 1; day <= monthDays; day += 1) {
       const dateKey = `${month}-${String(day).padStart(2, "0")}`;
       if (dateKey > todayIso()) continue;
+      const trackingStart = trackingStartByEmployee.get(
+        employee.FuncionarioID,
+      );
+      if (!trackingStart || dateKey < trackingStart) continue;
       const schedule = scheduleFor(schedules, employee.FuncionarioID, dateKey);
       const rows = monthRecords.filter(
         (item) =>
           item.FuncionarioID === employee.FuncionarioID &&
-          item.Data === dateKey,
+          normalizedDateKey(item.Data) === dateKey,
       );
       const approvedOff = timeOff.find(
         (item) =>
           item.FuncionarioID === employee.FuncionarioID &&
           ["Aprovada", "Concluída"].includes(item.Status) &&
-          item.DataInicio <= dateKey &&
-          (item.DataFim || item.DataInicio) >= dateKey,
+          normalizedDateKey(item.DataInicio) <= dateKey &&
+          normalizedDateKey(item.DataFim || item.DataInicio) >= dateKey,
       );
       const weekday = new Date(`${dateKey}T12:00:00`).getDay();
       const fixed =
@@ -470,7 +492,7 @@ export function createClockHandlers() {
       const records = (await runtime.list("RegistrosPonto", { profile })).filter(
         (item) =>
           item.FuncionarioID === employee.FuncionarioID &&
-          item.Data === day &&
+          normalizedDateKey(item.Data) === day &&
           item.Status !== "Substituído",
       );
       const next = nextClockAction(records, schedule);
