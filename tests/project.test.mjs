@@ -31,6 +31,17 @@ test("a API cobre todas as funções declaradas pela interface", async () => {
   assert.ok(Object.keys(handlers).length >= 90);
 });
 
+test("o JavaScript legado possui sintaxe válida", async () => {
+  const source = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  const javascript = source
+    .replace(/^\s*<script>\s*/, "")
+    .replace(/\s*<\/script>\s*$/, "");
+  assert.doesNotThrow(() => new Function(javascript));
+});
+
 test("as regras do Realtime Database são JSON válido e começam bloqueadas", async () => {
   const rules = JSON.parse(
     await readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
