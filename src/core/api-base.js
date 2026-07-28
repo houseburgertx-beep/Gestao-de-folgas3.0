@@ -27,7 +27,7 @@ export const sessionUser = (profile) => ({
   lojaId: profile.LojaID || "",
   nomeLoja: profile.NomeLoja || "",
   cargo: profile.Cargo || "",
-  fotoPerfil: profile.FotoPerfil || "",
+  fotoPerfil: "",
   ativo: asBoolean(profile.Ativo),
 });
 
@@ -616,20 +616,26 @@ export function createBaseHandlers(getArenaBundle) {
         "Folgas",
         await createOrUpdateTimeOff(values[0] || {}),
       );
-      await createNotification({
-        storeId: saved.LojaID,
-        subject: "Novo pedido de folga",
-        message: `${saved.NomeFuncionario} solicitou folga para ${saved.DataInicio}.`,
-        type: "Folga",
-        relatedId: saved.FolgaID,
-      });
       return success(saved, "Pedido de folga enviado.");
     },
 
     async updateTimeOff(args) {
       const [id, payload] = args;
+      const profile = await runtime.requireProfile();
       const current = await runtime.getById("Folgas", id);
       assert(current, "Folga não encontrada.");
+      scopeRecord(profile, current);
+      if (!isManager(profile)) {
+        assert(
+          current.Status === APP.status.pending,
+          "Somente pedidos pendentes podem ser alterados pelo funcionário.",
+        );
+        assert(
+          !payload?.Status ||
+            [APP.status.pending, APP.status.cancelled].includes(payload.Status),
+          "O funcionário não pode aprovar nem reabrir o próprio pedido.",
+        );
+      }
       const saved = await runtime.upsert(
         "Folgas",
         await createOrUpdateTimeOff(payload || {}, current),
@@ -841,7 +847,6 @@ export function createBaseHandlers(getArenaBundle) {
         LojaID: payload.LojaID || employee?.LojaID || "",
         NomeLoja: employee?.NomeLoja || "",
         Cargo: employee?.Cargo || "",
-        FotoPerfil: "",
         PrimeiroAcesso: payload.PrimeiroAcesso !== false,
         Ativo: payload.Ativo !== false,
         DataCriacao: nowIso(),
@@ -911,13 +916,19 @@ export function createBaseHandlers(getArenaBundle) {
           "A confirmação da nova senha não confere.",
         );
       }
-      await runtime.updateOwnAuth({ email, password });
+      await runtime.updateOwnAuth({
+        email,
+        password,
+        currentPassword:
+          payload.SenhaAtual ||
+          payload.senhaAtual ||
+          payload.currentPassword ||
+          "",
+      });
       const saved = {
         ...profile,
         Email: email,
-        FotoPerfil: asBoolean(payload.RemoverFoto)
-          ? ""
-          : payload.FotoPerfil ?? profile.FotoPerfil ?? "",
+        FotoPerfil: "",
         PrimeiroAcesso: password ? false : profile.PrimeiroAcesso,
         DataAtualizacao: nowIso(),
       };
