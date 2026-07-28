@@ -609,13 +609,6 @@
                   <strong id="pendingSwapMetric">0</strong><small>Trocas</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-documents">
-                <span class="pending-summary-icon">▤</span>
-                <div>
-                  <strong id="pendingDocumentMetric">0</strong
-                  ><small>Documentos</small>
-                </div>
-              </article>
             </div>
 
             <div
@@ -650,13 +643,6 @@
                 type="button"
               >
                 Trocas <em id="pendingSwapFilterCount">0</em>
-              </button>
-              <button
-                class="pending-filter-btn"
-                data-pending-filter="documents"
-                type="button"
-              >
-                Documentos <em id="pendingDocumentFilterCount">0</em>
               </button>
             </div>
 
@@ -842,84 +828,17 @@
 
               <section
                 class="pending-category"
-                data-pending-category="documents"
+                data-pending-category="onboarding"
               >
                 <div class="pending-category-head">
                   <div class="pending-category-heading">
-                    <span class="pending-category-icon documents">▤</span>
+                    <span class="pending-category-icon documents">✓</span>
                     <div>
-                      <span class="eyebrow">DOCUMENTOS</span>
-                      <h3 id="pendingDocumentsTitle">Documentos da equipe</h3>
+                      <span class="eyebrow">INTEGRAÇÃO</span>
+                      <h3 id="pendingDocumentsTitle">Onboarding da equipe</h3>
                       <p id="pendingDocumentsDescription">
-                        Envie, visualize e acompanhe documentos em um só lugar.
+                        Acompanhe a integração dos funcionários.
                       </p>
-                    </div>
-                  </div>
-                </div>
-                <div class="pending-documents-grid">
-                  <form
-                    id="documentForm"
-                    class="panel feature-panel pending-document-form"
-                  >
-                    <span class="feature-icon">＋</span>
-                    <h3>Enviar documento</h3>
-                    <label
-                      >Funcionário<select
-                        id="documentEmployee"
-                        required
-                      ></select
-                    ></label>
-                    <label
-                      >Tipo<input
-                        id="documentType"
-                        type="text"
-                        placeholder="Atestado, certificado, contrato…"
-                        required
-                    /></label>
-                    <label
-                      >Descrição<textarea
-                        id="documentDescription"
-                        placeholder="Contexto ou observação do documento"
-                      ></textarea>
-                    </label>
-                    <div class="form-grid">
-                      <label
-                        >Emissão<input id="documentIssuedAt" type="date"
-                      /></label>
-                      <label
-                        >Vencimento<input id="documentExpiry" type="date"
-                      /></label>
-                    </div>
-                    <label class="document-upload-field"
-                      >Selecionar documento<input
-                        id="documentFile"
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,application/pdf,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        required
-                      /><small
-                        >PDF, imagem ou Word · máximo de 8 MB.</small
-                      ></label
-                    >
-                    <button class="btn btn-primary" type="submit">
-                      Enviar documento
-                    </button>
-                  </form>
-                  <div class="panel feature-panel document-library-panel">
-                    <div class="feature-panel-heading">
-                      <div>
-                        <span class="feature-icon">▤</span>
-                        <h3>Documentos enviados</h3>
-                      </div>
-                      <button
-                        id="documentsRefreshBtn"
-                        class="btn btn-ghost"
-                        type="button"
-                      >
-                        Atualizar
-                      </button>
-                    </div>
-                    <div id="documentsList" class="document-library-list">
-                      <div class="empty-state">Carregando documentos…</div>
                     </div>
                   </div>
                 </div>
