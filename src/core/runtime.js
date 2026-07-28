@@ -290,12 +290,12 @@ export class FirebaseRuntime {
         AtualizadoPor: profile.Email,
       });
     }
-    await set(this.appRef("meta"), {
-      initialized: true,
-      version: APP.version,
-      createdAt,
-      createdBy: credential.user.uid,
-    });
+    await Promise.all([
+      set(this.appRef("meta/version"), APP.version),
+      set(this.appRef("meta/createdAt"), createdAt),
+      set(this.appRef("meta/createdBy"), credential.user.uid),
+    ]);
+    await set(this.appRef("meta/initialized"), true);
     return clone(profile);
   }
 
