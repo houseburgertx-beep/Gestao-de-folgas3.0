@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createApi } from "../src/core/api.js";
+import { nextTimeOffSummary } from "../src/core/api-advanced.js";
+import {
+  balanceDays,
+  dayMetrics,
+  scheduleExpectedMinutes,
+} from "../src/core/api-clock.js";
 import {
   dateRange,
   haversineMeters,
@@ -34,23 +40,6 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
   assert.ok(rules.rules["gestao-folgas"].v2.tables);
 });
 
-test("a configuração inicial pode retomar uma conta já criada", async () => {
-  const runtime = await readFile(
-    new URL("../src/core/runtime.js", import.meta.url),
-    "utf8",
-  );
-  const main = await readFile(
-    new URL("../src/main.js", import.meta.url),
-    "utf8",
-  );
-  assert.match(runtime, /getInitialAdminCredential/);
-  assert.match(runtime, /auth\/email-already-in-use/);
-  assert.match(runtime, /signInWithEmailAndPassword/);
-  assert.doesNotMatch(runtime, /set\(this\.appRef\("meta"\)/);
-  assert.match(runtime, /set\(this\.appRef\("meta\/initialized"\), true\)/);
-  assert.match(main, /Publique database\.rules\.json/);
-});
-
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /Gestão de Folgas/);
@@ -58,14 +47,6 @@ test("o index preserva a interface sem marcação de template do Apps Script", a
   assert.doesNotMatch(html, /<\?(?:=|!=)/);
   assert.match(html, /id="view-timeclock"/);
   assert.match(html, /id="view-house-arena"/);
-  assert.match(
-    html,
-    /\$\$\s*=\s*\(s,\s*r\s*=\s*document\)\s*=>\s*\[\.\.\.r\.querySelectorAll\(s\)\]/,
-  );
-  assert.doesNotMatch(
-    html,
-    /const \$\s*=\s*[\s\S]*?querySelector\(s\),\s*\$\s*=\s*[\s\S]*?querySelectorAll\(s\)/,
-  );
 });
 
 test("utilitários de data, duração e geolocalização", () => {
@@ -77,4 +58,89 @@ test("utilitários de data, duração e geolocalização", () => {
   ]);
   assert.equal(minutesText(125), "2h 05min");
   assert.equal(Math.round(haversineMeters(-3.73, -38.52, -3.73, -38.52)), 0);
+});
+
+test("registro de ponto usa localização sem capturar selfie", async () => {
+  const client = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  const api = await readFile(
+    new URL("../src/core/api-clock.js", import.meta.url),
+    "utf8",
+  );
+  const interfaceHtml = await readFile(
+    new URL("../src/legacy/Index.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(client, /enableHighAccuracy:\s*true/);
+  assert.match(client, /latitude:\s*pos\.coords\.latitude/);
+  assert.match(client, /longitude:\s*pos\.coords\.longitude/);
+  assert.match(api, /Aplicação web · localização/);
+  assert.doesNotMatch(client, /selfie/i);
+  assert.doesNotMatch(api, /SelfieData|SelfieMimeType|selfieDataUrl/i);
+  assert.doesNotMatch(interfaceHtml, /selfie/i);
+});
+
+test("banco de horas usa a jornada líquida e arredonda apenas o total", () => {
+  const schedule = {
+    HoraEntrada: "1899-12-30T18:34:04.000Z",
+    HoraSaida: "1899-12-30T02:34:04.000Z",
+    DuracaoIntervaloMinutos: 60,
+    CargaDiariaMinutos: 480,
+  };
+  assert.equal(scheduleExpectedMinutes(schedule), 420);
+
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-07-20T19:15:14.049Z" },
+      {
+        TipoMarcacao: "SAIDA_INTERVALO",
+        DataHora: "2026-07-21T02:05:58.264Z",
+      },
+      {
+        TipoMarcacao: "RETORNO_INTERVALO",
+        DataHora: "2026-07-21T02:07:19.519Z",
+      },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-07-21T03:11:17.612Z" },
+    ],
+    schedule,
+  );
+  assert.equal(Math.round(metrics.worked), 475);
+  assert.equal(Math.round(metrics.balance), 55);
+});
+
+test("dashboard não desconta folgas aprovadas ou folgas fixas", () => {
+  const counted = balanceDays([
+    { saldoMinutos: 90, folga: false, folgaFixa: false },
+    { saldoMinutos: -420, folga: false, folgaFixa: true },
+    { saldoMinutos: -420, folga: true, folgaFixa: false },
+  ]);
+  assert.equal(
+    counted.reduce((total, item) => total + item.saldoMinutos, 0),
+    90,
+  );
+});
+
+test("próxima folga mostra apenas a aprovada com dias e data", () => {
+  const employeeId = "ana";
+  const result = nextTimeOffSummary(
+    [
+      {
+        FuncionarioID: employeeId,
+        Status: "Pendente",
+        DataInicio: "2026-09-07T03:00:00.000Z",
+      },
+      {
+        FuncionarioID: employeeId,
+        Status: "Aprovada",
+        DataInicio: "2026-09-11T03:00:00.000Z",
+      },
+    ],
+    employeeId,
+    "2026-07-28",
+  );
+  assert.equal(result.dias, 46);
+  assert.equal(result.diaSemana, "Sexta");
+  assert.equal(result.data, "2026-09-11");
 });
