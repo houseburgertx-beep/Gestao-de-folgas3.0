@@ -26,13 +26,10 @@
     currentView: "dashboard",
     timeClock: null,
     clockSettings: { schedules: [], locations: [], loaded: false },
-    profilePhotoDraft: "",
-    profilePhotoOriginal: "",
     operationalRules: [],
     swaps: [],
     swapCandidates: [],
     vacations: [],
-    documents: [],
     pendingCenter: { filter: "all", loaded: false, loading: false },
     notifications: [],
     arena: {
@@ -642,12 +639,6 @@
     $("#logoutBtn").onclick = logoutApplication;
     $("#profileMenuBtn").onclick = openOwnProfile;
     $("#profileForm").onsubmit = saveOwnProfile;
-    $("#profilePhotoChoose").onclick = () => $("#profilePhotoInput").click();
-    $("#profilePhotoInput").onchange = selectProfilePhoto;
-    $("#profilePhotoRemove").onclick = () => {
-      state.profilePhotoDraft = "";
-      renderProfilePhotoPreview();
-    };
     $("#refreshBtn").onclick = refreshApplication;
     ["dashboardNewTimeOff", "newTimeOffBtn", "calendarNewBtn"].forEach(
       (id) => ($("#" + id).onclick = () => editTimeOff()),
@@ -941,12 +932,11 @@
     if (submit.dataset.originalText)
       submit.textContent = submit.dataset.originalText;
   }
-  function applyAvatar(element, name, photo) {
+  function applyAvatar(element, name) {
     if (!element) return;
-    const hasPhoto = !!photo;
-    element.classList.toggle("has-photo", hasPhoto);
-    element.style.backgroundImage = hasPhoto ? `url("${photo}")` : "";
-    element.textContent = hasPhoto ? "" : initials(name);
+    element.classList.remove("has-photo");
+    element.style.backgroundImage = "";
+    element.textContent = initials(name);
   }
   function openOwnProfile() {
     const user = state.user || {},
@@ -954,83 +944,7 @@
     $("#profileForm").reset();
     $("#profileName").value = name;
     $("#profileEmail").value = val(user, "email", "Email");
-    state.profilePhotoDraft = val(user, "fotoPerfil", "FotoPerfil");
-    state.profilePhotoOriginal = state.profilePhotoDraft;
-    $("#profilePhotoInput").value = "";
-    renderProfilePhotoPreview();
     openDialog("profileDialog");
-  }
-  function renderProfilePhotoPreview() {
-    applyAvatar(
-      $("#profilePhotoPreview"),
-      val(state.user, "nome", "Nome") || "Utilizador",
-      state.profilePhotoDraft,
-    );
-  }
-  function readProfileFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () =>
-        reject(new Error("Não foi possível ler a imagem."));
-      reader.readAsDataURL(file);
-    });
-  }
-  function loadProfileImage(source) {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () =>
-        reject(new Error("A imagem selecionada é inválida."));
-      image.src = source;
-    });
-  }
-  function renderProfileImage(image, size, quality) {
-    const canvas = document.createElement("canvas"),
-      context = canvas.getContext("2d"),
-      sourceSize = Math.min(image.naturalWidth, image.naturalHeight),
-      sourceX = (image.naturalWidth - sourceSize) / 2,
-      sourceY = (image.naturalHeight - sourceSize) / 2;
-    canvas.width = size;
-    canvas.height = size;
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, size, size);
-    context.drawImage(
-      image,
-      sourceX,
-      sourceY,
-      sourceSize,
-      sourceSize,
-      0,
-      0,
-      size,
-      size,
-    );
-    return canvas.toDataURL("image/jpeg", quality);
-  }
-  async function prepareProfilePhoto(file) {
-    if (!file || !/^image\/(?:jpeg|png|webp)$/.test(file.type))
-      throw new Error("Escolha uma imagem JPG, PNG ou WebP.");
-    if (file.size > 10 * 1024 * 1024)
-      throw new Error("A imagem deve ter no máximo 10 MB.");
-    const image = await loadProfileImage(await readProfileFile(file));
-    let result = renderProfileImage(image, 192, 0.82);
-    if (result.length > 42000) result = renderProfileImage(image, 160, 0.7);
-    if (result.length > 42000) result = renderProfileImage(image, 144, 0.58);
-    if (result.length > 42000)
-      throw new Error("Não foi possível reduzir a foto. Escolha outra imagem.");
-    return result;
-  }
-  async function selectProfilePhoto(event) {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-    try {
-      state.profilePhotoDraft = await prepareProfilePhoto(file);
-      renderProfilePhotoPreview();
-    } catch (error) {
-      event.target.value = "";
-      toast(error.message, true);
-    }
   }
   async function saveOwnProfile(event) {
     event.preventDefault();
@@ -1055,17 +969,11 @@
       NovaSenha: newPassword,
       ConfirmarNovaSenha: confirmation,
     };
-    if (state.profilePhotoDraft !== state.profilePhotoOriginal) {
-      payload.FotoPerfil = state.profilePhotoDraft || "";
-      payload.RemoverFoto = !state.profilePhotoDraft;
-    }
     setLoading(true);
     try {
       const saved = await call(FN.updateProfile, payload);
       state.user = Object.assign({}, state.user, saved);
       if (state.bootstrap) state.bootstrap.user = state.user;
-      state.profilePhotoOriginal = val(state.user, "fotoPerfil", "FotoPerfil");
-      state.profilePhotoDraft = state.profilePhotoOriginal;
       const employeeId = val(state.user, "funcionarioId", "FuncionarioID");
       const employee = state.employees.find(
         (item) => String(idOf(item, "Funcionario")) === String(employeeId),
@@ -1176,7 +1084,7 @@
       currentIdentity &&
       incomingIdentity !== currentIdentity
     ) {
-      /* Nunca reutilizar a fotografia operacional entre duas contas. */
+      /* Nunca reutilizar o estado operacional entre duas contas. */
       state.stores = [];
       state.employees = [];
       state.timeOff = [];
@@ -1186,7 +1094,6 @@
       state.timeClock = null;
       state.hourBalance = null;
       state.notifications = [];
-      state.documents = [];
       state.swaps = [];
       if (typeof resetHouseArenaState_ === "function")
         resetHouseArenaState_();
@@ -1198,8 +1105,8 @@
     state.bootstrap = data;
     state.user = data.user || state.user || {};
     state.permissions = arr(data.permissions);
-    /* O bootstrap rápido pode vir sem coleções. Nesse caso, preservar a
-       fotografia local evita que o dashboard pisque e volte a ficar vazio. */
+    /* O bootstrap rápido pode vir sem coleções. Nesse caso, preservar o
+       estado local evita que o dashboard pisque e volte a ficar vazio. */
     if (!deferred || hasServerSnapshot || arr(data.stores).length)
       state.stores = arr(data.stores);
     if (!deferred || hasServerSnapshot || arr(data.employees).length)
@@ -1212,7 +1119,6 @@
       state.timeOff = arr(data.timeOff || data.timeOffRecords);
     if (!deferred || arr(data.holidays).length)
       state.holidays = arr(data.holidays);
-    if (!deferred) state.documents = [];
     state.pendingCenter.loaded = false;
     if (!bool(data.usersDeferred)) state.users = arr(data.users);
     if (!deferred || Object.keys(data.dashboard || {}).length)
@@ -1515,7 +1421,7 @@
 
     $("#userName").textContent = name;
     $("#userRole").textContent = profile(u) || "Perfil";
-    applyAvatar($("#userAvatar"), name, val(u, "fotoPerfil", "FotoPerfil"));
+    applyAvatar($("#userAvatar"), name);
     $("#greeting").textContent = employeeMode
       ? `Olá, ${name.split(" ")[0]}! Estas são as suas folgas.`
       : `Olá, ${name.split(" ")[0]}! Vamos organizar a escala?`;
@@ -1585,12 +1491,9 @@
     $("#pendingClockAction").textContent = employeeMode
       ? "Abrir meu ponto"
       : "Abrir registros de ponto";
-    $("#pendingDocumentsTitle").textContent = employeeMode
-      ? "Meus documentos"
-      : "Documentos da equipe";
-    $("#pendingDocumentsDescription").textContent = employeeMode
-      ? "Envie e consulte seus documentos com segurança."
-      : "Envie, visualize e acompanhe documentos em um só lugar.";
+    $("#pendingDocumentsTitle").textContent = "Onboarding da equipe";
+    $("#pendingDocumentsDescription").textContent =
+      "Acompanhe a integração dos funcionários.";
 
     [
       "dashboardNewTimeOff",
@@ -1852,7 +1755,7 @@
     const upcoming = state.timeOff.filter((x) => {
         const d = iso(val(x, "DataInicio", "dataInicio"));
         return isTimeOffVisibleOnCalendar(x) && d >= today && d <= iso(week);
-      }).length,
+      }).length;
       hourBalanceText = hourBalanceCardText();
     if (isEmployee()) {
       const me = state.employees[0] || {},
@@ -2212,12 +2115,10 @@
           ].includes(currentEmployeeId)
         );
       }).length,
-      documents = arr(state.documents).length;
     return {
       timeOff: timeOff,
       clock: clock,
       swaps: swaps,
-      documents: documents,
       total: timeOff + clock + swaps,
     };
   }
@@ -2231,11 +2132,9 @@
         pendingTimeOffMetric: counts.timeOff,
         pendingClockMetric: counts.clock,
         pendingSwapMetric: counts.swaps,
-        pendingDocumentMetric: counts.documents,
         pendingTimeOffFilterCount: counts.timeOff,
         pendingClockFilterCount: counts.clock,
         pendingSwapFilterCount: counts.swaps,
-        pendingDocumentFilterCount: counts.documents,
       };
     Object.keys(values).forEach((id) => {
       const element = $("#" + id);
@@ -2247,7 +2146,7 @@
   }
 
   function setPendingCenterFilter_(filter, silent) {
-    const allowed = ["all", "timeoff", "clock", "swaps", "documents"];
+    const allowed = ["all", "timeoff", "clock", "swaps"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
     $$("[data-pending-filter]").forEach((button) => {
@@ -2291,7 +2190,6 @@
         loadTimeClock(false, !!force),
         loadSwaps(),
         loadVacations_(),
-        loadDocuments_(),
       ]);
       state.pendingCenter.loaded = true;
       renderRequests();
@@ -3787,6 +3685,11 @@
     const d = state.timeClock || {},
       labels = clockActionLabels_(),
       marks = arr(d.todayRecords);
+    if (d.loadError) {
+      panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>Não foi possível carregar o ponto</h3><p>${esc(d.loadError)}</p></div><button id="dashboardClockRetry" class="btn btn-primary" type="button">Tentar novamente</button>`;
+      $("#dashboardClockRetry").onclick = () => loadTimeClockQuick_();
+      return;
+    }
     if (d.offToday) {
       panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>😌 ${esc(d.offTodayLabel || "De folga hoje")}</h3><p>Você não precisa bater ponto hoje.</p></div><button id="dashboardClockPunch" class="btn btn-ghost" disabled>Sem marcação hoje</button>`;
       return;
@@ -3898,6 +3801,14 @@
         return data;
       } catch (error) {
         console.warn("Ponto imediato:", error.message);
+        state.timeClock = {
+          loadError:
+            error?.message ||
+            "Verifique a internet e tente carregar o ponto novamente.",
+          todayRecords: [],
+          nextAction: "",
+        };
+        renderEmployeeClockDashboard();
         return null;
       } finally {
         CLOCK_QUICK_PROMISE_ = null;
@@ -4067,9 +3978,11 @@
     if (!expectedAction)
       return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
     CLOCK_EXPECTED_ACTION_ = expectedAction;
-    CLOCK_PUNCH_REQUEST_ID_ =
-      window.crypto?.randomUUID?.() ||
-      `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    if (!CLOCK_PUNCH_REQUEST_ID_) {
+      CLOCK_PUNCH_REQUEST_ID_ =
+        window.crypto?.randomUUID?.() ||
+        `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    }
     return registerClockPunchWithLocation_();
   }
   function getClockPosition_() {
@@ -4092,6 +4005,7 @@
   }
   async function registerClockPunchWithLocation_() {
     setClockButtonsBusy(true);
+    let confirmed = false;
     try {
       const pos = await getClockPosition_();
       const saved = await call(FN.clockPunch, sessionToken(), {
@@ -4119,6 +4033,7 @@
           "A nova marcação não apareceu na releitura do dia. Atualize a tela antes de tentar novamente.",
         );
       }
+      confirmed = true;
       toast(
         bool(saved.ForaHorario)
           ? "Ponto registrado fora do horário programado. A marcação foi mantida normalmente."
@@ -4133,7 +4048,7 @@
       toast(message, true);
     } finally {
       CLOCK_EXPECTED_ACTION_ = "";
-      CLOCK_PUNCH_REQUEST_ID_ = "";
+      if (confirmed) CLOCK_PUNCH_REQUEST_ID_ = "";
       setClockButtonsBusy(false);
     }
   }
@@ -4881,7 +4796,6 @@
   }
   function populateAdvancedSelects() {
     var employeeIds = [
-      "documentEmployee",
       "vacationEmployee",
       "onboardingEmployee",
       "hourCompensationEmployee",
@@ -4891,8 +4805,7 @@
       if (el) {
         el.innerHTML = advancedEmployeeOptions_("Selecione o funcionário");
         if (
-          (id === "documentEmployee" || id === "vacationEmployee") &&
-          isEmployee()
+          id === "vacationEmployee" && isEmployee()
         ) {
           var ownId = String(
             val(state.user, "funcionarioId", "FuncionarioID", "id") || "",
@@ -4911,7 +4824,6 @@
             el.disabled = true;
           }
         } else if (
-          id === "documentEmployee" ||
           id === "vacationEmployee"
         ) {
           el.disabled = false;
@@ -5029,9 +4941,6 @@
   function initAdvancedUI() {
     if (ADVANCED_UI_BOUND_) return;
     ADVANCED_UI_BOUND_ = true;
-    if ($("#documentForm")) $("#documentForm").onsubmit = submitDocument_;
-    if ($("#documentsRefreshBtn"))
-      $("#documentsRefreshBtn").onclick = loadDocuments_;
     if ($("#onboardingLoadBtn"))
       $("#onboardingLoadBtn").onclick = loadOnboarding_;
     if ($("#substituteSuggestBtn"))
@@ -5075,119 +4984,6 @@
     else if (view === "monthly-closing") loadClosings_();
   }
 
-  async function submitDocument_(e) {
-    e.preventDefault();
-    var b = e.submitter,
-      file = $("#documentFile").files[0];
-    if (!file) return toast("Selecione um documento para enviar.", true);
-    if (file.size > 8 * 1024 * 1024)
-      return toast("O documento deve ter no máximo 8 MB.", true);
-    var arquivo;
-    try {
-      arquivo = await readDocumentUpload_(file);
-    } catch (error) {
-      return toast(error.message, true);
-    }
-    await advancedAction_(
-      b,
-      function () {
-        return call(
-          "anexarDocumento",
-          sessionToken(),
-          $("#documentEmployee").value,
-          {
-            Tipo: $("#documentType").value,
-            Descricao: $("#documentDescription").value,
-            Arquivo: arquivo,
-            DataEmissao: $("#documentIssuedAt").value,
-            DataValidade: $("#documentExpiry").value,
-          },
-        );
-      },
-      "Documento enviado e vinculado ao funcionário.",
-    );
-    e.target.reset();
-    populateAdvancedSelects();
-    await loadDocuments_();
-  }
-  function readDocumentUpload_(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = String(reader.result || ""),
-          separator = dataUrl.indexOf(",");
-        if (separator < 0)
-          return reject(new Error("Não foi possível preparar o documento."));
-        resolve({
-          nome: file.name,
-          tipo: file.type || "application/octet-stream",
-          base64: dataUrl.slice(separator + 1),
-          tamanho: file.size,
-        });
-      };
-      reader.onerror = () =>
-        reject(new Error("Não foi possível ler o documento selecionado."));
-      reader.readAsDataURL(file);
-    });
-  }
-  async function loadDocuments_() {
-    const list = $("#documentsList"),
-      button = $("#documentsRefreshBtn");
-    if (!list || !sessionToken()) return;
-    if (button) button.disabled = true;
-    list.innerHTML = '<div class="empty-state">Carregando documentos…</div>';
-    try {
-      const records = arr(await call("listarDocumentos", sessionToken(), ""));
-      state.documents = records;
-      list.innerHTML =
-        records
-          .map(
-            (item) =>
-              `<article class="document-library-item"><div class="document-library-icon">▤</div><div class="document-library-copy"><strong>${esc(val(item, "Tipo") || "Documento")}</strong><span>${esc(val(item, "NomeFuncionario"))}${val(item, "Descricao") ? " · " + esc(val(item, "Descricao")) : ""}</span><small>Enviado em ${esc(val(item, "DataCriacao") || "—")}${val(item, "DataValidade") ? " · validade " + esc(val(item, "DataValidade")) : ""}</small></div><div class="document-library-actions"><button type="button" data-doc-view="${esc(val(item, "DocID"))}">Visualizar</button><button type="button" data-doc-download="${esc(val(item, "DocID"))}">Baixar</button></div></article>`,
-          )
-          .join("") ||
-        '<div class="empty-state">Nenhum documento enviado.</div>';
-      list.querySelectorAll("[data-doc-view]").forEach((item) => {
-        item.onclick = () => openStoredDocument_(item.dataset.docView, false);
-      });
-      list.querySelectorAll("[data-doc-download]").forEach((item) => {
-        item.onclick = () =>
-          openStoredDocument_(item.dataset.docDownload, true);
-      });
-    } catch (error) {
-      state.documents = [];
-      list.innerHTML = `<div class="empty-state">${esc(error.message)}</div>`;
-    } finally {
-      if (button) button.disabled = false;
-      renderPendingCenterSummary_();
-    }
-  }
-  async function openStoredDocument_(docId, download) {
-    const preview = download ? null : window.open("", "_blank");
-    try {
-      const data = await call("obterDocumento", sessionToken(), docId),
-        binary = atob(data.base64 || ""),
-        bytes = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index++)
-        bytes[index] = binary.charCodeAt(index);
-      const url = URL.createObjectURL(
-        new Blob([bytes], { type: data.tipo || "application/octet-stream" }),
-      );
-      if (download) {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = data.nome || "documento";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } else if (preview) preview.location.href = url;
-      else window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch (error) {
-      if (preview) preview.close();
-      toast(error.message, true);
-    }
-  }
   async function loadOnboarding_() {
     var b = $("#onboardingLoadBtn"),
       box = $("#onboardingResult"),
