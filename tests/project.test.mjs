@@ -6,6 +6,7 @@ import { nextTimeOffSummary } from "../src/core/api-advanced.js";
 import {
   balanceDays,
   dayMetrics,
+  operationalDayFor,
   scheduleExpectedMinutes,
 } from "../src/core/api-clock.js";
 import {
@@ -94,6 +95,81 @@ test("dashboard do funcionário inicia o carregamento rápido do ponto", async (
   assert.match(
     client,
     /if \(CLOCK_QUICK_PROMISE_\) return CLOCK_QUICK_PROMISE_;/,
+  );
+});
+
+test("turno aberto continua no mesmo dia operacional depois da meia-noite", () => {
+  const employeeId = "ana";
+  const schedule = {
+    JornadaID: "jornada-ana",
+    FuncionarioID: employeeId,
+    Ativa: true,
+    VigenteDe: "2026-07-01",
+  };
+  const openRecords = [
+    {
+      FuncionarioID: employeeId,
+      Data: "2026-07-28",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-07-28T23:00:00-03:00",
+      Status: "Válido",
+    },
+  ];
+  assert.equal(
+    operationalDayFor(
+      openRecords,
+      [schedule],
+      employeeId,
+      new Date("2026-07-29T01:30:00-03:00"),
+    ),
+    "2026-07-28",
+  );
+  assert.equal(
+    operationalDayFor(
+      [
+        ...openRecords,
+        {
+          FuncionarioID: employeeId,
+          Data: "2026-07-28",
+          TipoMarcacao: "SAIDA_FINAL",
+          DataHora: "2026-07-29T01:20:00-03:00",
+          Status: "Válido",
+        },
+      ],
+      [schedule],
+      employeeId,
+      new Date("2026-07-29T01:30:00-03:00"),
+    ),
+    "2026-07-29",
+  );
+});
+
+test("foto de perfil e envio de documentos não aparecem na interface", async () => {
+  const [interfaceHtml, dialogs, client, advancedApi] = await Promise.all([
+    readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-advanced.js", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(interfaceHtml, /documentForm|documentFile/i);
+  assert.doesNotMatch(dialogs, /profilePhoto|Escolher foto/i);
+  assert.doesNotMatch(client, /submitDocument_|readDocumentUpload_/i);
+  assert.match(advancedApi, /O envio de documentos foi desativado/);
+});
+
+test("regras restringem ponto ao próprio funcionário e a uma criação idempotente", async () => {
+  const rules = await readFile(
+    new URL("../database.rules.json", import.meta.url),
+    "utf8",
+  );
+  assert.match(rules, /\$table === 'RegistrosPonto' && !data\.exists\(\)/);
+  assert.match(
+    rules,
+    /newData\.child\('RegistroPontoID'\)\.val\(\) === newData\.child\('RequestID'\)\.val\(\)/,
+  );
+  assert.doesNotMatch(
+    rules,
+    /\$table === 'Documentos'[\s\S]*newData\.child\('FuncionarioID'\)/,
   );
 });
 
