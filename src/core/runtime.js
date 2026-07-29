@@ -374,6 +374,9 @@ export class FirebaseRuntime {
     const storeId = String(profile.LojaID || "");
     const employeeId = String(profile.FuncionarioID || "");
     if (table === "Lojas" && storeId) {
+      // O funcionário já recebe LojaID/NomeLoja no próprio perfil. Evite ler
+      // o cadastro administrativo completo da loja durante o login.
+      if (isEmployeeProfile(profile)) return [];
       const record = await this.getById(table, storeId);
       return record ? [record] : [];
     }
