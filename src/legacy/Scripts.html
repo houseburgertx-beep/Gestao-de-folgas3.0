@@ -185,10 +185,6 @@
   (function setupAppDownloadGuide() {
     const ua = navigator.userAgent || "";
     const isIOS = /iphone|ipad|ipod/i.test(ua);
-    const isIOSSafari =
-      isIOS &&
-      /safari/i.test(ua) &&
-      !/crios|fxios|edgios|opios/i.test(ua);
     const isInApp = /FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua);
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -234,11 +230,11 @@
       const steps = isIOS
         ? "<li><b>1</b><span>Se houver um atalho antigo, apague-o da tela inicial.</span></li><li><b>2</b><span>Abra este endereço no <strong>Safari</strong> e toque em <strong>Compartilhar</strong>.</span></li><li><b>3</b><span>Escolha <strong>Adicionar à Tela de Início</strong>.</span></li><li><b>4</b><span>Confira a imagem do ícone e confirme em <strong>Adicionar</strong>.</span></li>"
         : "<li><b>1</b><span>Abra o menu <strong>⋮</strong> do navegador.</span></li><li><b>2</b><span>Escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</span></li>";
-      const warningText = isInApp
+      const warningText = isIOS
+        ? "Importante: no iPhone, faça a instalação somente pelo Safari. Não use o Chrome para adicionar o aplicativo."
+        : isInApp
         ? "Abra esta página no Safari. Navegadores internos de WhatsApp e Instagram podem ocultar a instalação."
-        : isIOS && !isIOSSafari
-          ? "No iPhone, abra este endereço no Safari para instalar com a imagem correta."
-          : "";
+        : "";
       const warn = warningText
         ? `<p class="app-download-warning"><span>!</span> ${warningText}</p>`
         : "";
@@ -248,8 +244,8 @@
         '<button class="app-download-close" type="button" aria-label="Fechar">×</button>' +
         '<div class="app-download-hero"><img src="./icons/app-icon-192.png" alt="" /></div>' +
         '<span class="eyebrow">APLICATIVO INSTALÁVEL</span>' +
-        '<h3 id="appDownloadTitle">Instale a Gestão de Folgas</h3>' +
-        '<p class="app-download-subtitle">Funcionários e gerentes podem abrir o sistema em tela cheia, diretamente pelo ícone do celular.</p>' +
+        `<h3 id="appDownloadTitle">${isIOS ? "No iPhone, instale pelo Safari" : "Instale a Gestão de Folgas"}</h3>` +
+        `<p class="app-download-subtitle">${isIOS ? "Abra este mesmo endereço no Safari para o ícone aparecer corretamente na tela inicial." : "Funcionários e gerentes podem abrir o sistema em tela cheia, diretamente pelo ícone do celular."}</p>` +
         warn +
         '<ol class="app-download-steps">' +
         steps +

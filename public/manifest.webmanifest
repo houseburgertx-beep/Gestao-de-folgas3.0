@@ -5,7 +5,7 @@
   "description": "Folgas, escalas, ponto e comunicação das equipes do Grupo House 190.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "./?source=pwa&v=6.1.4",
+  "start_url": "./?source=pwa&v=6.1.5",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
@@ -14,7 +14,7 @@
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "./apple-touch-icon-6.1.4.png",
+      "src": "./apple-touch-icon-6.1.5.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
@@ -29,7 +29,13 @@
       "src": "./icons/app-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/app-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
