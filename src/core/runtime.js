@@ -72,6 +72,11 @@ const snapshotList = (snapshot) => {
 const validPeriod = (value) =>
   /^\d{4}-\d{2}$/.test(String(value || "")) ? String(value) : "";
 
+const isPermissionDenied = (error) =>
+  /permission[-_\s]?denied/i.test(
+    String(error?.code || error?.message || error || ""),
+  );
+
 export const periodFieldsFor = (table, record = {}) => {
   if (!PERIOD_INDEXED_TABLES.has(table)) return {};
   const period = validPeriod(
@@ -190,11 +195,15 @@ export class FirebaseRuntime {
       await signOut(this.auth);
       throw new Error("Este acesso está inativo ou não foi configurado.");
     }
-    await update(this.appRef(`access/${pathKey(credential.user.uid)}`), {
-      FotoPerfil: "",
-      UltimoAcesso: nowIso(),
-      DataAtualizacao: nowIso(),
-    });
+    try {
+      await update(this.appRef(`access/${pathKey(credential.user.uid)}`), {
+        UltimoAcesso: nowIso(),
+        DataAtualizacao: nowIso(),
+      });
+    } catch (error) {
+      // A atualização do último acesso é informativa e não pode impedir o login.
+      if (!isPermissionDenied(error)) throw error;
+    }
     if (profile) {
       profile.FotoPerfil = "";
       this.profile = clone(profile);
