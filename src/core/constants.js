@@ -1,6 +1,6 @@
 export const APP = Object.freeze({
   name: "Gestão de Folgas",
-  version: "6.1.7-firebase-github",
+  version: "6.1.8-firebase-github",
   profiles: {
     admin: "Administrador",
     manager: "Responsável de loja",
@@ -157,7 +157,7 @@ export const DEFAULT_CONFIG = [
   },
   {
     Chave: "Permitir pedidos aos fins de semana",
-    Valor: "false",
+    Valor: "true",
     Descricao: "Aceita pedidos no sábado e domingo",
   },
   {
