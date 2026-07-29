@@ -1,6 +1,6 @@
 export const APP = Object.freeze({
   name: "Gestão de Folgas",
-  version: "6.1.6-firebase-github",
+  version: "6.1.7-firebase-github",
   profiles: {
     admin: "Administrador",
     manager: "Responsável de loja",
@@ -73,6 +73,7 @@ export const ID_FIELDS = Object.freeze({
   ArenaRanking: "RankingID",
   RegistrosPonto: "RegistroPontoID",
   AjustesPonto: "AjustePontoID",
+  JustificativasPonto: "JustificativaPontoID",
   JornadasPonto: "JornadaPontoID",
   LocaisPonto: "LocalPontoID",
   BancoHoras: "BancoHorasID",
@@ -105,6 +106,7 @@ export const STORE_SCOPED_FIELDS = Object.freeze({
   TrocasFolga: "LojaID",
   RegistrosPonto: "LojaID",
   AjustesPonto: "LojaID",
+  JustificativasPonto: "LojaID",
   JornadasPonto: "LojaID",
   LocaisPonto: "LojaID",
   BancoHoras: "LojaID",
@@ -129,6 +131,7 @@ export const EMPLOYEE_SCOPED_FIELDS = Object.freeze({
   CienciasFolga: "FuncionarioID",
   RegistrosPonto: "FuncionarioID",
   AjustesPonto: "FuncionarioID",
+  JustificativasPonto: "FuncionarioID",
   JornadasPonto: "FuncionarioID",
   BancoHoras: "FuncionarioID",
   Ferias: "FuncionarioID",
