@@ -20,6 +20,7 @@ import {
   scopeRecord,
   success,
 } from "./api-base.js";
+import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "../selfie-drive-config.js";
 
 const clockTypes = [
   "ENTRADA",
@@ -35,6 +36,75 @@ const clockJustificationTypes = [
   "Dia concedido",
   "Outros",
 ];
+
+const selfieDriveEndpoint = () => {
+  const endpoint = String(SELFIE_DRIVE_UPLOAD_ENDPOINT || "").trim();
+  assert(
+    /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(
+      endpoint,
+    ),
+    "O envio seguro das selfies ao Google Drive ainda não foi configurado.",
+  );
+  return endpoint;
+};
+
+const uploadClockSelfieToDrive = async ({
+  selfieDataUrl,
+  requestId,
+  day,
+  type,
+}) => {
+  const selfie = String(selfieDataUrl || "");
+  assert(
+    /^data:image\/jpeg;base64,[A-Za-z0-9+/=\s]+$/.test(selfie),
+    "Capture a selfie antes de confirmar o ponto.",
+  );
+  assert(
+    selfie.length <= 950000,
+    "A selfie ficou muito grande. Tire outra foto para continuar.",
+  );
+  const user = runtime.auth?.currentUser;
+  assert(user, "Sua sessão expirou. Entre novamente.");
+  const idToken = await user.getIdToken();
+  let response;
+  try {
+    response = await fetch(selfieDriveEndpoint(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      redirect: "follow",
+      credentials: "omit",
+      body: JSON.stringify({
+        action: "uploadClockSelfie",
+        idToken,
+        requestId,
+        day,
+        clockType: type,
+        selfieDataUrl: selfie,
+      }),
+    });
+  } catch {
+    throw new Error(
+      "Não foi possível enviar a selfie ao Google Drive. Verifique a internet e tente novamente.",
+    );
+  }
+  const text = await response.text();
+  let result;
+  try {
+    result = JSON.parse(text);
+  } catch {
+    throw new Error("O Google Drive devolveu uma resposta inválida.");
+  }
+  assert(
+    response.ok && result?.ok && result?.fileId,
+    result?.error || "O Google Drive não confirmou o envio da selfie.",
+  );
+  return {
+    fileId: String(result.fileId),
+    fileUrl: String(result.fileUrl || ""),
+    fileName: String(result.fileName || ""),
+    uploadedAt: String(result.uploadedAt || nowIso()),
+  };
+};
 
 const timeValue = (dateTime) => {
   const date = new Date(dateTime);
@@ -777,6 +847,12 @@ export function createClockHandlers() {
         assert(expected === next, "A tela estava desatualizada. Atualize o ponto.");
       }
       assert(type, "A jornada de hoje já foi concluída.");
+      const selfie = await uploadClockSelfieToDrive({
+        selfieDataUrl: payload.selfieDataUrl,
+        requestId,
+        day,
+        type,
+      });
       const saved = await runtime.upsert("RegistrosPonto", {
         RegistroPontoID: requestId,
         FuncionarioID: employee.FuncionarioID,
@@ -792,7 +868,12 @@ export function createClockHandlers() {
         PrecisaoMetros: accuracy,
         DistanciaLojaMetros: distance,
         DentroRaio: true,
-        Origem: "Aplicação web · localização",
+        Origem: "Aplicação web · selfie no Google Drive + localização",
+        SelfieStorage: "Google Drive",
+        SelfieDriveFileID: selfie.fileId,
+        SelfieDriveURL: selfie.fileUrl,
+        SelfieDriveFileName: selfie.fileName,
+        SelfieDriveUploadedAt: selfie.uploadedAt,
         Status: "Válido",
         Observacoes:
           type === "SEM_DESCANSO"

@@ -6759,6 +6759,134 @@
     background: #302718;
   }
 
+  /* Ponto com selfie armazenada no Google Drive */
+  .clock-selfie-dialog {
+    width: min(500px, calc(100vw - 24px));
+  }
+  .clock-selfie-stage {
+    position: relative;
+    width: 100%;
+    height: min(48vh, 430px);
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--line));
+    border-radius: 18px;
+    background: linear-gradient(145deg, #242033, #3d3166);
+  }
+  .clock-selfie-stage video,
+  .clock-selfie-stage canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .clock-selfie-stage video {
+    transform: scaleX(-1);
+  }
+  .clock-selfie-stage:after {
+    content: "";
+    position: absolute;
+    inset: 10% 18% 12%;
+    border: 2px dashed rgba(255, 255, 255, 0.62);
+    border-radius: 48% 48% 42% 42%;
+    pointer-events: none;
+  }
+  .clock-selfie-placeholder {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    background: linear-gradient(145deg, #242033, #3d3166);
+  }
+  .clock-selfie-placeholder > span {
+    width: 58px;
+    height: 58px;
+    margin-bottom: 14px;
+    border-radius: 19px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 26px;
+  }
+  .clock-selfie-placeholder strong {
+    font-size: 14px;
+  }
+  .clock-selfie-placeholder small {
+    margin-top: 5px;
+    color: #cfc9dc;
+    font-size: 10px;
+  }
+  .clock-selfie-badge {
+    position: absolute;
+    z-index: 3;
+    left: 13px;
+    top: 13px;
+    padding: 6px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(21, 18, 35, 0.58);
+    backdrop-filter: blur(7px);
+    font-size: 9px;
+    font-weight: 800;
+  }
+  .clock-proof-list {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .clock-proof-list > div {
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--surface-2);
+  }
+  .clock-proof-list i {
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: var(--success);
+    background: var(--success-soft);
+    font-style: normal;
+    font-weight: 900;
+  }
+  .clock-proof-list span {
+    display: flex;
+    flex-direction: column;
+  }
+  .clock-proof-list strong {
+    font-size: 9.5px;
+  }
+  .clock-proof-list small {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 8.5px;
+    line-height: 1.35;
+  }
+  .clock-selfie-status {
+    margin: 11px 0 0;
+    padding: 9px 11px;
+    border-radius: 9px;
+    color: var(--muted);
+    background: var(--primary-faint);
+    font-size: 10px;
+    line-height: 1.45;
+  }
+  .clock-selfie-actions .btn {
+    min-width: 120px;
+  }
+
   .clock-manual-notice,
   .clock-manual-footnote {
     margin: 0 0 15px;
@@ -7032,6 +7160,34 @@
       margin: -15px auto 20px;
       border-radius: 99px;
       background: var(--line-strong);
+    }
+    .clock-selfie-dialog {
+      width: calc(100vw - 14px);
+      max-height: calc(100dvh - 14px);
+    }
+    .clock-selfie-dialog .dialog-body {
+      padding: 12px;
+    }
+    .clock-selfie-stage {
+      height: min(48dvh, 390px);
+      border-radius: 14px;
+    }
+    .clock-proof-list {
+      grid-template-columns: 1fr;
+    }
+    .clock-proof-list > div {
+      padding: 8px;
+    }
+    .clock-selfie-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .clock-selfie-actions .btn {
+      width: 100%;
+      min-width: 0;
+    }
+    .clock-selfie-actions #clockSelfieConfirm {
+      grid-column: 1/-1;
     }
     .swap-flow {
       justify-content: flex-start;
