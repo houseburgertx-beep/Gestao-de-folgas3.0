@@ -6662,19 +6662,24 @@
     cursor: pointer;
   }
   .app-download-hero {
-    width: 52px;
-    height: 52px;
+    width: 72px;
+    height: 72px;
     margin-bottom: 16px;
-    border-radius: 16px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
     display: grid;
     place-items: center;
-    color: #fff;
-    background: linear-gradient(145deg, #8b5cf6, #635bdb);
+    overflow: hidden;
+    background: #fff;
     box-shadow: 0 12px 28px rgba(99, 91, 219, 0.28);
   }
-  .app-download-hero span {
-    font-size: 28px;
-    line-height: 1;
+  .app-download-hero img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    border-radius: 15px;
   }
   .app-download-sheet h3 {
     margin: 7px 0 7px;
