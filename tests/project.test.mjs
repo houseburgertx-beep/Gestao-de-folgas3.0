@@ -82,7 +82,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.6");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.7");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -93,13 +93,13 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.6/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.7/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /navigator\.serviceWorker\.register\("\.\/sw\.js"/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.6"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.7"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -571,6 +571,24 @@ test("dashboard não desconta folgas aprovadas ou folgas fixas", () => {
     counted.reduce((total, item) => total + item.saldoMinutos, 0),
     90,
   );
+});
+
+test("justificativa de ponto zera o dia e não entra no saldo", async () => {
+  const counted = balanceDays([
+    { saldoMinutos: -480, justificado: true },
+    { saldoMinutos: 60, justificado: false },
+  ]);
+  assert.equal(counted.length, 1);
+  assert.equal(counted[0].saldoMinutos, 60);
+  const clockApi = await readFile(
+    new URL("../src/core/api-clock.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(clockApi, /justifyMissedTimeClockDay/);
+  assert.match(clockApi, /Atestado/);
+  assert.match(clockApi, /Folga trocada/);
+  assert.match(clockApi, /Dia concedido/);
+  assert.match(clockApi, /JustificativasPonto/);
 });
 
 test("dia atual só entra no saldo depois da saída final", () => {
