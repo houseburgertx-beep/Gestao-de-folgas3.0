@@ -4022,7 +4022,10 @@
             const label = x.folga ? "De folga" : "Folga fixa";
             return `<tr class="clock-off-row"><td>${esc(x.nome)}</td><td>${esc(formatDateUI(x.data))}</td><td colspan="4"><span class="status folga">${esc(label)}</span></td><td>—</td><td><span class="status folga">${esc(label)}</span></td><td>—</td></tr>`;
           }
-          return `<tr><td>${esc(x.nome)}</td><td>${esc(formatDateUI(x.data))}</td><td>${esc(x.entrada || "—")}</td><td>${esc(x.saidaIntervalo || "—")}</td><td>${esc(x.retornoIntervalo || "—")}</td><td>${esc(x.saida || "—")}</td><td>${esc(x.trabalhadoTexto)}</td><td><span class="status ${Number(x.saldoMinutos) >= 0 ? "approved" : "rejected"}">${esc(x.saldoTexto)}</span></td><td>${adjustment}</td></tr>`;
+          const balance = x.saldoPendente
+            ? "—"
+            : `<span class="status ${Number(x.saldoMinutos) >= 0 ? "approved" : "rejected"}">${esc(x.saldoTexto)}</span>`;
+          return `<tr><td>${esc(x.nome)}</td><td>${esc(formatDateUI(x.data))}</td><td>${esc(x.entrada || "—")}</td><td>${esc(x.saidaIntervalo || "—")}</td><td>${esc(x.retornoIntervalo || "—")}</td><td>${esc(x.saida || "—")}</td><td>${esc(x.trabalhadoTexto)}</td><td>${balance}</td><td>${adjustment}</td></tr>`;
         })
         .join("") ||
       empty(9, `Nenhum ponto em ${formatDateUI(selectedDay)}.`);
