@@ -116,6 +116,21 @@ test("login do funcionário não lê o cadastro administrativo da loja", async (
   );
 });
 
+test("ícone da House Arena usa a cor do menu desde o carregamento inicial", async () => {
+  const styles = await readFile(
+    new URL("../src/legacy/Styles.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    styles,
+    /\.sidebar \.nav-item > \.arena-nav-icon svg \{[\s\S]*?fill: none;[\s\S]*?stroke: currentColor;/,
+  );
+  assert.match(
+    styles,
+    /\.sidebar \.nav-item > \.arena-nav-icon circle \{[\s\S]*?fill: currentColor;/,
+  );
+});
+
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /Gestão de Folgas/);
