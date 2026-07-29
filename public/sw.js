@@ -1,13 +1,14 @@
-const CACHE_NAME = "house-folgas-v6.1.4";
+const CACHE_NAME = "house-folgas-v6.1.5";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.1.4",
-  "./apple-touch-icon-6.1.4.png",
+  "./manifest.webmanifest?v=6.1.5",
+  "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
   "./icons/app-icon-512.png",
+  "./icons/app-icon-maskable-512.png",
 ].map((path) => new URL(path, APP_BASE).href);
 
 self.addEventListener("install", (event) => {

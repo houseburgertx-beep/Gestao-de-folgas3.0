@@ -68,30 +68,38 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
       readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
       readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
       readFile(
-        new URL("../public/apple-touch-icon-6.1.4.png", import.meta.url),
+        new URL("../public/apple-touch-icon-6.1.5.png", import.meta.url),
       ),
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.4");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.5");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
-  assert.match(serviceWorker, /house-folgas-v6\.1\.4/);
+  assert.ok(
+    manifest.icons.some(
+      (icon) =>
+        icon.src === "./icons/app-icon-maskable-512.png" &&
+        icon.purpose === "maskable",
+    ),
+  );
+  assert.match(serviceWorker, /house-folgas-v6\.1\.5/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /navigator\.serviceWorker\.register\("\.\/sw\.js"/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.4"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.5"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
-  assert.match(interfaceHtml, /apple-touch-icon-6\.1\.4\.png/);
+  assert.match(interfaceHtml, /apple-touch-icon-6\.1\.5\.png/);
   assert.equal(appleIcon.readUInt32BE(16), 180);
   assert.equal(appleIcon.readUInt32BE(20), 180);
   assert.match(client, /beforeinstallprompt/);
-  assert.match(client, /No iPhone, abra este endereço no Safari/);
+  assert.match(client, /No iPhone, instale pelo Safari/);
+  assert.match(client, /Não use o Chrome para adicionar o aplicativo/);
   assert.match(client, /house-pwa-install-notice-seen-v1/);
   assert.match(client, /localStorage\.setItem\(INSTALL_NOTICE_KEY, "1"\)/);
   assert.match(client, /icons\/app-icon-192\.png/);
