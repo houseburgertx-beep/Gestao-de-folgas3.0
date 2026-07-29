@@ -1,6 +1,6 @@
 export const APP = Object.freeze({
   name: "Gestão de Folgas",
-  version: "6.0.0-firebase-github",
+  version: "6.1.0-firebase-github",
   profiles: {
     admin: "Administrador",
     manager: "Responsável de loja",
@@ -95,8 +95,6 @@ export const PUBLIC_AUTH_TABLES = new Set([
   "Feriados",
   "RegrasFolga",
   "ArenaRanking",
-  "Comunicados",
-  "Enquetes",
 ]);
 
 export const STORE_SCOPED_FIELDS = Object.freeze({
