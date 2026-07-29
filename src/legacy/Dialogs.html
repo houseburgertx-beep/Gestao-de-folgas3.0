@@ -655,10 +655,21 @@
             autocomplete="new-password"
         /></label>
       </div>
+      <label class="switch-label profile-password-toggle">
+        <input id="profileShowPasswords" type="checkbox" /> Mostrar senhas
+        digitadas
+      </label>
       <p class="profile-security-note">
-        Por segurança, informe a senha atual quando trocar o e-mail ou criar uma
-        nova senha.
+        A nova senha deve ter pelo menos 10 caracteres. Informe a senha atual
+        para confirmar a alteração.
       </p>
+      <button
+        id="profileForgotPassword"
+        type="button"
+        class="btn btn-secondary"
+      >
+        Esqueci minha senha atual
+      </button>
     </div>
     <div class="dialog-actions">
       <button
