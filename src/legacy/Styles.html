@@ -8151,4 +8151,27 @@
       grid-template-columns: 1fr;
     }
   }
+
+  /* Área segura do aplicativo instalado no iPhone */
+  @media (display-mode: standalone) {
+    .topbar {
+      height: calc(var(--topbar) + env(safe-area-inset-top, 0px));
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    .sidebar-head {
+      height: calc(var(--topbar) + env(safe-area-inset-top, 0px));
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    .sidebar-foot {
+      padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .pending-filter-bar {
+      top: calc(
+        var(--topbar) + env(safe-area-inset-top, 0px) + 8px
+      );
+    }
+  }
 </style>
