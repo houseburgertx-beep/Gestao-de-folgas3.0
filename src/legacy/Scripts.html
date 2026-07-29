@@ -186,6 +186,26 @@
     const ua = navigator.userAgent || "";
     const isIOS = /iphone|ipad|ipod/i.test(ua);
     const isInApp = /FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua);
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      navigator.standalone === true;
+    let installPrompt = null;
+    let installButton = null;
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      installPrompt = event;
+      if (installButton) installButton.classList.remove("hidden");
+    });
+
+    window.addEventListener("appinstalled", () => {
+      installPrompt = null;
+      if (installButton) installButton.classList.add("hidden");
+      if (typeof toast === "function") {
+        toast("Aplicativo instalado com sucesso.");
+      }
+    });
+
     function showDownloadHelp() {
       const overlay = document.createElement("div");
       overlay.className = "app-download-overlay";
@@ -200,9 +220,9 @@
         '<div class="app-download-handle"></div>' +
         '<button class="app-download-close" type="button" aria-label="Fechar">×</button>' +
         '<div class="app-download-hero"><span>↓</span></div>' +
-        '<span class="eyebrow">ACESSO RÁPIDO</span>' +
-        '<h3 id="appDownloadTitle">Adicione à tela inicial</h3>' +
-        '<p class="app-download-subtitle">Crie um atalho para abrir a Gestão de Folgas mais rápido pelo celular.</p>' +
+        '<span class="eyebrow">APLICATIVO INSTALÁVEL</span>' +
+        '<h3 id="appDownloadTitle">Instale a Gestão de Folgas</h3>' +
+        '<p class="app-download-subtitle">Abra o sistema em tela cheia, diretamente pelo ícone do celular.</p>' +
         warn +
         '<ol class="app-download-steps">' +
         steps +
@@ -218,9 +238,22 @@
       document.body.appendChild(overlay);
     }
 
+    async function installApplication() {
+      if (!installPrompt) {
+        showDownloadHelp();
+        return;
+      }
+      const prompt = installPrompt;
+      installPrompt = null;
+      await prompt.prompt();
+      await prompt.userChoice.catch(() => null);
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
-      const btn = $("#appDownloadBtn");
-      if (btn) btn.onclick = showDownloadHelp;
+      installButton = $("#appDownloadBtn");
+      if (!installButton) return;
+      installButton.classList.toggle("hidden", isStandalone);
+      installButton.onclick = installApplication;
     });
   })();
 

@@ -7,6 +7,15 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
+    <meta name="theme-color" content="#7138e8" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="House Folgas" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <meta
       name="app-version"
       content="<?= (typeof appVersion !== 'undefined' ? String(appVersion).replace(/[<>]/g, '') : 'unknown') ?>"
@@ -320,8 +329,8 @@
             ><button
               class="app-download-btn"
               id="appDownloadBtn"
-              title="Como adicionar o aplicativo à tela inicial"
-              aria-label="Como adicionar o aplicativo à tela inicial"
+              title="Instalar aplicativo"
+              aria-label="Instalar aplicativo"
             >
               <span class="app-download-icon" aria-hidden="true"
                 ><svg viewBox="0 0 24 24" focusable="false">
@@ -329,8 +338,8 @@
                   <path d="M5 18.5h14"></path></svg
               ></span>
               <span class="app-download-copy"
-                ><strong>Baixar app</strong
-                ><small>Criar atalho no celular</small></span
+                ><strong>Instalar app</strong
+                ><small>Abrir como aplicativo</small></span
               >
               <span class="app-download-arrow" aria-hidden="true"
                 >›</span

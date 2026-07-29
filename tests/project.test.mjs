@@ -56,6 +56,33 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
   assert.ok(rules.rules["gestao-folgas"].v2.tables);
 });
 
+test("o aplicativo possui manifesto, ícones e service worker seguros", async () => {
+  const [manifest, serviceWorker, pwa, interfaceHtml, client] =
+    await Promise.all([
+      readFile(
+        new URL("../public/manifest.webmanifest", import.meta.url),
+        "utf8",
+      ).then(JSON.parse),
+      readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+      readFile(new URL("../src/pwa.js", import.meta.url), "utf8"),
+      readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+      readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    ]);
+
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.start_url, "./?source=pwa");
+  assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
+  assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
+  assert.match(serviceWorker, /house-folgas-v6\.1\.3/);
+  assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
+  assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
+  assert.match(pwa, /navigator\.serviceWorker\.register\("\.\/sw\.js"/);
+  assert.match(interfaceHtml, /rel="manifest" href="\.\/manifest\.webmanifest"/);
+  assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
+  assert.match(client, /beforeinstallprompt/);
+  assert.match(client, /prompt\.prompt\(\)/);
+});
+
 test("registros de ponto recebem índices mensais de acesso", () => {
   assert.deepEqual(
     periodFieldsFor("RegistrosPonto", {
