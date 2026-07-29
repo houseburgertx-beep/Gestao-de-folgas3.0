@@ -78,15 +78,7 @@ export const periodFieldsFor = (table, record = {}) => {
     String(record.Data || record.DataHora || "").slice(0, 7),
   );
   if (!period) return {};
-  const employeeId = String(record.FuncionarioID || "");
-  const storeId = String(record.LojaID || "");
-  return cleanObject({
-    PeriodoChave: period,
-    ...(employeeId
-      ? { FuncionarioPeriodo: `${employeeId}|${period}` }
-      : {}),
-    ...(storeId ? { LojaPeriodo: `${storeId}|${period}` } : {}),
-  });
+  return { PeriodoChave: period };
 };
 
 export function firebaseConfigurationProblems(config = firebaseConfig) {
@@ -446,31 +438,32 @@ export class FirebaseRuntime {
     if (!normalizedPeriod || !PERIOD_INDEXED_TABLES.has(table)) {
       return this.list(table, { profile });
     }
-
-    const ready = await this.ensurePeriodIndexes({ profile });
-    if (!ready) return this.list(table, { profile });
-
-    let field = "PeriodoChave";
-    let value = normalizedPeriod;
+    // Consultas compostas por funcionário/loja exigem regras adicionais e
+    // alguns projetos existentes recusam essas leituras. Mantenha os perfis
+    // não administrativos na consulta já autorizada para não bloquear o ponto.
     if (!isAdminProfile(profile)) {
-      if (isManagerProfile(profile) && profile.LojaID) {
-        field = "LojaPeriodo";
-        value = `${profile.LojaID}|${normalizedPeriod}`;
-      } else if (profile.FuncionarioID) {
-        field = "FuncionarioPeriodo";
-        value = `${profile.FuncionarioID}|${normalizedPeriod}`;
-      } else {
-        return [];
-      }
+      return this.list(table, { profile });
     }
+
+    let ready = false;
+    try {
+      ready = await this.ensurePeriodIndexes({ profile });
+    } catch (error) {
+      const code = String(error?.code || error?.message || "");
+      if (/permission[-_]denied/i.test(code)) {
+        return this.list(table, { profile });
+      }
+      throw error;
+    }
+    if (!ready) return this.list(table, { profile });
 
     try {
       return snapshotList(
         await get(
           query(
             this.appRef(`tables/${table}`),
-            orderByChild(field),
-            equalTo(value),
+            orderByChild("PeriodoChave"),
+            equalTo(normalizedPeriod),
           ),
         ),
       );
