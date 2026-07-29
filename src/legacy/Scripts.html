@@ -639,6 +639,8 @@
     $("#logoutBtn").onclick = logoutApplication;
     $("#profileMenuBtn").onclick = openOwnProfile;
     $("#profileForm").onsubmit = saveOwnProfile;
+    $("#profileShowPasswords").onchange = toggleProfilePasswords_;
+    $("#profileForgotPassword").onclick = sendOwnPasswordReset_;
     $("#refreshBtn").onclick = refreshApplication;
     ["dashboardNewTimeOff", "newTimeOffBtn", "calendarNewBtn"].forEach(
       (id) => ($("#" + id).onclick = () => editTimeOff()),
@@ -944,7 +946,34 @@
     $("#profileForm").reset();
     $("#profileName").value = name;
     $("#profileEmail").value = val(user, "email", "Email");
+    toggleProfilePasswords_();
     openDialog("profileDialog");
+  }
+  function toggleProfilePasswords_() {
+    const type = $("#profileShowPasswords")?.checked ? "text" : "password";
+    ["profileCurrentPassword", "profileNewPassword", "profileConfirmPassword"].forEach(
+      (id) => {
+        const input = $("#" + id);
+        if (input) input.type = type;
+      },
+    );
+  }
+  async function sendOwnPasswordReset_() {
+    const email = $("#profileEmail").value.trim().toLowerCase();
+    if (!email) return toast("Informe o e-mail da conta.", true);
+    setLoading(true);
+    try {
+      await call(FN.resetPassword, { email });
+      closeDialog("profileDialog");
+      await logoutApplication();
+      toast(
+        "Enviamos um link para seu e-mail. Abra o link e crie uma nova senha.",
+      );
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      setLoading(false);
+    }
   }
   async function saveOwnProfile(event) {
     event.preventDefault();
