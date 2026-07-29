@@ -105,6 +105,17 @@ test("login continua se a gravação do último acesso for negada", async () => 
   );
 });
 
+test("login do funcionário não lê o cadastro administrativo da loja", async () => {
+  const runtime = await readFile(
+    new URL("../src/core/runtime.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    runtime,
+    /if \(table === "Lojas" && storeId\) \{\s*[\s\S]*?if \(isEmployeeProfile\(profile\)\) return \[\];\s*[\s\S]*?this\.getById\(table, storeId\)/,
+  );
+});
+
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /Gestão de Folgas/);
