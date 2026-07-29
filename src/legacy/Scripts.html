@@ -175,6 +175,8 @@
     vacationDecision: "decidirFerias",
     vacationCancel: "cancelarFerias",
   };
+  let CLOCK_SELFIE_STREAM_ = null;
+  let CLOCK_SELFIE_DATA_ = "";
   let CLOCK_EXPECTED_ACTION_ = "";
   let CLOCK_PUNCH_REQUEST_ID_ = "";
   let CLOCK_QUICK_PROMISE_ = null;
@@ -581,6 +583,7 @@
   function closeDialog(id) {
     const d = $("#" + id);
     if (d?.open) d.close();
+    if (id === "clockSelfieDialog") resetClockSelfieCapture_();
   }
   function showUnauthorized(m) {
     $("#app").classList.add("hidden");
@@ -720,6 +723,12 @@
     $("#newAccessBtn").onclick = () => editAccess();
     $("#clockPunchBtn").onclick = punchClock;
     $("#clockSkipBreakBtn").onclick = skipClockBreak_;
+    $("#clockSelfieForm").onsubmit = confirmClockPunchWithSelfie_;
+    $("#clockSelfieCapture").onclick = captureClockSelfie_;
+    $("#clockSelfieNative").onclick = openNativeClockCamera_;
+    $("#clockSelfieFile").onchange = loadNativeClockSelfie_;
+    $("#clockSelfieRetake").onclick = startClockSelfieCamera_;
+    $("#clockSelfieDialog").addEventListener("close", resetClockSelfieCapture_);
     $("#clockRefreshBtn").onclick = () => loadTimeClock(true, true);
     $("#clockMonth").onchange = () => {
       syncClockDayToMonth_($("#clockMonth").value, true);
@@ -3865,7 +3874,7 @@
           esc(clockBreakDurationText_()) +
           " extra)</button>"
         : "";
-    panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>${d.nextAction ? "Próxima marcação: " + esc(labels[d.nextAction] || d.nextAction) : marks.length ? "Jornada concluída" : "Registre o início da jornada"}</h3><p>${marks.length ? marks.map((r) => `${esc(labels[r.TipoMarcacao] || r.TipoMarcacao)} ${new Date(r.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`).join(" · ") : "A localização da sua loja será validada."}</p></div><div class="clock-punch-actions"><button id="dashboardClockPunch" class="btn btn-primary" ${d.nextAction ? "" : "disabled"}>${d.nextAction ? "Registrar " + esc(labels[d.nextAction] || d.nextAction) : state.timeClock ? "Jornada concluída" : "Carregando…"}</button>${skipBreakButton}</div>`;
+    panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>${d.nextAction ? "Próxima marcação: " + esc(labels[d.nextAction] || d.nextAction) : marks.length ? "Jornada concluída" : "Registre o início da jornada"}</h3><p>${marks.length ? marks.map((r) => `${esc(labels[r.TipoMarcacao] || r.TipoMarcacao)} ${new Date(r.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`).join(" · ") : "A selfie obrigatória e a localização da sua loja serão validadas."}</p></div><div class="clock-punch-actions"><button id="dashboardClockPunch" class="btn btn-primary" ${d.nextAction ? "" : "disabled"}>${d.nextAction ? "Registrar " + esc(labels[d.nextAction] || d.nextAction) : state.timeClock ? "Jornada concluída" : "Carregando…"}</button>${skipBreakButton}</div>`;
     $("#dashboardClockPunch").onclick = punchClock;
     const dashboardSkipBreak = $("#dashboardSkipBreak");
     if (dashboardSkipBreak) dashboardSkipBreak.onclick = skipClockBreak_;
@@ -4035,7 +4044,7 @@
       ? "Consulte o espelho abaixo para acompanhar os pontos da equipe."
       : d.offToday
         ? "Você não precisa bater ponto hoje."
-        : "Sua localização será validada no momento do registro.";
+        : "Sua selfie e localização serão validadas no momento do registro. A foto ficará no Google Drive.";
     $("#clockTodayList").innerHTML =
       timelineRecords
         .map(
@@ -4195,7 +4204,165 @@
         window.crypto?.randomUUID?.() ||
         `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
     }
-    return registerClockPunchWithLocation_();
+    openDialog("clockSelfieDialog");
+    await startClockSelfieCamera_();
+  }
+  function stopClockSelfieStream_() {
+    if (CLOCK_SELFIE_STREAM_) {
+      CLOCK_SELFIE_STREAM_.getTracks().forEach((track) => track.stop());
+      CLOCK_SELFIE_STREAM_ = null;
+    }
+    const video = $("#clockSelfieVideo");
+    if (video) video.srcObject = null;
+  }
+  function resetClockSelfieCapture_(preserveTransaction) {
+    stopClockSelfieStream_();
+    CLOCK_SELFIE_DATA_ = "";
+    if (preserveTransaction !== true) {
+      CLOCK_EXPECTED_ACTION_ = "";
+      CLOCK_PUNCH_REQUEST_ID_ = "";
+    }
+    const canvas = $("#clockSelfieCanvas"),
+      video = $("#clockSelfieVideo"),
+      placeholder = $("#clockSelfiePlaceholder"),
+      capture = $("#clockSelfieCapture"),
+      nativeCapture = $("#clockSelfieNative"),
+      fileInput = $("#clockSelfieFile"),
+      retake = $("#clockSelfieRetake"),
+      confirm = $("#clockSelfieConfirm");
+    canvas?.classList.add("hidden");
+    video?.classList.remove("hidden");
+    placeholder?.classList.remove("hidden");
+    retake?.classList.add("hidden");
+    capture?.classList.remove("hidden");
+    nativeCapture?.classList.add("hidden");
+    if (fileInput) fileInput.value = "";
+    if (capture) capture.disabled = true;
+    if (confirm) confirm.disabled = true;
+  }
+  async function startClockSelfieCamera_() {
+    resetClockSelfieCapture_(true);
+    const status = $("#clockSelfieStatus"),
+      capture = $("#clockSelfieCapture"),
+      placeholder = $("#clockSelfiePlaceholder"),
+      video = $("#clockSelfieVideo");
+    status.textContent = "Solicitando acesso à câmera…";
+    if (!navigator.mediaDevices?.getUserMedia) {
+      showNativeClockCamera_(
+        "Use a câmera nativa do celular para tirar a selfie e continuar.",
+      );
+      return;
+    }
+    try {
+      CLOCK_SELFIE_STREAM_ = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 720 },
+          height: { ideal: 960 },
+        },
+        audio: false,
+      });
+      video.srcObject = CLOCK_SELFIE_STREAM_;
+      await video.play();
+      placeholder.classList.add("hidden");
+      capture.disabled = false;
+      status.textContent =
+        "Câmera pronta. Centralize o rosto e capture a selfie.";
+    } catch {
+      stopClockSelfieStream_();
+      showNativeClockCamera_(
+        "O navegador não abriu a câmera incorporada. Use a câmera frontal do celular abaixo.",
+      );
+    }
+  }
+  function showNativeClockCamera_(message) {
+    const status = $("#clockSelfieStatus"),
+      capture = $("#clockSelfieCapture"),
+      nativeCapture = $("#clockSelfieNative"),
+      placeholder = $("#clockSelfiePlaceholder");
+    stopClockSelfieStream_();
+    capture.classList.add("hidden");
+    nativeCapture.classList.remove("hidden");
+    placeholder.classList.remove("hidden");
+    status.textContent = message;
+  }
+  function openNativeClockCamera_() {
+    const input = $("#clockSelfieFile");
+    input.value = "";
+    input.click();
+  }
+  function loadNativeClockSelfie_(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type || "")) {
+      toast("Use uma foto JPG, PNG ou WebP.", true);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast("A foto ultrapassou 10 MB. Tire outra selfie.", true);
+      return;
+    }
+    const status = $("#clockSelfieStatus"),
+      reader = new FileReader();
+    status.textContent = "Preparando a selfie…";
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const width = Math.min(720, image.naturalWidth || image.width),
+          height = Math.round(
+            ((image.naturalHeight || image.height) /
+              (image.naturalWidth || image.width)) *
+              width,
+          );
+        if (!width || !height) {
+          toast("Não foi possível processar esta foto.", true);
+          return;
+        }
+        setClockSelfieCanvas_(image, width, height, false);
+        status.textContent =
+          "Selfie pronta. Confirme para enviar ao Google Drive e validar a localização.";
+      };
+      image.onerror = () => toast("Não foi possível abrir esta foto.", true);
+      image.src = String(reader.result || "");
+    };
+    reader.onerror = () => toast("Não foi possível ler esta foto.", true);
+    reader.readAsDataURL(file);
+  }
+  function setClockSelfieCanvas_(source, width, height, mirror) {
+    const video = $("#clockSelfieVideo"),
+      canvas = $("#clockSelfieCanvas"),
+      context = canvas.getContext("2d");
+    canvas.width = width;
+    canvas.height = height;
+    context.save();
+    if (mirror) {
+      context.translate(width, 0);
+      context.scale(-1, 1);
+    }
+    context.drawImage(source, 0, 0, width, height);
+    context.restore();
+    CLOCK_SELFIE_DATA_ = canvas.toDataURL("image/jpeg", 0.76);
+    stopClockSelfieStream_();
+    $("#clockSelfiePlaceholder").classList.add("hidden");
+    video.classList.add("hidden");
+    canvas.classList.remove("hidden");
+    $("#clockSelfieCapture").classList.add("hidden");
+    $("#clockSelfieNative").classList.add("hidden");
+    $("#clockSelfieRetake").classList.remove("hidden");
+    $("#clockSelfieConfirm").disabled = false;
+  }
+  function captureClockSelfie_() {
+    const video = $("#clockSelfieVideo"),
+      status = $("#clockSelfieStatus");
+    if (!video.videoWidth || !video.videoHeight) {
+      toast("A câmera ainda está carregando. Aguarde um instante.", true);
+      return;
+    }
+    const width = Math.min(720, video.videoWidth),
+      height = Math.round((video.videoHeight / video.videoWidth) * width);
+    setClockSelfieCanvas_(video, width, height, true);
+    status.textContent =
+      "Selfie pronta. Confirme para enviar ao Google Drive e validar a localização.";
   }
   function getClockPosition_() {
     return new Promise((resolve, reject) => {
@@ -4215,7 +4382,16 @@
       return "A localização demorou demais. Tente novamente em local aberto.";
     return error?.message || "Não foi possível obter a localização.";
   }
-  async function registerClockPunchWithLocation_() {
+  async function confirmClockPunchWithSelfie_(event) {
+    event.preventDefault();
+    if (!CLOCK_SELFIE_DATA_)
+      return toast("Capture a selfie antes de confirmar o ponto.", true);
+    const confirm = $("#clockSelfieConfirm"),
+      status = $("#clockSelfieStatus");
+    confirm.disabled = true;
+    confirm.textContent = "Enviando…";
+    status.textContent =
+      "Enviando a selfie ao Google Drive e validando a localização…";
     setClockButtonsBusy(true);
     let confirmed = false;
     try {
@@ -4224,9 +4400,11 @@
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
+        selfieDataUrl: CLOCK_SELFIE_DATA_,
         expectedAction: CLOCK_EXPECTED_ACTION_,
         requestId: CLOCK_PUNCH_REQUEST_ID_,
       });
+      closeDialog("clockSelfieDialog");
       const refreshed = await loadTimeClock(true, true);
       if (!refreshed) {
         throw new Error(
@@ -4251,16 +4429,17 @@
           ? "Ponto registrado fora do horário programado. A marcação foi mantida normalmente."
           : saved.TipoMarcacao === "SEM_DESCANSO"
           ? "Descanso não realizado foi gravado. A próxima marcação é a saída final."
-          : "Seu ponto foi registrado com a localização validada.",
+          : "Seu ponto foi registrado com selfie no Google Drive e localização validada.",
       );
     } catch (error) {
       const message = error?.code
         ? clockLocationError_(error)
         : error?.message || "Não foi possível registrar o ponto.";
+      status.textContent = message;
       toast(message, true);
     } finally {
-      CLOCK_EXPECTED_ACTION_ = "";
-      if (confirmed) CLOCK_PUNCH_REQUEST_ID_ = "";
+      confirm.textContent = "Confirmar ponto";
+      confirm.disabled = confirmed || !CLOCK_SELFIE_DATA_;
       setClockButtonsBusy(false);
     }
   }
@@ -4274,7 +4453,7 @@
       const el = $("#" + id);
       if (!el) return;
       el.disabled = busy;
-      if (busy) el.textContent = "Validando localização…";
+      if (busy) el.textContent = "Enviando selfie e validando localização…";
     });
     if (!busy && state.timeClock) renderTimeClock();
   }
