@@ -4692,6 +4692,32 @@
       ).trim() || "Notificação"
     );
   }
+  function notificationPlainText_(value) {
+    const source = String(value || "");
+    if (!source) return "";
+    const withBreaks = source
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(?:p|div|h[1-6]|li|section|article)>/gi, "\n");
+    const template = document.createElement("template");
+    template.innerHTML = withBreaks;
+    return String(template.content.textContent || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+  function normalizeLegacyNotificationTimes_(value) {
+    return String(value || "")
+      .replace(
+        /\b1899-12-30[T\s](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?Z?\b/g,
+        "$1:$2",
+      )
+      .replace(
+        /\b(?:Sat\s+)?Dec\s+30\s+1899\s+(\d{2}):(\d{2})(?::\d{2})?\s+GMT[+-]\d{4}(?:\s+\([^)]+\))?/gi,
+        "$1:$2",
+      );
+  }
   function notificationMessage_(notification) {
     const content = val(
       notification,
@@ -4707,13 +4733,24 @@
     );
     if (content && typeof content === "object") {
       return (
-        String(
-          val(content, "texto", "Texto", "mensagem", "Mensagem", "conteudo") ||
-            "",
-        ).trim() || "Sem detalhes adicionais."
+        normalizeLegacyNotificationTimes_(
+          notificationPlainText_(
+            val(
+              content,
+              "texto",
+              "Texto",
+              "mensagem",
+              "Mensagem",
+              "conteudo",
+            ) || "",
+          ),
+        ) || "Sem detalhes adicionais."
       );
     }
-    return String(content || "").trim() || "Sem detalhes adicionais.";
+    return (
+      normalizeLegacyNotificationTimes_(notificationPlainText_(content)) ||
+      "Sem detalhes adicionais."
+    );
   }
   async function loadNotifications() {
     const list = $("#notificationsList");
