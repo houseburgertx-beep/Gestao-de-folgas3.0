@@ -51,10 +51,6 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
   assert.equal(rules.rules[".write"], false);
   assert.ok(rules.rules["gestao-folgas"].v2.access);
   assert.ok(rules.rules["gestao-folgas"].v2.tables);
-  const indexes =
-    rules.rules["gestao-folgas"].v2.tables.$table[".indexOn"];
-  assert.ok(indexes.includes("FuncionarioPeriodo"));
-  assert.ok(indexes.includes("LojaPeriodo"));
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {
@@ -66,8 +62,6 @@ test("registros de ponto recebem índices mensais de acesso", () => {
     }),
     {
       PeriodoChave: "2026-07",
-      FuncionarioPeriodo: "func-1|2026-07",
-      LojaPeriodo: "loja-1|2026-07",
     },
   );
   assert.deepEqual(periodFieldsFor("Funcionarios", { Data: "2026-07-28" }), {});
@@ -84,6 +78,10 @@ test("ponto consulta somente os meses necessários", async () => {
   );
   assert.match(runtime, /async listPeriods\(table, periods/);
   assert.match(runtime, /timeClockPeriodIndexesV1/);
+  assert.match(
+    runtime,
+    /if \(!isAdminProfile\(profile\)\) \{\s*return this\.list\(table, \{ profile \}\);/,
+  );
   assert.match(clock, /listPeriods\("RegistrosPonto", \[\.\.\.recordPeriods\]/);
   assert.match(
     clock,
