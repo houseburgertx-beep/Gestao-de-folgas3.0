@@ -4678,11 +4678,57 @@
     }
   }
 
+  function notificationTitle_(notification) {
+    return (
+      String(
+        val(
+          notification,
+          "Assunto",
+          "assunto",
+          "Titulo",
+          "titulo",
+          "title",
+        ) || "",
+      ).trim() || "Notificação"
+    );
+  }
+  function notificationMessage_(notification) {
+    const content = val(
+      notification,
+      "Mensagem",
+      "mensagem",
+      "message",
+      "Texto",
+      "texto",
+      "Corpo",
+      "corpo",
+      "Descricao",
+      "descricao",
+    );
+    if (content && typeof content === "object") {
+      return (
+        String(
+          val(content, "texto", "Texto", "mensagem", "Mensagem", "conteudo") ||
+            "",
+        ).trim() || "Sem detalhes adicionais."
+      );
+    }
+    return String(content || "").trim() || "Sem detalhes adicionais.";
+  }
   async function loadNotifications() {
+    const list = $("#notificationsList");
+    if (list)
+      list.innerHTML =
+        '<div class="empty-state">Carregando notificações…</div>';
     try {
       state.notifications = arr(await call(FN.notifications, { limit: 100 }));
       renderNotifications();
     } catch (e) {
+      if (list)
+        list.innerHTML =
+          '<div class="empty-state">Não foi possível carregar as notificações: ' +
+          esc(e.message || "atualize a página e tente novamente.") +
+          "</div>";
       toast(e.message, true);
     }
   }
@@ -4703,7 +4749,7 @@
       arr(state.notifications)
         .map(
           (n) =>
-            `<div class="activity-item notification-item ${val(n, "Status") === "Lida" ? "is-read" : ""}"><div class="avatar notification-avatar"><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></div><div><strong>${esc(val(n, "Assunto"))}</strong><span>${esc(val(n, "Mensagem"))}</span><small>${esc(formatClockDateTime(val(n, "DataCriacao")))}</small></div><div class="notification-actions">${val(n, "Tipo") === "Enquete" ? `<button class="btn btn-secondary" onclick="openNotificationUI('communication','${esc(val(n, "NotificacaoID"))}')">Abrir enquete</button>` : val(n, "Tipo") === "Documento" ? `<button class="btn btn-secondary" onclick="openNotificationUI('people-hub','${esc(val(n, "NotificacaoID"))}')">Abrir documentos</button>` : ""}${val(n, "Status") !== "Lida" ? `<button class="btn btn-ghost" onclick="markNotificationReadUI('${esc(val(n, "NotificacaoID"))}')">Marcar lida</button>` : ""}</div></div>`,
+            `<div class="activity-item notification-item ${val(n, "Status") === "Lida" ? "is-read" : ""}"><div class="avatar notification-avatar"><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></div><div class="notification-copy"><strong>${esc(notificationTitle_(n))}</strong><p class="notification-message">${esc(notificationMessage_(n))}</p><small>${esc(formatClockDateTime(val(n, "DataCriacao", "dataCriacao", "DataHora", "dataHora")))}</small></div><div class="notification-actions">${val(n, "Tipo") === "Enquete" ? `<button class="btn btn-secondary" onclick="openNotificationUI('communication','${esc(val(n, "NotificacaoID"))}')">Abrir enquete</button>` : val(n, "Tipo") === "Documento" ? `<button class="btn btn-secondary" onclick="openNotificationUI('people-hub','${esc(val(n, "NotificacaoID"))}')">Abrir documentos</button>` : ""}${val(n, "Status") !== "Lida" ? `<button class="btn btn-ghost" onclick="markNotificationReadUI('${esc(val(n, "NotificacaoID"))}')">Marcar lida</button>` : ""}</div></div>`,
         )
         .join("") || "<p>Nenhuma notificação.</p>";
   }
