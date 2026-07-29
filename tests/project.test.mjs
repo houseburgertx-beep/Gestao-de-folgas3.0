@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createApi } from "../src/core/api.js";
 import { nextTimeOffSummary } from "../src/core/api-advanced.js";
+import { timeOffBalanceUnits } from "../src/core/api-base.js";
 import { periodFieldsFor } from "../src/core/runtime.js";
 import {
   balanceDays,
@@ -137,6 +138,10 @@ test("notificações exibem o texto completo com campos compatíveis", async () 
     readFile(new URL("../src/legacy/Styles.html", import.meta.url), "utf8"),
   ]);
   assert.match(client, /function notificationMessage_\(notification\)/);
+  assert.match(client, /function notificationPlainText_\(value\)/);
+  assert.match(client, /template\.content\.textContent/);
+  assert.match(client, /function normalizeLegacyNotificationTimes_\(value\)/);
+  assert.match(client, /1899-12-30\[T\\s\]/);
   assert.match(
     client,
     /"Mensagem",[\s\S]*?"mensagem",[\s\S]*?"Texto",[\s\S]*?"Corpo"/,
@@ -146,6 +151,60 @@ test("notificações exibem o texto completo com campos compatíveis", async () 
     styles,
     /\.notification-item \.notification-message \{[\s\S]*?white-space: pre-wrap;[\s\S]*?overflow-wrap: anywhere;/,
   );
+});
+
+test("saldo de folgas conta somente folgas e respeita períodos parciais", () => {
+  assert.equal(
+    timeOffBalanceUnits({
+      TipoFolga: "Folga",
+      Periodo: "Dia inteiro",
+      DataInicio: "2026-08-10",
+      DataFim: "2026-08-10",
+    }),
+    1,
+  );
+  assert.equal(
+    timeOffBalanceUnits({
+      TipoFolga: "Folga",
+      Periodo: "Dia inteiro",
+      DataInicio: "2026-08-10",
+      DataFim: "2026-08-12",
+    }),
+    3,
+  );
+  assert.equal(
+    timeOffBalanceUnits({
+      TipoFolga: "Meia folga",
+      Periodo: "Manhã",
+      DataInicio: "2026-08-10",
+      DataFim: "2026-08-10",
+    }),
+    0.5,
+  );
+  assert.equal(
+    timeOffBalanceUnits({
+      TipoFolga: "Férias",
+      Periodo: "Dia inteiro",
+      DataInicio: "2026-08-10",
+      DataFim: "2026-08-20",
+    }),
+    0,
+  );
+});
+
+test("crédito mensal e débito de aprovação são idempotentes", async () => {
+  const [api, runtime] = await Promise.all([
+    readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/runtime.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(api, /`credito-mensal-\$\{employee\.FuncionarioID\}-\$\{month\}`/);
+  assert.match(api, /`folga-\$\{record\.FolgaID\}`/);
+  assert.match(api, /desiredDelta: approved \? -units : 0/);
+  assert.match(api, /await reconcileTimeOffBalance\(updated, profile\)/);
+  assert.match(api, /await reconcileTimeOffBalance\(saved, profile\)/);
+  assert.match(runtime, /SaldoFolgasLancamentos/);
+  assert.match(runtime, /normalizedDesired - previousDelta/);
+  assert.match(runtime, /SaldoFolgas: balanceAfter/);
 });
 
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
