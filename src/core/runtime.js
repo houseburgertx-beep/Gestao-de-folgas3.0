@@ -553,6 +553,72 @@ export class FirebaseRuntime {
     });
   }
 
+  async applyEmployeeLeaveBalance({
+    employeeId,
+    movementKey,
+    desiredDelta,
+    metadata = {},
+  }) {
+    const id = String(employeeId || "");
+    const rawKey = String(movementKey || "");
+    if (!id || !rawKey) throw new Error("Movimento de saldo inválido.");
+    const key = pathKey(rawKey);
+    let outcome = null;
+    const transaction = await runTransaction(
+      this.appRef(`tables/Funcionarios/${pathKey(id)}`),
+      (current) => {
+        if (!current || typeof current !== "object") return;
+        const entries = {
+          ...(current.SaldoFolgasLancamentos || {}),
+        };
+        const previousDelta = Number(entries[key]?.Delta || 0);
+        const normalizedDesired =
+          Math.round(Number(desiredDelta || 0) * 100) / 100;
+        const adjustment =
+          Math.round((normalizedDesired - previousDelta) * 100) / 100;
+        if (!adjustment) return;
+        const balanceBefore = Number(current.SaldoFolgas || 0);
+        const balanceAfter =
+          Math.round((balanceBefore + adjustment) * 100) / 100;
+        const appliedAt = nowIso();
+        entries[key] = cleanObject({
+          ...metadata,
+          Delta: normalizedDesired,
+          DataAtualizacao: appliedAt,
+        });
+        outcome = {
+          applied: true,
+          adjustment,
+          balanceBefore,
+          balanceAfter,
+          desiredDelta: normalizedDesired,
+          appliedAt,
+        };
+        return {
+          ...current,
+          SaldoFolgas: balanceAfter,
+          SaldoFolgasLancamentos: entries,
+          DataAtualizacao: appliedAt,
+        };
+      },
+      { applyLocally: false },
+    );
+    if (!transaction.committed) {
+      const employee = transaction.snapshot.val();
+      if (!employee) throw new Error("Funcionário não encontrado.");
+      return {
+        applied: false,
+        adjustment: 0,
+        balanceBefore: Number(employee.SaldoFolgas || 0),
+        balanceAfter: Number(employee.SaldoFolgas || 0),
+        desiredDelta: Number(
+          employee.SaldoFolgasLancamentos?.[key]?.Delta || 0,
+        ),
+      };
+    }
+    return outcome;
+  }
+
   async delete(table, id) {
     await remove(this.appRef(`tables/${table}/${pathKey(id)}`));
   }
