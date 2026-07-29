@@ -13521,12 +13521,16 @@
       return;
     }
     const old = el.value;
+    const camelKey = (key) => {
+      const normalized = String(key).replace(/ID$/, "Id");
+      return normalized[0].toLowerCase() + normalized.slice(1);
+    };
     el.innerHTML =
       `<option value="">${placeholder}</option>` +
       arr(rows)
         .map(
           (x) =>
-            `<option value="${esc(val(x, idKey, idKey[0].toLowerCase() + idKey.slice(1)))}">${esc(val(x, labelKey, labelKey[0].toLowerCase() + labelKey.slice(1)))}</option>`,
+            `<option value="${esc(val(x, idKey, camelKey(idKey)))}">${esc(val(x, labelKey, camelKey(labelKey)))}</option>`,
         )
         .join("");
     el.value = old;
@@ -13599,7 +13603,27 @@
     const x = state.timeOff.find(
         (r) => String(idOf(r, "Folga")) === String(id),
       ),
-      me = state.employees[0] || {},
+      currentEmployeeId = val(
+        state.user,
+        "FuncionarioID",
+        "funcionarioId",
+      ),
+      currentEmail = String(val(state.user, "Email", "email") || "")
+        .trim()
+        .toLowerCase(),
+      me =
+        state.employees.find(
+          (employee) =>
+            (currentEmployeeId &&
+              String(idOf(employee, "Funcionario")) ===
+                String(currentEmployeeId)) ||
+            (currentEmail &&
+              String(val(employee, "Email", "email") || "")
+                .trim()
+                .toLowerCase() === currentEmail),
+        ) ||
+        state.employees[0] ||
+        {},
       employeeMode = isEmployee();
     $("#timeOffForm").reset();
     $("#timeOffId").value = id || "";
@@ -13608,11 +13632,26 @@
       : id
         ? "Editar folga"
         : "Nova folga";
-    const storeId = x
-      ? val(x, "LojaID", "lojaId")
-      : employeeMode
-        ? val(me, "LojaID", "lojaId")
-        : "";
+    const employeeStoreId = val(me, "LojaID", "lojaId"),
+      employeeStoreName = String(val(me, "NomeLoja", "nomeLoja") || "")
+        .trim()
+        .toLowerCase(),
+      matchedEmployeeStore = state.stores.find(
+        (store) =>
+          (employeeStoreId &&
+            String(idOf(store, "Loja")) === String(employeeStoreId)) ||
+          (employeeStoreName &&
+            String(val(store, "NomeLoja", "nomeLoja") || "")
+              .trim()
+              .toLowerCase() === employeeStoreName),
+      ),
+      storeId = x
+        ? val(x, "LojaID", "lojaId")
+        : employeeMode
+          ? employeeStoreId ||
+            idOf(matchedEmployeeStore, "Loja") ||
+            (state.stores.length === 1 ? idOf(state.stores[0], "Loja") : "")
+          : "";
     $("#timeOffStore").value = storeId;
     fillEmployeeSelect("#timeOffEmployee", storeId);
     $("#timeOffEmployee").value = x
