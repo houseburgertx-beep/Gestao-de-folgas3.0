@@ -44,6 +44,26 @@ const normalizedDateKey = (value) => {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
 };
 
+const firstPunchDatesByEmployee = (records = []) => {
+  const starts = new Map();
+  records
+    .filter(
+      (item) =>
+        item.FuncionarioID &&
+        item.Status !== "Substituído" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(
+          normalizedDateKey(item.Data || item.DataHora),
+        ),
+    )
+    .forEach((item) => {
+      const employeeId = String(item.FuncionarioID);
+      const date = normalizedDateKey(item.Data || item.DataHora);
+      const current = starts.get(employeeId);
+      if (!current || date < current) starts.set(employeeId, date);
+    });
+  return starts;
+};
+
 const workdayIndexes = (schedule) =>
   String(schedule?.DiasTrabalho || "1,2,3,4,5,6")
     .split(/[,;|\s]+/)
@@ -214,6 +234,10 @@ async function clockContext(filters = {}) {
       runtime.list("AjustesPonto", { profile }),
       runtime.list("Folgas", { profile }),
     ]);
+  const trackingRecords =
+    filters.includeHistoricalStart === true && isAdmin(profile)
+      ? await runtime.list("RegistrosPonto", { profile })
+      : records;
   let allowed = employees.filter((item) => asBoolean(item.Ativo));
   if (filters.funcionarioId) {
     allowed = allowed.filter(
@@ -288,19 +312,8 @@ async function clockContext(filters = {}) {
   const days = [];
   const [year, monthNumber] = month.split("-").map(Number);
   const monthDays = new Date(year, monthNumber, 0).getDate();
-  const trackingStartByEmployee = new Map();
-  records
-    .filter(
-      (item) =>
-        item.Status !== "Substituído" && normalizedDateKey(item.Data),
-    )
-    .forEach((item) => {
-      const current = trackingStartByEmployee.get(item.FuncionarioID);
-      const candidate = normalizedDateKey(item.Data);
-      if (!current || candidate < current) {
-        trackingStartByEmployee.set(item.FuncionarioID, candidate);
-      }
-    });
+  const trackingStartByEmployee =
+    firstPunchDatesByEmployee(trackingRecords);
   for (const employee of allowed) {
     for (let day = 1; day <= monthDays; day += 1) {
       const dateKey = `${month}-${String(day).padStart(2, "0")}`;
@@ -308,22 +321,9 @@ async function clockContext(filters = {}) {
       const trackingStart = trackingStartByEmployee.get(
         employee.FuncionarioID,
       );
-      const admissionStart = normalizedDateKey(employee.DataAdmissao);
-      const scheduleStart =
-        schedules
-          .filter((item) => item.FuncionarioID === employee.FuncionarioID)
-          .map((item) => normalizedDateKey(item.VigenteDe))
-          .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")))
-          .sort()[0] || "";
-      const declaredStarts = [admissionStart, scheduleStart].filter((value) =>
-        /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")),
-      );
-      // A apuração não pode começar antes da admissão nem antes da primeira
-      // jornada. A primeira batida serve apenas como fallback legado.
-      const effectiveStart = declaredStarts.length
-        ? declaredStarts.sort().at(-1)
-        : trackingStart || "";
-      if (!effectiveStart || dateKey < effectiveStart) continue;
+      // Sem batida não existe saldo a apurar. A admissão e o início da jornada
+      // não podem gerar horas negativas antes do primeiro registro real.
+      if (!trackingStart || dateKey < trackingStart) continue;
       const schedule = scheduleFor(schedules, employee.FuncionarioID, dateKey);
       const rows = monthRecords.filter(
         (item) =>
@@ -986,7 +986,10 @@ export function createClockHandlers() {
 
     async getHourBalanceOverviewWithSession(args) {
       dropClientToken(args);
-      const context = await clockContext({ month: monthIso() });
+      const context = await clockContext({
+        month: monthIso(),
+        includeHistoricalStart: true,
+      });
       const employeeTotals = new Map();
       balanceDays(context.days).forEach((item) => {
           const current = employeeTotals.get(item.funcionarioId) || {
@@ -1022,6 +1025,7 @@ export {
   balanceDays,
   clockContext,
   dayMetrics,
+  firstPunchDatesByEmployee,
   operationalDayFor,
   scheduleExpectedMinutes,
 };

@@ -8,6 +8,7 @@ import { periodFieldsFor } from "../src/core/runtime.js";
 import {
   balanceDays,
   dayMetrics,
+  firstPunchDatesByEmployee,
   operationalDayFor,
   scheduleExpectedMinutes,
 } from "../src/core/api-clock.js";
@@ -352,6 +353,32 @@ test("turno aberto continua no mesmo dia operacional depois da meia-noite", () =
     ),
     "2026-07-29",
   );
+});
+
+test("saldo de horas começa somente na primeira marcação do funcionário", () => {
+  const starts = firstPunchDatesByEmployee([
+    {
+      FuncionarioID: "leticia",
+      Data: "2026-07-01",
+      TipoMarcacao: "ENTRADA",
+      Status: "Substituído",
+    },
+    {
+      FuncionarioID: "leticia",
+      Data: "2026-07-15",
+      TipoMarcacao: "SAIDA_FINAL",
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "leticia",
+      DataHora: "2026-07-12T08:00:00-03:00",
+      TipoMarcacao: "ENTRADA",
+      Status: "Válido",
+    },
+  ]);
+
+  assert.equal(starts.get("leticia"), "2026-07-12");
+  assert.equal(starts.has("sem-marcacao"), false);
 });
 
 test("foto de perfil e envio de documentos não aparecem na interface", async () => {
