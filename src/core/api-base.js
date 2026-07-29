@@ -76,6 +76,154 @@ const scopeRecord = (profile, record) => {
   return true;
 };
 
+export const timeOffBalanceUnits = (record = {}) => {
+  const type = String(record.TipoFolga || "Folga").toLowerCase();
+  if (!type.includes("folga")) return 0;
+  const start = String(record.DataInicio || "");
+  const end = String(record.DataFim || start);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(start) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(end) ||
+    end < start
+  ) {
+    return 0;
+  }
+  const period = String(record.Periodo || "Dia inteiro").toLowerCase();
+  const fraction =
+    type.includes("meia") ||
+    period.includes("manhã") ||
+    period.includes("manha") ||
+    period.includes("tarde") ||
+    period.includes("personalizado")
+      ? 0.5
+      : 1;
+  return Math.round(dateRange(start, end).length * fraction * 100) / 100;
+};
+
+const saveLeaveBalanceMovement = async ({
+  movementId,
+  employee,
+  type,
+  competence,
+  referenceId,
+  result,
+  actor,
+}) => {
+  if (!result?.applied) return;
+  await runtime
+    .upsert("MovimentosSaldoFolgas", {
+      MovimentoID: movementId,
+      FuncionarioID: employee.FuncionarioID,
+      NomeFuncionario: employee.Nome || "",
+      LojaID: employee.LojaID || "",
+      Tipo: type,
+      Competencia: competence || "",
+      ReferenciaID: referenceId || "",
+      Delta: result.desiredDelta,
+      AjusteAplicado: result.adjustment,
+      SaldoAntes: result.balanceBefore,
+      SaldoDepois: result.balanceAfter,
+      DataMovimento: result.appliedAt || nowIso(),
+      CriadoPor: actor?.Email || "",
+      Status: "Aplicado",
+    })
+    .catch((error) =>
+      console.warn("Histórico do saldo de folgas não gravado:", error.message),
+    );
+};
+
+const applyMonthlyLeaveCredit = async (employee, profile, month) => {
+  const movementId = `credito-mensal-${employee.FuncionarioID}-${month}`;
+  if (
+    Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) === 1
+  ) {
+    return {
+      applied: false,
+      adjustment: 0,
+      balanceBefore: Number(employee.SaldoFolgas || 0),
+      balanceAfter: Number(employee.SaldoFolgas || 0),
+      desiredDelta: 1,
+    };
+  }
+  const result = await runtime.applyEmployeeLeaveBalance({
+    employeeId: employee.FuncionarioID,
+    movementKey: movementId,
+    desiredDelta: 1,
+    metadata: {
+      Tipo: "Crédito mensal da quinta folga",
+      Competencia: month,
+    },
+  });
+  await saveLeaveBalanceMovement({
+    movementId,
+    employee,
+    type: "Crédito mensal da quinta folga",
+    competence: month,
+    result,
+    actor: profile,
+  });
+  return result;
+};
+
+const ensureMonthlyLeaveCredits = async (profile, employees) => {
+  if (!isManager(profile)) return 0;
+  const month = todayIso().slice(0, 7);
+  const eligible = employees.filter(
+    (employee) =>
+      employee?.FuncionarioID &&
+      asBoolean(employee.Ativo) &&
+      !role(employee).includes("admin"),
+  );
+  const results = await Promise.all(
+    eligible.map((employee) =>
+      applyMonthlyLeaveCredit(employee, profile, month).catch((error) => {
+        console.warn(
+          `Crédito mensal não aplicado para ${employee.FuncionarioID}:`,
+          error.message,
+        );
+        return { applied: false };
+      }),
+    ),
+  );
+  return results.filter((result) => result.applied).length;
+};
+
+const reconcileTimeOffBalance = async (record, profile) => {
+  const employee = await runtime.getById(
+    "Funcionarios",
+    record.FuncionarioID,
+  );
+  assert(employee, "Funcionário não encontrado para atualizar o saldo.");
+  if (!role(employee).includes("admin")) {
+    await applyMonthlyLeaveCredit(employee, profile, todayIso().slice(0, 7));
+  }
+  const units = timeOffBalanceUnits(record);
+  const approved = record.Status === APP.status.approved;
+  const movementId = `folga-${record.FolgaID}`;
+  const result = await runtime.applyEmployeeLeaveBalance({
+    employeeId: employee.FuncionarioID,
+    movementKey: movementId,
+    desiredDelta: approved ? -units : 0,
+    metadata: {
+      Tipo: approved ? "Débito de folga aprovada" : "Estorno de folga",
+      FolgaID: record.FolgaID,
+      DataInicio: record.DataInicio,
+      DataFim: record.DataFim,
+      Quantidade: units,
+    },
+  });
+  await saveLeaveBalanceMovement({
+    movementId,
+    employee,
+    type: approved ? "Débito de folga aprovada" : "Estorno de folga",
+    competence: String(record.DataInicio || "").slice(0, 7),
+    referenceId: record.FolgaID,
+    result,
+    actor: profile,
+  });
+  return result;
+};
+
 export async function audit(action, module, recordId, details = {}) {
   const profile = await runtime.requireProfile();
   const entry = {
@@ -170,12 +318,16 @@ const dashboardFrom = (stores, employees, records) => {
 
 async function bootstrap() {
   const profile = await runtime.requireProfile();
-  const [stores, employees, timeOff, holidays] = await Promise.all([
+  const [stores, initialEmployees, timeOff, holidays] = await Promise.all([
     runtime.list("Lojas", { profile }),
     runtime.list("Funcionarios", { profile }),
     runtime.list("Folgas", { profile }),
     runtime.list("Feriados", { profile }),
   ]);
+  const credited = await ensureMonthlyLeaveCredits(profile, initialEmployees);
+  const employees = credited
+    ? await runtime.list("Funcionarios", { profile })
+    : initialEmployees;
   return {
     app: { name: APP.name, version: APP.version },
     user: sessionUser(profile),
@@ -312,6 +464,7 @@ const timeOffDecision = async (id, approved, observation = "") => {
     ObservacaoAprovacao: String(observation || ""),
     DataAtualizacao: nowIso(),
   });
+  await reconcileTimeOffBalance(updated, profile);
   await createNotification({
     employeeId: updated.FuncionarioID,
     email: updated.EmailFuncionario,
@@ -602,10 +755,14 @@ export function createBaseHandlers(getArenaBundle) {
     },
 
     async createTimeOff(args) {
+      const profile = await runtime.requireProfile();
       const saved = await runtime.upsert(
         "Folgas",
         await createOrUpdateTimeOff(args[0] || {}),
       );
+      if (isManager(profile)) {
+        await reconcileTimeOffBalance(saved, profile);
+      }
       await audit("Criar folga", "Folgas", saved.FolgaID, { after: saved });
       return success(saved, "Folga criada.");
     },
@@ -640,6 +797,9 @@ export function createBaseHandlers(getArenaBundle) {
         "Folgas",
         await createOrUpdateTimeOff(payload || {}, current),
       );
+      if (isManager(profile)) {
+        await reconcileTimeOffBalance(saved, profile);
+      }
       await audit("Atualizar folga", "Folgas", id, {
         before: current,
         after: saved,
@@ -653,6 +813,12 @@ export function createBaseHandlers(getArenaBundle) {
       const current = await runtime.getById("Folgas", id);
       assert(current, "Folga não encontrada.");
       scopeRecord(profile, current);
+      if (!isManager(profile)) {
+        assert(
+          current.Status === APP.status.pending,
+          "Somente pedidos pendentes podem ser cancelados pelo funcionário.",
+        );
+      }
       const saved = await runtime.patch("Folgas", id, {
         Status: APP.status.cancelled,
         CanceladoPor: profile.Email,
@@ -660,6 +826,9 @@ export function createBaseHandlers(getArenaBundle) {
         MotivoCancelamento: String(reason || ""),
         DataAtualizacao: nowIso(),
       });
+      if (isManager(profile)) {
+        await reconcileTimeOffBalance(saved, profile);
+      }
       await audit("Cancelar folga", "Folgas", id, {
         before: current,
         after: saved,
@@ -763,18 +932,18 @@ export function createBaseHandlers(getArenaBundle) {
       const suggestions = Array.isArray(args[1]) ? args[1] : [];
       const saved = [];
       for (const item of suggestions) {
-        saved.push(
-          await runtime.upsert(
-            "Folgas",
-            await createOrUpdateTimeOff({
-              ...item,
-              DataInicio: item.DataInicio || item.DataSugerida,
-              DataFim: item.DataFim || item.DataSugerida,
-              Origem: "Geração automática",
-              Status: APP.status.approved,
-            }),
-          ),
+        const record = await runtime.upsert(
+          "Folgas",
+          await createOrUpdateTimeOff({
+            ...item,
+            DataInicio: item.DataInicio || item.DataSugerida,
+            DataFim: item.DataFim || item.DataSugerida,
+            Origem: "Geração automática",
+            Status: APP.status.approved,
+          }),
         );
+        await reconcileTimeOffBalance(record, profile);
+        saved.push(record);
       }
       return success(saved, `${saved.length} folga(s) gerada(s).`);
     },
