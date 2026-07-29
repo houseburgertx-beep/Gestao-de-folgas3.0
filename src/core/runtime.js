@@ -332,10 +332,21 @@ export class FirebaseRuntime {
       if (!currentPassword) {
         throw new Error("Informe a senha atual para confirmar a alteração.");
       }
-      await reauthenticateWithCredential(
-        user,
-        EmailAuthProvider.credential(user.email, String(currentPassword)),
-      );
+      try {
+        await reauthenticateWithCredential(
+          user,
+          EmailAuthProvider.credential(user.email, String(currentPassword)),
+        );
+      } catch (error) {
+        const code = String(error?.code || "");
+        if (
+          code.includes("auth/invalid-credential") ||
+          code.includes("auth/wrong-password")
+        ) {
+          throw new Error("A senha atual está incorreta.");
+        }
+        throw error;
+      }
     }
     if (changesEmail) {
       await updateEmail(user, normalizeEmail(email));
