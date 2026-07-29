@@ -77,6 +77,43 @@
     </div>
   </form>
 </dialog>
+
+<dialog id="clockJustificationDialog">
+  <form id="clockJustificationForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">PONTO NÃO BATIDO</span>
+        <h3>Justificar ausência</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="clockJustificationDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <input id="clockJustificationEmployeeId" type="hidden" />
+      <input id="clockJustificationDate" type="hidden" />
+      <p id="clockJustificationEmployee"></p>
+      <div class="dialog-grid">
+        <label>Motivo
+          <select id="clockJustificationType" required>
+            <option>Atestado</option>
+            <option>Folga trocada</option>
+            <option>Dia concedido</option>
+            <option>Outros</option>
+          </select>
+        </label>
+        <label class="full">Observação
+          <textarea id="clockJustificationObservation" placeholder="Obrigatório para Outros"></textarea>
+        </label>
+      </div>
+      <p class="form-hint">
+        O dia ficará com saldo zerado e a justificativa será registrada na auditoria.
+      </p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="clockJustificationDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Salvar justificativa</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="approvalDialog">
   <form id="approvalForm">
     <div class="dialog-head">
