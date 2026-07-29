@@ -82,7 +82,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.9");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.10");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -93,13 +93,13 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.9/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.10/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /navigator\.serviceWorker\.register\("\.\/sw\.js"/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.9"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.10"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -369,6 +369,9 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(client, /longitude:\s*pos\.coords\.longitude/);
   assert.match(client, /getUserMedia/);
   assert.match(client, /facingMode:\s*"user"/);
+  assert.match(client, /CLOCK_POSITION_PROMISE_ = getClockPosition_\(\)/);
+  assert.match(client, /Math\.min\(480,\s*video\.videoWidth\)/);
+  assert.match(client, /toDataURL\("image\/jpeg",\s*0\.62\)/);
   assert.match(client, /selfieDataUrl:\s*CLOCK_SELFIE_DATA_/);
   assert.match(dialogs, /id="clockSelfieDialog"/);
   assert.match(dialogs, /Selfie obrigatória/);
