@@ -51,6 +51,27 @@ const normalizedDateKey = (value) => {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
 };
 
+const shiftDateRange = (record, newStart) => {
+  const originalDays = Math.max(
+    1,
+    dateRange(record.DataInicio, record.DataFim || record.DataInicio).length,
+  );
+  const end = new Date(`${newStart}T12:00:00`);
+  end.setDate(end.getDate() + originalDays - 1);
+  return {
+    DataInicio: newStart,
+    DataFim: todayIso(end),
+  };
+};
+
+const sha256 = async (value) => {
+  const bytes = new TextEncoder().encode(String(value || ""));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((item) => item.toString(16).padStart(2, "0"))
+    .join("");
+};
+
 const nextTimeOffSummary = (records, employeeId, currentDay = todayIso()) => {
   const next = records
     .filter(
@@ -154,25 +175,53 @@ export function createAdvancedHandlers() {
       );
       assert(origin, "Folga de origem não encontrada.");
       scopeRecord(profile, origin);
+      assert(
+        origin.Status === APP.status.approved &&
+          normalizedDateKey(origin.DataInicio) >= todayIso(),
+        "Selecione uma folga futura e aprovada.",
+      );
       const destinationEmployee = await employeeById(
         payload.funcionarioDestinoId || payload.FuncionarioDestinoID,
+      );
+      assert(asBoolean(destinationEmployee.Ativo), "Funcionário inativo.");
+      assert(
+        destinationEmployee.FuncionarioID !== origin.FuncionarioID,
+        "Selecione outro funcionário para a troca.",
       );
       assert(
         origin.LojaID === destinationEmployee.LojaID,
         "A troca deve ocorrer entre funcionários da mesma loja.",
       );
+      const destinationTimeOffId =
+        payload.folgaDestinoId || payload.FolgaDestinoID || "";
+      assert(
+        destinationTimeOffId,
+        "Selecione a folga aprovada do funcionário de destino.",
+      );
+      const destinationTimeOff = await runtime.getById(
+        "Folgas",
+        destinationTimeOffId,
+      );
+      assert(
+        destinationTimeOff &&
+          destinationTimeOff.FuncionarioID ===
+            destinationEmployee.FuncionarioID &&
+          destinationTimeOff.LojaID === origin.LojaID &&
+          destinationTimeOff.Status === APP.status.approved &&
+          normalizedDateKey(destinationTimeOff.DataInicio) >= todayIso(),
+        "A folga de destino não é válida para esta troca.",
+      );
       const saved = await runtime.upsert("TrocasFolga", {
         TrocaID: uuid(),
         FolgaOrigemID: origin.FolgaID,
-        FolgaDestinoOriginalID:
-          payload.folgaDestinoId || payload.FolgaDestinoID || "",
+        FolgaDestinoOriginalID: destinationTimeOff.FolgaID,
         FuncionarioOrigemID: origin.FuncionarioID,
         NomeFuncionarioOrigem: origin.NomeFuncionario,
         FuncionarioDestinoID: destinationEmployee.FuncionarioID,
         NomeFuncionarioDestino: destinationEmployee.Nome,
         LojaID: origin.LojaID,
         DataFolgaOrigem: origin.DataInicio,
-        DataFolgaDestino: payload.dataFolgaDestino || "",
+        DataFolgaDestino: destinationTimeOff.DataInicio,
         Motivo: String(payload.motivo || payload.Motivo || ""),
         Status: "Aguardando aceite",
         AceiteDestino: "",
@@ -202,9 +251,12 @@ export function createAdvancedHandlers() {
       const current = await runtime.getById("TrocasFolga", id);
       assert(current, "Proposta não encontrada.");
       assert(
-        isManager(profile) ||
-          current.FuncionarioDestinoID === profile.FuncionarioID,
+        current.FuncionarioDestinoID === profile.FuncionarioID,
         "Somente o destinatário pode responder.",
+      );
+      assert(
+        current.Status === "Aguardando aceite",
+        "Esta proposta já recebeu uma resposta.",
       );
       const accepted = asBoolean(accept);
       const saved = await runtime.patch("TrocasFolga", id, {
@@ -223,15 +275,112 @@ export function createAdvancedHandlers() {
       const current = await runtime.getById("TrocasFolga", id);
       assert(current, "Troca não encontrada.");
       scopeRecord(profile, current);
+      assert(
+        current.Status === "Aguardando gestor" &&
+          asBoolean(current.AceiteDestino),
+        "A troca precisa ser aceita pelo funcionário antes da decisão.",
+      );
       const approved = asBoolean(approve);
-      const saved = await runtime.patch("TrocasFolga", id, {
-        Status: approved ? "Aprovada" : "Rejeitada",
-        DecididoPor: profile.Email,
-        DataDecisao: nowIso(),
-        ObservacaoGestor: String(observation || ""),
-        DataAtualizacao: nowIso(),
+      if (!approved) {
+        const rejected = await runtime.patch("TrocasFolga", id, {
+          Status: "Rejeitada",
+          DecididoPor: profile.Email,
+          DataDecisao: nowIso(),
+          ObservacaoGestor: String(observation || ""),
+          DataAtualizacao: nowIso(),
+        });
+        return success(rejected, "Troca rejeitada.");
+      }
+
+      const [origin, destination, allTimeOff] = await Promise.all([
+        runtime.getById("Folgas", current.FolgaOrigemID),
+        runtime.getById("Folgas", current.FolgaDestinoOriginalID),
+        runtime.list("Folgas", { profile }),
+      ]);
+      assert(
+        origin &&
+          destination &&
+          origin.Status === APP.status.approved &&
+          destination.Status === APP.status.approved,
+        "As duas folgas precisam continuar aprovadas.",
+      );
+      assert(
+        origin.FuncionarioID === current.FuncionarioOrigemID &&
+          destination.FuncionarioID === current.FuncionarioDestinoID &&
+          origin.LojaID === current.LojaID &&
+          destination.LojaID === current.LojaID,
+        "Os dados atuais não correspondem à proposta original.",
+      );
+      const originDates = shiftDateRange(origin, destination.DataInicio);
+      const destinationDates = shiftDateRange(destination, origin.DataInicio);
+      const movingIds = new Set([origin.FolgaID, destination.FolgaID]);
+      const hasConflict = (record, dates) =>
+        allTimeOff.some(
+          (item) =>
+            !movingIds.has(item.FolgaID) &&
+            item.FuncionarioID === record.FuncionarioID &&
+            ![APP.status.cancelled, APP.status.rejected].includes(item.Status) &&
+            normalizedDateKey(item.DataInicio) <= dates.DataFim &&
+            normalizedDateKey(item.DataFim || item.DataInicio) >=
+              dates.DataInicio,
+        );
+      assert(
+        !hasConflict(origin, originDates) &&
+          !hasConflict(destination, destinationDates),
+        "A troca passou a conflitar com outra folga cadastrada.",
+      );
+      const changedAt = nowIso();
+      const [updatedOrigin, updatedDestination, saved] =
+        await runtime.patchMany([
+          {
+            table: "Folgas",
+            id: origin.FolgaID,
+            changes: { ...originDates, DataAtualizacao: changedAt },
+          },
+          {
+            table: "Folgas",
+            id: destination.FolgaID,
+            changes: { ...destinationDates, DataAtualizacao: changedAt },
+          },
+          {
+            table: "TrocasFolga",
+            id,
+            changes: {
+              Status: "Aprovada",
+              DecididoPor: profile.Email,
+              DataDecisao: changedAt,
+              ObservacaoGestor: String(observation || ""),
+              DataAtualizacao: changedAt,
+            },
+          },
+        ]);
+      await Promise.all([
+        createNotification({
+          employeeId: origin.FuncionarioID,
+          email: origin.EmailFuncionario,
+          storeId: origin.LojaID,
+          subject: "Troca de folga aprovada",
+          message: `Sua folga foi transferida para ${updatedOrigin.DataInicio}.`,
+          type: "Troca",
+          relatedId: id,
+        }),
+        createNotification({
+          employeeId: destination.FuncionarioID,
+          email: destination.EmailFuncionario,
+          storeId: destination.LojaID,
+          subject: "Troca de folga aprovada",
+          message: `Sua folga foi transferida para ${updatedDestination.DataInicio}.`,
+          type: "Troca",
+          relatedId: id,
+        }),
+      ]).catch((error) =>
+        console.warn("Notificação da troca não gravada:", error.message),
+      );
+      await audit("Aplicar troca de folga", "TrocasFolga", id, {
+        before: current,
+        after: saved,
       });
-      return success(saved, approved ? "Troca aprovada." : "Troca rejeitada.");
+      return success(saved, "Troca aprovada e aplicada.");
     },
 
     async acknowledgeTimeOff(args) {
@@ -454,6 +603,10 @@ export function createAdvancedHandlers() {
       const current = await runtime.getById("Ferias", id);
       assert(current, "Solicitação não encontrada.");
       scopeRecord(profile, current);
+      assert(
+        current.Status === "Pendente",
+        "Somente solicitações pendentes podem receber uma decisão.",
+      );
       const approved = String(decision).toLowerCase() === "aprovar";
       const saved = await runtime.patch("Ferias", id, {
         Status: approved ? "Aprovada" : "Rejeitada",
@@ -471,6 +624,12 @@ export function createAdvancedHandlers() {
       const current = await runtime.getById("Ferias", id);
       assert(current, "Solicitação não encontrada.");
       scopeRecord(profile, current);
+      if (!isManager(profile)) {
+        assert(
+          current.Status === "Pendente",
+          "Somente solicitações pendentes podem ser canceladas pelo funcionário.",
+        );
+      }
       const saved = await runtime.patch("Ferias", id, {
         Status: "Cancelada",
         CanceladoPor: profile.Email,
@@ -514,6 +673,8 @@ export function createAdvancedHandlers() {
       const timeOff = await runtime.getById("Folgas", timeOffId);
       const employee = await employeeById(employeeId);
       assert(timeOff && timeOff.LojaID === employee.LojaID, "Dados incompatíveis.");
+      scopeRecord(profile, timeOff);
+      scopeRecord(profile, employee);
       const saved = await runtime.upsert("Substituicoes", {
         SubID: uuid(),
         FolgaID: timeOffId,
@@ -534,6 +695,8 @@ export function createAdvancedHandlers() {
       const values = dropClientToken(args);
       const payload = values[0] || {};
       if (payload.LojaID) scopeRecord(profile, payload);
+      assert(String(payload.Titulo || "").trim(), "Informe o título.");
+      assert(String(payload.Corpo || "").trim(), "Informe o comunicado.");
       const saved = await runtime.upsert("Comunicados", {
         ComID: uuid(),
         DataHora: nowIso(),
@@ -602,13 +765,21 @@ export function createAdvancedHandlers() {
         : String(payload.Opcoes || "")
             .split("|")
             .filter(Boolean);
-      assert(options.length >= 2, "Informe pelo menos duas opções.");
+      const normalizedOptions = [
+        ...new Set(options.map((item) => String(item).trim()).filter(Boolean)),
+      ];
+      assert(String(payload.Titulo || "").trim(), "Informe o título.");
+      assert(
+        normalizedOptions.length >= 2 && normalizedOptions.length <= 10,
+        "Informe de duas a dez opções diferentes.",
+      );
+      if (payload.LojaID) scopeRecord(profile, payload);
       const saved = await runtime.upsert("Enquetes", {
         EnqID: uuid(),
         DataHora: nowIso(),
         Titulo: String(payload.Titulo || "").trim(),
-        Opcoes: JSON.stringify(options),
-        opcoesLista: options,
+        Opcoes: JSON.stringify(normalizedOptions),
+        opcoesLista: normalizedOptions,
         FechaEm: payload.FechaEm || "",
         CriadoPor: profile.Email,
         LojaID: payload.LojaID || profile.LojaID || "",
@@ -685,6 +856,7 @@ export function createAdvancedHandlers() {
 
     async resultadoEnquete(args) {
       const profile = await runtime.requireProfile();
+      requireManager(profile);
       const values = dropClientToken(args);
       const poll = await runtime.getById("Enquetes", values[0]);
       assert(poll, "Enquete não encontrada.");
@@ -707,6 +879,13 @@ export function createAdvancedHandlers() {
       const values = dropClientToken(args);
       const [storeId, month] = values;
       scopeRecord(profile, { LojaID: storeId });
+      assert(/^\d{4}-\d{2}$/.test(String(month || "")), "Informe o mês.");
+      const existing = (await runtime.list("FechamentosMensais", { profile })).find(
+        (item) => item.LojaID === storeId && item.AnoMes === month,
+      );
+      if (existing?.Status === "Fechado") {
+        return success(existing, "Este mês já está fechado.");
+      }
       const context = await clockContext({ month });
       const employees = context.employees.filter(
         (item) => item.LojaID === storeId,
@@ -716,13 +895,7 @@ export function createAdvancedHandlers() {
           (employee) => employee.FuncionarioID === item.funcionarioId,
         ),
       );
-      const saved = await runtime.upsert("FechamentosMensais", {
-        FechamentoID: uuid(),
-        AnoMes: month,
-        LojaID: storeId,
-        GeradoEm: nowIso(),
-        GeradoPor: profile.Email,
-        HashSHA256: "",
+      const summary = {
         TotalFuncionarios: employees.length,
         TotalHorasTrabalhadas:
           Math.round(
@@ -750,6 +923,19 @@ export function createAdvancedHandlers() {
             item.previstoMinutos > 0 &&
             item.trabalhadoMinutos === 0,
         ).length,
+      };
+      const saved = await runtime.upsert("FechamentosMensais", {
+        ...(existing || {}),
+        FechamentoID:
+          existing?.FechamentoID || `fechamento-${storeId}-${month}`,
+        AnoMes: month,
+        LojaID: storeId,
+        GeradoEm: nowIso(),
+        GeradoPor: profile.Email,
+        HashSHA256: await sha256(
+          JSON.stringify({ LojaID: storeId, AnoMes: month, ...summary }),
+        ),
+        ...summary,
         Status: "Fechado",
         Observacoes: "",
       });
@@ -855,6 +1041,17 @@ export function createAdvancedHandlers() {
       const [employeeId, date, hours] = values;
       const employee = await employeeById(employeeId);
       scopeRecord(profile, employee);
+      const numericHours = Number(hours);
+      assert(
+        /^\d{4}-\d{2}-\d{2}$/.test(String(date || "")),
+        "Informe uma data válida.",
+      );
+      assert(
+        Number.isFinite(numericHours) &&
+          numericHours >= 0.5 &&
+          numericHours <= 24,
+        "Informe de 0,5 a 24 horas.",
+      );
       const saved = await runtime.upsert("BancoHorasMovimentos", {
         MovID: uuid(),
         FuncionarioID: employee.FuncionarioID,
@@ -862,7 +1059,7 @@ export function createAdvancedHandlers() {
         Data: date,
         HorasTrabalhadas: 0,
         JornadaContratual: 0,
-        SaldoDia: -Math.abs(Number(hours || 0)),
+        SaldoDia: -Math.abs(numericHours),
         SaldoAcumulado: 0,
         Origem: "Compensação de folga",
         Observacao: `Compensação registrada por ${profile.Email}`,
