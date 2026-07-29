@@ -89,6 +89,22 @@ test("ponto consulta somente os meses necessários", async () => {
   );
 });
 
+test("login continua se a gravação do último acesso for negada", async () => {
+  const runtime = await readFile(
+    new URL("../src/core/runtime.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(runtime, /const isPermissionDenied = \(error\)/);
+  assert.match(
+    runtime,
+    /try \{[\s\S]*?UltimoAcesso: nowIso\(\)[\s\S]*?if \(!isPermissionDenied\(error\)\) throw error;/,
+  );
+  assert.doesNotMatch(
+    runtime,
+    /update\(this\.appRef\(`access\/\$\{pathKey\(credential\.user\.uid\)\}`\), \{\s*FotoPerfil:/,
+  );
+});
+
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /Gestão de Folgas/);
