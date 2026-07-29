@@ -21,7 +21,7 @@ const [template, styles, dialogs, scripts] = await Promise.all([
 let html = template
   .replace(
     /<meta\s+name="app-version"\s+content="[\s\S]*?"\s*\/>/,
-    '<meta name="app-version" content="6.0.0-firebase-github" />',
+    '<meta name="app-version" content="6.0.1-firebase-github" />',
   )
   .replace(
     /<title>[\s\S]*?<\/title>/,
