@@ -505,9 +505,9 @@ export function createArenaHandlers() {
         gameId: payload.gameId,
         gameName: game.name,
         gameVersion: "github-1.0",
-        ranked: Number(daily?.Partidas || 0) < 20,
+        ranked: false,
         playedToday: Number(daily?.Partidas || 0),
-        rankedLimit: 20,
+        rankedLimit: 0,
         products: ARENA_PRODUCTS,
         ingredients: ARENA_INGREDIENTS,
         player: { name: profile.Nome, storeName: profile.NomeLoja },
@@ -527,8 +527,10 @@ export function createArenaHandlers() {
         "ArenaRanking",
         rankingId("dia", periodKeys().dia, profile.UsuarioID),
       );
-      const ranked = Number(daily?.Partidas || 0) < 20 && result.hits > 0;
-      if (ranked) await saveArenaResult(profile, run.gameId, result);
+      // Em uma aplicação estática, a pontuação calculada no navegador não
+      // pode ser validada com segurança. A partida continua recreativa, sem
+      // gravar resultados competitivos manipuláveis no ranking global.
+      const ranked = false;
       await runtime.removePath(
         `arenaRuns/${profile.UsuarioID}/${payload.token}`,
       );
@@ -544,8 +546,8 @@ export function createArenaHandlers() {
         ranked,
         personalBest: Number(overview.me?.score || result.score),
         myPosition: overview.myPosition || 0,
-        rankedGamesToday: Number(daily?.Partidas || 0) + (ranked ? 1 : 0),
-        rankedLimit: 20,
+        rankedGamesToday: Number(daily?.Partidas || 0),
+        rankedLimit: 0,
       });
     },
 
