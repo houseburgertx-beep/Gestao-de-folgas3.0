@@ -328,11 +328,30 @@ async function bootstrap() {
   const employees = credited
     ? await runtime.list("Funcionarios", { profile })
     : initialEmployees;
+  const currentEmployee =
+    employees.find(
+      (employee) =>
+        (profile.FuncionarioID &&
+          String(employee.FuncionarioID || "") ===
+            String(profile.FuncionarioID)) ||
+        (profile.Email &&
+          normalizeEmail(employee.Email) === normalizeEmail(profile.Email)),
+    ) ||
+    employees[0] ||
+    {};
+  const ownStoreId = String(profile.LojaID || currentEmployee.LojaID || "");
+  const ownStoreName = String(
+    profile.NomeLoja || currentEmployee.NomeLoja || "",
+  );
+  const visibleStores =
+    stores.length || !ownStoreId
+      ? stores
+      : [{ LojaID: ownStoreId, NomeLoja: ownStoreName || "Minha loja", Ativa: true }];
   return {
     app: { name: APP.name, version: APP.version },
     user: sessionUser(profile),
     permissions: PERMISSIONS[profile.Perfil] || [],
-    stores,
+    stores: visibleStores,
     employees,
     timeOff,
     holidays,
