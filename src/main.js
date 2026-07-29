@@ -6,6 +6,7 @@ import houseLinkClient from "./legacy/HouseLinkClient.html?raw";
 import houseLinkStyles from "./legacy/HouseLinkStyles.html?raw";
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
+import "./pwa.js";
 import {
   firebaseConfigurationProblems,
   runtime,
@@ -17,7 +18,7 @@ const unwrap = (source, tag) =>
     .replace(new RegExp(`\\s*</${tag}>\\s*$`, "i"), "");
 
 const arenaBundle = () => ({
-  version: "6.1.2-firebase-github",
+  version: "6.1.3-firebase-github",
   css: [
     unwrap(arenaStyles, "style"),
     unwrap(arenaMobileStyles, "style"),
