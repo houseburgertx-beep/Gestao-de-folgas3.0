@@ -7,6 +7,7 @@ import { timeOffBalanceUnits } from "../src/core/api-base.js";
 import { periodFieldsFor } from "../src/core/runtime.js";
 import {
   balanceDays,
+  dayBalanceState,
   dayMetrics,
   firstPunchDatesByEmployee,
   operationalDayFor,
@@ -495,11 +496,64 @@ test("dashboard não desconta folgas aprovadas ou folgas fixas", () => {
     { saldoMinutos: 90, folga: false, folgaFixa: false },
     { saldoMinutos: -420, folga: false, folgaFixa: true },
     { saldoMinutos: -420, folga: true, folgaFixa: false },
+    {
+      saldoMinutos: -240,
+      folga: false,
+      folgaFixa: false,
+      saldoPendente: true,
+    },
   ]);
   assert.equal(
     counted.reduce((total, item) => total + item.saldoMinutos, 0),
     90,
   );
+});
+
+test("dia atual só entra no saldo depois da saída final", () => {
+  const schedule = { CargaDiariaMinutos: 240 };
+  const notStarted = dayBalanceState(
+    "2026-07-29",
+    dayMetrics([], schedule),
+    "2026-07-29",
+  );
+  const started = dayBalanceState(
+    "2026-07-29",
+    dayMetrics(
+      [
+        {
+          TipoMarcacao: "ENTRADA",
+          DataHora: "2026-07-29T08:00:00-03:00",
+        },
+      ],
+      schedule,
+    ),
+    "2026-07-29",
+  );
+  const completed = dayBalanceState(
+    "2026-07-29",
+    dayMetrics(
+      [
+        {
+          TipoMarcacao: "ENTRADA",
+          DataHora: "2026-07-29T08:00:00-03:00",
+        },
+        {
+          TipoMarcacao: "SAIDA_FINAL",
+          DataHora: "2026-07-29T12:00:00-03:00",
+        },
+      ],
+      schedule,
+    ),
+    "2026-07-29",
+  );
+
+  assert.deepEqual(notStarted, { pending: true, minutes: 0, text: "—" });
+  assert.deepEqual(started, { pending: true, minutes: 0, text: "—" });
+  assert.deepEqual(completed, {
+    pending: false,
+    minutes: 0,
+    text: "+0h 00min",
+  });
 });
 
 test("próxima folga mostra apenas a aprovada com dias e data", () => {

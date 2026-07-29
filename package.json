@@ -1,6 +1,6 @@
 {
   "name": "gestao-folgas-firebase",
-  "version": "6.1.1",
+  "version": "6.1.2",
   "private": true,
   "type": "module",
   "description": "Gestão de Folgas do Grupo House 190, convertida para GitHub Pages e Firebase.",

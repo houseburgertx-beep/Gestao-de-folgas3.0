@@ -170,7 +170,9 @@ const scheduleExpectedMinutes = (schedule) => {
 };
 
 const balanceDays = (days) =>
-  days.filter((item) => !item.folga && !item.folgaFixa);
+  days.filter(
+    (item) => !item.folga && !item.folgaFixa && !item.saldoPendente,
+  );
 
 const dayMetrics = (records, schedule) => {
   const ordered = records
@@ -214,6 +216,18 @@ const dayMetrics = (records, schedule) => {
     worked,
     expected,
     balance: worked - expected,
+    complete: !!entry && !!exit,
+  };
+};
+
+const dayBalanceState = (dateKey, metrics, currentDate = todayIso()) => {
+  const pending = dateKey === currentDate && !metrics.complete;
+  return {
+    pending,
+    minutes: pending ? 0 : metrics.balance,
+    text: pending
+      ? "—"
+      : (metrics.balance >= 0 ? "+" : "") + minutesText(metrics.balance),
   };
 };
 
@@ -366,6 +380,7 @@ async function clockContext(filters = {}) {
         continue;
       }
       const metrics = dayMetrics(rows, schedule);
+      const balanceState = dayBalanceState(dateKey, metrics);
       days.push({
         funcionarioId: employee.FuncionarioID,
         nome: employee.Nome,
@@ -378,9 +393,9 @@ async function clockContext(filters = {}) {
         trabalhadoTexto: minutesText(metrics.worked),
         previstoMinutos: metrics.expected,
         previstoTexto: minutesText(metrics.expected),
-        saldoMinutos: metrics.balance,
-        saldoTexto:
-          (metrics.balance >= 0 ? "+" : "") + minutesText(metrics.balance),
+        saldoMinutos: balanceState.minutes,
+        saldoTexto: balanceState.text,
+        saldoPendente: balanceState.pending,
         folga: !!approvedOff,
         folgaFixa: fixed,
       });
@@ -1024,6 +1039,7 @@ export function createClockHandlers() {
 export {
   balanceDays,
   clockContext,
+  dayBalanceState,
   dayMetrics,
   firstPunchDatesByEmployee,
   operationalDayFor,

@@ -17,7 +17,7 @@ const unwrap = (source, tag) =>
     .replace(new RegExp(`\\s*</${tag}>\\s*$`, "i"), "");
 
 const arenaBundle = () => ({
-  version: "6.1.1-firebase-github",
+  version: "6.1.2-firebase-github",
   css: [
     unwrap(arenaStyles, "style"),
     unwrap(arenaMobileStyles, "style"),
