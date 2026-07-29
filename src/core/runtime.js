@@ -3,6 +3,7 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   createUserWithEmailAndPassword,
+  deleteUser,
   EmailAuthProvider,
   getAuth,
   onAuthStateChanged,
@@ -62,17 +63,24 @@ const PERIOD_INDEX_MIGRATION = "timeClockPeriodIndexesV1";
 const pathKey = (value) =>
   encodeURIComponent(String(value || uuid())).replaceAll(".", "%2E");
 
-const snapshotList = (snapshot) => {
-  const value = snapshot.val() || {};
-  return Object.values(value)
-    .filter((item) => item && typeof item === "object")
-    .map(clone);
+const snapshotEntries = (snapshot) => {
+  const entries = [];
+  snapshot.forEach((child) => {
+    const value = child.val();
+    if (value && typeof value === "object") {
+      entries.push({ key: child.key, record: clone(value) });
+    }
+  });
+  return entries;
 };
+
+const snapshotList = (snapshot) =>
+  snapshotEntries(snapshot).map((entry) => entry.record);
 
 const validPeriod = (value) =>
   /^\d{4}-\d{2}$/.test(String(value || "")) ? String(value) : "";
 
-const isPermissionDenied = (error) =>
+export const isPermissionDenied = (error) =>
   /permission[-_\s]?denied/i.test(
     String(error?.code || error?.message || error || ""),
   );
@@ -120,6 +128,7 @@ export class FirebaseRuntime {
     this.authResolved = false;
     this.readyPromise = Promise.resolve(null);
     this.periodIndexMigrationPromise = null;
+    this.recordKeys = new Map();
   }
 
   initialize() {
@@ -163,7 +172,33 @@ export class FirebaseRuntime {
     if (!user) return null;
     if (this.profile && !force) return clone(this.profile);
     const snapshot = await get(this.appRef(`access/${pathKey(user.uid)}`));
-    const profile = snapshot.val();
+    let profile = snapshot.val();
+    if (profile?.FuncionarioID) {
+      try {
+        const employeeSnapshot = await get(
+          query(
+            this.appRef("tables/Funcionarios"),
+            orderByChild("FuncionarioID"),
+            equalTo(profile.FuncionarioID),
+          ),
+        );
+        const employee = snapshotList(employeeSnapshot)[0];
+        if (employee) {
+          profile = {
+            ...profile,
+            Nome: profile.Nome || employee.Nome || "",
+            Email: profile.Email || employee.Email || "",
+            LojaID: profile.LojaID || employee.LojaID || "",
+            NomeLoja: profile.NomeLoja || employee.NomeLoja || "",
+            Cargo: profile.Cargo || employee.Cargo || "",
+            Ativo:
+              asBoolean(profile.Ativo) && employee.Ativo !== false,
+          };
+        }
+      } catch (error) {
+        if (!isPermissionDenied(error)) throw error;
+      }
+    }
     this.profile = profile ? { ...profile, UsuarioID: user.uid } : null;
     return clone(this.profile);
   }
@@ -303,7 +338,7 @@ export class FirebaseRuntime {
     return clone(profile);
   }
 
-  async createAuthUser(email, password) {
+  async createAuthUser(email, password, provision = null) {
     const name = `Provisioning-${Date.now()}-${Math.random()
       .toString(36)
       .slice(2)}`;
@@ -315,8 +350,16 @@ export class FirebaseRuntime {
         normalizeEmail(email),
         password,
       );
-      await signOut(secondaryAuth);
-      return credential.user.uid;
+      try {
+        if (typeof provision === "function") {
+          await provision(credential.user.uid);
+        }
+        await signOut(secondaryAuth);
+        return credential.user.uid;
+      } catch (error) {
+        await deleteUser(credential.user).catch(() => {});
+        throw error;
+      }
     } finally {
       await deleteApp(secondaryApp);
     }
@@ -375,42 +418,105 @@ export class FirebaseRuntime {
     return clone(profile);
   }
 
-  async list(table, options = {}) {
-    const profile = options.profile || (await this.requireProfile());
+  async deleteAccess(uid) {
+    await remove(this.appRef(`access/${pathKey(uid)}`));
+    if (this.auth.currentUser?.uid === uid) this.profile = null;
+  }
+
+  recordCacheKey(table, id) {
+    return `${table}:${String(id || "")}`;
+  }
+
+  recordsFromSnapshot(table, snapshot) {
+    const idField = ID_FIELDS[table];
+    return snapshotEntries(snapshot).map(({ key, record }) => {
+      const id = idField ? record?.[idField] : "";
+      if (id) this.recordKeys.set(this.recordCacheKey(table, id), key);
+      return record;
+    });
+  }
+
+  async scopedRows(table, profile) {
     const tableRef = this.appRef(`tables/${table}`);
     if (isAdminProfile(profile) || PUBLIC_AUTH_TABLES.has(table)) {
-      return snapshotList(await get(tableRef));
+      return this.recordsFromSnapshot(table, await get(tableRef));
     }
 
     const storeId = String(profile.LojaID || "");
     const employeeId = String(profile.FuncionarioID || "");
-    if (table === "Lojas" && storeId) {
-      // O funcionário já recebe LojaID/NomeLoja no próprio perfil. Evite ler
-      // o cadastro administrativo completo da loja durante o login.
-      if (isEmployeeProfile(profile)) return [];
-      const record = await this.getById(table, storeId);
-      return record ? [record] : [];
+    if (table === "Lojas" && storeId && !isEmployeeProfile(profile)) {
+      try {
+        return this.recordsFromSnapshot(
+          table,
+          await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
+        );
+      } catch (error) {
+        // O bootstrap ainda consegue mostrar a loja sintética do perfil.
+        if (isPermissionDenied(error)) return [];
+        throw error;
+      }
     }
     if (table === "Funcionarios" && isEmployeeProfile(profile) && employeeId) {
-      const record = await this.getById(table, employeeId);
-      return record ? [record] : [];
+      return this.recordsFromSnapshot(
+        table,
+        await get(
+          query(
+            tableRef,
+            orderByChild("FuncionarioID"),
+            equalTo(employeeId),
+          ),
+        ),
+      );
+    }
+    if (["Comunicados", "Enquetes"].includes(table) && storeId) {
+      const snapshots = (
+        await Promise.all(
+          [storeId, ""].map(async (scopeId) => {
+            try {
+              return await get(
+                query(tableRef, orderByChild("LojaID"), equalTo(scopeId)),
+              );
+            } catch (error) {
+              // Acessos antigos podem não ter LojaID. O cadastro do funcionário
+              // continua utilizável, mas as regras só liberam comunicados globais.
+              if (isPermissionDenied(error)) return null;
+              throw error;
+            }
+          }),
+        )
+      ).filter(Boolean);
+      const idField = ID_FIELDS[table];
+      const unique = new Map();
+      snapshots
+        .flatMap((snapshot) => this.recordsFromSnapshot(table, snapshot))
+        .forEach((record) => {
+          unique.set(String(record?.[idField] || uuid()), record);
+        });
+      return [...unique.values()];
     }
 
     const storeField = STORE_SCOPED_FIELDS[table];
     if (isManagerProfile(profile) && storeId && storeField) {
-      return snapshotList(
+      return this.recordsFromSnapshot(
+        table,
         await get(query(tableRef, orderByChild(storeField), equalTo(storeId))),
       );
     }
     const employeeField = EMPLOYEE_SCOPED_FIELDS[table];
     if (employeeId && employeeField) {
-      return snapshotList(
+      return this.recordsFromSnapshot(
+        table,
         await get(
           query(tableRef, orderByChild(employeeField), equalTo(employeeId)),
         ),
       );
     }
     return [];
+  }
+
+  async list(table, options = {}) {
+    const profile = options.profile || (await this.requireProfile());
+    return this.scopedRows(table, profile);
   }
 
   async periodIndexesReady() {
@@ -481,7 +587,8 @@ export class FirebaseRuntime {
     if (!ready) return this.list(table, { profile });
 
     try {
-      return snapshotList(
+      return this.recordsFromSnapshot(
+        table,
         await get(
           query(
             this.appRef(`tables/${table}`),
@@ -520,10 +627,50 @@ export class FirebaseRuntime {
 
   async getById(table, id) {
     if (!id) return null;
-    const snapshot = await get(
-      this.appRef(`tables/${table}/${pathKey(id)}`),
+    const normalizedId = String(id);
+    const cachedKey = this.recordKeys.get(
+      this.recordCacheKey(table, normalizedId),
     );
-    return snapshot.val() ? clone(snapshot.val()) : null;
+    if (cachedKey) {
+      try {
+        const cached = await get(
+          this.appRef(`tables/${table}/${cachedKey}`),
+        );
+        if (cached.exists()) return clone(cached.val());
+        this.recordKeys.delete(this.recordCacheKey(table, normalizedId));
+      } catch (error) {
+        if (!isPermissionDenied(error)) throw error;
+      }
+    }
+
+    try {
+      const snapshot = await get(
+        this.appRef(`tables/${table}/${pathKey(normalizedId)}`),
+      );
+      if (snapshot.exists()) {
+        this.recordKeys.set(
+          this.recordCacheKey(table, normalizedId),
+          pathKey(normalizedId),
+        );
+        return clone(snapshot.val());
+      }
+    } catch (error) {
+      if (!isPermissionDenied(error)) throw error;
+    }
+
+    const profile = await this.requireProfile();
+    try {
+      const idField = ID_FIELDS[table];
+      const rows = await this.scopedRows(table, profile);
+      return (
+        rows.find(
+          (record) => String(record?.[idField] || "") === normalizedId,
+        ) || null
+      );
+    } catch (error) {
+      if (isPermissionDenied(error)) return null;
+      throw error;
+    }
   }
 
   async findOne(table, field, value) {
@@ -534,8 +681,16 @@ export class FirebaseRuntime {
         equalTo(value),
       ),
     );
-    const rows = snapshotList(snapshot);
+    const rows = this.recordsFromSnapshot(table, snapshot);
     return rows[0] || null;
+  }
+
+  async resolveStorageKey(table, id) {
+    const normalizedId = String(id || "");
+    const cacheKey = this.recordCacheKey(table, normalizedId);
+    if (this.recordKeys.has(cacheKey)) return this.recordKeys.get(cacheKey);
+    await this.getById(table, normalizedId);
+    return this.recordKeys.get(cacheKey) || pathKey(normalizedId);
   }
 
   async upsert(table, record) {
@@ -547,10 +702,9 @@ export class FirebaseRuntime {
       ...periodFieldsFor(table, record),
       [idField]: id,
     });
-    await set(
-      this.appRef(`tables/${table}/${pathKey(id)}`),
-      normalized,
-    );
+    const storageKey = await this.resolveStorageKey(table, id);
+    await set(this.appRef(`tables/${table}/${storageKey}`), normalized);
+    this.recordKeys.set(this.recordCacheKey(table, id), storageKey);
     return clone(normalized);
   }
 
@@ -564,6 +718,28 @@ export class FirebaseRuntime {
     });
   }
 
+  async patchMany(items = []) {
+    const changes = {};
+    const output = [];
+    for (const item of items) {
+      const { table, id, changes: recordChanges = {} } = item;
+      const current = await this.getById(table, id);
+      if (!current) throw new Error("Registro não encontrado.");
+      const idField = ID_FIELDS[table];
+      const normalized = cleanObject({
+        ...current,
+        ...recordChanges,
+        ...periodFieldsFor(table, { ...current, ...recordChanges }),
+        [idField]: id,
+      });
+      const storageKey = await this.resolveStorageKey(table, id);
+      changes[`tables/${table}/${storageKey}`] = normalized;
+      output.push(clone(normalized));
+    }
+    if (Object.keys(changes).length) await update(this.appRef(), changes);
+    return output;
+  }
+
   async applyEmployeeLeaveBalance({
     employeeId,
     movementKey,
@@ -575,8 +751,9 @@ export class FirebaseRuntime {
     if (!id || !rawKey) throw new Error("Movimento de saldo inválido.");
     const key = pathKey(rawKey);
     let outcome = null;
+    const storageKey = await this.resolveStorageKey("Funcionarios", id);
     const transaction = await runTransaction(
-      this.appRef(`tables/Funcionarios/${pathKey(id)}`),
+      this.appRef(`tables/Funcionarios/${storageKey}`),
       (current) => {
         if (!current || typeof current !== "object") return;
         const entries = {
@@ -631,7 +808,9 @@ export class FirebaseRuntime {
   }
 
   async delete(table, id) {
-    await remove(this.appRef(`tables/${table}/${pathKey(id)}`));
+    const storageKey = await this.resolveStorageKey(table, id);
+    await remove(this.appRef(`tables/${table}/${storageKey}`));
+    this.recordKeys.delete(this.recordCacheKey(table, id));
   }
 
   async saveBlob(category, id, value) {

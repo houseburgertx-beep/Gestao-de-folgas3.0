@@ -707,6 +707,23 @@
     $("#validateTimeOffButton").onclick = validateTimeOffForm;
     $("#timeOffStore").onchange = () =>
       fillEmployeeSelect("#timeOffEmployee", $("#timeOffStore").value);
+    $("#timeOffEmployee").onchange = () => {
+      if (isEmployee()) return;
+      const employee = state.employees.find(
+        (item) =>
+          String(idOf(item, "Funcionario")) ===
+          String($("#timeOffEmployee").value),
+      );
+      const storeId = val(employee, "LojaID", "lojaId");
+      if (
+        storeId &&
+        [...$("#timeOffStore").options].some(
+          (option) => String(option.value) === String(storeId),
+        )
+      ) {
+        $("#timeOffStore").value = storeId;
+      }
+    };
     $("#accessEmployee").onchange = syncAccessEmployee;
     $("#calendarPrev").onclick = () => moveCalendar(-1);
     $("#calendarNext").onclick = () => moveCalendar(1);
@@ -983,6 +1000,11 @@
       confirmation = $("#profileConfirmPassword").value,
       emailChanged =
         email !== String(val(state.user, "email", "Email")).toLowerCase();
+    if (emailChanged && newPassword)
+      return toast(
+        "Altere primeiro o e-mail ou a senha; faça uma alteração por vez.",
+        true,
+      );
     if (newPassword && newPassword.length < 10)
       return toast("A nova senha deve ter pelo menos 10 caracteres.", true);
     if (newPassword !== confirmation)
@@ -3214,12 +3236,14 @@
       : "Criar acesso";
     $("#accessName").value = val(x, "Nome", "nome");
     $("#accessEmail").value = val(x, "Email", "email");
+    $("#accessEmail").readOnly = !!user;
     $("#accessProfile").value = val(x, "Perfil", "perfil") || "Funcionário";
     $("#accessStore").value = val(x, "LojaID", "lojaId");
     $("#accessPassword").required = !user;
-    $("#accessPassword").placeholder = user
-      ? "Deixe vazio para manter a senha"
-      : "Mínimo 10 caracteres";
+    $("#accessPassword").value = "";
+    $("#accessPasswordField").classList.toggle("hidden", !!user);
+    $("#accessResetField").classList.toggle("hidden", !user);
+    $("#accessSendReset").checked = false;
     $("#accessActive").checked = user
       ? bool(val(user, "Ativo", "ativo"))
       : true;
@@ -3246,7 +3270,8 @@
         Email: $("#accessEmail").value,
         Perfil: $("#accessProfile").value,
         LojaID: $("#accessStore").value,
-        Senha: $("#accessPassword").value,
+        Senha: id ? "" : $("#accessPassword").value,
+        EnviarRedefinicao: !!id && $("#accessSendReset").checked,
         PrimeiroAcesso: $("#accessFirstLogin").checked,
         Ativo: $("#accessActive").checked,
       };
@@ -4643,6 +4668,29 @@
             `<option value="${esc(idOf(timeOff, "Folga"))}">${dateBR(val(timeOff, "DataInicio"))} — ${esc(val(timeOff, "NomeFuncionario"))}</option>`,
         )
         .join("");
+    const refreshDestinationTimeOff = () => {
+      const employee = state.swapCandidates.find(
+        (item) =>
+          String(idOf(item, "Funcionario")) ===
+          String($("#swapDestinationEmployee").value),
+      );
+      const timeOff = Array.isArray(employee && employee.folgas)
+        ? employee.folgas
+        : [];
+      $("#swapDestinationTimeOff").innerHTML =
+        '<option value="">Selecione a folga do colega</option>' +
+        timeOff
+          .filter(
+            (item) =>
+              statusClass(val(item, "Status")) === "approved" &&
+              iso(val(item, "DataInicio")) >= iso(new Date()).slice(0, 10),
+          )
+          .map(
+            (item) =>
+              `<option value="${esc(idOf(item, "Folga"))}">${dateBR(val(item, "DataInicio"))}</option>`,
+          )
+          .join("");
+    };
     const refreshDestination = () => {
       const source = own.find(
           (timeOff) =>
@@ -4665,8 +4713,10 @@
               `<option value="${esc(idOf(employee, "Funcionario"))}">${esc(val(employee, "Nome"))}</option>`,
           )
           .join("");
+      refreshDestinationTimeOff();
     };
     $("#swapSourceTimeOff").onchange = refreshDestination;
+    $("#swapDestinationEmployee").onchange = refreshDestinationTimeOff;
     refreshDestination();
     openDialog("swapDialog");
   }
@@ -4677,7 +4727,7 @@
       await call(FN.createSwap, {
         FolgaOrigemID: $("#swapSourceTimeOff").value,
         FuncionarioDestinoID: $("#swapDestinationEmployee").value,
-        DataFolgaDestino: $("#swapDestinationDate").value,
+        FolgaDestinoID: $("#swapDestinationTimeOff").value,
         Motivo: $("#swapReason").value,
       });
       closeDialog("swapDialog");
@@ -5575,9 +5625,13 @@
                           );
                         })
                         .join("")) +
-                  '</div><div class="poll-card-actions"><button class="btn btn-ghost" onclick="showPollResult_(' +
-                  pi +
-                  ',this)">Ver resultado</button></div><div id="poll-result-' +
+                  "</div>" +
+                  (isStoreManager()
+                    ? '<div class="poll-card-actions"><button class="btn btn-ghost" onclick="showPollResult_(' +
+                      pi +
+                      ',this)">Ver resultado</button></div>'
+                    : "") +
+                  '<div id="poll-result-' +
                   pi +
                   '" class="feature-result"></div></article>'
                 );

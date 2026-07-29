@@ -106,14 +106,58 @@ test("login continua se a gravação do último acesso for negada", async () => 
   );
 });
 
-test("login do funcionário não lê o cadastro administrativo da loja", async () => {
+test("login recupera a loja pelo cadastro do funcionário sem alterar o acesso", async () => {
   const runtime = await readFile(
     new URL("../src/core/runtime.js", import.meta.url),
     "utf8",
   );
   assert.match(
     runtime,
-    /if \(table === "Lojas" && storeId\) \{\s*[\s\S]*?if \(isEmployeeProfile\(profile\)\) return \[\];\s*[\s\S]*?this\.getById\(table, storeId\)/,
+    /this\.appRef\("tables\/Funcionarios"\)[\s\S]*?orderByChild\("FuncionarioID"\)[\s\S]*?equalTo\(profile\.FuncionarioID\)/,
+  );
+  assert.match(
+    runtime,
+    /LojaID: profile\.LojaID \|\| employee\.LojaID \|\| ""/,
+  );
+  assert.match(
+    runtime,
+    /table === "Lojas" && storeId && !isEmployeeProfile\(profile\)/,
+  );
+  assert.doesNotMatch(
+    runtime,
+    /saveAccess\([^)]*profile\.FuncionarioID[\s\S]*?employee\.LojaID/,
+  );
+});
+
+test("registros antigos conservam a chave física ao serem atualizados", async () => {
+  const runtime = await readFile(
+    new URL("../src/core/runtime.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(runtime, /recordsFromSnapshot\(table, snapshot\)/);
+  assert.match(
+    runtime,
+    /this\.recordKeys\.set\(this\.recordCacheKey\(table, id\), key\)/,
+  );
+  assert.match(runtime, /async resolveStorageKey\(table, id\)/);
+  assert.match(
+    runtime,
+    /const storageKey = await this\.resolveStorageKey\(table, id\);[\s\S]*?tables\/\$\{table\}\/\$\{storageKey\}/,
+  );
+});
+
+test("selecionar funcionário preenche a loja no pedido de folga", async () => {
+  const client = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    client,
+    /\$\("#timeOffEmployee"\)\.onchange = \(\) => \{[\s\S]*?val\(employee, "LojaID", "lojaId"\)[\s\S]*?\$\("#timeOffStore"\)\.value = storeId;/,
+  );
+  assert.match(
+    client,
+    /employeeStoreId \|\|[\s\S]*?idOf\(matchedEmployeeStore, "Loja"\)/,
   );
 });
 
@@ -337,6 +381,19 @@ test("regras restringem ponto ao próprio funcionário e a uma criação idempot
     rules,
     /\$table === 'Documentos'[\s\S]*newData\.child\('FuncionarioID'\)/,
   );
+  assert.match(rules, /newData\.child\('TipoMarcacao'\)\.val\(\) === 'SEM_DESCANSO'/);
+  assert.doesNotMatch(
+    rules,
+    /\$table === 'ArenaRanking' && newData\.child\('UsuarioID'\)/,
+  );
+  assert.match(
+    rules,
+    /\$table === 'EnquetesVotos'[\s\S]*?\$record === newData\.child\('VotoID'\)\.val\(\)/,
+  );
+  assert.match(
+    rules,
+    /\$table === 'Comunicados' \|\| \$table === 'Enquetes'\)[\s\S]*?query\.orderByChild === 'LojaID'/,
+  );
 });
 
 test("banco de horas usa a jornada líquida e arredonda apenas o total", () => {
@@ -365,6 +422,45 @@ test("banco de horas usa a jornada líquida e arredonda apenas o total", () => {
   );
   assert.equal(Math.round(metrics.worked), 475);
   assert.equal(Math.round(metrics.balance), 55);
+});
+
+test("ponto duplicado usa a última saída final válida", () => {
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-07-20T08:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-07-20T17:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-07-20T18:00:00-03:00" },
+    ],
+    { CargaDiariaMinutos: 480 },
+  );
+  assert.equal(metrics.worked, 600);
+  assert.equal(metrics.balance, 120);
+});
+
+test("troca de folga exige duas folgas e é aplicada atomicamente", async () => {
+  const [api, client, dialogs] = await Promise.all([
+    readFile(new URL("../src/core/api-advanced.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(dialogs, /id="swapDestinationTimeOff"/);
+  assert.match(client, /FolgaDestinoID: \$\("#swapDestinationTimeOff"\)\.value/);
+  assert.match(api, /FolgaDestinoOriginalID: destinationTimeOff\.FolgaID/);
+  assert.match(api, /await runtime\.patchMany\(\[/);
+  assert.match(api, /Status: "Aprovada"[\s\S]*?Troca aprovada e aplicada/);
+});
+
+test("redefinição de senha existente usa link e preserva o e-mail vinculado", async () => {
+  const [api, client, dialogs] = await Promise.all([
+    readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(dialogs, /id="accessSendReset"/);
+  assert.match(client, /\$\("#accessEmail"\)\.readOnly = !!user/);
+  assert.match(api, /Email: normalizeEmail\(current\.Email\)/);
+  assert.match(api, /runtime\.sendPasswordReset\(current\.Email\)/);
+  assert.match(api, /Altere o e-mail e a senha em etapas separadas/);
 });
 
 test("dashboard não desconta folgas aprovadas ou folgas fixas", () => {

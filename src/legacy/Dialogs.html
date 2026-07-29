@@ -572,12 +572,15 @@
           >Loja<select id="accessStore">
             <option value="">Todas / não aplicável</option>
           </select></label
-        ><label
-          >Senha provisória<input
+        ><label id="accessPasswordField"
+          >Senha inicial<input
             id="accessPassword"
             type="password"
             minlength="10"
             placeholder="Mínimo 10 caracteres" /></label
+        ><label id="accessResetField" class="switch-label hidden"
+          ><input id="accessSendReset" type="checkbox" /> Enviar link seguro
+          para redefinição de senha</label
         ><label class="switch-label"
           ><input id="accessFirstLogin" type="checkbox" checked /> Exigir troca
           no primeiro acesso</label
@@ -776,11 +779,11 @@
           ></select
         ></label>
         <label class="full"
-          >Folga aprovada do colega em<input
-            id="swapDestinationDate"
-            type="date"
+          >Folga aprovada do colega<select
+            id="swapDestinationTimeOff"
             required
-        /></label>
+          ></select
+        ></label>
         <label class="full"
           >Motivo<textarea
             id="swapReason"

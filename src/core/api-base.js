@@ -1,5 +1,5 @@
 import { APP, PERMISSIONS } from "./constants.js";
-import { runtime } from "./runtime.js";
+import { isPermissionDenied, runtime } from "./runtime.js";
 import {
   asBoolean,
   assert,
@@ -343,20 +343,28 @@ async function bootstrap() {
   const ownStoreName = String(
     profile.NomeLoja || currentEmployee.NomeLoja || "",
   );
+  const effectiveProfile = {
+    ...profile,
+    Nome: profile.Nome || currentEmployee.Nome || "",
+    Email: profile.Email || currentEmployee.Email || "",
+    LojaID: ownStoreId,
+    NomeLoja: ownStoreName,
+    Cargo: profile.Cargo || currentEmployee.Cargo || "",
+  };
   const visibleStores =
     stores.length || !ownStoreId
       ? stores
       : [{ LojaID: ownStoreId, NomeLoja: ownStoreName || "Minha loja", Ativa: true }];
   return {
     app: { name: APP.name, version: APP.version },
-    user: sessionUser(profile),
+    user: sessionUser(effectiveProfile),
     permissions: PERMISSIONS[profile.Perfil] || [],
     stores: visibleStores,
     employees,
     timeOff,
     holidays,
     users: [],
-    dashboard: dashboardFrom(stores, employees, timeOff),
+    dashboard: dashboardFrom(visibleStores, employees, timeOff),
     deferred: false,
     usersDeferred: isAdmin(profile),
     performance: { mode: "firebase-direct", serverMs: 0 },
@@ -414,6 +422,191 @@ const normalizeEmployee = async (payload, current, profile) => {
   };
 };
 
+const configValue = (rows, key, fallback) => {
+  const record = rows.find(
+    (item) =>
+      String(item.Chave || "").trim().toLowerCase() === key.toLowerCase(),
+  );
+  return record ? record.Valor : fallback;
+};
+
+const dayDistance = (from, to) => {
+  const first = new Date(`${from}T12:00:00`).getTime();
+  const last = new Date(`${to}T12:00:00`).getTime();
+  return Number.isFinite(first) && Number.isFinite(last)
+    ? Math.round((last - first) / 86400000)
+    : 0;
+};
+
+const dateKey = (value) => String(value || "").slice(0, 10);
+
+const weekdayLabels = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+];
+
+const operationalRuleMatches = (rule, employee, day) => {
+  if (!asBoolean(rule.Ativa)) return false;
+  if (rule.LojaID && String(rule.LojaID) !== String(employee.LojaID)) {
+    return false;
+  }
+  if (
+    rule.Cargo &&
+    String(rule.Cargo).toLowerCase() !== String(employee.Cargo || "").toLowerCase()
+  ) {
+    return false;
+  }
+  const configuredDay = String(rule.DiaSemana || "Todos").toLowerCase();
+  if (!configuredDay || configuredDay === "todos") return true;
+  const weekday = new Date(`${day}T12:00:00`).getDay();
+  return (
+    configuredDay === String(weekday) ||
+    weekdayLabels[weekday].toLowerCase().startsWith(configuredDay.slice(0, 5))
+  );
+};
+
+const validateTimeOffPolicies = async ({
+  profile,
+  employee,
+  start,
+  end,
+  current = null,
+  approving = false,
+}) => {
+  const requestedDays = dateRange(start, end);
+  const employeeRequest = role(profile).includes("funcion");
+  const [config, holidays] = await Promise.all([
+    runtime.list("Configuracoes", { profile }),
+    runtime.list("Feriados", { profile }),
+  ]);
+
+  if (employeeRequest && !current) {
+    const today = todayIso();
+    const minimum = Math.max(
+      0,
+      Number(configValue(config, "Prazo mínimo de antecedência", 0)),
+    );
+    const maximum = Math.max(
+      minimum,
+      Number(configValue(config, "Prazo máximo para pedido", 180)),
+    );
+    const distance = dayDistance(today, start);
+    assert(
+      distance >= minimum,
+      `O pedido precisa ser feito com pelo menos ${minimum} dia(s) de antecedência.`,
+    );
+    assert(
+      distance <= maximum,
+      `O pedido só pode ser feito com até ${maximum} dia(s) de antecedência.`,
+    );
+    if (
+      !asBoolean(
+        configValue(config, "Permitir pedidos aos fins de semana", false),
+      )
+    ) {
+      assert(
+        !requestedDays.some((day) =>
+          [0, 6].includes(new Date(`${day}T12:00:00`).getDay()),
+        ),
+        "Pedidos de folga aos fins de semana não estão permitidos.",
+      );
+    }
+    if (
+      !asBoolean(configValue(config, "Permitir folga em feriado", true))
+    ) {
+      const holidayDays = new Set(
+        holidays
+          .filter((item) => item.Ativo !== false)
+          .filter(
+            (item) =>
+              !item.LojaID || String(item.LojaID) === String(employee.LojaID),
+          )
+          .map((item) => String(item.Data || "").slice(0, 10)),
+      );
+      assert(
+        !requestedDays.some((day) => holidayDays.has(day)),
+        "Pedidos de folga em feriados não estão permitidos.",
+      );
+    }
+  }
+
+  if (!approving) return;
+  const [store, records, employees, rules] = await Promise.all([
+    runtime.getById("Lojas", employee.LojaID),
+    runtime.list("Folgas", { profile }),
+    runtime.list("Funcionarios", { profile }),
+    runtime.list("RegrasOperacionais", { profile }),
+  ]);
+  const baseLimit = Math.max(
+    1,
+    Number(
+      store?.LimiteFolgasPorDia ||
+        configValue(
+          config,
+          "Limite padrão de funcionários de folga por dia",
+          1,
+        ),
+    ),
+  );
+  const activeEmployees = employees.filter(
+    (item) =>
+      asBoolean(item.Ativo) &&
+      String(item.LojaID) === String(employee.LojaID),
+  );
+
+  requestedDays.forEach((day) => {
+    const matchingRules = rules.filter((rule) =>
+      operationalRuleMatches(rule, employee, day),
+    );
+    const blockingRules = matchingRules.filter((rule) =>
+      String(rule.ModoValidacao || "Bloquear")
+        .toLowerCase()
+        .includes("bloque"),
+    );
+    const configuredLimits = blockingRules
+      .map((rule) => Number(rule.LimiteFolgasDia || 0))
+      .filter((value) => value > 0);
+    const dailyLimit = configuredLimits.length
+      ? Math.min(baseLimit, ...configuredLimits)
+      : baseLimit;
+    const approvedEmployeeIds = new Set(
+      records
+        .filter(
+          (item) =>
+            item.FolgaID !== current?.FolgaID &&
+            item.Status === APP.status.approved &&
+            String(item.LojaID) === String(employee.LojaID) &&
+            dateKey(item.DataInicio) <= day &&
+            dateKey(item.DataFim || item.DataInicio) >= day,
+        )
+        .map((item) => item.FuncionarioID),
+    );
+    approvedEmployeeIds.add(employee.FuncionarioID);
+    assert(
+      approvedEmployeeIds.size <= dailyLimit,
+      `O limite de ${dailyLimit} funcionário(s) de folga em ${day} foi atingido.`,
+    );
+    const requiredWorking = Math.max(
+      0,
+      ...blockingRules.map((rule) => Number(rule.MinimoTrabalhando || 0)),
+    );
+    if (requiredWorking) {
+      const working = activeEmployees.filter(
+        (item) => !approvedEmployeeIds.has(item.FuncionarioID),
+      ).length;
+      assert(
+        working >= requiredWorking,
+        `A aprovação deixaria somente ${working} funcionário(s) trabalhando em ${day}; o mínimo é ${requiredWorking}.`,
+      );
+    }
+  });
+};
+
 const createOrUpdateTimeOff = async (payload, current = null) => {
   const profile = await runtime.requireProfile();
   const employeeId =
@@ -439,12 +632,43 @@ const createOrUpdateTimeOff = async (payload, current = null) => {
       item.FolgaID !== current?.FolgaID &&
       item.FuncionarioID === employeeId &&
       ![APP.status.cancelled, APP.status.rejected].includes(item.Status) &&
-      String(item.DataInicio) <= end &&
-      String(item.DataFim || item.DataInicio) >= start,
+      dateKey(item.DataInicio) <= end &&
+      dateKey(item.DataFim || item.DataInicio) >= start,
   );
   assert(!conflict, "Já existe uma folga deste funcionário nesse período.");
 
   const employeeRequest = role(profile).includes("funcion");
+  const type = payload.TipoFolga || current?.TipoFolga || "Folga";
+  const period = payload.Periodo || current?.Periodo || "Dia inteiro";
+  if (
+    employeeRequest &&
+    !asBoolean(
+      configValue(
+        await runtime.list("Configuracoes", { profile }),
+        "Permitir meia folga",
+        true,
+      ),
+    )
+  ) {
+    assert(
+      !String(type).toLowerCase().includes("meia") &&
+        !["manhã", "manha", "tarde", "personalizado"].includes(
+          String(period).toLowerCase(),
+        ),
+      "Pedidos de meia folga não estão permitidos.",
+    );
+  }
+  const intendedStatus =
+    current?.Status ||
+    (employeeRequest ? APP.status.pending : payload.Status || APP.status.approved);
+  await validateTimeOffPolicies({
+    profile,
+    employee,
+    start,
+    end,
+    current,
+    approving: intendedStatus === APP.status.approved,
+  });
   return {
     ...(current || {}),
     ...payload,
@@ -456,13 +680,11 @@ const createOrUpdateTimeOff = async (payload, current = null) => {
     NomeLoja: employee.NomeLoja,
     DataInicio: start,
     DataFim: end,
-    TipoFolga: payload.TipoFolga || "Folga",
-    Periodo: payload.Periodo || "Dia inteiro",
+    TipoFolga: type,
+    Periodo: period,
     Motivo: String(payload.Motivo || ""),
     Origem: employeeRequest ? "Pedido do funcionário" : payload.Origem || "Manual",
-    Status:
-      current?.Status ||
-      (employeeRequest ? APP.status.pending : payload.Status || APP.status.approved),
+    Status: intendedStatus,
     SolicitadoPor: current?.SolicitadoPor || profile.Email,
     DataSolicitacao: current?.DataSolicitacao || nowIso(),
     DataCriacao: current?.DataCriacao || nowIso(),
@@ -476,6 +698,25 @@ const timeOffDecision = async (id, approved, observation = "") => {
   const current = await runtime.getById("Folgas", id);
   assert(current, "Pedido de folga não encontrado.");
   scopeRecord(profile, current);
+  assert(
+    current.Status === APP.status.pending,
+    "Somente pedidos pendentes podem receber uma decisão.",
+  );
+  if (approved) {
+    const employee = await runtime.getById(
+      "Funcionarios",
+      current.FuncionarioID,
+    );
+    assert(employee, "Funcionário não encontrado.");
+    await validateTimeOffPolicies({
+      profile,
+      employee,
+      start: current.DataInicio,
+      end: current.DataFim || current.DataInicio,
+      current,
+      approving: true,
+    });
+  }
   const updated = await runtime.patch("Folgas", id, {
     Status: approved ? APP.status.approved : APP.status.rejected,
     AprovadoPor: profile.Email,
@@ -483,7 +724,12 @@ const timeOffDecision = async (id, approved, observation = "") => {
     ObservacaoAprovacao: String(observation || ""),
     DataAtualizacao: nowIso(),
   });
-  await reconcileTimeOffBalance(updated, profile);
+  try {
+    await reconcileTimeOffBalance(updated, profile);
+  } catch (error) {
+    await runtime.upsert("Folgas", current).catch(() => {});
+    throw error;
+  }
   await createNotification({
     employeeId: updated.FuncionarioID,
     email: updated.EmailFuncionario,
@@ -494,7 +740,9 @@ const timeOffDecision = async (id, approved, observation = "") => {
     }.`,
     type: "Folga",
     relatedId: id,
-  });
+  }).catch((error) =>
+    console.warn("Notificação da decisão não gravada:", error.message),
+  );
   await audit(
     approved ? "Aprovar folga" : "Rejeitar folga",
     "Folgas",
@@ -780,7 +1028,12 @@ export function createBaseHandlers(getArenaBundle) {
         await createOrUpdateTimeOff(args[0] || {}),
       );
       if (isManager(profile)) {
-        await reconcileTimeOffBalance(saved, profile);
+        try {
+          await reconcileTimeOffBalance(saved, profile);
+        } catch (error) {
+          await runtime.delete("Folgas", saved.FolgaID).catch(() => {});
+          throw error;
+        }
       }
       await audit("Criar folga", "Folgas", saved.FolgaID, { after: saved });
       return success(saved, "Folga criada.");
@@ -792,6 +1045,9 @@ export function createBaseHandlers(getArenaBundle) {
         "Folgas",
         await createOrUpdateTimeOff(values[0] || {}),
       );
+      await audit("Solicitar folga", "Folgas", saved.FolgaID, {
+        after: saved,
+      });
       return success(saved, "Pedido de folga enviado.");
     },
 
@@ -817,7 +1073,12 @@ export function createBaseHandlers(getArenaBundle) {
         await createOrUpdateTimeOff(payload || {}, current),
       );
       if (isManager(profile)) {
-        await reconcileTimeOffBalance(saved, profile);
+        try {
+          await reconcileTimeOffBalance(saved, profile);
+        } catch (error) {
+          await runtime.upsert("Folgas", current).catch(() => {});
+          throw error;
+        }
       }
       await audit("Atualizar folga", "Folgas", id, {
         before: current,
@@ -846,7 +1107,12 @@ export function createBaseHandlers(getArenaBundle) {
         DataAtualizacao: nowIso(),
       });
       if (isManager(profile)) {
-        await reconcileTimeOffBalance(saved, profile);
+        try {
+          await reconcileTimeOffBalance(saved, profile);
+        } catch (error) {
+          await runtime.upsert("Folgas", current).catch(() => {});
+          throw error;
+        }
       }
       await audit("Cancelar folga", "Folgas", id, {
         before: current,
@@ -891,7 +1157,7 @@ export function createBaseHandlers(getArenaBundle) {
 
     async createHoliday(args) {
       const profile = await runtime.requireProfile();
-      requireManager(profile);
+      requireAdmin(profile);
       const payload = args[0] || {};
       const saved = await runtime.upsert("Feriados", {
         ...payload,
@@ -908,7 +1174,7 @@ export function createBaseHandlers(getArenaBundle) {
 
     async updateHoliday(args) {
       const profile = await runtime.requireProfile();
-      requireManager(profile);
+      requireAdmin(profile);
       const [id, payload] = args;
       const current = await runtime.getById("Feriados", id);
       assert(current, "Feriado não encontrado.");
@@ -1022,32 +1288,50 @@ export function createBaseHandlers(getArenaBundle) {
         String(payload.Senha || "").length >= 10,
         "A senha inicial deve ter pelo menos 10 caracteres.",
       );
-      const uid = await runtime.createAuthUser(payload.Email, payload.Senha);
       const employee = payload.FuncionarioID
         ? await runtime.getById("Funcionarios", payload.FuncionarioID)
         : null;
-      const saved = {
-        UsuarioID: uid,
-        FuncionarioID: payload.FuncionarioID || "",
-        Nome: payload.Nome || employee?.Nome || "",
-        Email: normalizeEmail(payload.Email || employee?.Email),
-        Perfil: payload.Perfil || employee?.Perfil || APP.profiles.employee,
-        LojaID: payload.LojaID || employee?.LojaID || "",
-        NomeLoja: employee?.NomeLoja || "",
-        Cargo: employee?.Cargo || "",
-        PrimeiroAcesso: payload.PrimeiroAcesso !== false,
-        Ativo: payload.Ativo !== false,
-        DataCriacao: nowIso(),
-        DataAtualizacao: nowIso(),
-      };
-      await runtime.saveAccess(uid, saved);
-      if (employee) {
-        await runtime.patch("Funcionarios", employee.FuncionarioID, {
-          AuthUID: uid,
-          Email: saved.Email,
-          Perfil: saved.Perfil,
-        });
+      if (payload.FuncionarioID) {
+        assert(employee, "Funcionário não encontrado.");
       }
+      let saved = null;
+      const uid = await runtime.createAuthUser(
+        payload.Email,
+        payload.Senha,
+        async (createdUid) => {
+          saved = {
+            UsuarioID: createdUid,
+            FuncionarioID: payload.FuncionarioID || "",
+            Nome: payload.Nome || employee?.Nome || "",
+            Email: normalizeEmail(payload.Email || employee?.Email),
+            Perfil: payload.Perfil || employee?.Perfil || APP.profiles.employee,
+            LojaID: payload.LojaID || employee?.LojaID || "",
+            NomeLoja: employee?.NomeLoja || "",
+            Cargo: employee?.Cargo || "",
+            PrimeiroAcesso: payload.PrimeiroAcesso !== false,
+            Ativo: payload.Ativo !== false,
+            DataCriacao: nowIso(),
+            DataAtualizacao: nowIso(),
+          };
+          let accessCreated = false;
+          try {
+            await runtime.saveAccess(createdUid, saved);
+            accessCreated = true;
+            if (employee) {
+              await runtime.patch("Funcionarios", employee.FuncionarioID, {
+                AuthUID: createdUid,
+                Email: saved.Email,
+                Perfil: saved.Perfil,
+              });
+            }
+          } catch (error) {
+            if (accessCreated) {
+              await runtime.deleteAccess(createdUid).catch(() => {});
+            }
+            throw error;
+          }
+        },
+      );
       await audit("Criar acesso", "Usuarios", uid, { after: saved });
       return success(saved, "Acesso criado.");
     },
@@ -1063,14 +1347,17 @@ export function createBaseHandlers(getArenaBundle) {
         ...current,
         ...payload,
         UsuarioID: id,
-        Email: normalizeEmail(payload.Email || current.Email),
+        // O administrador não consegue trocar com segurança o e-mail do
+        // Firebase Auth de outra pessoa. Preserve o endereço já vinculado.
+        Email: normalizeEmail(current.Email),
         Ativo: payload.Ativo !== false,
         DataAtualizacao: nowIso(),
       };
       delete saved.Senha;
+      delete saved.EnviarRedefinicao;
       await runtime.saveAccess(id, saved);
-      if (payload.Senha) {
-        await runtime.sendPasswordReset(saved.Email);
+      if (asBoolean(payload.EnviarRedefinicao)) {
+        await runtime.sendPasswordReset(current.Email);
       }
       if (saved.FuncionarioID) {
         await runtime.patch("Funcionarios", saved.FuncionarioID, {
@@ -1104,15 +1391,15 @@ export function createBaseHandlers(getArenaBundle) {
           "A confirmação da nova senha não confere.",
         );
       }
-      await runtime.updateOwnAuth({
-        email,
-        password,
-        currentPassword:
-          payload.SenhaAtual ||
-          payload.senhaAtual ||
-          payload.currentPassword ||
-          "",
-      });
+      const currentPassword =
+        payload.SenhaAtual ||
+        payload.senhaAtual ||
+        payload.currentPassword ||
+        "";
+      assert(
+        !password || email === normalizeEmail(profile.Email),
+        "Altere o e-mail e a senha em etapas separadas.",
+      );
       const saved = {
         ...profile,
         Email: email,
@@ -1121,11 +1408,30 @@ export function createBaseHandlers(getArenaBundle) {
         DataAtualizacao: nowIso(),
       };
       await runtime.saveAccess(profile.UsuarioID, saved);
-      if (saved.FuncionarioID) {
-        await runtime.patch("Funcionarios", saved.FuncionarioID, {
-          Email: email,
-          DataAtualizacao: nowIso(),
+      try {
+        await runtime.updateOwnAuth({
+          email,
+          password,
+          currentPassword,
         });
+      } catch (error) {
+        await runtime.saveAccess(profile.UsuarioID, profile).catch(() => {});
+        throw error;
+      }
+      if (saved.FuncionarioID) {
+        await runtime
+          .patch("Funcionarios", saved.FuncionarioID, {
+            Email: email,
+            DataAtualizacao: nowIso(),
+          })
+          .catch((error) => {
+            if (!isPermissionDenied(error)) {
+              console.warn(
+                "Cadastro administrativo não sincronizado:",
+                error.message,
+              );
+            }
+          });
       }
       return success(saved, "Perfil atualizado.");
     },
