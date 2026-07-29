@@ -185,12 +185,33 @@
   (function setupAppDownloadGuide() {
     const ua = navigator.userAgent || "";
     const isIOS = /iphone|ipad|ipod/i.test(ua);
+    const isIOSSafari =
+      isIOS &&
+      /safari/i.test(ua) &&
+      !/crios|fxios|edgios|opios/i.test(ua);
     const isInApp = /FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua);
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       navigator.standalone === true;
+    const INSTALL_NOTICE_KEY = "house-pwa-install-notice-seen-v1";
     let installPrompt = null;
     let installButton = null;
+
+    function hasSeenInstallNotice() {
+      try {
+        return localStorage.getItem(INSTALL_NOTICE_KEY) === "1";
+      } catch {
+        return false;
+      }
+    }
+
+    function rememberInstallNotice() {
+      try {
+        localStorage.setItem(INSTALL_NOTICE_KEY, "1");
+      } catch {
+        // O aviso continua funcional mesmo quando o armazenamento é bloqueado.
+      }
+    }
 
     window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
@@ -200,6 +221,7 @@
 
     window.addEventListener("appinstalled", () => {
       installPrompt = null;
+      rememberInstallNotice();
       if (installButton) installButton.classList.add("hidden");
       if (typeof toast === "function") {
         toast("Aplicativo instalado com sucesso.");
@@ -210,28 +232,37 @@
       const overlay = document.createElement("div");
       overlay.className = "app-download-overlay";
       const steps = isIOS
-        ? "<li><b>1</b><span>Toque no ícone de <strong>compartilhar</strong> do navegador.</span></li><li><b>2</b><span>Escolha <strong>Adicionar à Tela de Início</strong>.</span></li><li><b>3</b><span>Confirme em <strong>Adicionar</strong>.</span></li>"
+        ? "<li><b>1</b><span>Se houver um atalho antigo, apague-o da tela inicial.</span></li><li><b>2</b><span>Abra este endereço no <strong>Safari</strong> e toque em <strong>Compartilhar</strong>.</span></li><li><b>3</b><span>Escolha <strong>Adicionar à Tela de Início</strong>.</span></li><li><b>4</b><span>Confira a imagem do ícone e confirme em <strong>Adicionar</strong>.</span></li>"
         : "<li><b>1</b><span>Abra o menu <strong>⋮</strong> do navegador.</span></li><li><b>2</b><span>Escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</span></li>";
-      const warn = isInApp
-        ? '<p class="app-download-warning"><span>!</span> Abra esta página no Safari ou Chrome para criar o atalho. Navegadores internos de WhatsApp e Instagram podem ocultar essa opção.</p>'
+      const warningText = isInApp
+        ? "Abra esta página no Safari. Navegadores internos de WhatsApp e Instagram podem ocultar a instalação."
+        : isIOS && !isIOSSafari
+          ? "No iPhone, abra este endereço no Safari para instalar com a imagem correta."
+          : "";
+      const warn = warningText
+        ? `<p class="app-download-warning"><span>!</span> ${warningText}</p>`
         : "";
       overlay.innerHTML =
         '<section class="app-download-sheet" role="dialog" aria-modal="true" aria-labelledby="appDownloadTitle">' +
         '<div class="app-download-handle"></div>' +
         '<button class="app-download-close" type="button" aria-label="Fechar">×</button>' +
-        '<div class="app-download-hero"><span>↓</span></div>' +
+        '<div class="app-download-hero"><img src="./icons/app-icon-192.png" alt="" /></div>' +
         '<span class="eyebrow">APLICATIVO INSTALÁVEL</span>' +
         '<h3 id="appDownloadTitle">Instale a Gestão de Folgas</h3>' +
-        '<p class="app-download-subtitle">Abra o sistema em tela cheia, diretamente pelo ícone do celular.</p>' +
+        '<p class="app-download-subtitle">Funcionários e gerentes podem abrir o sistema em tela cheia, diretamente pelo ícone do celular.</p>' +
         warn +
         '<ol class="app-download-steps">' +
         steps +
         "</ol>" +
-        '<button class="btn btn-primary app-download-done" type="button">Entendi</button>' +
+        `<button class="btn btn-primary app-download-done" type="button">${installPrompt ? "Instalar agora" : "Entendi"}</button>` +
         "</section>";
       const close = () => overlay.remove();
       overlay.querySelector(".app-download-close").onclick = close;
-      overlay.querySelector(".app-download-done").onclick = close;
+      overlay.querySelector(".app-download-done").onclick = () => {
+        const canInstallNow = !!installPrompt;
+        close();
+        if (canInstallNow) installApplication();
+      };
       overlay.onclick = (e) => {
         if (e.target === overlay) close();
       };
@@ -254,6 +285,14 @@
       if (!installButton) return;
       installButton.classList.toggle("hidden", isStandalone);
       installButton.onclick = installApplication;
+      if (!isStandalone && !hasSeenInstallNotice()) {
+        rememberInstallNotice();
+        window.setTimeout(() => {
+          if (!document.querySelector(".app-download-overlay")) {
+            showDownloadHelp();
+          }
+        }, 1200);
+      }
     });
   })();
 
