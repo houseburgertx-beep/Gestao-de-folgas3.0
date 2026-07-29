@@ -131,6 +131,23 @@ test("ícone da House Arena usa a cor do menu desde o carregamento inicial", asy
   );
 });
 
+test("notificações exibem o texto completo com campos compatíveis", async () => {
+  const [client, styles] = await Promise.all([
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Styles.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(client, /function notificationMessage_\(notification\)/);
+  assert.match(
+    client,
+    /"Mensagem",[\s\S]*?"mensagem",[\s\S]*?"Texto",[\s\S]*?"Corpo"/,
+  );
+  assert.match(client, /class="notification-message"/);
+  assert.match(
+    styles,
+    /\.notification-item \.notification-message \{[\s\S]*?white-space: pre-wrap;[\s\S]*?overflow-wrap: anywhere;/,
+  );
+});
+
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /Gestão de Folgas/);
