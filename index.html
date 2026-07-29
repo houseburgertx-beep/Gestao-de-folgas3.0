@@ -7,7 +7,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="app-version" content="6.0.1-firebase-github" />
+    <meta name="app-version" content="6.1.0-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -3189,6 +3189,20 @@
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
   }
+  .sidebar .nav-item > .arena-nav-icon svg {
+    width: 17px;
+    height: 17px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .sidebar .nav-item > .arena-nav-icon circle {
+    fill: currentColor;
+    stroke: none;
+  }
   .sidebar .nav-item.active {
     box-shadow: none;
     background: rgba(123, 104, 238, 0.2);
@@ -3817,6 +3831,19 @@
     display: block;
     color: var(--muted);
     margin-top: 4px;
+  }
+  .notification-item .notification-copy {
+    min-width: 0;
+    flex: 1;
+  }
+  .notification-item .notification-message {
+    display: block;
+    margin: 5px 0 0;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
   .topbar-actions .nav-badge {
     position: absolute;
@@ -10766,12 +10793,15 @@
           >Loja<select id="accessStore">
             <option value="">Todas / não aplicável</option>
           </select></label
-        ><label
-          >Senha provisória<input
+        ><label id="accessPasswordField"
+          >Senha inicial<input
             id="accessPassword"
             type="password"
             minlength="10"
             placeholder="Mínimo 10 caracteres" /></label
+        ><label id="accessResetField" class="switch-label hidden"
+          ><input id="accessSendReset" type="checkbox" /> Enviar link seguro
+          para redefinição de senha</label
         ><label class="switch-label"
           ><input id="accessFirstLogin" type="checkbox" checked /> Exigir troca
           no primeiro acesso</label
@@ -10849,10 +10879,21 @@
             autocomplete="new-password"
         /></label>
       </div>
+      <label class="switch-label profile-password-toggle">
+        <input id="profileShowPasswords" type="checkbox" /> Mostrar senhas
+        digitadas
+      </label>
       <p class="profile-security-note">
-        Por segurança, informe a senha atual quando trocar o e-mail ou criar uma
-        nova senha.
+        A nova senha deve ter pelo menos 10 caracteres. Informe a senha atual
+        para confirmar a alteração.
       </p>
+      <button
+        id="profileForgotPassword"
+        type="button"
+        class="btn btn-secondary"
+      >
+        Esqueci minha senha atual
+      </button>
     </div>
     <div class="dialog-actions">
       <button
@@ -10959,11 +11000,11 @@
           ></select
         ></label>
         <label class="full"
-          >Folga aprovada do colega em<input
-            id="swapDestinationDate"
-            type="date"
+          >Folga aprovada do colega<select
+            id="swapDestinationTimeOff"
             required
-        /></label>
+          ></select
+        ></label>
         <label class="full"
           >Motivo<textarea
             id="swapReason"
@@ -11018,7 +11059,7 @@
     <script type="module" src="./src/main.js"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
-    $ = (s, r = document) => [...r.querySelectorAll(s)];
+    $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const APP_CLIENT_VERSION_ =
       document.querySelector('meta[name="app-version"]')?.content ||
       "unknown",
@@ -11507,11 +11548,11 @@
   function setLoading(on) {
     $("#loadingOverlay").classList.toggle("hidden", !on);
     if (!on) {
-      $("[data-action-lock]").forEach((el) => {
+      $$("[data-action-lock]").forEach((el) => {
         delete el.dataset.actionLock;
         el.classList.remove("action-busy");
       });
-      $("form[data-submitting]").forEach((form) => {
+      $$("form[data-submitting]").forEach((form) => {
         delete form.dataset.submitting;
         const submit = form.querySelector('[type="submit"]');
         if (submit) {
@@ -11625,10 +11666,10 @@
       i.type = i.type === "password" ? "text" : "password";
     };
     $("#forgotPasswordBtn").onclick = requestPasswordReset;
-    $(".nav-item[data-view]").forEach(
+    $$(".nav-item[data-view]").forEach(
       (b) => (b.onclick = () => switchView(b.dataset.view)),
     );
-    $("[data-view-target]").forEach(
+    $$("[data-view-target]").forEach(
       (b) => (b.onclick = () => switchView(b.dataset.viewTarget)),
     );
     $("#sidebarToggle").onclick = () =>
@@ -11657,6 +11698,8 @@
     $("#logoutBtn").onclick = logoutApplication;
     $("#profileMenuBtn").onclick = openOwnProfile;
     $("#profileForm").onsubmit = saveOwnProfile;
+    $("#profileShowPasswords").onchange = toggleProfilePasswords_;
+    $("#profileForgotPassword").onclick = sendOwnPasswordReset_;
     $("#refreshBtn").onclick = refreshApplication;
     ["dashboardNewTimeOff", "newTimeOffBtn", "calendarNewBtn"].forEach(
       (id) => ($("#" + id).onclick = () => editTimeOff()),
@@ -11703,7 +11746,7 @@
     $("#clockDecisionForm").onsubmit = approveClockAdjustment;
     $("#clockDecisionReject").onclick = rejectClockAdjustment;
     $("#captureStoreLocation").onclick = captureStoreLocation;
-    $("[data-close]").forEach(
+    $$("[data-close]").forEach(
       (b) => (b.onclick = () => closeDialog(b.dataset.close)),
     );
     $("#timeOffForm").onsubmit = saveTimeOff;
@@ -11723,6 +11766,23 @@
     $("#validateTimeOffButton").onclick = validateTimeOffForm;
     $("#timeOffStore").onchange = () =>
       fillEmployeeSelect("#timeOffEmployee", $("#timeOffStore").value);
+    $("#timeOffEmployee").onchange = () => {
+      if (isEmployee()) return;
+      const employee = state.employees.find(
+        (item) =>
+          String(idOf(item, "Funcionario")) ===
+          String($("#timeOffEmployee").value),
+      );
+      const storeId = val(employee, "LojaID", "lojaId");
+      if (
+        storeId &&
+        [...$("#timeOffStore").options].some(
+          (option) => String(option.value) === String(storeId),
+        )
+      ) {
+        $("#timeOffStore").value = storeId;
+      }
+    };
     $("#accessEmployee").onchange = syncAccessEmployee;
     $("#calendarPrev").onclick = () => moveCalendar(-1);
     $("#calendarNext").onclick = () => moveCalendar(1);
@@ -11743,7 +11803,7 @@
     $("#pendingTimeOffAction").onclick = () => editTimeOff();
     $("#pendingClockAction").onclick = () => switchView("timeclock");
     $("#pendingRefreshBtn").onclick = () => loadPendingCenter_(true);
-    $("[data-pending-filter]").forEach(
+    $$("[data-pending-filter]").forEach(
       (button) =>
         (button.onclick = () =>
           setPendingCenterFilter_(button.dataset.pendingFilter)),
@@ -11962,7 +12022,34 @@
     $("#profileForm").reset();
     $("#profileName").value = name;
     $("#profileEmail").value = val(user, "email", "Email");
+    toggleProfilePasswords_();
     openDialog("profileDialog");
+  }
+  function toggleProfilePasswords_() {
+    const type = $("#profileShowPasswords")?.checked ? "text" : "password";
+    ["profileCurrentPassword", "profileNewPassword", "profileConfirmPassword"].forEach(
+      (id) => {
+        const input = $("#" + id);
+        if (input) input.type = type;
+      },
+    );
+  }
+  async function sendOwnPasswordReset_() {
+    const email = $("#profileEmail").value.trim().toLowerCase();
+    if (!email) return toast("Informe o e-mail da conta.", true);
+    setLoading(true);
+    try {
+      await call(FN.resetPassword, { email });
+      closeDialog("profileDialog");
+      await logoutApplication();
+      toast(
+        "Enviamos um link para seu e-mail. Abra o link e crie uma nova senha.",
+      );
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      setLoading(false);
+    }
   }
   async function saveOwnProfile(event) {
     event.preventDefault();
@@ -11972,6 +12059,11 @@
       confirmation = $("#profileConfirmPassword").value,
       emailChanged =
         email !== String(val(state.user, "email", "Email")).toLowerCase();
+    if (emailChanged && newPassword)
+      return toast(
+        "Altere primeiro o e-mail ou a senha; faça uma alteração por vez.",
+        true,
+      );
     if (newPassword && newPassword.length < 10)
       return toast("A nova senha deve ter pelo menos 10 caracteres.", true);
     if (newPassword !== confirmation)
@@ -12435,7 +12527,7 @@
     const manager = isManager();
     const kitchenChief = isKitchenChief();
     const admin = isAdmin();
-    const navItems = $(".nav-item[data-view]");
+    const navItems = $$(".nav-item[data-view]");
 
     $("#userName").textContent = name;
     $("#userRole").textContent = profile(u) || "Perfil";
@@ -12450,13 +12542,13 @@
      * o mesmo navegador entrava depois como administrador ou responsável.
      */
     navItems.forEach((item) => item.classList.remove("hidden"));
-    $(".permission-manager").forEach((item) =>
+    $$(".permission-manager").forEach((item) =>
       item.classList.toggle("hidden", !manager),
     );
-    $(".permission-team-read").forEach((item) =>
+    $$(".permission-team-read").forEach((item) =>
       item.classList.toggle("hidden", !canViewTeam()),
     );
-    $(".permission-admin").forEach((item) =>
+    $$(".permission-admin").forEach((item) =>
       item.classList.toggle("hidden", !admin),
     );
     if (typeof showHouseArenaWelcomeOnce_ === "function")
@@ -12600,10 +12692,10 @@
       view = "pending-center";
     }
     state.currentView = view;
-    $(".view").forEach((v) =>
+    $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
     );
-    $(".nav-item[data-view]").forEach((v) =>
+    $$(".nav-item[data-view]").forEach((v) =>
       v.classList.toggle("active", v.dataset.view === view),
     );
     const active = $(`.nav-item[data-view="${view}"] b`);
@@ -13167,12 +13259,12 @@
     const allowed = ["all", "timeoff", "clock", "swaps"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
-    $("[data-pending-filter]").forEach((button) => {
+    $$("[data-pending-filter]").forEach((button) => {
       const active = button.dataset.pendingFilter === filter;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", active ? "true" : "false");
     });
-    $("[data-pending-category]").forEach((section) => {
+    $$("[data-pending-category]").forEach((section) => {
       section.classList.toggle(
         "hidden",
         filter !== "all" && section.dataset.pendingCategory !== filter,
@@ -14203,12 +14295,14 @@
       : "Criar acesso";
     $("#accessName").value = val(x, "Nome", "nome");
     $("#accessEmail").value = val(x, "Email", "email");
+    $("#accessEmail").readOnly = !!user;
     $("#accessProfile").value = val(x, "Perfil", "perfil") || "Funcionário";
     $("#accessStore").value = val(x, "LojaID", "lojaId");
     $("#accessPassword").required = !user;
-    $("#accessPassword").placeholder = user
-      ? "Deixe vazio para manter a senha"
-      : "Mínimo 10 caracteres";
+    $("#accessPassword").value = "";
+    $("#accessPasswordField").classList.toggle("hidden", !!user);
+    $("#accessResetField").classList.toggle("hidden", !user);
+    $("#accessSendReset").checked = false;
     $("#accessActive").checked = user
       ? bool(val(user, "Ativo", "ativo"))
       : true;
@@ -14235,7 +14329,8 @@
         Email: $("#accessEmail").value,
         Perfil: $("#accessProfile").value,
         LojaID: $("#accessStore").value,
-        Senha: $("#accessPassword").value,
+        Senha: id ? "" : $("#accessPassword").value,
+        EnviarRedefinicao: !!id && $("#accessSendReset").checked,
         PrimeiroAcesso: $("#accessFirstLogin").checked,
         Ativo: $("#accessActive").checked,
       };
@@ -15632,6 +15727,29 @@
             `<option value="${esc(idOf(timeOff, "Folga"))}">${dateBR(val(timeOff, "DataInicio"))} — ${esc(val(timeOff, "NomeFuncionario"))}</option>`,
         )
         .join("");
+    const refreshDestinationTimeOff = () => {
+      const employee = state.swapCandidates.find(
+        (item) =>
+          String(idOf(item, "Funcionario")) ===
+          String($("#swapDestinationEmployee").value),
+      );
+      const timeOff = Array.isArray(employee && employee.folgas)
+        ? employee.folgas
+        : [];
+      $("#swapDestinationTimeOff").innerHTML =
+        '<option value="">Selecione a folga do colega</option>' +
+        timeOff
+          .filter(
+            (item) =>
+              statusClass(val(item, "Status")) === "approved" &&
+              iso(val(item, "DataInicio")) >= iso(new Date()).slice(0, 10),
+          )
+          .map(
+            (item) =>
+              `<option value="${esc(idOf(item, "Folga"))}">${dateBR(val(item, "DataInicio"))}</option>`,
+          )
+          .join("");
+    };
     const refreshDestination = () => {
       const source = own.find(
           (timeOff) =>
@@ -15654,8 +15772,10 @@
               `<option value="${esc(idOf(employee, "Funcionario"))}">${esc(val(employee, "Nome"))}</option>`,
           )
           .join("");
+      refreshDestinationTimeOff();
     };
     $("#swapSourceTimeOff").onchange = refreshDestination;
+    $("#swapDestinationEmployee").onchange = refreshDestinationTimeOff;
     refreshDestination();
     openDialog("swapDialog");
   }
@@ -15666,7 +15786,7 @@
       await call(FN.createSwap, {
         FolgaOrigemID: $("#swapSourceTimeOff").value,
         FuncionarioDestinoID: $("#swapDestinationEmployee").value,
-        DataFolgaDestino: $("#swapDestinationDate").value,
+        FolgaDestinoID: $("#swapDestinationTimeOff").value,
         Motivo: $("#swapReason").value,
       });
       closeDialog("swapDialog");
@@ -15735,11 +15855,94 @@
     }
   }
 
+  function notificationTitle_(notification) {
+    return (
+      String(
+        val(
+          notification,
+          "Assunto",
+          "assunto",
+          "Titulo",
+          "titulo",
+          "title",
+        ) || "",
+      ).trim() || "Notificação"
+    );
+  }
+  function notificationPlainText_(value) {
+    const source = String(value || "");
+    if (!source) return "";
+    const withBreaks = source
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(?:p|div|h[1-6]|li|section|article)>/gi, "\n");
+    const template = document.createElement("template");
+    template.innerHTML = withBreaks;
+    return String(template.content.textContent || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+  function normalizeLegacyNotificationTimes_(value) {
+    return String(value || "")
+      .replace(
+        /\b1899-12-30[T\s](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?Z?\b/g,
+        "$1:$2",
+      )
+      .replace(
+        /\b(?:Sat\s+)?Dec\s+30\s+1899\s+(\d{2}):(\d{2})(?::\d{2})?\s+GMT[+-]\d{4}(?:\s+\([^)]+\))?/gi,
+        "$1:$2",
+      );
+  }
+  function notificationMessage_(notification) {
+    const content = val(
+      notification,
+      "Mensagem",
+      "mensagem",
+      "message",
+      "Texto",
+      "texto",
+      "Corpo",
+      "corpo",
+      "Descricao",
+      "descricao",
+    );
+    if (content && typeof content === "object") {
+      return (
+        normalizeLegacyNotificationTimes_(
+          notificationPlainText_(
+            val(
+              content,
+              "texto",
+              "Texto",
+              "mensagem",
+              "Mensagem",
+              "conteudo",
+            ) || "",
+          ),
+        ) || "Sem detalhes adicionais."
+      );
+    }
+    return (
+      normalizeLegacyNotificationTimes_(notificationPlainText_(content)) ||
+      "Sem detalhes adicionais."
+    );
+  }
   async function loadNotifications() {
+    const list = $("#notificationsList");
+    if (list)
+      list.innerHTML =
+        '<div class="empty-state">Carregando notificações…</div>';
     try {
       state.notifications = arr(await call(FN.notifications, { limit: 100 }));
       renderNotifications();
     } catch (e) {
+      if (list)
+        list.innerHTML =
+          '<div class="empty-state">Não foi possível carregar as notificações: ' +
+          esc(e.message || "atualize a página e tente novamente.") +
+          "</div>";
       toast(e.message, true);
     }
   }
@@ -15760,7 +15963,7 @@
       arr(state.notifications)
         .map(
           (n) =>
-            `<div class="activity-item notification-item ${val(n, "Status") === "Lida" ? "is-read" : ""}"><div class="avatar notification-avatar"><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></div><div><strong>${esc(val(n, "Assunto"))}</strong><span>${esc(val(n, "Mensagem"))}</span><small>${esc(formatClockDateTime(val(n, "DataCriacao")))}</small></div><div class="notification-actions">${val(n, "Tipo") === "Enquete" ? `<button class="btn btn-secondary" onclick="openNotificationUI('communication','${esc(val(n, "NotificacaoID"))}')">Abrir enquete</button>` : val(n, "Tipo") === "Documento" ? `<button class="btn btn-secondary" onclick="openNotificationUI('people-hub','${esc(val(n, "NotificacaoID"))}')">Abrir documentos</button>` : ""}${val(n, "Status") !== "Lida" ? `<button class="btn btn-ghost" onclick="markNotificationReadUI('${esc(val(n, "NotificacaoID"))}')">Marcar lida</button>` : ""}</div></div>`,
+            `<div class="activity-item notification-item ${val(n, "Status") === "Lida" ? "is-read" : ""}"><div class="avatar notification-avatar"><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></div><div class="notification-copy"><strong>${esc(notificationTitle_(n))}</strong><p class="notification-message">${esc(notificationMessage_(n))}</p><small>${esc(formatClockDateTime(val(n, "DataCriacao", "dataCriacao", "DataHora", "dataHora")))}</small></div><div class="notification-actions">${val(n, "Tipo") === "Enquete" ? `<button class="btn btn-secondary" onclick="openNotificationUI('communication','${esc(val(n, "NotificacaoID"))}')">Abrir enquete</button>` : val(n, "Tipo") === "Documento" ? `<button class="btn btn-secondary" onclick="openNotificationUI('people-hub','${esc(val(n, "NotificacaoID"))}')">Abrir documentos</button>` : ""}${val(n, "Status") !== "Lida" ? `<button class="btn btn-ghost" onclick="markNotificationReadUI('${esc(val(n, "NotificacaoID"))}')">Marcar lida</button>` : ""}</div></div>`,
         )
         .join("") || "<p>Nenhuma notificação.</p>";
   }
@@ -16308,7 +16511,7 @@
     loadCommunication_();
   }
   function pollOptionRows_() {
-    return $("#pollOptionList .poll-option-row");
+    return $$("#pollOptionList .poll-option-row");
   }
   function updatePollOptionBuilder_() {
     const rows = pollOptionRows_(),
@@ -16481,9 +16684,13 @@
                           );
                         })
                         .join("")) +
-                  '</div><div class="poll-card-actions"><button class="btn btn-ghost" onclick="showPollResult_(' +
-                  pi +
-                  ',this)">Ver resultado</button></div><div id="poll-result-' +
+                  "</div>" +
+                  (isStoreManager()
+                    ? '<div class="poll-card-actions"><button class="btn btn-ghost" onclick="showPollResult_(' +
+                      pi +
+                      ',this)">Ver resultado</button></div>'
+                    : "") +
+                  '<div id="poll-result-' +
                   pi +
                   '" class="feature-result"></div></article>'
                 );
