@@ -29,6 +29,13 @@ const clockTypes = [
   "SAIDA_FINAL",
 ];
 
+const clockJustificationTypes = [
+  "Atestado",
+  "Folga trocada",
+  "Dia concedido",
+  "Outros",
+];
+
 const timeValue = (dateTime) => {
   const date = new Date(dateTime);
   return Number.isFinite(date.getTime())
@@ -171,7 +178,11 @@ const scheduleExpectedMinutes = (schedule) => {
 
 const balanceDays = (days) =>
   days.filter(
-    (item) => !item.folga && !item.folgaFixa && !item.saldoPendente,
+    (item) =>
+      !item.folga &&
+      !item.folgaFixa &&
+      !item.justificado &&
+      !item.saldoPendente,
   );
 
 const dayMetrics = (records, schedule) => {
@@ -240,13 +251,14 @@ async function clockContext(filters = {}) {
   if (month === monthIso()) {
     recordPeriods.add(previousDateKey(todayIso()).slice(0, 7));
   }
-  const [employees, records, schedules, adjustments, timeOff] =
+  const [employees, records, schedules, adjustments, timeOff, justifications] =
     await Promise.all([
       runtime.list("Funcionarios", { profile }),
       runtime.listPeriods("RegistrosPonto", [...recordPeriods], { profile }),
       runtime.list("JornadasPonto", { profile }),
       runtime.list("AjustesPonto", { profile }),
       runtime.list("Folgas", { profile }),
+      runtime.list("JustificativasPonto", { profile }),
     ]);
   const trackingRecords =
     filters.includeHistoricalStart === true && isAdmin(profile)
@@ -380,7 +392,15 @@ async function clockContext(filters = {}) {
         continue;
       }
       const metrics = dayMetrics(rows, schedule);
-      const balanceState = dayBalanceState(dateKey, metrics);
+      const justification = justifications.find(
+        (item) =>
+          item.FuncionarioID === employee.FuncionarioID &&
+          normalizedDateKey(item.Data) === dateKey &&
+          item.Status === "Aprovada",
+      );
+      const balanceState = justification
+        ? { minutes: 0, text: "Justificado", pending: false }
+        : dayBalanceState(dateKey, metrics);
       days.push({
         funcionarioId: employee.FuncionarioID,
         nome: employee.Nome,
@@ -398,6 +418,10 @@ async function clockContext(filters = {}) {
         saldoPendente: balanceState.pending,
         folga: !!approvedOff,
         folgaFixa: fixed,
+        justificado: !!justification,
+        justificativaId: justification?.JustificativaPontoID || "",
+        justificativaTipo: justification?.Tipo || "",
+        justificativaObservacao: justification?.Observacao || "",
       });
     }
   }
@@ -419,6 +443,11 @@ async function clockContext(filters = {}) {
     ),
     locations: [],
     adjustments: monthAdjustments,
+    justifications: justifications.filter(
+      (item) =>
+        allowedIds.has(item.FuncionarioID) &&
+        normalizedDateKey(item.Data).slice(0, 7) === month,
+    ),
     days,
     todayRecords,
     nextAction:
@@ -945,6 +974,67 @@ export function createClockHandlers() {
       );
     },
 
+    async justifyMissedTimeClockDay(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const employee = await runtime.getById(
+        "Funcionarios",
+        payload.funcionarioId,
+      );
+      assert(employee && asBoolean(employee.Ativo), "Funcionário não encontrado.");
+      scopeRecord(profile, employee);
+      const date = normalizedDateKey(payload.data);
+      assert(/^\d{4}-\d{2}-\d{2}$/.test(date), "Informe uma data válida.");
+      assert(date <= todayIso(), "Não é possível justificar uma data futura.");
+      const type = String(payload.tipo || "").trim();
+      assert(clockJustificationTypes.includes(type), "Tipo de justificativa inválido.");
+      const observation = String(payload.observacao || "").trim();
+      if (type === "Outros") {
+        assert(observation.length >= 5, "Descreva o motivo em Outros.");
+      }
+      const records = await runtime.listPeriods(
+        "RegistrosPonto",
+        [date.slice(0, 7)],
+        { profile },
+      );
+      assert(
+        !records.some(
+          (item) =>
+            item.FuncionarioID === employee.FuncionarioID &&
+            normalizedDateKey(item.Data) === date &&
+            item.Status !== "Substituído",
+        ),
+        "Este dia possui marcações. Use o ajuste de ponto.",
+      );
+      const id = `${employee.FuncionarioID}__${date}`;
+      const existing = await runtime.getById("JustificativasPonto", id);
+      if (existing) scopeRecord(profile, existing);
+      const saved = await runtime.upsert("JustificativasPonto", {
+        ...(existing || {}),
+        JustificativaPontoID: id,
+        FuncionarioID: employee.FuncionarioID,
+        NomeFuncionario: employee.Nome,
+        LojaID: employee.LojaID,
+        NomeLoja: employee.NomeLoja,
+        Data: date,
+        Tipo: type,
+        Observacao: observation,
+        Status: "Aprovada",
+        DataCriacao: existing?.DataCriacao || nowIso(),
+        DataAtualizacao: nowIso(),
+        JustificadoPor: profile.Email,
+      });
+      await audit(
+        existing ? "Atualizar justificativa de ponto" : "Justificar ausência de ponto",
+        "Ponto",
+        saved.JustificativaPontoID,
+        { before: existing || null, after: saved },
+      );
+      return success(saved, "Dia justificado sem gerar saldo negativo.");
+    },
+
     async generateMonthlyTimeClockSheet(args) {
       const values = dropClientToken(args);
       const filters = values[0] || {};
@@ -958,6 +1048,9 @@ export function createClockHandlers() {
         Saída: item.saida,
         Trabalhado: item.trabalhadoTexto,
         Saldo: item.saldoTexto,
+        Justificativa: item.justificado
+          ? `${item.justificativaTipo}${item.justificativaObservacao ? ` — ${item.justificativaObservacao}` : ""}`
+          : "",
       }));
       const columns = Object.keys(rows[0] || { Funcionário: "", Data: "" });
       return success({
