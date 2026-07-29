@@ -82,7 +82,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.7");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.8");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -93,13 +93,13 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.7/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.8/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /navigator\.serviceWorker\.register\("\.\/sw\.js"/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.7"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.8"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -224,6 +224,17 @@ test("selecionar funcionário preenche a loja no pedido de folga", async () => {
   assert.match(
     client,
     /employeeStoreId \|\|[\s\S]*?idOf\(matchedEmployeeStore, "Loja"\)/,
+  );
+});
+
+test("funcionários podem solicitar folgas aos fins de semana em todas as lojas", async () => {
+  const source = await readFile(
+    new URL("../src/core/api-base.js", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    source,
+    /Pedidos de folga aos fins de semana não estão permitidos/,
   );
 });
 

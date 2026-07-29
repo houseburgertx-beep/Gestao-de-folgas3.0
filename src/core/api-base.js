@@ -504,18 +504,8 @@ const validateTimeOffPolicies = async ({
       distance <= maximum,
       `O pedido só pode ser feito com até ${maximum} dia(s) de antecedência.`,
     );
-    if (
-      !asBoolean(
-        configValue(config, "Permitir pedidos aos fins de semana", false),
-      )
-    ) {
-      assert(
-        !requestedDays.some((day) =>
-          [0, 6].includes(new Date(`${day}T12:00:00`).getDay()),
-        ),
-        "Pedidos de folga aos fins de semana não estão permitidos.",
-      );
-    }
+    // Pedidos de funcionários aos sábados e domingos são permitidos em todas
+    // as lojas. Os demais limites operacionais continuam sendo validados.
     if (
       !asBoolean(configValue(config, "Permitir folga em feriado", true))
     ) {
