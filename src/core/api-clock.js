@@ -153,18 +153,25 @@ const balanceDays = (days) =>
   days.filter((item) => !item.folga && !item.folgaFixa);
 
 const dayMetrics = (records, schedule) => {
-  const byType = {};
-  records
+  const ordered = records
     .filter((item) => item.Status !== "Substituído")
-    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)))
-    .forEach((item) => {
-      if (!byType[item.TipoMarcacao]) byType[item.TipoMarcacao] = item;
-    });
-  const entry = byType.ENTRADA;
-  const breakOut = byType.SAIDA_INTERVALO;
-  const breakIn = byType.RETORNO_INTERVALO;
-  const noBreak = byType.SEM_DESCANSO;
-  const exit = byType.SAIDA_FINAL;
+    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
+  const firstOf = (type, after = "") =>
+    ordered.find(
+      (item) =>
+        item.TipoMarcacao === type &&
+        (!after || String(item.DataHora) >= String(after)),
+    );
+  const entry = firstOf("ENTRADA");
+  const breakOut = firstOf("SAIDA_INTERVALO", entry?.DataHora);
+  const breakIn = firstOf("RETORNO_INTERVALO", breakOut?.DataHora);
+  const noBreak = firstOf("SEM_DESCANSO", entry?.DataHora);
+  const exits = ordered.filter(
+    (item) =>
+      item.TipoMarcacao === "SAIDA_FINAL" &&
+      (!entry || String(item.DataHora) >= String(entry.DataHora)),
+  );
+  const exit = exits[exits.length - 1];
   let worked = 0;
   if (entry && exit) {
     worked = exactMinutesBetween(entry.DataHora, exit.DataHora);
@@ -172,9 +179,7 @@ const dayMetrics = (records, schedule) => {
       worked -= exactMinutesBetween(breakOut.DataHora, breakIn.DataHora);
     }
   } else if (entry) {
-    const last = records
-      .slice()
-      .sort((a, b) => String(b.DataHora).localeCompare(String(a.DataHora)))[0];
+    const last = ordered[ordered.length - 1];
     worked = Math.min(
       24 * 60,
       exactMinutesBetween(entry.DataHora, last?.DataHora || entry.DataHora),
@@ -303,7 +308,22 @@ async function clockContext(filters = {}) {
       const trackingStart = trackingStartByEmployee.get(
         employee.FuncionarioID,
       );
-      if (!trackingStart || dateKey < trackingStart) continue;
+      const admissionStart = normalizedDateKey(employee.DataAdmissao);
+      const scheduleStart =
+        schedules
+          .filter((item) => item.FuncionarioID === employee.FuncionarioID)
+          .map((item) => normalizedDateKey(item.VigenteDe))
+          .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")))
+          .sort()[0] || "";
+      const declaredStarts = [admissionStart, scheduleStart].filter((value) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")),
+      );
+      // A apuração não pode começar antes da admissão nem antes da primeira
+      // jornada. A primeira batida serve apenas como fallback legado.
+      const effectiveStart = declaredStarts.length
+        ? declaredStarts.sort().at(-1)
+        : trackingStart || "";
+      if (!effectiveStart || dateKey < effectiveStart) continue;
       const schedule = scheduleFor(schedules, employee.FuncionarioID, dateKey);
       const rows = monthRecords.filter(
         (item) =>
@@ -808,6 +828,13 @@ export function createClockHandlers() {
       );
       assert(record, "Registro de ponto não encontrado.");
       scopeRecord(profile, record);
+      const requestedDate = new Date(payload.dataHoraSolicitada);
+      const reason = String(payload.motivo || "").trim();
+      assert(
+        Number.isFinite(requestedDate.getTime()),
+        "Informe a data e hora solicitadas.",
+      );
+      assert(reason, "Informe o motivo do ajuste.");
       const adjustment = await runtime.upsert("AjustesPonto", {
         AjustePontoID: uuid(),
         RegistroPontoID: record.RegistroPontoID,
@@ -817,8 +844,8 @@ export function createClockHandlers() {
         Data: record.Data,
         TipoMarcacao: record.TipoMarcacao,
         DataHoraOriginal: record.DataHora,
-        DataHoraSolicitada: new Date(payload.dataHoraSolicitada).toISOString(),
-        Motivo: String(payload.motivo || ""),
+        DataHoraSolicitada: requestedDate.toISOString(),
+        Motivo: reason,
         Status: "Pendente",
         SolicitadoPor: profile.Email,
         DataSolicitacao: nowIso(),
@@ -841,38 +868,62 @@ export function createClockHandlers() {
       );
       assert(adjustment, "Pedido de ajuste não encontrado.");
       scopeRecord(profile, adjustment);
+      assert(
+        adjustment.Status === "Pendente",
+        "Este pedido de ajuste já recebeu uma decisão.",
+      );
       const approved =
         String(payload.decision || "").toLowerCase() === "aprovar";
-      const updated = await runtime.patch(
-        "AjustesPonto",
-        adjustment.AjustePontoID,
-        {
-          Status: approved ? "Aprovado" : "Rejeitado",
-          DecididoPor: profile.Email,
-          DataDecisao: nowIso(),
-          ObservacaoDecisao: String(payload.observacao || ""),
-          DataHoraAprovada: approved
-            ? new Date(
-                payload.dataHoraAprovada || adjustment.DataHoraSolicitada,
-              ).toISOString()
-            : "",
-        },
-      );
+      const approvedDate = approved
+        ? new Date(payload.dataHoraAprovada || adjustment.DataHoraSolicitada)
+        : null;
       if (approved) {
-        const approvedDateTime = updated.DataHoraAprovada;
-        await runtime.patch(
-          "RegistrosPonto",
-          adjustment.RegistroPontoID,
-          {
-            DataHora: approvedDateTime,
-            Data: todayIso(new Date(approvedDateTime)),
-            Ajustado: true,
-            Observacoes: `Ajustado por ${profile.Email}: ${
-              payload.observacao || ""
-            }`,
-          },
+        assert(
+          Number.isFinite(approvedDate.getTime()),
+          "Informe uma data e hora válidas para a aprovação.",
         );
       }
+      const decisionChanges = {
+        Status: approved ? "Aprovado" : "Rejeitado",
+        DecididoPor: profile.Email,
+        DataDecisao: nowIso(),
+        ObservacaoDecisao: String(payload.observacao || ""),
+        DataHoraAprovada: approved ? approvedDate.toISOString() : "",
+      };
+      let updated;
+      if (approved) {
+        [updated] = await runtime.patchMany([
+          {
+            table: "AjustesPonto",
+            id: adjustment.AjustePontoID,
+            changes: decisionChanges,
+          },
+          {
+            table: "RegistrosPonto",
+            id: adjustment.RegistroPontoID,
+            changes: {
+              DataHora: decisionChanges.DataHoraAprovada,
+              Data: todayIso(new Date(decisionChanges.DataHoraAprovada)),
+              Ajustado: true,
+              Observacoes: `Ajustado por ${profile.Email}: ${
+                payload.observacao || ""
+              }`,
+            },
+          },
+        ]);
+      } else {
+        updated = await runtime.patch(
+          "AjustesPonto",
+          adjustment.AjustePontoID,
+          decisionChanges,
+        );
+      }
+      await audit(
+        approved ? "Aprovar ajuste de ponto" : "Rejeitar ajuste de ponto",
+        "Ponto",
+        adjustment.AjustePontoID,
+        { before: adjustment, after: updated },
+      );
       return success(
         { ...updated, message: approved ? "Ajuste aprovado." : "Pedido rejeitado." },
         approved ? "Ajuste aprovado." : "Pedido rejeitado.",
