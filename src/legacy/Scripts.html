@@ -4215,20 +4215,27 @@
   }
   async function saveClockJustification_(event) {
     event.preventDefault();
-    const button = event.submitter;
-    await action(
-      button,
-      () =>
-        call(FN.clockJustifyDay, {
-          funcionarioId: $("#clockJustificationEmployeeId").value,
-          data: $("#clockJustificationDate").value,
-          tipo: $("#clockJustificationType").value,
-          observacao: $("#clockJustificationObservation").value,
-        }),
-      "Dia justificado sem gerar saldo negativo.",
-    );
-    closeDialog("clockJustificationDialog");
-    await loadTimeClock(true, true);
+    const form = event.currentTarget;
+    setLoading(true);
+    try {
+      await call(FN.clockJustifyDay, {
+        funcionarioId: $("#clockJustificationEmployeeId").value,
+        data: $("#clockJustificationDate").value,
+        tipo: $("#clockJustificationType").value,
+        observacao: $("#clockJustificationObservation").value,
+      });
+      toast("Dia justificado sem gerar saldo negativo.");
+      closeDialog("clockJustificationDialog");
+      await loadTimeClock(true, true);
+    } catch (error) {
+      toast(
+        error?.message || "Não foi possível salvar a justificativa.",
+        true,
+      );
+    } finally {
+      setLoading(false);
+      releaseFormSubmission_(form);
+    }
   }
   async function punchClock() {
     return startClockPunch_(String((state.timeClock || {}).nextAction || ""));

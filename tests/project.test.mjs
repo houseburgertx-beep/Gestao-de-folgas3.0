@@ -87,7 +87,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.15");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.16");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -98,14 +98,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.15/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.16/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.15"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.16"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -137,7 +137,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.1\.15/);
+  assert.match(builder, /main\.js\?v=6\.1\.16/);
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {
@@ -718,6 +718,46 @@ test("justificativa de ponto zera o dia e não entra no saldo", async () => {
   assert.match(clockApi, /Folga trocada/);
   assert.match(clockApi, /Dia concedido/);
   assert.match(clockApi, /JustificativasPonto/);
+});
+
+test("administrador consegue salvar a justificativa de ausência", async () => {
+  const client = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  const saveHandler = client.match(
+    /async function saveClockJustification_\(event\) \{[\s\S]*?\n  \}/,
+  )?.[0];
+  assert.ok(saveHandler);
+  assert.match(saveHandler, /await call\(FN\.clockJustifyDay/);
+  assert.match(saveHandler, /releaseFormSubmission_\(form\)/);
+  assert.doesNotMatch(saveHandler, /\baction\(/);
+});
+
+test("House Link oferece sala e código com regras para os dois participantes", async () => {
+  const [client, api, rules] = await Promise.all([
+    readFile(
+      new URL("../src/legacy/HouseLinkClient.html", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../src/core/api-arena.js", import.meta.url), "utf8"),
+    readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
+  ]);
+  assert.match(client, /Solicitar sala/);
+  assert.match(client, /OU ENTRE COM O CÓDIGO DA SALA/);
+  assert.match(client, /houseLinkErrorMessage_/);
+  assert.match(api, /ownerUid:\s*profile\.UsuarioID/);
+  assert.match(api, /removePath\(`arenaLink\/rooms\/\$\{id\}`\)/);
+  assert.match(rules, /"arenaLink"/);
+  assert.match(rules, /newData\.child\('ownerUid'\)\.val\(\) === auth\.uid/);
+  assert.match(
+    rules,
+    /newData\.child\('players\/p2\/usuarioId'\)\.val\(\) === auth\.uid/,
+  );
+  assert.match(
+    rules,
+    /newData\.child\('players\/p1\/usuarioId'\)\.val\(\) === data\.child\('players\/p1\/usuarioId'\)\.val\(\)/,
+  );
 });
 
 test("dia atual só entra no saldo depois da saída final", () => {
