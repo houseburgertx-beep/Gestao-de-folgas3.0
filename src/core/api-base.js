@@ -242,7 +242,7 @@ export async function audit(action, module, recordId, details = {}) {
     Resultado: "Sucesso",
     Mensagem: details.message || "",
   };
-  await runtime.upsert("Auditoria", entry).catch((error) => {
+  await runtime.create("Auditoria", entry).catch((error) => {
     console.warn("Auditoria não gravada:", error.message);
   });
 }
