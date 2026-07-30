@@ -66,6 +66,8 @@ const uploadClockSelfieToDrive = async ({
   const user = runtime.auth?.currentUser;
   assert(user, "Sua sessão expirou. Entre novamente.");
   const idToken = await user.getIdToken();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
   let response;
   try {
     response = await fetch(selfieDriveEndpoint(), {
@@ -73,6 +75,7 @@ const uploadClockSelfieToDrive = async ({
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
       redirect: "follow",
       credentials: "omit",
+      signal: controller.signal,
       body: JSON.stringify({
         action: "uploadClockSelfie",
         idToken,
@@ -82,10 +85,17 @@ const uploadClockSelfieToDrive = async ({
         selfieDataUrl: selfie,
       }),
     });
-  } catch {
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(
+        "O Google Drive demorou demais para responder. Tente novamente; a selfie não será duplicada.",
+      );
+    }
     throw new Error(
       "Não foi possível enviar a selfie ao Google Drive. Verifique a internet e tente novamente.",
     );
+  } finally {
+    clearTimeout(timeout);
   }
   const text = await response.text();
   let result;
@@ -836,7 +846,13 @@ export function createClockHandlers() {
         ? records.find((item) => item.RequestID === requestId)
         : null;
       if (repeated) {
-        return success(repeated, `Ponto já registrado: ${repeated.TipoMarcacao}.`);
+        return success(
+          {
+            ...repeated,
+            ProximaMarcacao: nextClockAction(records, schedule),
+          },
+          `Ponto já registrado: ${repeated.TipoMarcacao}.`,
+        );
       }
       const next = nextClockAction(records, schedule);
       const expected = String(payload.expectedAction || next).toUpperCase();
@@ -853,7 +869,7 @@ export function createClockHandlers() {
         day,
         type,
       });
-      const saved = await runtime.upsert("RegistrosPonto", {
+      const record = {
         RegistroPontoID: requestId,
         FuncionarioID: employee.FuncionarioID,
         NomeFuncionario: employee.Nome,
@@ -885,11 +901,25 @@ export function createClockHandlers() {
         ForaHorario: false,
         CriadoPor: profile.Email,
         RequestID: requestId,
-      });
+      };
+      let saved;
+      try {
+        saved = await runtime.create("RegistrosPonto", record);
+      } catch (error) {
+        const existing = await runtime.getById("RegistrosPonto", requestId);
+        if (existing?.RequestID !== requestId) throw error;
+        saved = existing;
+      }
       await audit("Registrar ponto", "Ponto", saved.RegistroPontoID, {
         after: saved,
       });
-      return success(saved, `Ponto registrado: ${type}.`);
+      return success(
+        {
+          ...saved,
+          ProximaMarcacao: nextClockAction([...records, saved], schedule),
+        },
+        `Ponto registrado: ${type}.`,
+      );
     },
 
     async registerTimeClockManualPunch(args) {
