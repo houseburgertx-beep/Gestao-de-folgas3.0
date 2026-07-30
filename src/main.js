@@ -18,7 +18,7 @@ const unwrap = (source, tag) =>
     .replace(new RegExp(`\\s*</${tag}>\\s*$`, "i"), "");
 
 const arenaBundle = () => ({
-  version: "6.1.13-firebase-github",
+  version: "6.1.14-firebase-github",
   css: [
     unwrap(arenaStyles, "style"),
     unwrap(arenaMobileStyles, "style"),
@@ -32,8 +32,18 @@ const arenaBundle = () => ({
 });
 
 const api = createApi(arenaBundle);
-installGoogleAppsScriptBridge(api);
 window.__GESTAO_FIREBASE__ = { runtime, api };
+
+const signalApiReady = () => {
+  window.__GESTAO_API_STATUS__ = "ready";
+  window.__resolveGestaoApiReady__?.();
+  window.dispatchEvent(new CustomEvent("gestao-api-ready"));
+};
+
+const signalApiFailure = (error) => {
+  window.__GESTAO_API_STATUS__ = "failed";
+  window.__rejectGestaoApiReady__?.(error);
+};
 
 const waitForDom = () =>
   document.readyState === "loading"
@@ -153,10 +163,13 @@ const showInitialSetup = () => {
 
 const problems = firebaseConfigurationProblems();
 if (problems.length) {
+  signalApiFailure(new Error("A configuração do Firebase está incompleta."));
   waitForDom().then(() => showConfigurationRequired(problems));
 } else {
   try {
     runtime.initialize();
+    installGoogleAppsScriptBridge(api);
+    signalApiReady();
     runtime
       .ready()
       .then(async () => {
@@ -164,6 +177,7 @@ if (problems.length) {
         if (!(await runtime.isInitialized())) showInitialSetup();
       })
       .catch(async (error) => {
+        signalApiFailure(error);
         await waitForDom();
         hideApplicationSurfaces();
         setupShell(`
@@ -177,6 +191,7 @@ if (problems.length) {
           </div>`);
       });
   } catch (error) {
+    signalApiFailure(error);
     waitForDom().then(() => {
       hideApplicationSurfaces();
       setupShell(`

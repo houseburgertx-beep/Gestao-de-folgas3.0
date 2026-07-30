@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.1.13" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.1.14" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,7 +25,7 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
-    <meta name="app-version" content="6.1.13-firebase-github" />
+    <meta name="app-version" content="6.1.14-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -11391,7 +11391,20 @@
   </form>
 </dialog>
 
-    <script type="module" src="./src/main.js"></script>
+    <script>
+  window.__GESTAO_API_STATUS__ = "loading";
+  window.__GESTAO_API_READY__ = new Promise(function (resolve, reject) {
+    window.__resolveGestaoApiReady__ = resolve;
+    window.__rejectGestaoApiReady__ = reject;
+  });
+  window.addEventListener("error", function (event) {
+    if (event.target && event.target.tagName === "SCRIPT" && event.target.type === "module") {
+      window.__GESTAO_API_STATUS__ = "failed";
+      window.__rejectGestaoApiReady__(new Error("Falha ao carregar o portal."));
+    }
+  }, true);
+</script>
+<script type="module" src="./src/main.js?v=6.1.14"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -11694,6 +11707,7 @@
     try {
       bindUI();
       installStartupSafety_();
+      await waitForPortalApi_();
       const token = sessionToken();
       if (!token) {
         setLoading(false);
@@ -11750,15 +11764,42 @@
       }
     }, 35000);
   }
-  function gas(name, ...args) {
+  function portalApiError_() {
+    const error = new Error(
+      "O portal não terminou de carregar. Verifique sua conexão e atualize a página.",
+    );
+    error.code = "PORTAL_API_NOT_READY";
+    return error;
+  }
+
+  async function waitForPortalApi_() {
+    if (window.google?.script?.run) return;
+    const ready = window.__GESTAO_API_READY__;
+    if (!ready || typeof ready.then !== "function") throw portalApiError_();
+    let timeout;
+    try {
+      await Promise.race([
+        ready,
+        new Promise((_, reject) => {
+          timeout = window.setTimeout(
+            () => reject(portalApiError_()),
+            10000,
+          );
+        }),
+      ]);
+    } catch (error) {
+      throw error?.code === "PORTAL_API_NOT_READY"
+        ? error
+        : portalApiError_();
+    } finally {
+      window.clearTimeout(timeout);
+    }
+    if (!window.google?.script?.run) throw portalApiError_();
+  }
+
+  async function gas(name, ...args) {
+    await waitForPortalApi_();
     return new Promise((resolve, reject) => {
-      if (!window.google?.script?.run) {
-        return reject(
-          new Error(
-            "A API do Google Apps Script não está disponível. Abra a aplicação pelo link /exec.",
-          ),
-        );
-      }
       const runner = google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler((e) =>
