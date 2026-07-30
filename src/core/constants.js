@@ -1,6 +1,6 @@
 export const APP = Object.freeze({
   name: "Gestão de Folgas",
-  version: "6.1.12-firebase-github",
+  version: "6.1.13-firebase-github",
   profiles: {
     admin: "Administrador",
     manager: "Responsável de loja",
@@ -131,6 +131,7 @@ export const EMPLOYEE_SCOPED_FIELDS = Object.freeze({
   Funcionarios: "FuncionarioID",
   Folgas: "FuncionarioID",
   CienciasFolga: "FuncionarioID",
+  TrocasFolga: "FuncionarioID",
   RegistrosPonto: "FuncionarioID",
   AjustesPonto: "FuncionarioID",
   JustificativasPonto: "FuncionarioID",
