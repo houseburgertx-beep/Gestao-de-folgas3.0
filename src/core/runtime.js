@@ -623,6 +623,14 @@ export class FirebaseRuntime {
       .map(validPeriod)
       .filter(Boolean);
     if (!uniquePeriods.length) return [];
+    if (!isAdminProfile(profile)) {
+      const allowedPeriods = new Set(uniquePeriods);
+      return (await this.list(table, { profile })).filter((record) =>
+        allowedPeriods.has(
+          validPeriod(String(record?.Data || record?.DataHora || "").slice(0, 7)),
+        ),
+      );
+    }
     const groups = await Promise.all(
       uniquePeriods.map((period) =>
         this.listPeriod(table, period, { profile }),
