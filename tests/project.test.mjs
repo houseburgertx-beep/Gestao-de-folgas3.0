@@ -87,7 +87,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.0");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.1");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -98,14 +98,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.2\.0/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.1/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.0"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.1"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -137,7 +137,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.2\.0/);
+  assert.match(builder, /main\.js\?v=6\.2\.1/);
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {
@@ -754,6 +754,8 @@ test("House Link oferece sala e código a usuários autenticados", async () => {
   assert.match(client, /Operação <em>Rush<\/em>/);
   assert.match(client, /snapshot\.targetOrders \|\| 6/);
   assert.match(client, /Aguardando as 4 pistas/);
+  assert.match(client, /await houseLinkPoll_\(true, true\)/);
+  assert.match(client, /if \(!silentExpiredRoom\) toast\(error\.message, true\)/);
   assert.match(styles, /\.house-link-round-track/);
   assert.match(api, /ownerUid:\s*profile\.UsuarioID/);
   assert.match(api, /removePath\(`arenaLink\/rooms\/\$\{id\}`\)/);
