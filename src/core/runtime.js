@@ -891,6 +891,19 @@ export class FirebaseRuntime {
     return clone(value);
   }
 
+  async transactPath(relativePath, updateValue) {
+    const transaction = await runTransaction(
+      this.appRef(relativePath),
+      (current) => {
+        const next = updateValue(
+          current === null || current === undefined ? null : clone(current),
+        );
+        return next === undefined ? undefined : cleanObject(next);
+      },
+    );
+    return transaction.committed ? clone(transaction.snapshot.val()) : null;
+  }
+
   async patchPath(relativePath, value) {
     await update(this.appRef(relativePath), cleanObject(value));
     return clone(value);
