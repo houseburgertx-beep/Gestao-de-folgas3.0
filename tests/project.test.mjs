@@ -98,14 +98,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.15/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.16/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.15"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.16"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -137,7 +137,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.1\.15/);
+  assert.match(builder, /main\.js\?v=6\.1\.16/);
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {
