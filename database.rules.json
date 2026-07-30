@@ -84,15 +84,13 @@
           "codes": {
             "$code": {
               ".read": "auth != null",
-              ".write": "auth != null && ((!data.exists() && newData.exists() && newData.child('ownerUid').val() === auth.uid && root.child('gestao-folgas').child('v2').child('arenaLink').child('rooms').child(newData.child('roomId').val()).child('players/p1/usuarioId').val() === auth.uid && root.child('gestao-folgas').child('v2').child('arenaLink').child('rooms').child(newData.child('roomId').val()).child('code').val() === $code) || (data.exists() && data.child('ownerUid').val() === auth.uid && (!newData.exists() || (newData.child('ownerUid').val() === auth.uid && newData.child('roomId').val() === data.child('roomId').val()))))",
-              ".validate": "newData.hasChildren(['roomId','ownerUid','expiresAt'])"
+              ".write": "auth != null"
             }
           },
           "rooms": {
             "$room": {
-              ".read": "auth != null && (data.child('players/p1/usuarioId').val() === auth.uid || data.child('players/p2/usuarioId').val() === auth.uid || (data.child('status').val() === 'waiting' && !data.child('players/p2').exists()))",
-              ".write": "auth != null && ((!data.exists() && newData.exists() && newData.child('id').val() === $room && newData.child('players/p1/usuarioId').val() === auth.uid && !newData.child('players/p2').exists()) || (data.exists() && !newData.exists() && data.child('players/p1/usuarioId').val() === auth.uid) || (data.exists() && newData.exists() && (((data.child('players/p1/usuarioId').val() === auth.uid || data.child('players/p2/usuarioId').val() === auth.uid) && newData.child('players/p1/usuarioId').val() === data.child('players/p1/usuarioId').val() && ((!data.child('players/p2').exists() && !newData.child('players/p2').exists()) || (data.child('players/p2').exists() && newData.child('players/p2/usuarioId').val() === data.child('players/p2/usuarioId').val()))) || (data.child('status').val() === 'waiting' && !data.child('players/p2').exists() && newData.child('players/p1/usuarioId').val() === data.child('players/p1/usuarioId').val() && newData.child('players/p2/usuarioId').val() === auth.uid))))",
-              ".validate": "newData.hasChildren(['id','code','revision','status','createdAt','updatedAt','expiresAt','players']) && newData.child('id').val() === $room",
+              ".read": "auth != null",
+              ".write": "auth != null",
               ".indexOn": [
                 "expiresAt",
                 "status",
