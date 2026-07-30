@@ -87,7 +87,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.14");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.15");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -98,14 +98,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.14/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.15/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.14"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.15"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -137,7 +137,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.1\.14/);
+  assert.match(builder, /main\.js\?v=6\.1\.15/);
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {
@@ -167,7 +167,7 @@ test("ponto consulta somente os meses necessários", async () => {
   assert.match(runtime, /timeClockPeriodIndexesV1/);
   assert.match(
     runtime,
-    /if \(!isAdminProfile\(profile\)\) \{\s*return this\.list\(table, \{ profile \}\);/,
+    /if \(!isAdminProfile\(profile\)\) \{[\s\S]*?await this\.list\(table, \{ profile \}\)[\s\S]*?allowedPeriods\.has/,
   );
   assert.match(clock, /listPeriods\("RegistrosPonto", \[\.\.\.recordPeriods\]/);
   assert.match(
@@ -392,14 +392,20 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(client, /getUserMedia/);
   assert.match(client, /facingMode:\s*"user"/);
   assert.match(client, /CLOCK_POSITION_PROMISE_ = getClockPosition_\(\)/);
-  assert.match(client, /Math\.min\(480,\s*video\.videoWidth\)/);
-  assert.match(client, /toDataURL\("image\/jpeg",\s*0\.62\)/);
+  assert.match(client, /Math\.min\(360,\s*video\.videoWidth\)/);
+  assert.match(client, /canvas\.toBlob\(/);
+  assert.match(client, /"image\/jpeg",\s*0\.52/);
+  assert.match(client, /clockSelfieWarm:\s*"prepareTimeClockSelfieUpload"/);
   assert.match(client, /selfieDataUrl:\s*CLOCK_SELFIE_DATA_/);
   assert.match(dialogs, /id="clockSelfieDialog"/);
   assert.match(dialogs, /Selfie obrigatória/);
   assert.match(dialogs, /A imagem não será salva no Firebase/);
   assert.match(api, /uploadClockSelfieToDrive/);
   assert.match(api, /new AbortController\(\)/);
+  assert.match(api, /warmSelfieDriveService/);
+  assert.match(api, /mode:\s*"no-cors"/);
+  assert.match(api, /async prepareTimeClockSelfieUpload/);
+  assert.match(api, /const \[employee, location, schedules, allRecords\] = await Promise\.all/);
   assert.match(api, /signal:\s*controller\.signal/);
   assert.match(api, /runtime\.create\("RegistrosPonto"/);
   assert.match(api, /ProximaMarcacao:\s*nextClockAction/);
@@ -421,6 +427,7 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(driveConfig, /SELFIE_DRIVE_UPLOAD_ENDPOINT/);
   assert.match(client, /applySavedClockPunch_\(saved\)/);
   assert.match(client, /refreshClockAfterPunch_\(\)/);
+  assert.match(client, /\[performance\] ponto confirmado/);
   assert.doesNotMatch(
     client,
     /closeDialog\("clockSelfieDialog"\);\s*const refreshed = await loadTimeClock/,
