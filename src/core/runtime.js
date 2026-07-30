@@ -708,6 +708,21 @@ export class FirebaseRuntime {
     return clone(normalized);
   }
 
+  async create(table, record) {
+    const idField = ID_FIELDS[table];
+    if (!idField) throw new Error(`Tabela sem identificador: ${table}.`);
+    const id = String(record?.[idField] || uuid());
+    const normalized = cleanObject({
+      ...record,
+      ...periodFieldsFor(table, record),
+      [idField]: id,
+    });
+    const storageKey = pathKey(id);
+    await set(this.appRef(`tables/${table}/${storageKey}`), normalized);
+    this.recordKeys.set(this.recordCacheKey(table, id), storageKey);
+    return clone(normalized);
+  }
+
   async patch(table, id, changes) {
     const current = await this.getById(table, id);
     if (!current) throw new Error("Registro não encontrado.");

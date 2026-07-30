@@ -22,9 +22,7 @@ function doGet() {
 }
 
 function doPost(event) {
-  const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(20000);
     const payload = JSON.parse(
       String(event && event.postData && event.postData.contents || "{}"),
     );
@@ -61,22 +59,13 @@ function doPost(event) {
       : destination.createFile(
           Utilities.newBlob(image, "image/jpeg", fileName),
         );
-    file.setDescription(
-      JSON.stringify({
-        origem: "Gestão de Folgas",
-        requestId: requestId,
-        funcionarioId: String(profile.FuncionarioID),
-        lojaId: String(profile.LojaID || ""),
-        tipoMarcacao: type,
-        data: day,
-      }),
-    );
+    const fileId = file.getId();
 
     return jsonResponse_({
       ok: true,
-      fileId: file.getId(),
-      fileUrl: file.getUrl(),
-      fileName: file.getName(),
+      fileId: fileId,
+      fileUrl: "https://drive.google.com/file/d/" + fileId + "/view",
+      fileName: fileName,
       uploadedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -84,8 +73,6 @@ function doPost(event) {
       ok: false,
       error: String(error && error.message || error || "Falha no upload."),
     });
-  } finally {
-    if (lock.hasLock()) lock.releaseLock();
   }
 }
 
@@ -144,13 +131,44 @@ function decodeSelfie_(dataUrl) {
 }
 
 function destinationFolder_(profile, day) {
-  const root = DriveApp.getFolderById(SELFIE_SERVICE_CONFIG_.folderId);
-  const year = childFolder_(root, day.slice(0, 4));
-  const month = childFolder_(year, day.slice(0, 7));
-  return childFolder_(
-    month,
-    safeName_(profile.NomeLoja || profile.LojaID || "Sem loja"),
+  const storeName = safeName_(
+    profile.NomeLoja || profile.LojaID || "Sem loja",
   );
+  const cache = CacheService.getScriptCache();
+  const cacheKey = [
+    "selfie-folder",
+    day.slice(0, 7),
+    storeName,
+  ].join(":");
+  const cachedId = cache.get(cacheKey);
+  if (cachedId) {
+    try {
+      return DriveApp.getFolderById(cachedId);
+    } catch (ignored) {
+      cache.remove(cacheKey);
+    }
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    const lockedCachedId = cache.get(cacheKey);
+    if (lockedCachedId) {
+      try {
+        return DriveApp.getFolderById(lockedCachedId);
+      } catch (ignored) {
+        cache.remove(cacheKey);
+      }
+    }
+    const root = DriveApp.getFolderById(SELFIE_SERVICE_CONFIG_.folderId);
+    const year = childFolder_(root, day.slice(0, 4));
+    const month = childFolder_(year, day.slice(0, 7));
+    const destination = childFolder_(month, storeName);
+    cache.put(cacheKey, destination.getId(), 21600);
+    return destination;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function childFolder_(parent, name) {

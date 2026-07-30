@@ -4372,8 +4372,8 @@
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
         enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 0,
+        timeout: 12000,
+        maximumAge: 10000,
       });
     });
   }
@@ -4385,6 +4385,39 @@
     if (error?.code === 3)
       return "A localização demorou demais. Tente novamente em local aberto.";
     return error?.message || "Não foi possível obter a localização.";
+  }
+  function applySavedClockPunch_(saved) {
+    const data = state.timeClock || {},
+      record = { ...saved },
+      savedId = String(saved?.RegistroPontoID || "");
+    delete record.ProximaMarcacao;
+    const mergeRecord = (records) => {
+      const merged = arr(records).filter(
+        (item) => String(item.RegistroPontoID || "") !== savedId,
+      );
+      merged.push(record);
+      return merged.sort((a, b) =>
+        String(a.DataHora || "").localeCompare(String(b.DataHora || "")),
+      );
+    };
+    data.todayRecords = mergeRecord(data.todayRecords);
+    if (Array.isArray(data.records)) data.records = mergeRecord(data.records);
+    data.date = normalizeClockDay_(record.Data) || data.date;
+    data.month = String(data.date || "").slice(0, 7) || data.month;
+    data.nextAction = String(saved?.ProximaMarcacao || "");
+    delete data.loadError;
+    state.timeClock = data;
+    renderTimeClock();
+    saveTurboShellCache_();
+  }
+  function refreshClockAfterPunch_() {
+    const refresh =
+      state.currentView === "timeclock"
+        ? loadTimeClock(false, true)
+        : loadTimeClockQuick_();
+    Promise.resolve(refresh).catch((error) =>
+      console.warn("Atualização do ponto:", error?.message || error),
+    );
   }
   async function confirmClockPunchWithSelfie_(event) {
     event.preventDefault();
@@ -4408,26 +4441,9 @@
         expectedAction: CLOCK_EXPECTED_ACTION_,
         requestId: CLOCK_PUNCH_REQUEST_ID_,
       });
-      closeDialog("clockSelfieDialog");
-      const refreshed = await loadTimeClock(true, true);
-      if (!refreshed) {
-        throw new Error(
-          "O ponto foi enviado, mas a tela não conseguiu confirmar a releitura. Atualize antes de tentar novamente.",
-        );
-      }
-      const savedId = String(saved.RegistroPontoID || ""),
-        persisted = arr(refreshed.todayRecords).some(
-          (record) =>
-            String(record.RegistroPontoID || "") === savedId &&
-            String(record.TipoMarcacao || "") ===
-              String(saved.TipoMarcacao || ""),
-        );
-      if (!persisted) {
-        throw new Error(
-          "A nova marcação não apareceu na releitura do dia. Atualize a tela antes de tentar novamente.",
-        );
-      }
+      applySavedClockPunch_(saved);
       confirmed = true;
+      closeDialog("clockSelfieDialog");
       toast(
         bool(saved.ForaHorario)
           ? "Ponto registrado fora do horário programado. A marcação foi mantida normalmente."
@@ -4435,6 +4451,7 @@
           ? "Descanso não realizado foi gravado. A próxima marcação é a saída final."
           : "Seu ponto foi registrado com selfie no Google Drive e localização validada.",
       );
+      refreshClockAfterPunch_();
     } catch (error) {
       const message = error?.code
         ? clockLocationError_(error)

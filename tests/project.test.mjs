@@ -82,7 +82,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.10");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.11");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -93,13 +93,13 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.10/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.11/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /navigator\.serviceWorker\.register\("\.\/sw\.js"/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.10"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.11"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -365,6 +365,8 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
       ),
     ]);
   assert.match(client, /enableHighAccuracy:\s*true/);
+  assert.match(client, /timeout:\s*12000/);
+  assert.match(client, /maximumAge:\s*10000/);
   assert.match(client, /latitude:\s*pos\.coords\.latitude/);
   assert.match(client, /longitude:\s*pos\.coords\.longitude/);
   assert.match(client, /getUserMedia/);
@@ -377,6 +379,10 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(dialogs, /Selfie obrigatória/);
   assert.match(dialogs, /A imagem não será salva no Firebase/);
   assert.match(api, /uploadClockSelfieToDrive/);
+  assert.match(api, /new AbortController\(\)/);
+  assert.match(api, /signal:\s*controller\.signal/);
+  assert.match(api, /runtime\.create\("RegistrosPonto"/);
+  assert.match(api, /ProximaMarcacao:\s*nextClockAction/);
   assert.match(api, /SelfieStorage:\s*"Google Drive"/);
   assert.match(api, /SelfieDriveFileID:\s*selfie\.fileId/);
   assert.match(api, /Aplicação web · selfie no Google Drive \+ localização/);
@@ -388,8 +394,17 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(driveService, /firebaseProfile_\(uid, token\)/);
   assert.match(driveService, /\.json\?auth=/);
   assert.match(driveService, /destination\.createFile/);
+  assert.match(driveService, /CacheService\.getScriptCache\(\)/);
+  assert.doesNotMatch(driveService, /waitLock\(20000\)/);
+  assert.doesNotMatch(driveService, /\.setDescription\(/);
   assert.doesNotMatch(driveService, /firebaseio\.com[\s\S]*method:\s*"put"/i);
   assert.match(driveConfig, /SELFIE_DRIVE_UPLOAD_ENDPOINT/);
+  assert.match(client, /applySavedClockPunch_\(saved\)/);
+  assert.match(client, /refreshClockAfterPunch_\(\)/);
+  assert.doesNotMatch(
+    client,
+    /closeDialog\("clockSelfieDialog"\);\s*const refreshed = await loadTimeClock/,
+  );
 });
 
 test("dashboard do funcionário inicia o carregamento rápido do ponto", async () => {
