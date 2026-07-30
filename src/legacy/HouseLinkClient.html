@@ -47,7 +47,7 @@
       state.houseLink.roomId = saved.roomId;
       state.houseLink.code = saved.code || "";
       try {
-        await houseLinkPoll_(true);
+        await houseLinkPoll_(true, true);
         return;
       } catch (ignored) {}
     }
@@ -841,7 +841,7 @@
     }
   }
 
-  async function houseLinkPoll_(immediate) {
+  async function houseLinkPoll_(immediate, silentExpiredRoom) {
     if (
       !state.houseLink.viewActive ||
       !state.houseLink.roomId ||
@@ -879,7 +879,7 @@
       ) {
         houseLinkClearSession_();
         houseLinkRenderLanding_();
-        toast(error.message, true);
+        if (!silentExpiredRoom) toast(error.message, true);
       }
       throw error;
     } finally {
