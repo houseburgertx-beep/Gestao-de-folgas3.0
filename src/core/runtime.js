@@ -495,6 +495,36 @@ export class FirebaseRuntime {
       return [...unique.values()];
     }
 
+    if (
+      table === "DiretorioTrocasFolga" &&
+      isEmployeeProfile(profile) &&
+      storeId
+    ) {
+      return this.recordsFromSnapshot(
+        table,
+        await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
+      );
+    }
+
+    if (
+      table === "TrocasFolga" &&
+      isEmployeeProfile(profile) &&
+      employeeId
+    ) {
+      const snapshots = await Promise.all(
+        ["FuncionarioOrigemID", "FuncionarioDestinoID"].map((field) =>
+          get(query(tableRef, orderByChild(field), equalTo(employeeId))),
+        ),
+      );
+      const unique = new Map();
+      snapshots
+        .flatMap((snapshot) => this.recordsFromSnapshot(table, snapshot))
+        .forEach((record) => {
+          unique.set(String(record.TrocaID || uuid()), record);
+        });
+      return [...unique.values()];
+    }
+
     const storeField = STORE_SCOPED_FIELDS[table];
     if (isManagerProfile(profile) && storeId && storeField) {
       return this.recordsFromSnapshot(
@@ -737,18 +767,32 @@ export class FirebaseRuntime {
     const changes = {};
     const output = [];
     for (const item of items) {
-      const { table, id, changes: recordChanges = {} } = item;
+      const {
+        table,
+        id,
+        changes: recordChanges = {},
+        createIfMissing = false,
+        record = {},
+      } = item;
       const current = await this.getById(table, id);
-      if (!current) throw new Error("Registro não encontrado.");
+      if (!current && !createIfMissing) {
+        throw new Error("Registro não encontrado.");
+      }
       const idField = ID_FIELDS[table];
       const normalized = cleanObject({
-        ...current,
+        ...(current || record),
         ...recordChanges,
-        ...periodFieldsFor(table, { ...current, ...recordChanges }),
+        ...periodFieldsFor(table, {
+          ...(current || record),
+          ...recordChanges,
+        }),
         [idField]: id,
       });
-      const storageKey = await this.resolveStorageKey(table, id);
+      const storageKey = current
+        ? await this.resolveStorageKey(table, id)
+        : pathKey(id);
       changes[`tables/${table}/${storageKey}`] = normalized;
+      this.recordKeys.set(this.recordCacheKey(table, id), storageKey);
       output.push(clone(normalized));
     }
     if (Object.keys(changes).length) await update(this.appRef(), changes);
