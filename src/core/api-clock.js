@@ -48,6 +48,24 @@ const selfieDriveEndpoint = () => {
   return endpoint;
 };
 
+const warmSelfieDriveService = async () => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  try {
+    await fetch(selfieDriveEndpoint(), {
+      method: "GET",
+      mode: "no-cors",
+      cache: "no-store",
+      credentials: "omit",
+      signal: controller.signal,
+    });
+  } catch {
+    // O POST continuará funcionando mesmo se o aquecimento for bloqueado.
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const uploadClockSelfieToDrive = async ({
   selfieDataUrl,
   requestId,
@@ -780,17 +798,23 @@ export function createClockHandlers() {
       return success(await quickClockContext(), "Ponto pronto.");
     },
 
+    async prepareTimeClockSelfieUpload(args) {
+      dropClientToken(args);
+      await warmSelfieDriveService();
+      return success({ ready: true }, "Serviço de selfie preparado.");
+    },
+
     async registerTimeClockPunch(args) {
       const profile = await runtime.requireProfile();
       const values = dropClientToken(args);
       const payload = values[0] || {};
-      const employee = await runtime.getById(
-        "Funcionarios",
-        profile.FuncionarioID,
-      );
-      assert(employee && asBoolean(employee.Ativo), "Funcionário inativo.");
-      const [location, schedules, allRecords] = await Promise.all([
-        runtime.findOne("LocaisPonto", "LojaID", employee.LojaID),
+      const employeeId = String(profile.FuncionarioID || "");
+      const storeId = String(profile.LojaID || "");
+      assert(employeeId, "Usuário sem funcionário vinculado.");
+      assert(storeId, "Usuário sem loja vinculada.");
+      const [employee, location, schedules, allRecords] = await Promise.all([
+        runtime.getById("Funcionarios", employeeId),
+        runtime.findOne("LocaisPonto", "LojaID", storeId),
         runtime.list("JornadasPonto", { profile }),
         runtime.listPeriods(
           "RegistrosPonto",
@@ -798,6 +822,11 @@ export function createClockHandlers() {
           { profile },
         ),
       ]);
+      assert(employee && asBoolean(employee.Ativo), "Funcionário inativo.");
+      assert(
+        String(employee.LojaID || "") === storeId,
+        "O funcionário está vinculado a outra loja. Atualize o acesso.",
+      );
       assert(location && asBoolean(location.Ativo), "Configure o local do ponto.");
       const day = operationalDayFor(
         allRecords,
@@ -910,9 +939,11 @@ export function createClockHandlers() {
         if (existing?.RequestID !== requestId) throw error;
         saved = existing;
       }
-      await audit("Registrar ponto", "Ponto", saved.RegistroPontoID, {
+      void audit("Registrar ponto", "Ponto", saved.RegistroPontoID, {
         after: saved,
-      });
+      }).catch((error) =>
+        console.warn("Auditoria do ponto:", error?.message || error),
+      );
       return success(
         {
           ...saved,

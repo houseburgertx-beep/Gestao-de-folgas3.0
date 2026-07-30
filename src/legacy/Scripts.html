@@ -142,6 +142,7 @@
     clockQuick: "getTimeClockQuickStatusWithSession",
     clockSettings: "getTimeClockSettingsWithSession",
     clockRepair: "corrigirEntradasDuplicadasPonto",
+    clockSelfieWarm: "prepareTimeClockSelfieUpload",
     clockPunch: "registerTimeClockPunch",
     clockManualPunch: "registerTimeClockManualPunch",
     clockAdjustment: "requestTimeClockAdjustment",
@@ -177,6 +178,7 @@
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
+  let CLOCK_SELFIE_ENCODING_ID_ = 0;
   let CLOCK_POSITION_PROMISE_ = null;
   let CLOCK_EXPECTED_ACTION_ = "";
   let CLOCK_PUNCH_REQUEST_ID_ = "";
@@ -4258,6 +4260,7 @@
     }
     CLOCK_POSITION_PROMISE_ = getClockPosition_();
     CLOCK_POSITION_PROMISE_.catch(() => {});
+    call(FN.clockSelfieWarm).catch(() => {});
     openDialog("clockSelfieDialog");
     await startClockSelfieCamera_();
   }
@@ -4271,6 +4274,7 @@
   }
   function resetClockSelfieCapture_(preserveTransaction) {
     stopClockSelfieStream_();
+    CLOCK_SELFIE_ENCODING_ID_ += 1;
     CLOCK_SELFIE_DATA_ = "";
     if (preserveTransaction !== true) {
       CLOCK_POSITION_PROMISE_ = null;
@@ -4362,8 +4366,8 @@
     status.textContent = "Preparando a selfie…";
     reader.onload = () => {
       const image = new Image();
-      image.onload = () => {
-        const width = Math.min(480, image.naturalWidth || image.width),
+      image.onload = async () => {
+        const width = Math.min(360, image.naturalWidth || image.width),
           height = Math.round(
             ((image.naturalHeight || image.height) /
               (image.naturalWidth || image.width)) *
@@ -4373,9 +4377,14 @@
           toast("Não foi possível processar esta foto.", true);
           return;
         }
-        setClockSelfieCanvas_(image, width, height, false);
-        status.textContent =
-          "Selfie pronta. Confirme para enviar ao Google Drive e validar a localização.";
+        try {
+          status.textContent = "Otimizando a selfie para envio rápido…";
+          await setClockSelfieCanvas_(image, width, height, false);
+          status.textContent =
+            "Selfie pronta. Confirme para registrar o ponto.";
+        } catch (error) {
+          toast(error?.message || "Não foi possível preparar esta foto.", true);
+        }
       };
       image.onerror = () => toast("Não foi possível abrir esta foto.", true);
       image.src = String(reader.result || "");
@@ -4383,10 +4392,33 @@
     reader.onerror = () => toast("Não foi possível ler esta foto.", true);
     reader.readAsDataURL(file);
   }
-  function setClockSelfieCanvas_(source, width, height, mirror) {
+  function clockSelfieDataUrl_(canvas) {
+    if (typeof canvas.toBlob !== "function") {
+      return Promise.resolve(canvas.toDataURL("image/jpeg", 0.52));
+    }
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Não foi possível compactar a selfie."));
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () =>
+            reject(new Error("Não foi possível preparar a selfie."));
+          reader.readAsDataURL(blob);
+        },
+        "image/jpeg",
+        0.52,
+      );
+    });
+  }
+  async function setClockSelfieCanvas_(source, width, height, mirror) {
     const video = $("#clockSelfieVideo"),
       canvas = $("#clockSelfieCanvas"),
-      context = canvas.getContext("2d");
+      context = canvas.getContext("2d"),
+      encodingId = ++CLOCK_SELFIE_ENCODING_ID_;
     canvas.width = width;
     canvas.height = height;
     context.save();
@@ -4396,8 +4428,10 @@
     }
     context.drawImage(source, 0, 0, width, height);
     context.restore();
-    CLOCK_SELFIE_DATA_ = canvas.toDataURL("image/jpeg", 0.62);
     stopClockSelfieStream_();
+    const dataUrl = await clockSelfieDataUrl_(canvas);
+    if (encodingId !== CLOCK_SELFIE_ENCODING_ID_) return;
+    CLOCK_SELFIE_DATA_ = dataUrl;
     $("#clockSelfiePlaceholder").classList.add("hidden");
     video.classList.add("hidden");
     canvas.classList.remove("hidden");
@@ -4406,18 +4440,22 @@
     $("#clockSelfieRetake").classList.remove("hidden");
     $("#clockSelfieConfirm").disabled = false;
   }
-  function captureClockSelfie_() {
+  async function captureClockSelfie_() {
     const video = $("#clockSelfieVideo"),
       status = $("#clockSelfieStatus");
     if (!video.videoWidth || !video.videoHeight) {
       toast("A câmera ainda está carregando. Aguarde um instante.", true);
       return;
     }
-    const width = Math.min(480, video.videoWidth),
+    const width = Math.min(360, video.videoWidth),
       height = Math.round((video.videoHeight / video.videoWidth) * width);
-    setClockSelfieCanvas_(video, width, height, true);
-    status.textContent =
-      "Selfie pronta. Confirme para enviar ao Google Drive e validar a localização.";
+    status.textContent = "Otimizando a selfie para envio rápido…";
+    try {
+      await setClockSelfieCanvas_(video, width, height, true);
+      status.textContent = "Selfie pronta. Confirme para registrar o ponto.";
+    } catch (error) {
+      toast(error?.message || "Não foi possível preparar a selfie.", true);
+    }
   }
   function getClockPosition_() {
     return new Promise((resolve, reject) => {
@@ -4477,11 +4515,11 @@
     const confirm = $("#clockSelfieConfirm"),
       status = $("#clockSelfieStatus");
     confirm.disabled = true;
-    confirm.textContent = "Enviando…";
-    status.textContent =
-      "Enviando a selfie ao Google Drive e validando a localização…";
+    confirm.textContent = "Registrando…";
+    status.textContent = "Registrando o ponto com selfie e localização…";
     setClockButtonsBusy(true);
     let confirmed = false;
+    const punchStartedAt = performance.now();
     try {
       const pos = await (CLOCK_POSITION_PROMISE_ || getClockPosition_());
       const saved = await call(FN.clockPunch, sessionToken(), {
@@ -4502,6 +4540,10 @@
           ? "Descanso não realizado foi gravado. A próxima marcação é a saída final."
           : "Seu ponto foi registrado com selfie no Google Drive e localização validada.",
       );
+      console.info("[performance] ponto confirmado", {
+        totalMs: Math.round(performance.now() - punchStartedAt),
+        selfieCharacters: CLOCK_SELFIE_DATA_.length,
+      });
       refreshClockAfterPunch_();
     } catch (error) {
       const message = error?.code
@@ -4525,7 +4567,7 @@
       const el = $("#" + id);
       if (!el) return;
       el.disabled = busy;
-      if (busy) el.textContent = "Enviando selfie e validando localização…";
+      if (busy) el.textContent = "Registrando ponto…";
     });
     if (!busy && state.timeClock) renderTimeClock();
   }
