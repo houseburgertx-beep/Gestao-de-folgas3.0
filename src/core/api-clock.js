@@ -131,6 +131,52 @@ const normalizedDateKey = (value) => {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
 };
 
+const normalizedWeekday = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+export const isFixedOffForDate = (
+  employee,
+  dateKey,
+  timeOffRecords = [],
+) => {
+  if (
+    !employee ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ""))
+  ) {
+    return false;
+  }
+  const weekday = [
+    "domingo",
+    "segunda",
+    "terça",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sábado",
+  ][new Date(`${dateKey}T12:00:00`).getDay()];
+  const recurring = [
+    employee.DiaFolgaPreferencial,
+    employee.SegundoDiaFolgaPreferencial,
+  ]
+    .filter(Boolean)
+    .some((day) =>
+      normalizedWeekday(day).startsWith(
+        normalizedWeekday(weekday).slice(0, 5),
+      ),
+    );
+  if (!recurring) return false;
+  return !timeOffRecords.some(
+    (item) =>
+      String(item.FuncionarioID || "") ===
+        String(employee.FuncionarioID || "") &&
+      ["Aprovada", "Concluída"].includes(item.Status) &&
+      normalizedDateKey(item.FolgaFixaSubstituidaData) === dateKey,
+  );
+};
+
 const firstPunchDatesByEmployee = (records = []) => {
   const starts = new Map();
   records
@@ -400,20 +446,7 @@ async function clockContext(filters = {}) {
   const fixedOff =
     !!ownEmployee &&
     !todayTimeOff &&
-    [ownEmployee.DiaFolgaPreferencial, ownEmployee.SegundoDiaFolgaPreferencial]
-      .filter(Boolean)
-      .some((day) => {
-        const weekday = [
-          "domingo",
-          "segunda",
-          "terça",
-          "quarta",
-          "quinta",
-          "sexta",
-          "sábado",
-        ][new Date(`${operationalDay}T12:00:00`).getDay()];
-        return String(day).toLowerCase().startsWith(weekday.slice(0, 5));
-      });
+    isFixedOffForDate(ownEmployee, operationalDay, timeOff);
 
   const days = [];
   const [year, monthNumber] = month.split("-").map(Number);
@@ -445,24 +478,7 @@ async function clockContext(filters = {}) {
       );
       const weekday = new Date(`${dateKey}T12:00:00`).getDay();
       const fixed =
-        !approvedOff &&
-        [employee.DiaFolgaPreferencial, employee.SegundoDiaFolgaPreferencial]
-          .filter(Boolean)
-          .some((name) =>
-            String(name)
-              .toLowerCase()
-              .startsWith(
-                [
-                  "domingo",
-                  "segunda",
-                  "terça",
-                  "quarta",
-                  "quinta",
-                  "sexta",
-                  "sábado",
-                ][weekday].slice(0, 5),
-              ),
-          );
+        !approvedOff && isFixedOffForDate(employee, dateKey, timeOff);
       if (
         !rows.length &&
         !approvedOff &&
@@ -609,25 +625,9 @@ async function quickClockContext() {
       normalizedDateKey(item.DataInicio) <= operationalDay &&
       normalizedDateKey(item.DataFim || item.DataInicio) >= operationalDay,
   );
-  const weekdayName = [
-    "domingo",
-    "segunda",
-    "terça",
-    "quarta",
-    "quinta",
-    "sexta",
-    "sábado",
-  ][new Date(`${operationalDay}T12:00:00`).getDay()];
   const fixedOff =
     !approvedOff &&
-    [
-      employee.DiaFolgaPreferencial,
-      employee.SegundoDiaFolgaPreferencial,
-    ]
-      .filter(Boolean)
-      .some((day) =>
-        String(day).toLowerCase().startsWith(weekdayName.slice(0, 5)),
-      );
+    isFixedOffForDate(employee, operationalDay, timeOff);
   const metrics = dayMetrics(todayRecords, schedule);
   return {
     month: operationalDay.slice(0, 7),

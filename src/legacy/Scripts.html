@@ -2016,23 +2016,56 @@
   function person(n, email = "") {
     return `<div class="person-cell"><div class="avatar">${initials(n)}</div><div><strong>${esc(n || "—")}</strong>${email ? `<span>${esc(email)}</span>` : ""}</div></div>`;
   }
+  function normalizedWeekday_(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  }
+  function isFixedOffDate_(employee, date) {
+    const weekday = [
+        "domingo",
+        "segunda",
+        "terça",
+        "quarta",
+        "quinta",
+        "sexta",
+        "sábado",
+      ][new Date(date + "T12:00:00").getDay()],
+      expected = normalizedWeekday_(weekday).slice(0, 5),
+      recurring = [
+        val(employee, "DiaFolgaPreferencial", "diaFolgaPreferencial"),
+        val(
+          employee,
+          "SegundoDiaFolgaPreferencial",
+          "segundoDiaFolgaPreferencial",
+        ),
+      ]
+        .filter(Boolean)
+        .some((name) => normalizedWeekday_(name).startsWith(expected));
+    if (!recurring) return false;
+    const employeeId = String(idOf(employee, "Funcionario"));
+    return !state.timeOff.some(
+      (record) =>
+        String(val(record, "FuncionarioID", "funcionarioId")) === employeeId &&
+        ["aprovada", "concluída"].includes(
+          String(val(record, "Status", "status") || "").toLowerCase(),
+        ) &&
+        iso(
+          val(
+            record,
+            "FolgaFixaSubstituidaData",
+            "folgaFixaSubstituidaData",
+          ),
+        ) === date,
+    );
+  }
   function fixedEventsForDate(date, store = "", employee = "", existing = []) {
-    const day = new Date(date + "T12:00:00").getDay(),
-      names = [
-        "Domingo",
-        "Segunda-feira",
-        "Terça-feira",
-        "Quarta-feira",
-        "Quinta-feira",
-        "Sexta-feira",
-        "Sábado",
-      ];
     return state.employees
       .filter(
         (x) =>
           bool(val(x, "Ativo", "ativo")) &&
-          val(x, "DiaFolgaPreferencial", "diaFolgaPreferencial") ===
-            names[day] &&
+          isFixedOffDate_(x, date) &&
           (!store || String(val(x, "LojaID", "lojaId")) === String(store)) &&
           (!employee || String(idOf(x, "Funcionario")) === String(employee)) &&
           !existing.some(
@@ -2105,16 +2138,6 @@
       return;
     }
     const today = iso(new Date()),
-      days = [
-        "Domingo",
-        "Segunda-feira",
-        "Terça-feira",
-        "Quarta-feira",
-        "Quinta-feira",
-        "Sexta-feira",
-        "Sábado",
-      ],
-      fixedDay = days[new Date(today + "T12:00:00").getDay()],
       away = new Set(
         state.timeOff
           .filter(
@@ -2132,7 +2155,7 @@
         (x) =>
           bool(val(x, "Ativo", "ativo")) &&
           !away.has(String(idOf(x, "Funcionario"))) &&
-          val(x, "DiaFolgaPreferencial", "diaFolgaPreferencial") !== fixedDay,
+          !isFixedOffDate_(x, today),
       );
     $("#workingTodayCount").textContent = workers.length;
     $("#workingTodayList").innerHTML =
@@ -4952,10 +4975,11 @@
               <div><span>${initials(val(swap, "NomeFuncionarioDestino"))}</span><small>Colega</small><strong>${esc(val(swap, "NomeFuncionarioDestino"))}</strong></div>
             </div>
             <div class="swap-dates">
-              <div><small>Folga atual</small><strong>${dateBR(val(swap, "DataFolgaOrigem"))}</strong></div>
+              <div><small>${val(swap, "TipoFolgaOrigem") === "Fixa" ? "Folga fixa atual" : "Folga atual"}</small><strong>${dateBR(val(swap, "DataFolgaOrigem"))}</strong></div>
               <i>→</i>
-              <div><small>Folga desejada</small><strong>${dateBR(val(swap, "DataFolgaDestino"))}</strong></div>
+              <div><small>${val(swap, "TipoFolgaDestino") === "Fixa" ? "Folga fixa do colega" : "Folga desejada"}</small><strong>${dateBR(val(swap, "DataFolgaDestino"))}</strong></div>
             </div>
+            ${val(swap, "TipoFolgaOrigem") === "Fixa" || val(swap, "TipoFolgaDestino") === "Fixa" ? '<p class="swap-reason"><span>Validade</span>Somente nesta semana. A folga fixa das semanas seguintes não muda.</p>' : ""}
             <p class="swap-reason"><span>Motivo</span>${esc(val(swap, "Motivo") || "Não informado")}</p>
             <div class="swap-progress" aria-label="Etapa ${progress} de 3"><i class="done"></i><i class="${progress >= 2 ? "done" : ""}"></i><i class="${progress >= 3 ? "done" : ""}"></i></div>
             ${pendingAcceptance ? `<div class="request-card-actions"><button class="btn btn-secondary" onclick="respondSwapUI('${esc(id)}',false)">Recusar</button><button class="btn btn-primary" onclick="respondSwapUI('${esc(id)}',true)">Aceitar troca</button></div>` : ""}
@@ -4966,16 +4990,56 @@
       '<div class="panel empty-state swap-empty"><span>⇄</span><strong>Nenhuma troca registrada</strong><p>As solicitações aparecerão aqui com o andamento de cada etapa.</p></div>';
     renderPendingCenterSummary_();
   }
-  function openSwapDialog() {
-    const own = state.timeOff.filter(
-      (timeOff) =>
-        statusClass(val(timeOff, "Status")) === "approved" &&
-        (!isEmployee() ||
-          String(val(timeOff, "FuncionarioID")) ===
-            String(val(state.user, "funcionarioId", "FuncionarioID", "id"))),
+  function swapCandidateList_(value) {
+    return Array.isArray(value)
+      ? value
+      : value && typeof value === "object"
+        ? Object.values(value)
+        : [];
+  }
+  function isFixedSwapCandidate_(timeOff) {
+    return (
+      val(timeOff, "TipoSelecao") === "Fixa" ||
+      String(idOf(timeOff, "Folga")).startsWith("FIXA-")
     );
+  }
+  function swapWeekKey_(dateValue) {
+    const date = new Date(iso(dateValue) + "T12:00:00"),
+      weekday = date.getDay();
+    date.setDate(date.getDate() - (weekday === 0 ? 6 : weekday - 1));
+    return iso(date);
+  }
+  function compatibleSwapDates_(source, destination) {
+    const sourceDate = iso(val(source, "DataInicio")),
+      destinationDate = iso(val(destination, "DataInicio")),
+      fixed =
+        isFixedSwapCandidate_(source) ||
+        isFixedSwapCandidate_(destination);
+    if (!sourceDate || !destinationDate || sourceDate === destinationDate)
+      return false;
+    return !fixed || swapWeekKey_(sourceDate) === swapWeekKey_(destinationDate);
+  }
+  function openSwapDialog() {
+    const currentEmployeeId = String(
+        val(state.user, "funcionarioId", "FuncionarioID", "id"),
+      ),
+      sourceEmployees = state.swapCandidates.filter(
+        (employee) =>
+          !isEmployee() ||
+          String(idOf(employee, "Funcionario")) === currentEmployeeId,
+      ),
+      own = sourceEmployees
+        .flatMap((employee) => swapCandidateList_(employee.folgas))
+        .filter(
+          (timeOff) =>
+            statusClass(val(timeOff, "Status")) === "approved" &&
+            iso(val(timeOff, "DataInicio")) >= iso(new Date()).slice(0, 10),
+        );
     if (!own.length) {
-      toast("Você não possui folga aprovada disponível para troca.", true);
+      toast(
+        "Você não possui folga aprovada ou folga fixa disponível para troca.",
+        true,
+      );
       return;
     }
     $("#swapForm").reset();
@@ -4984,29 +5048,34 @@
       own
         .map(
           (timeOff) =>
-            `<option value="${esc(idOf(timeOff, "Folga"))}">${dateBR(val(timeOff, "DataInicio"))} — ${esc(val(timeOff, "NomeFuncionario"))}</option>`,
+            `<option value="${esc(idOf(timeOff, "Folga"))}">${dateBR(val(timeOff, "DataInicio"))} — ${isFixedSwapCandidate_(timeOff) ? "Folga fixa" : esc(val(timeOff, "TipoFolga") || "Folga aprovada")} — ${esc(val(timeOff, "NomeFuncionario"))}</option>`,
         )
         .join("");
     const refreshDestinationTimeOff = () => {
-      const employee = state.swapCandidates.find(
-        (item) =>
-          String(idOf(item, "Funcionario")) ===
-          String($("#swapDestinationEmployee").value),
-      );
-      const timeOff = Array.isArray(employee && employee.folgas)
-        ? employee.folgas
-        : [];
+      const source = own.find(
+          (timeOff) =>
+            String(idOf(timeOff, "Folga")) ===
+            String($("#swapSourceTimeOff").value),
+        ),
+        employee = state.swapCandidates.find(
+          (item) =>
+            String(idOf(item, "Funcionario")) ===
+            String($("#swapDestinationEmployee").value),
+        ),
+        timeOff = swapCandidateList_(employee && employee.folgas);
       $("#swapDestinationTimeOff").innerHTML =
-        '<option value="">Selecione a folga do colega</option>' +
+        '<option value="">Selecione a folga do colega na mesma semana</option>' +
         timeOff
           .filter(
             (item) =>
               statusClass(val(item, "Status")) === "approved" &&
-              iso(val(item, "DataInicio")) >= iso(new Date()).slice(0, 10),
+              iso(val(item, "DataInicio")) >= iso(new Date()).slice(0, 10) &&
+              source &&
+              compatibleSwapDates_(source, item),
           )
           .map(
             (item) =>
-              `<option value="${esc(idOf(item, "Folga"))}">${dateBR(val(item, "DataInicio"))}</option>`,
+              `<option value="${esc(idOf(item, "Folga"))}">${dateBR(val(item, "DataInicio"))} — ${isFixedSwapCandidate_(item) ? "Folga fixa" : esc(val(item, "TipoFolga") || "Folga aprovada")}</option>`,
           )
           .join("");
     };
@@ -5025,7 +5094,13 @@
             (employee) =>
               bool(val(employee, "Ativo")) &&
               (!storeId || String(val(employee, "LojaID")) === storeId) &&
-              String(idOf(employee, "Funcionario")) !== sourceEmployeeId,
+              String(idOf(employee, "Funcionario")) !== sourceEmployeeId &&
+              swapCandidateList_(employee.folgas).some(
+                (item) =>
+                  statusClass(val(item, "Status")) === "approved" &&
+                  source &&
+                  compatibleSwapDates_(source, item),
+              ),
           )
           .map(
             (employee) =>
@@ -5043,8 +5118,16 @@
     event.preventDefault();
     setLoading(true);
     try {
+      const source = state.swapCandidates
+        .flatMap((employee) => swapCandidateList_(employee.folgas))
+        .find(
+          (timeOff) =>
+            String(idOf(timeOff, "Folga")) ===
+            String($("#swapSourceTimeOff").value),
+        );
       await call(FN.createSwap, {
         FolgaOrigemID: $("#swapSourceTimeOff").value,
+        FuncionarioOrigemID: val(source, "FuncionarioID"),
         FuncionarioDestinoID: $("#swapDestinationEmployee").value,
         FolgaDestinoID: $("#swapDestinationTimeOff").value,
         Motivo: $("#swapReason").value,

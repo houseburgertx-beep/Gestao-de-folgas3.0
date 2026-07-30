@@ -28,6 +28,19 @@
               ".validate": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja')"
             }
           },
+          "DiretorioTrocasFolga": {
+            ".read": "auth != null && query.orderByChild === 'LojaID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()",
+            "$record": {
+              ".write": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja' && ((newData.exists() && newData.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()) || (!newData.exists() && data.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()))))",
+              ".validate": "newData.hasChildren(['FuncionarioID','Nome','LojaID','Ativo']) && !newData.child('Email').exists() && !newData.child('EmailFuncionario').exists() && !newData.child('CPF').exists() && !newData.child('Telefone').exists()"
+            }
+          },
+          "TrocasFolga": {
+            ".read": "auth != null && ((query.orderByChild === 'FuncionarioOrigemID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val()) || (query.orderByChild === 'FuncionarioDestinoID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val()))",
+            "$record": {
+              ".validate": "newData.hasChildren(['TrocaID','FolgaOrigemID','FolgaDestinoOriginalID','FuncionarioOrigemID','FuncionarioDestinoID','LojaID','DataFolgaOrigem','DataFolgaDestino','Status']) && (!data.exists() || (newData.child('FolgaOrigemID').val() === data.child('FolgaOrigemID').val() && newData.child('FolgaDestinoOriginalID').val() === data.child('FolgaDestinoOriginalID').val() && newData.child('FuncionarioOrigemID').val() === data.child('FuncionarioOrigemID').val() && newData.child('FuncionarioDestinoID').val() === data.child('FuncionarioDestinoID').val() && newData.child('LojaID').val() === data.child('LojaID').val() && newData.child('DataFolgaOrigem').val() === data.child('DataFolgaOrigem').val() && newData.child('DataFolgaDestino').val() === data.child('DataFolgaDestino').val() && newData.child('TipoFolgaOrigem').val() === data.child('TipoFolgaOrigem').val() && newData.child('TipoFolgaDestino').val() === data.child('TipoFolgaDestino').val()))"
+            }
+          },
           "$table": {
             ".indexOn": [
               "LojaID",
