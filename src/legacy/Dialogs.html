@@ -886,13 +886,14 @@
       <div class="swap-dialog-intro">
         <span>⇄</span>
         <p>
-          Escolha duas folgas já aprovadas. O colega confirma primeiro e o
-          gestor conclui a troca.
+          Escolha uma folga aprovada ou uma ocorrência da folga fixa. Quando
+          houver folga fixa, a troca vale somente naquela semana; o dia fixo
+          das semanas seguintes permanece igual.
         </p>
       </div>
       <div class="dialog-grid">
         <label
-          >Minha folga aprovada<select id="swapSourceTimeOff" required></select
+          >Minha folga<select id="swapSourceTimeOff" required></select
         ></label>
         <label
           >Colega da mesma loja<select
@@ -901,7 +902,7 @@
           ></select
         ></label>
         <label class="full"
-          >Folga aprovada do colega<select
+          >Folga do colega na mesma semana<select
             id="swapDestinationTimeOff"
             required
           ></select
