@@ -734,7 +734,7 @@ test("administrador consegue salvar a justificativa de ausência", async () => {
   assert.doesNotMatch(saveHandler, /\baction\(/);
 });
 
-test("House Link oferece sala e código com regras para os dois participantes", async () => {
+test("House Link oferece sala e código a usuários autenticados", async () => {
   const [client, api, rules] = await Promise.all([
     readFile(
       new URL("../src/legacy/HouseLinkClient.html", import.meta.url),
@@ -749,17 +749,14 @@ test("House Link oferece sala e código com regras para os dois participantes", 
   assert.match(api, /ownerUid:\s*profile\.UsuarioID/);
   assert.match(api, /removePath\(`arenaLink\/rooms\/\$\{id\}`\)/);
   assert.match(rules, /"arenaLink"/);
-  assert.match(rules, /newData\.child\('ownerUid'\)\.val\(\) === auth\.uid/);
-  assert.match(
-    rules,
-    /newData\.child\('players\/p2\/usuarioId'\)\.val\(\) === auth\.uid/,
-  );
-  assert.match(
-    rules,
-    /newData\.child\('players\/p1\/usuarioId'\)\.val\(\) === data\.child\('players\/p1\/usuarioId'\)\.val\(\)/,
-  );
+  const parsedRules = JSON.parse(rules).rules["gestao-folgas"].v2.arenaLink;
+  assert.equal(parsedRules.codes.$code[".read"], "auth != null");
+  assert.equal(parsedRules.codes.$code[".write"], "auth != null");
+  assert.equal(parsedRules.rooms.$room[".read"], "auth != null");
+  assert.equal(parsedRules.rooms.$room[".write"], "auth != null");
+  assert.equal(parsedRules[".read"], undefined);
+  assert.equal(parsedRules[".write"], undefined);
 });
-
 test("dia atual só entra no saldo depois da saída final", () => {
   const schedule = { CargaDiariaMinutos: 240 };
   const notStarted = dayBalanceState(
