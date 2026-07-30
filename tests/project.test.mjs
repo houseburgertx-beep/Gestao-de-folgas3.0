@@ -87,7 +87,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.16");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.0");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -98,14 +98,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.16/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.0/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.16"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.0"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -137,7 +137,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.1\.16/);
+  assert.match(builder, /main\.js\?v=6\.2\.0/);
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {
@@ -735,19 +735,37 @@ test("administrador consegue salvar a justificativa de ausência", async () => {
 });
 
 test("House Link oferece sala e código a usuários autenticados", async () => {
-  const [client, api, rules] = await Promise.all([
+  const [client, styles, api, runtime, rules] = await Promise.all([
     readFile(
       new URL("../src/legacy/HouseLinkClient.html", import.meta.url),
       "utf8",
     ),
+    readFile(
+      new URL("../src/legacy/HouseLinkStyles.html", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../src/core/api-arena.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/runtime.js", import.meta.url), "utf8"),
     readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
   ]);
   assert.match(client, /Solicitar sala/);
   assert.match(client, /OU ENTRE COM O CÓDIGO DA SALA/);
   assert.match(client, /houseLinkErrorMessage_/);
+  assert.match(client, /Operação <em>Rush<\/em>/);
+  assert.match(client, /snapshot\.targetOrders \|\| 6/);
+  assert.match(client, /Aguardando as 4 pistas/);
+  assert.match(styles, /\.house-link-round-track/);
   assert.match(api, /ownerUid:\s*profile\.UsuarioID/);
   assert.match(api, /removePath\(`arenaLink\/rooms\/\$\{id\}`\)/);
+  assert.match(
+    api,
+    /room\.signals = Array\.isArray\(room\.signals\) \? room\.signals : \[\]/,
+  );
+  assert.match(api, /HOUSE_LINK_TARGET_ORDERS = 6/);
+  assert.match(api, /room\.orderIndex \|\| 0\) % 2 === 0/);
+  assert.match(api, /current\.signals\.length >= HOUSE_LINK_SIGNAL_GROUPS\.length/);
+  assert.match(api, /runtime\.transactPath/);
+  assert.match(runtime, /async transactPath\(relativePath, updateValue\)/);
   assert.match(rules, /"arenaLink"/);
   const parsedRules = JSON.parse(rules).rules["gestao-folgas"].v2.arenaLink;
   assert.equal(parsedRules.codes.$code[".read"], "auth != null");
@@ -757,6 +775,7 @@ test("House Link oferece sala e código a usuários autenticados", async () => {
   assert.equal(parsedRules[".read"], undefined);
   assert.equal(parsedRules[".write"], undefined);
 });
+
 test("dia atual só entra no saldo depois da saída final", () => {
   const schedule = { CargaDiariaMinutos: 240 };
   const notStarted = dayBalanceState(

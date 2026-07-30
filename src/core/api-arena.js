@@ -259,6 +259,11 @@ const HOUSE_EMOTES = [
   { id: "boa", emoji: "🙌", label: "Boa!" },
 ];
 
+const HOUSE_LINK_TARGET_ORDERS = 6;
+const HOUSE_LINK_DURATION_MS = 120000;
+const HOUSE_LINK_COUNTDOWN_MS = 3000;
+const HOUSE_LINK_SIGNAL_GROUPS = ["size", "side", "drink", "restriction"];
+
 const codeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
   Array.from({ length: 6 }, () =>
@@ -274,14 +279,10 @@ const roomPlayer = (profile) => ({
   lastSeen: Date.now(),
 });
 
-const roomRole = (room, slot) =>
-  Number(room.phase || 0) === 0
-    ? slot === "p1"
-      ? "front"
-      : "kitchen"
-    : slot === "p1"
-      ? "kitchen"
-      : "front";
+const roomRole = (room, slot) => {
+  const frontSlot = Number(room.orderIndex || 0) % 2 === 0 ? "p1" : "p2";
+  return slot === frontSlot ? "front" : "kitchen";
+};
 
 const orderOption = (group, index) =>
   HOUSE_OPTIONS[group][index % HOUSE_OPTIONS[group].length];
@@ -329,57 +330,141 @@ const addRoomEvent = (room, type, from, data = {}) => {
   room.events = room.events.slice(-16);
 };
 
+const normalizeRoom = (room) => {
+  room.players =
+    room.players && typeof room.players === "object"
+      ? room.players
+      : { p1: null, p2: null };
+  room.ready =
+    room.ready && typeof room.ready === "object"
+      ? room.ready
+      : { p1: false, p2: false };
+  room.rematch =
+    room.rematch && typeof room.rematch === "object"
+      ? room.rematch
+      : { p1: false, p2: false };
+  room.signals = Array.isArray(room.signals) ? room.signals : [];
+  room.events = Array.isArray(room.events) ? room.events : [];
+  room.actionIds =
+    room.actionIds && typeof room.actionIds === "object"
+      ? room.actionIds
+      : {};
+  room.contributions =
+    room.contributions && typeof room.contributions === "object"
+      ? room.contributions
+      : {
+          p1: { signals: 0, trays: 0, deliveries: 0 },
+          p2: { signals: 0, trays: 0, deliveries: 0 },
+        };
+  ["p1", "p2"].forEach((slot) => {
+    room.contributions[slot] = {
+      signals: Number(room.contributions[slot]?.signals || 0),
+      trays: Number(room.contributions[slot]?.trays || 0),
+      deliveries: Number(room.contributions[slot]?.deliveries || 0),
+    };
+  });
+  room.targetOrders = Number(
+    room.targetOrders || HOUSE_LINK_TARGET_ORDERS,
+  );
+  room.orderIndex = Number(room.orderIndex || 0);
+  room.phase = room.orderIndex;
+  room.revision = Number(room.revision || 0);
+  room.score = Number(room.score || 0);
+  room.combo = Number(room.combo || 0);
+  room.bestCombo = Number(room.bestCombo || 0);
+  room.hits = Number(room.hits || 0);
+  room.errors = Number(room.errors || 0);
+  room.satisfaction = Number(room.satisfaction ?? 100);
+  room.linkPower = Number(room.linkPower || 0);
+  room.harmonyUntil = Number(room.harmonyUntil || 0);
+  return room;
+};
+
+const medalFor = (room, slot) => {
+  const contribution = room.contributions?.[slot] || {};
+  if (Number(contribution.deliveries || 0) >= 2) {
+    return {
+      icon: "⭐",
+      title: "Olho de Águia",
+      text: "Conferiu e liberou pedidos com precisão.",
+    };
+  }
+  if (Number(contribution.trays || 0) >= 2) {
+    return {
+      icon: "🛸",
+      title: "Mestre da Bandeja",
+      text: "Montou a operação e manteve o ritmo.",
+    };
+  }
+  return {
+    icon: "📡",
+    title: "Comunicação Rápida",
+    text: "Manteve as pistas circulando entre a dupla.",
+  };
+};
+
+const finishRoom = (room, completedGoal = false) => {
+  if (room.status === "finished") return room;
+  room.status = "finished";
+  const attempts = Number(room.hits || 0) + Number(room.errors || 0);
+  const accuracy = attempts
+    ? Math.round((Number(room.hits || 0) / attempts) * 1000) / 10
+    : 0;
+  const completed = Number(room.hits || 0);
+  const target = Number(room.targetOrders || HOUSE_LINK_TARGET_ORDERS);
+  room.result = {
+    cancelled: false,
+    score: Number(room.score || 0),
+    hits: completed,
+    errors: Number(room.errors || 0),
+    accuracy,
+    bestCombo: Number(room.bestCombo || 0),
+    satisfaction: Number(room.satisfaction || 0),
+    completedGoal,
+    targetOrders: target,
+    grade:
+      completed >= target && accuracy >= 85
+        ? "A"
+        : completed >= Math.ceil(target * 0.66)
+          ? "B"
+          : "C",
+    title: completedGoal
+      ? "Rush concluído!"
+      : completed >= Math.ceil(target * 0.66)
+        ? "Boa operação!"
+        : "Treinem a sintonia!",
+    medals: {
+      p1: medalFor(room, "p1"),
+      p2: medalFor(room, "p2"),
+    },
+  };
+  addRoomEvent(room, "match_finished", "duo", {
+    text: completedGoal
+      ? "Os 6 pedidos foram concluídos!"
+      : "Tempo encerrado!",
+  });
+  return room;
+};
+
 const advanceRoom = (room) => {
+  normalizeRoom(room);
   const now = Date.now();
+  let changed = false;
   if (room.status === "countdown" && now >= room.startedAt) {
     room.status = "playing";
     addRoomEvent(room, "match_started", "duo", {
-      text: "O portal está aberto!",
+      text: "Operação Rush iniciada!",
     });
+    changed = true;
   }
   if (room.status === "playing" && now >= room.endsAt) {
-    room.status = "finished";
-    const attempts = Number(room.hits || 0) + Number(room.errors || 0);
-    const accuracy = attempts
-      ? Math.round((Number(room.hits || 0) / attempts) * 1000) / 10
-      : 0;
-    room.result = {
-      cancelled: false,
-      score: Number(room.score || 0),
-      hits: Number(room.hits || 0),
-      errors: Number(room.errors || 0),
-      accuracy,
-      bestCombo: Number(room.bestCombo || 0),
-      satisfaction: Number(room.satisfaction || 0),
-      grade: accuracy >= 90 ? "A" : accuracy >= 70 ? "B" : "C",
-      title:
-        Number(room.score || 0) >= 4000
-          ? "Sintonia impressionante!"
-          : "Operação concluída!",
-      medals: {
-        p1: { icon: "🤝", title: "Parceiro House", text: "Dupla conectada." },
-        p2: { icon: "💫", title: "Parceiro House", text: "Dupla conectada." },
-      },
-    };
-    addRoomEvent(room, "match_finished", "duo", {
-      text: "Operação concluída!",
-    });
-  } else if (
-    room.status === "playing" &&
-    room.phase === 0 &&
-    now >= room.swapAt
-  ) {
-    room.phase = 1;
-    room.orderIndex += 1;
-    room.order = generateOrder(room.orderIndex);
-    room.tray = null;
-    room.signals = [];
-    addRoomEvent(room, "role_swap", "duo", {
-      text: "Troca de turno!",
-    });
+    finishRoom(room, false);
+    changed = true;
   }
-  room.updatedAt = now;
-  room.revision += 1;
+  if (changed) {
+    room.updatedAt = now;
+    room.revision += 1;
+  }
   return room;
 };
 
@@ -426,11 +511,19 @@ const publicRoom = (room, profile) => {
   return {
     roomId: room.id,
     code: room.code,
-    version: "1.0.0-firebase",
+    version: "2.0.0-firebase",
     revision: room.revision,
     serverNow: Date.now(),
     status: room.status,
     phase: room.phase,
+    round: Math.min(
+      Number(room.targetOrders || HOUSE_LINK_TARGET_ORDERS),
+      Number(room.orderIndex || 0) + 1,
+    ),
+    targetOrders: Number(
+      room.targetOrders || HOUSE_LINK_TARGET_ORDERS,
+    ),
+    completedOrders: Number(room.hits || 0),
     startedAt: room.startedAt,
     swapAt: room.swapAt,
     endsAt: room.endsAt,
@@ -474,6 +567,7 @@ const publicRoom = (room, profile) => {
 async function loadRoom(roomId, profile) {
   const room = await runtime.getPath(`arenaLink/rooms/${roomId}`);
   assert(room?.id, "Esta sala não existe mais.");
+  normalizeRoom(room);
   participantSlot(room, profile);
   return advanceRoom(room);
 }
@@ -571,9 +665,9 @@ export function createArenaHandlers() {
         players: { p1: roomPlayer(profile), p2: null },
         ready: { p1: false, p2: false },
         startedAt: 0,
-        swapAt: 0,
         endsAt: 0,
         phase: 0,
+        targetOrders: HOUSE_LINK_TARGET_ORDERS,
         score: 0,
         combo: 0,
         bestCombo: 0,
@@ -589,6 +683,11 @@ export function createArenaHandlers() {
         tray: null,
         events: [],
         rematch: { p1: false, p2: false },
+        actionIds: {},
+        contributions: {
+          p1: { signals: 0, trays: 0, deliveries: 0 },
+          p2: { signals: 0, trays: 0, deliveries: 0 },
+        },
         result: null,
       };
       await runtime.setPath(`arenaLink/rooms/${id}`, room);
@@ -614,159 +713,325 @@ export function createArenaHandlers() {
       assert(code.length === 6, "Digite o código de seis caracteres.");
       const mapping = await runtime.getPath(`arenaLink/codes/${code}`);
       assert(mapping?.roomId, "Sala não encontrada ou código expirado.");
-      const room = await runtime.getPath(`arenaLink/rooms/${mapping.roomId}`);
-      assert(room && room.expiresAt > Date.now(), "Sala expirada.");
-      assert(!room.players.p2, "Esta dupla já está completa.");
-      assert(
-        room.players.p1.usuarioId !== profile.UsuarioID,
-        "Abra o código no celular de outro funcionário.",
+      const room = await runtime.transactPath(
+        `arenaLink/rooms/${mapping.roomId}`,
+        (current) => {
+          assert(current && current.expiresAt > Date.now(), "Sala expirada.");
+          normalizeRoom(current);
+          assert(!current.players.p2, "Esta dupla já está completa.");
+          assert(
+            current.players.p1.usuarioId !== profile.UsuarioID,
+            "Abra o código no celular de outro funcionário.",
+          );
+          current.players.p2 = roomPlayer(profile);
+          addRoomEvent(current, "partner_joined", "p2", {
+            text: `${profile.Nome} entrou na conexão.`,
+          });
+          current.revision += 1;
+          current.updatedAt = Date.now();
+          return current;
+        },
       );
-      room.players.p2 = roomPlayer(profile);
-      addRoomEvent(room, "partner_joined", "p2", {
-        text: `${profile.Nome} entrou na conexão.`,
-      });
-      room.revision += 1;
-      room.updatedAt = Date.now();
-      await runtime.setPath(`arenaLink/rooms/${room.id}`, room);
+      assert(room?.id, "Não foi possível entrar nesta sala.");
       return success(publicRoom(room, profile), "Dupla conectada.");
     },
 
     async getHouseLinkState(args) {
       const profile = await runtime.requireProfile();
       const room = await loadRoom(args[0]?.roomId, profile);
-      await runtime.setPath(`arenaLink/rooms/${room.id}`, room);
       return success(publicRoom(room, profile));
     },
 
     async heartbeatHouseLink(args) {
       const profile = await runtime.requireProfile();
-      const room = await loadRoom(args[0]?.roomId, profile);
-      const slot = participantSlot(room, profile);
-      room.players[slot].lastSeen = Date.now();
-      await runtime.setPath(`arenaLink/rooms/${room.id}`, room);
+      const roomId = args[0]?.roomId;
+      const room = await runtime.transactPath(
+        `arenaLink/rooms/${roomId}`,
+        (current) => {
+          assert(current?.id, "Esta sala não existe mais.");
+          advanceRoom(current);
+          const slot = participantSlot(current, profile);
+          current.players[slot].lastSeen = Date.now();
+          current.updatedAt = Date.now();
+          return current;
+        },
+      );
+      assert(room?.id, "Esta sala não existe mais.");
       return success(publicRoom(room, profile));
     },
 
     async sendHouseLinkAction(args) {
       const profile = await runtime.requireProfile();
       const payload = args[0] || {};
-      const room = await loadRoom(payload.roomId, profile);
-      const slot = participantSlot(room, profile);
-      const partnerSlot = slot === "p1" ? "p2" : "p1";
-      const type = String(payload.type || "");
-      const data = payload.data || {};
-      if (type === "ready") {
-        room.ready[slot] = data.ready !== false;
-        if (room.ready.p1 && room.ready.p2 && room.players.p2) {
-          const now = Date.now();
-          room.status = "countdown";
-          room.startedAt = now + 3000;
-          room.swapAt = room.startedAt + 40000;
-          room.endsAt = room.swapAt + 40000;
-          room.order = generateOrder(0);
-          room.orderStartedAt = room.startedAt;
-          addRoomEvent(room, "countdown", "duo", {
-            text: "Conexão estabelecida. Preparem-se!",
-          });
-        }
-      } else if (type === "signal") {
-        const option = room.order?.signalChoices?.find(
-          (item) => item.id === data.signal,
-        );
-        if (option && !room.signals.some((item) => item.id === option.id)) {
-          room.signals.push({ ...option, sentAt: Date.now() });
-          room.score += 20;
-          room.linkPower = Math.min(100, room.linkPower + 5);
-          addRoomEvent(room, "signal", slot, { signal: option, useful: true });
-        }
-      } else if (type === "submit_tray") {
-        room.tray = {
-          by: slot,
-          selection: data.selection || {},
-          sentAt: Date.now(),
-        };
-        addRoomEvent(room, "portal_transfer", slot, {
-          text: "Bandeja atravessou o portal.",
-        });
-      } else if (type === "return_tray") {
-        room.tray = null;
-        addRoomEvent(room, "tray_returned", slot, {
-          text: "Bandeja devolvida.",
-        });
-      } else if (type === "deliver") {
-        assert(room.tray && room.order, "A bandeja ainda não chegou.");
-        const correct = Object.entries(room.order.details).every(
-          ([key, value]) => room.tray.selection?.[key] === value,
-        );
-        if (correct) {
-          room.hits += 1;
-          room.combo += 1;
-          room.bestCombo = Math.max(room.bestCombo, room.combo);
-          room.score += 750 + room.combo * 30;
-          room.satisfaction = Math.min(100, room.satisfaction + 4);
-          addRoomEvent(room, "delivery_success", slot, {
-            earned: 750,
-            combo: room.combo,
-            text: "Pedido entregue com sucesso!",
-          });
-        } else {
-          room.errors += 1;
-          room.combo = 0;
-          room.satisfaction = Math.max(0, room.satisfaction - 15);
-          addRoomEvent(room, "delivery_error", slot, {
-            text: "A bandeja não corresponde à comanda.",
-          });
-        }
-        room.orderIndex += 1;
-        room.order = generateOrder(room.orderIndex);
-        room.orderStartedAt = Date.now();
-        room.tray = null;
-        room.signals = [];
-      } else if (type === "emote") {
-        const emote = HOUSE_EMOTES.find((item) => item.id === data.emote);
-        if (emote) addRoomEvent(room, "emote", slot, { emote });
-      } else if (type === "rematch") {
-        room.rematch[slot] = data.ready !== false;
-        if (room.rematch.p1 && room.rematch.p2) {
-          room.ready = { p1: false, p2: false };
-          room.rematch = { p1: false, p2: false };
-          room.status = "waiting";
-          room.result = null;
-        }
-      } else if (type === "pulse") {
-        room.score += 150;
-        room.linkPower = Math.min(100, room.linkPower + 20);
-        addRoomEvent(room, "pulse_complete", "duo", {
-          text: "Pulso de sincronia!",
-        });
-      }
-      room.players[slot].lastSeen = Date.now();
-      if (room.players[partnerSlot]) room.expiresAt = Date.now() + 12 * 60 * 1000;
-      room.updatedAt = Date.now();
-      room.revision += 1;
-      await runtime.setPath(`arenaLink/rooms/${room.id}`, room);
+      const room = await runtime.transactPath(
+        `arenaLink/rooms/${payload.roomId}`,
+        (current) => {
+          assert(current?.id, "Esta sala não existe mais.");
+          advanceRoom(current);
+          const slot = participantSlot(current, profile);
+          const partnerSlot = slot === "p1" ? "p2" : "p1";
+          const type = String(payload.type || "");
+          const data = payload.data || {};
+          const actionId = String(payload.actionId || "").slice(0, 80);
+          if (actionId && current.actionIds[actionId]) return current;
+          if (actionId) {
+            current.actionIds[actionId] = Date.now();
+            const recentIds = Object.entries(current.actionIds)
+              .sort((a, b) => Number(b[1]) - Number(a[1]))
+              .slice(0, 40);
+            current.actionIds = Object.fromEntries(recentIds);
+          }
+
+          if (type === "ready") {
+            assert(
+              current.status === "waiting",
+              "A partida já foi iniciada.",
+            );
+            current.ready[slot] = data.ready !== false;
+            if (current.ready.p1 && current.ready.p2 && current.players.p2) {
+              const now = Date.now();
+              current.status = "countdown";
+              current.startedAt = now + HOUSE_LINK_COUNTDOWN_MS;
+              current.endsAt =
+                current.startedAt + HOUSE_LINK_DURATION_MS;
+              current.orderIndex = 0;
+              current.phase = 0;
+              current.order = generateOrder(0);
+              current.orderStartedAt = current.startedAt;
+              addRoomEvent(current, "countdown", "duo", {
+                text: "6 pedidos. Troquem de função a cada acerto!",
+              });
+            }
+          } else if (
+            ["signal", "submit_tray", "return_tray", "deliver"].includes(type)
+          ) {
+            assert(
+              current.status === "playing",
+              "A rodada ainda não começou.",
+            );
+            const role = roomRole(current, slot);
+            if (type === "signal") {
+              assert(
+                role === "front",
+                "Somente o Atendimento envia pistas.",
+              );
+              const option = current.order?.signalChoices?.find(
+                (item) => item.id === data.signal,
+              );
+              if (
+                option &&
+                !current.signals.some((item) => item.id === option.id)
+              ) {
+                current.signals.push({ ...option, sentAt: Date.now() });
+                current.contributions[slot].signals += 1;
+                current.score += 15;
+                current.linkPower = Math.min(
+                  100,
+                  current.linkPower + 8,
+                );
+                addRoomEvent(current, "signal", slot, {
+                  signal: option,
+                  useful: true,
+                });
+              }
+            } else if (type === "submit_tray") {
+              assert(
+                role === "kitchen",
+                "Somente a Cozinha envia a bandeja.",
+              );
+              assert(
+                current.signals.length >= HOUSE_LINK_SIGNAL_GROUPS.length,
+                "Aguarde as quatro pistas antes de enviar.",
+              );
+              const selection = data.selection || {};
+              assert(
+                HOUSE_LINK_SIGNAL_GROUPS.every(
+                  (group) =>
+                    HOUSE_OPTIONS[group].some(
+                      (option) => option.id === selection[group],
+                    ),
+                ),
+                "Complete todos os itens da bandeja.",
+              );
+              current.tray = {
+                by: slot,
+                selection,
+                sentAt: Date.now(),
+              };
+              current.contributions[slot].trays += 1;
+              addRoomEvent(current, "portal_transfer", slot, {
+                text: "Bandeja enviada para conferência.",
+              });
+            } else if (type === "return_tray") {
+              assert(
+                role === "front",
+                "Somente o Atendimento confere a bandeja.",
+              );
+              current.tray = null;
+              addRoomEvent(current, "tray_returned", slot, {
+                text: "Bandeja devolvida para ajuste.",
+              });
+            } else if (type === "deliver") {
+              assert(
+                role === "front",
+                "Somente o Atendimento libera o pedido.",
+              );
+              assert(
+                current.tray && current.order,
+                "A bandeja ainda não chegou.",
+              );
+              const correct = Object.entries(current.order.details).every(
+                ([key, value]) =>
+                  current.tray.selection?.[key] === value,
+              );
+              if (correct) {
+                const now = Date.now();
+                const seconds = Math.max(
+                  0,
+                  (now - Number(current.orderStartedAt || now)) / 1000,
+                );
+                const speedBonus = Math.max(
+                  0,
+                  Math.round(300 - seconds * 10),
+                );
+                const harmony = Number(current.harmonyUntil || 0) > now;
+                const earned =
+                  (600 + speedBonus + (current.combo + 1) * 40) *
+                  (harmony ? 2 : 1);
+                current.hits += 1;
+                current.combo += 1;
+                current.bestCombo = Math.max(
+                  current.bestCombo,
+                  current.combo,
+                );
+                current.score += earned;
+                current.satisfaction = Math.min(
+                  100,
+                  current.satisfaction + 5,
+                );
+                current.contributions[slot].deliveries += 1;
+                current.linkPower = Math.min(
+                  100,
+                  current.linkPower + 24,
+                );
+                addRoomEvent(current, "delivery_success", slot, {
+                  earned,
+                  combo: current.combo,
+                  text: `Pedido ${current.hits}/${current.targetOrders} concluído!`,
+                });
+                if (current.linkPower >= 100) {
+                  current.linkPower = 0;
+                  current.harmonyUntil = now + 10000;
+                  addRoomEvent(current, "harmony", "duo", {
+                    text: "Modo Sintonia: pontos dobrados por 10s!",
+                  });
+                }
+                if (current.hits >= current.targetOrders) {
+                  finishRoom(current, true);
+                } else {
+                  current.orderIndex += 1;
+                  current.phase = current.orderIndex;
+                  current.order = generateOrder(current.orderIndex);
+                  current.orderStartedAt = now;
+                  current.tray = null;
+                  current.signals = [];
+                  addRoomEvent(current, "role_swap", "duo", {
+                    text: `Rodada ${current.orderIndex + 1}: funções trocadas!`,
+                  });
+                }
+              } else {
+                current.errors += 1;
+                current.combo = 0;
+                current.satisfaction = Math.max(
+                  0,
+                  current.satisfaction - 12,
+                );
+                current.tray = null;
+                addRoomEvent(current, "delivery_error", slot, {
+                  text: "Há um item incorreto. Corrijam a mesma bandeja!",
+                });
+              }
+            }
+          } else if (type === "emote") {
+            const emote = HOUSE_EMOTES.find(
+              (item) => item.id === data.emote,
+            );
+            if (emote) addRoomEvent(current, "emote", slot, { emote });
+          } else if (type === "rematch") {
+            assert(
+              ["finished", "cancelled"].includes(current.status),
+              "A partida ainda está em andamento.",
+            );
+            current.rematch[slot] = data.ready !== false;
+            if (current.rematch.p1 && current.rematch.p2) {
+              current.ready = { p1: false, p2: false };
+              current.rematch = { p1: false, p2: false };
+              current.status = "waiting";
+              current.result = null;
+              current.startedAt = 0;
+              current.endsAt = 0;
+              current.phase = 0;
+              current.score = 0;
+              current.combo = 0;
+              current.bestCombo = 0;
+              current.hits = 0;
+              current.errors = 0;
+              current.satisfaction = 100;
+              current.linkPower = 0;
+              current.harmonyUntil = 0;
+              current.orderIndex = 0;
+              current.orderStartedAt = 0;
+              current.order = null;
+              current.signals = [];
+              current.tray = null;
+              current.events = [];
+              current.actionIds = {};
+              current.contributions = {
+                p1: { signals: 0, trays: 0, deliveries: 0 },
+                p2: { signals: 0, trays: 0, deliveries: 0 },
+              };
+            }
+          }
+          current.players[slot].lastSeen = Date.now();
+          if (current.players[partnerSlot]) {
+            current.expiresAt = Date.now() + 12 * 60 * 1000;
+          }
+          current.updatedAt = Date.now();
+          current.revision += 1;
+          return current;
+        },
+      );
+      assert(room?.id, "Esta sala não existe mais.");
       return success(publicRoom(room, profile));
     },
 
     async leaveHouseLinkRoom(args) {
       const profile = await runtime.requireProfile();
       const payload = args[0] || {};
-      const room = await loadRoom(payload.roomId, profile);
-      const slot = participantSlot(room, profile);
-      if (room.status === "waiting" && slot === "p2") {
-        room.players.p2 = null;
-        room.ready.p2 = false;
-      } else {
-        room.status = "cancelled";
-        room.cancelledBy = slot;
-        room.result = {
-          cancelled: true,
-          score: room.score,
-          title: "Conexão interrompida",
-        };
-      }
-      room.revision += 1;
-      await runtime.setPath(`arenaLink/rooms/${room.id}`, room);
+      const room = await runtime.transactPath(
+        `arenaLink/rooms/${payload.roomId}`,
+        (current) => {
+          assert(current?.id, "Esta sala não existe mais.");
+          advanceRoom(current);
+          const slot = participantSlot(current, profile);
+          if (current.status === "waiting" && slot === "p2") {
+            current.players.p2 = null;
+            current.ready.p2 = false;
+          } else {
+            current.status = "cancelled";
+            current.cancelledBy = slot;
+            current.result = {
+              cancelled: true,
+              score: current.score,
+              title: "Conexão interrompida",
+            };
+          }
+          current.revision += 1;
+          current.updatedAt = Date.now();
+          return current;
+        },
+      );
+      assert(room?.id, "Esta sala não existe mais.");
       return success(publicRoom(room, profile));
     },
   };

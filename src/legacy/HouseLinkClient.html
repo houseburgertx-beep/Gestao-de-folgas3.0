@@ -110,16 +110,16 @@
           <div class="house-link-logo-orbit" aria-hidden="true">
             <i></i><i></i><span>🔗</span><b>LIVE</b>
           </div>
-          <span class="house-link-overline">DOIS CELULARES · UMA OPERAÇÃO</span>
-          <h2>Cozinha <em>Conectada</em></h2>
+          <span class="house-link-overline">DOIS CELULARES · SEIS DESAFIOS</span>
+          <h2>Operação <em>Rush</em></h2>
           <p>
-            Cada jogador recebe metade da missão. Troquem sinais, atravessem
-            bandejas pelo portal e salvem a satisfação dos clientes juntos.
+            Concluam seis pedidos antes do tempo acabar. A cada acerto vocês
+            trocam de função: Atendimento, Cozinha e conferência em dupla.
           </p>
           <div class="house-link-feature-row">
-            <span>⚡ 84 segundos</span>
-            <span>🤝 Cooperação real</span>
-            <span>🛸 Portal entre telas</span>
+            <span>⚡ 6 rodadas</span>
+            <span>↻ Papéis alternados</span>
+            <span>🤝 Decisão em dupla</span>
           </div>
         </section>
         <section class="house-link-entry-grid">
@@ -229,8 +229,8 @@
                   }</strong>
                   <small>${
                     snapshot.ready.partner
-                      ? "Seu parceiro já confirmou."
-                      : "A partida começa quando os dois confirmarem."
+                      ? "Seu parceiro já confirmou a Operação Rush."
+                      : "A partida de 6 pedidos começa quando os dois confirmarem."
                   }</small>
                 </div>
                 <button
@@ -272,6 +272,11 @@
     const now = houseLinkNow_();
     const harmony = Number(snapshot.harmonyUntil || 0) > now;
     const countdown = snapshot.status === "countdown";
+    const round = Math.max(1, Number(snapshot.round || 1));
+    const targetOrders = Math.max(
+      1,
+      Number(snapshot.targetOrders || 6),
+    );
     root.innerHTML = `
       <div class="house-link-shell house-link-game ${
         harmony ? "is-harmony" : ""
@@ -279,15 +284,24 @@
         <div class="house-link-aurora"></div>
         ${houseLinkTopbar_(
           (isFront ? "ATENDIMENTO" : "COZINHA") +
-            " · FASE " +
-            (Number(snapshot.phase || 0) + 1),
+            " · RODADA " +
+            round +
+            "/" +
+            targetOrders,
         )}
         <section class="house-link-game-hud">
-          <div><small>PONTOS DA DUPLA</small><strong data-hl-score>${houseLinkScore_(snapshot.score)}</strong></div>
-          <div class="house-link-hud-time"><small>TEMPO</small><strong data-hl-time>84,0</strong></div>
-          <div><small>COMBO</small><strong>x${Number(snapshot.combo || 0)}</strong></div>
+          <div><small>RODADA</small><strong>${round}/${targetOrders}</strong></div>
+          <div class="house-link-hud-time"><small>TEMPO</small><strong data-hl-time>120,0</strong></div>
+          <div><small>PONTOS</small><strong data-hl-score>${houseLinkScore_(snapshot.score)}</strong></div>
         </section>
         <div class="house-link-time-track"><i data-hl-timebar></i></div>
+        <div class="house-link-round-track" aria-label="Progresso dos pedidos">
+          ${Array.from({ length: targetOrders }, (_, index) => {
+            const completed = index < Number(snapshot.completedOrders || 0);
+            const active = index === round - 1 && !completed;
+            return `<i class="${completed ? "is-complete" : active ? "is-active" : ""}">${completed ? "✓" : index + 1}</i>`;
+          }).join("")}
+        </div>
         <section class="house-link-status-deck">
           <div class="house-link-satisfaction">
             <span>😊 SATISFAÇÃO</span>
@@ -295,9 +309,9 @@
             <strong>${Number(snapshot.satisfaction || 0)}%</strong>
           </div>
           <div class="house-link-power">
-            <span>${harmony ? "✨ MODO SINTONIA" : "⚡ CONEXÃO"}</span>
+            <span>${harmony ? "✨ MODO SINTONIA" : "🔥 COMBO"}</span>
             <i><b style="width:${harmony ? 100 : Math.max(0, Math.min(100, Number(snapshot.linkPower || 0)))}%"></b></i>
-            <strong data-hl-harmony>${harmony ? "2×" : Number(snapshot.linkPower || 0) + "%"}</strong>
+            <strong data-hl-harmony>${harmony ? "2×" : "x" + Number(snapshot.combo || 0)}</strong>
           </div>
         </section>
         <section class="house-link-role-banner">
@@ -307,8 +321,8 @@
             <strong>${isFront ? "Atendimento" : "Cozinha"}</strong>
             <small>${
               isFront
-                ? "Leia a comanda e oriente seu parceiro."
-                : "Monte a bandeja com as pistas recebidas."
+                ? "Envie as 4 pistas e confira a bandeja."
+                : "Receba as 4 pistas e monte a bandeja."
             }</small>
           </div>
           <div class="house-link-partner-mini ${
@@ -333,7 +347,7 @@
         ${
           countdown
             ? `<div class="house-link-countdown" data-hl-countdown>
-                <span>CONEXÃO ESTABELECIDA</span><strong>4</strong><small>Prepare sua função</small>
+                <span>OPERAÇÃO RUSH</span><strong>3</strong><small>6 pedidos · funções alternadas</small>
               </div>`
             : ""
         }
@@ -352,6 +366,7 @@
     if (!order) return houseLinkMissionSkeleton_();
     const detailGroups = ["size", "side", "drink", "restriction"];
     const sent = new Set((snapshot.signals || []).map((item) => item.id));
+    const signalTotal = Number(order.signalChoices?.length || 0);
     const tray = snapshot.tray;
     return `
       <section class="house-link-ticket ${order.vip ? "is-vip" : ""}">
@@ -385,8 +400,8 @@
             </section>`
           : `<section class="house-link-signal-console">
               <div>
-                <span class="house-link-overline">ETIQUETAS RÁPIDAS</span>
-                <strong>Envie as pistas certas para a Cozinha</strong>
+                <span class="house-link-overline">TRANSMISSÃO ${sent.size}/${signalTotal}</span>
+                <strong>Envie as 4 pistas para liberar a montagem</strong>
               </div>
               <div class="house-link-signal-grid">
                 ${(order.signalChoices || [])
@@ -405,7 +420,11 @@
                   )
                   .join("")}
               </div>
-              <div class="house-link-awaiting-tray"><i></i><span>Aguardando a bandeja do parceiro…</span></div>
+              <div class="house-link-awaiting-tray"><i></i><span>${
+                sent.size >= signalTotal
+                  ? "Transmissão completa. Aguardando a bandeja…"
+                  : "Toque nas pistas para transmitir ao parceiro."
+              }</span></div>
             </section>`
       }`;
   }
@@ -414,6 +433,8 @@
     const order = snapshot.order;
     if (!order) return houseLinkMissionSkeleton_();
     const tray = snapshot.tray;
+    const signalsReceived = Number((snapshot.signals || []).length);
+    const signalsComplete = signalsReceived >= 4;
     const groups = [
       ["size", "Tamanho"],
       ["side", "Acompanhamento"],
@@ -428,7 +449,7 @@
           ${order.vip ? "<b>VIP</b>" : order.urgent ? "<b>RÁPIDO</b>" : ""}
         </div>
         <div class="house-link-incoming-signals">
-          <small>SINAIS DO ATENDIMENTO</small>
+          <small>PISTAS RECEBIDAS · ${signalsReceived}/4</small>
           <div>
             ${
               (snapshot.signals || []).length
@@ -461,9 +482,21 @@
                 type="button"
                 data-hl-action="submit_tray"
                 class="house-link-primary house-link-send-tray"
-                ${houseLinkSelectionComplete_() ? "" : "disabled"}
+                ${
+                  houseLinkSelectionComplete_() && signalsComplete
+                    ? ""
+                    : "disabled"
+                }
               >
-                <span>🛸</span><div><strong>Enviar pelo portal</strong><small>Deslize a bandeja para o parceiro</small></div><b>→</b>
+                <span>🛸</span><div><strong>${
+                  signalsComplete
+                    ? "Enviar para conferência"
+                    : "Aguardando as 4 pistas"
+                }</strong><small>${
+                  signalsComplete
+                    ? "A bandeja irá para o Atendimento"
+                    : "O Atendimento ainda está transmitindo"
+                }</small></div><b>→</b>
               </button>
             </section>`
       }`;
@@ -579,12 +612,14 @@
           <p>${
             cancelled
               ? "A sala foi encerrada antes do fim e não alterou o campeonato."
-              : "O mesmo resultado foi validado para os dois integrantes da dupla."
+              : result.completedGoal
+                ? "Vocês completaram os seis pedidos e alternaram as duas funções."
+                : `Vocês concluíram ${Number(result.hits || 0)} de ${Number(result.targetOrders || 6)} pedidos antes do tempo.`
           }</p>
         </section>
         <section class="house-link-result-stats">
           <div><small>PRECISÃO</small><strong>${Number(result.accuracy || 0).toFixed(1).replace(".", ",")}%</strong></div>
-          <div><small>PEDIDOS</small><strong>${Number(result.hits || 0)}</strong></div>
+          <div><small>PEDIDOS</small><strong>${Number(result.hits || 0)}/${Number(result.targetOrders || 6)}</strong></div>
           <div><small>MELHOR COMBO</small><strong>x${Number(result.bestCombo || 0)}</strong></div>
           <div><small>SATISFAÇÃO</small><strong>${Number(result.satisfaction || 0)}%</strong></div>
         </section>

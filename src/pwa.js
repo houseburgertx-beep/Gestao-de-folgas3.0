@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = "6.1.16";
+const SERVICE_WORKER_VERSION = "6.2.0";
 
 const registerServiceWorker = async () => {
   if (!("serviceWorker" in navigator)) return null;
