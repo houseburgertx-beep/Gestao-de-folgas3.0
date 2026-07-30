@@ -592,10 +592,16 @@ export function createArenaHandlers() {
         result: null,
       };
       await runtime.setPath(`arenaLink/rooms/${id}`, room);
-      await runtime.setPath(`arenaLink/codes/${code}`, {
-        roomId: id,
-        expiresAt: room.expiresAt,
-      });
+      try {
+        await runtime.setPath(`arenaLink/codes/${code}`, {
+          roomId: id,
+          ownerUid: profile.UsuarioID,
+          expiresAt: room.expiresAt,
+        });
+      } catch (error) {
+        await runtime.removePath(`arenaLink/rooms/${id}`).catch(() => {});
+        throw error;
+      }
       return success(publicRoom(room, profile), "Sala criada.");
     },
 
