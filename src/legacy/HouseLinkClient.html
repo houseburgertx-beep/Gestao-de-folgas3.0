@@ -125,11 +125,11 @@
         <section class="house-link-entry-grid">
           <button id="houseLinkCreateBtn" class="house-link-primary house-link-create" type="button">
             <span>＋</span>
-            <div><strong>Criar uma dupla</strong><small>Gere o código e convide alguém</small></div>
+            <div><strong>Solicitar sala</strong><small>Gere o código e convide alguém</small></div>
             <b>›</b>
           </button>
           <form id="houseLinkJoinForm" class="house-link-join">
-            <label for="houseLinkCodeInput">JÁ RECEBEU UM CÓDIGO?</label>
+            <label for="houseLinkCodeInput">OU ENTRE COM O CÓDIGO DA SALA</label>
             <div>
               <input
                 id="houseLinkCodeInput"
@@ -737,7 +737,7 @@
       if (typeof arenaHaptic_ === "function") arenaHaptic_([18, 35, 18]);
     } catch (error) {
       houseLinkRenderLanding_();
-      toast(error.message, true);
+      toast(houseLinkErrorMessage_(error), true);
     } finally {
       state.houseLink.busy = false;
     }
@@ -763,10 +763,18 @@
       if (typeof arenaHaptic_ === "function") arenaHaptic_([20, 35, 20]);
     } catch (error) {
       houseLinkRenderLanding_();
-      toast(error.message, true);
+      toast(houseLinkErrorMessage_(error), true);
     } finally {
       state.houseLink.busy = false;
     }
+  }
+
+  function houseLinkErrorMessage_(error) {
+    const message = String(error?.message || "Não foi possível abrir a sala.");
+    if (/permission|permissão|acesso negado|denied/i.test(message)) {
+      return "O House Link ainda não foi liberado nas regras do Firebase. Atualize as permissões e tente novamente.";
+    }
+    return message;
   }
 
   async function houseLinkAction_(type, data, quiet) {
