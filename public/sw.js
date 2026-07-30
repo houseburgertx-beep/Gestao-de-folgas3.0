@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.1.13";
+const CACHE_NAME = "house-folgas-v6.1.14";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.1.13",
+  "./manifest.webmanifest?v=6.1.14",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -78,11 +78,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (
-    ["script", "style", "image", "font", "manifest"].includes(
-      request.destination,
-    )
-  ) {
+  if (["script", "style"].includes(request.destination)) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  if (["image", "font", "manifest"].includes(request.destination)) {
     event.respondWith(cachedAsset(request));
   }
 });
