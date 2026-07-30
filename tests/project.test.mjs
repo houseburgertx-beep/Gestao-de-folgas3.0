@@ -87,7 +87,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.2");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.3");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -98,14 +98,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.2\.2/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.3/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.2"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.3"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -137,7 +137,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.2\.2/);
+  assert.match(builder, /main\.js\?v=6\.2\.3/);
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {
@@ -343,7 +343,7 @@ test("crédito mensal e débito de aprovação são idempotentes", async () => {
   assert.match(api, /desiredDelta: approved \? -units : 0/);
   assert.match(
     api,
-    /if \(approved\) \{[\s\S]*?await reconcileTimeOffBalance\(updated, profile, employee\)/,
+    /if \(approved && employee\) \{[\s\S]*?await reconcileTimeOffBalance\(updated, profile, employee\)/,
   );
   assert.doesNotMatch(
     api,
@@ -363,6 +363,15 @@ test("decisão de folga aceita cadastros e perfis antigos sem afetar rejeições
   ]);
   assert.match(api, /normalizeEmail\(record\.EmailFuncionario\)/);
   assert.match(api, /record\.NomeFuncionario/);
+  const decision =
+    api.match(
+      /const timeOffDecision = async[\s\S]*?\n};\n\nconst preferredWeekdayIndex/,
+    )?.[0] || "";
+  assert.match(decision, /const policyEmployee = employee \|\|/);
+  assert.doesNotMatch(
+    decision,
+    /assert\(employee, "Funcionário não encontrado\."\)/,
+  );
   assert.match(constants, /Gerente: MANAGER_PERMISSIONS/);
   assert.match(rules, /val\(\) === 'Gerente'/);
 });

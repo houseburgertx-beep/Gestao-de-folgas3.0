@@ -722,10 +722,18 @@ const timeOffDecision = async (id, approved, observation = "") => {
   let employee = null;
   if (approved) {
     employee = await employeeForTimeOff(current, profile);
-    assert(employee, "Funcionário não encontrado.");
+    const policyEmployee = employee || {
+      FuncionarioID: current.FuncionarioID || `pedido-${current.FolgaID}`,
+      Nome: current.NomeFuncionario || "Funcionário não vinculado",
+      Email: current.EmailFuncionario || "",
+      LojaID: current.LojaID || profile.LojaID || "",
+      NomeLoja: current.NomeLoja || profile.NomeLoja || "",
+      Cargo: "",
+      Ativo: false,
+    };
     await validateTimeOffPolicies({
       profile,
-      employee,
+      employee: policyEmployee,
       start: current.DataInicio,
       end: current.DataFim || current.DataInicio,
       current,
@@ -748,13 +756,17 @@ const timeOffDecision = async (id, approved, observation = "") => {
     ObservacaoAprovacao: String(observation || ""),
     DataAtualizacao: nowIso(),
   });
-  if (approved) {
+  if (approved && employee) {
     try {
       await reconcileTimeOffBalance(updated, profile, employee);
     } catch (error) {
       await runtime.upsert("Folgas", current).catch(() => {});
       throw error;
     }
+  } else if (approved) {
+    console.warn(
+      `Folga ${updated.FolgaID} aprovada sem ajuste de saldo: cadastro atual do funcionário não localizado.`,
+    );
   }
   await createNotification({
     employeeId: updated.FuncionarioID,
