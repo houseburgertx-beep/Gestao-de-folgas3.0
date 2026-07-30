@@ -188,11 +188,38 @@ const ensureMonthlyLeaveCredits = async (profile, employees) => {
   return results.filter((result) => result.applied).length;
 };
 
-const reconcileTimeOffBalance = async (record, profile) => {
-  const employee = await runtime.getById(
+const employeeForTimeOff = async (record, profile) => {
+  const direct = await runtime.getById(
     "Funcionarios",
     record.FuncionarioID,
   );
+  if (direct) return direct;
+  const employees = await runtime.list("Funcionarios", { profile });
+  const email = normalizeEmail(record.EmailFuncionario);
+  const name = String(record.NomeFuncionario || "").trim().toLowerCase();
+  const storeId = String(record.LojaID || "");
+  return (
+    employees.find(
+      (employee) =>
+        email && normalizeEmail(employee.Email) === email,
+    ) ||
+    employees.find(
+      (employee) =>
+        name &&
+        String(employee.Nome || "").trim().toLowerCase() === name &&
+        (!storeId || String(employee.LojaID || "") === storeId),
+    ) ||
+    null
+  );
+};
+
+const reconcileTimeOffBalance = async (
+  record,
+  profile,
+  knownEmployee = null,
+) => {
+  const employee =
+    knownEmployee || (await employeeForTimeOff(record, profile));
   assert(employee, "Funcionário não encontrado para atualizar o saldo.");
   if (!role(employee).includes("admin")) {
     await applyMonthlyLeaveCredit(employee, profile, todayIso().slice(0, 7));
@@ -692,11 +719,9 @@ const timeOffDecision = async (id, approved, observation = "") => {
     current.Status === APP.status.pending,
     "Somente pedidos pendentes podem receber uma decisão.",
   );
+  let employee = null;
   if (approved) {
-    const employee = await runtime.getById(
-      "Funcionarios",
-      current.FuncionarioID,
-    );
+    employee = await employeeForTimeOff(current, profile);
     assert(employee, "Funcionário não encontrado.");
     await validateTimeOffPolicies({
       profile,
@@ -708,17 +733,28 @@ const timeOffDecision = async (id, approved, observation = "") => {
     });
   }
   const updated = await runtime.patch("Folgas", id, {
+    ...(employee
+      ? {
+          FuncionarioID: employee.FuncionarioID,
+          NomeFuncionario: employee.Nome || current.NomeFuncionario,
+          EmailFuncionario: employee.Email || current.EmailFuncionario,
+          LojaID: employee.LojaID || current.LojaID,
+          NomeLoja: employee.NomeLoja || current.NomeLoja,
+        }
+      : {}),
     Status: approved ? APP.status.approved : APP.status.rejected,
     AprovadoPor: profile.Email,
     DataAprovacao: nowIso(),
     ObservacaoAprovacao: String(observation || ""),
     DataAtualizacao: nowIso(),
   });
-  try {
-    await reconcileTimeOffBalance(updated, profile);
-  } catch (error) {
-    await runtime.upsert("Folgas", current).catch(() => {});
-    throw error;
+  if (approved) {
+    try {
+      await reconcileTimeOffBalance(updated, profile, employee);
+    } catch (error) {
+      await runtime.upsert("Folgas", current).catch(() => {});
+      throw error;
+    }
   }
   await createNotification({
     employeeId: updated.FuncionarioID,

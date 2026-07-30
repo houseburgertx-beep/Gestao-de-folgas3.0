@@ -1,6 +1,6 @@
 export const APP = Object.freeze({
   name: "Gestão de Folgas",
-  version: "6.2.1-firebase-github",
+  version: "6.2.2-firebase-github",
   profiles: {
     admin: "Administrador",
     manager: "Responsável de loja",
@@ -16,25 +16,28 @@ export const APP = Object.freeze({
   },
 });
 
+const MANAGER_PERMISSIONS = [
+  "dashboard.read",
+  "stores.own.read",
+  "employees.own.read",
+  "timeoff.ownstore.read",
+  "timeoff.ownstore.create",
+  "timeoff.ownstore.update",
+  "timeoff.ownstore.approve",
+  "timeoff.ownstore.reject",
+  "timeoff.ownstore.cancel",
+  "scheduler.ownstore.run",
+  "calendar.ownstore.read",
+  "reports.ownstore.read",
+  "operations.ownstore.manage",
+  "swaps.ownstore.manage",
+  "notifications.ownstore.read",
+];
+
 export const PERMISSIONS = Object.freeze({
   Administrador: ["*"],
-  "Responsável de loja": [
-    "dashboard.read",
-    "stores.own.read",
-    "employees.own.read",
-    "timeoff.ownstore.read",
-    "timeoff.ownstore.create",
-    "timeoff.ownstore.update",
-    "timeoff.ownstore.approve",
-    "timeoff.ownstore.reject",
-    "timeoff.ownstore.cancel",
-    "scheduler.ownstore.run",
-    "calendar.ownstore.read",
-    "reports.ownstore.read",
-    "operations.ownstore.manage",
-    "swaps.ownstore.manage",
-    "notifications.ownstore.read",
-  ],
+  "Responsável de loja": MANAGER_PERMISSIONS,
+  Gerente: MANAGER_PERMISSIONS,
   "Chefe de cozinha": [
     "dashboard.read",
     "stores.own.read",
