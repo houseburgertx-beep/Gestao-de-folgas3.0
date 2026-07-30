@@ -64,6 +64,263 @@ const shiftDateRange = (record, newStart) => {
   };
 };
 
+const swapWeekdays = [
+  "domingo",
+  "segunda",
+  "terça",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sábado",
+];
+
+const normalizedWeekday = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+export const employeeHasFixedDay = (employee, dateKey) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ""))) return false;
+  const expected = normalizedWeekday(
+    swapWeekdays[new Date(`${dateKey}T12:00:00`).getDay()],
+  ).slice(0, 5);
+  return [
+    employee?.DiaFolgaPreferencial,
+    employee?.SegundoDiaFolgaPreferencial,
+  ]
+    .filter(Boolean)
+    .some((day) => normalizedWeekday(day).startsWith(expected));
+};
+
+const activeTimeOff = (record) =>
+  ![APP.status.cancelled, APP.status.rejected].includes(record?.Status);
+
+const fixedDateWasSwapped = (records, employeeId, dateKey) =>
+  records.some(
+    (item) =>
+      String(item.FuncionarioID || "") === String(employeeId || "") &&
+      [APP.status.approved, APP.status.completed].includes(item.Status) &&
+      normalizedDateKey(item.FolgaFixaSubstituidaData) === dateKey,
+  );
+
+const fixedSwapId = (employeeId, dateKey) =>
+  `FIXA-${employeeId}-${dateKey}`;
+
+const fixedSwapParts = (id) => {
+  const match = String(id || "").match(
+    /^FIXA-(.+)-(\d{4}-\d{2}-\d{2})$/,
+  );
+  return match ? { employeeId: match[1], date: match[2] } : null;
+};
+
+const weekStartKey = (dateKey) => {
+  const date = new Date(`${dateKey}T12:00:00`);
+  const weekday = date.getDay();
+  date.setDate(date.getDate() - (weekday === 0 ? 6 : weekday - 1));
+  return todayIso(date);
+};
+
+const sameSwapWeek = (left, right) =>
+  weekStartKey(left) === weekStartKey(right);
+
+const timeOffList = (value) =>
+  Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? Object.values(value)
+      : [];
+
+const sanitizedSwapTimeOff = (record, employee) => ({
+  FolgaID: record.FolgaID,
+  FuncionarioID: employee.FuncionarioID,
+  NomeFuncionario: employee.Nome || record.NomeFuncionario || "",
+  LojaID: employee.LojaID || record.LojaID || "",
+  NomeLoja: employee.NomeLoja || record.NomeLoja || "",
+  DataInicio: normalizedDateKey(record.DataInicio),
+  DataFim: normalizedDateKey(record.DataFim || record.DataInicio),
+  TipoFolga: record.TipoFolga || "Folga",
+  Periodo: record.Periodo || "Dia inteiro",
+  Status: record.Status,
+  TipoSelecao: "Cadastrada",
+});
+
+export const fixedTimeOffCandidates = (
+  employee,
+  records = [],
+  currentDay = todayIso(),
+  horizonDays = 84,
+) => {
+  const candidates = [];
+  const cursor = new Date(`${currentDay}T12:00:00`);
+  for (let offset = 0; offset <= horizonDays; offset += 1) {
+    const date = new Date(cursor);
+    date.setDate(cursor.getDate() + offset);
+    const dateKey = todayIso(date);
+    if (
+      !employeeHasFixedDay(employee, dateKey) ||
+      fixedDateWasSwapped(records, employee.FuncionarioID, dateKey)
+    ) {
+      continue;
+    }
+    candidates.push({
+      FolgaID: fixedSwapId(employee.FuncionarioID, dateKey),
+      FuncionarioID: employee.FuncionarioID,
+      NomeFuncionario: employee.Nome || "",
+      LojaID: employee.LojaID || "",
+      NomeLoja: employee.NomeLoja || "",
+      DataInicio: dateKey,
+      DataFim: dateKey,
+      TipoFolga: "Folga fixa",
+      Periodo: "Dia inteiro",
+      Status: APP.status.approved,
+      TipoSelecao: "Fixa",
+      FolgaFixaData: dateKey,
+      _virtualFixed: true,
+    });
+  }
+  return candidates;
+};
+
+const swapTimeOffForEmployee = (employee, records, currentDay = todayIso()) => {
+  const registered = records
+    .filter(
+      (item) =>
+        String(item.FuncionarioID || "") ===
+          String(employee.FuncionarioID || "") &&
+        item.Status === APP.status.approved &&
+        normalizedDateKey(item.DataInicio) >= currentDay &&
+        !item.FolgaFixaSubstituidaData,
+    )
+    .map((item) => sanitizedSwapTimeOff(item, employee));
+  return [
+    ...registered,
+    ...fixedTimeOffCandidates(employee, records, currentDay),
+  ].sort((a, b) =>
+    normalizedDateKey(a.DataInicio).localeCompare(
+      normalizedDateKey(b.DataInicio),
+    ),
+  );
+};
+
+const swapDirectoryRecord = (employee, records) => ({
+  FuncionarioID: employee.FuncionarioID,
+  Nome: employee.Nome || "",
+  LojaID: employee.LojaID || "",
+  NomeLoja: employee.NomeLoja || "",
+  Ativo: asBoolean(employee.Ativo),
+  DiaFolgaPreferencial: employee.DiaFolgaPreferencial || "",
+  SegundoDiaFolgaPreferencial:
+    employee.SegundoDiaFolgaPreferencial || "",
+  folgas: asBoolean(employee.Ativo)
+    ? swapTimeOffForEmployee(employee, records)
+    : [],
+  DataAtualizacao: nowIso(),
+});
+
+const swapCandidateRows = async (profile) => {
+  if (isManager(profile)) {
+    const [employees, records] = await Promise.all([
+      runtime.list("Funcionarios", { profile }),
+      runtime.list("Folgas", { profile }),
+    ]);
+    const directory = employees.map((employee) =>
+      swapDirectoryRecord(employee, records),
+    );
+    await Promise.all(
+      directory.map((record) =>
+        runtime.upsert("DiretorioTrocasFolga", record),
+      ),
+    ).catch((error) =>
+      console.warn(
+        "Diretório de trocas será sincronizado após publicar as regras:",
+        error.message,
+      ),
+    );
+    return directory.filter((record) => record.Ativo);
+  }
+
+  const [directory, ownEmployees, ownRecords] = await Promise.all([
+    runtime.list("DiretorioTrocasFolga", { profile }),
+    runtime.list("Funcionarios", { profile }),
+    runtime.list("Folgas", { profile }),
+  ]);
+  const byEmployee = new Map(
+    directory.map((record) => [
+      String(record.FuncionarioID || ""),
+      {
+        ...record,
+        folgas: timeOffList(record.folgas),
+      },
+    ]),
+  );
+  ownEmployees.forEach((employee) => {
+    byEmployee.set(
+      String(employee.FuncionarioID || ""),
+      swapDirectoryRecord(employee, ownRecords),
+    );
+  });
+  return [...byEmployee.values()].filter(
+    (record) =>
+      asBoolean(record.Ativo) &&
+      String(record.LojaID || "") === String(profile.LojaID || ""),
+  );
+};
+
+const swapSelection = (rows, employeeId, timeOffId) => {
+  const employee = rows.find(
+    (item) =>
+      String(item.FuncionarioID || "") === String(employeeId || ""),
+  );
+  if (!employee) return null;
+  const timeOff = timeOffList(employee.folgas).find(
+    (item) => String(item.FolgaID || "") === String(timeOffId || ""),
+  );
+  return timeOff ? { employee, timeOff } : null;
+};
+
+const selectionType = (timeOff, storedType = "") =>
+  storedType === "Fixa" ||
+  timeOff?.TipoSelecao === "Fixa" ||
+  !!fixedSwapParts(timeOff?.FolgaID)
+    ? "Fixa"
+    : "Cadastrada";
+
+const singleDaySelection = (record) =>
+  normalizedDateKey(record.DataInicio) ===
+  normalizedDateKey(record.DataFim || record.DataInicio);
+
+const fixedOverrideRecord = ({
+  swapId,
+  employee,
+  sourceDate,
+  targetDate,
+  actor,
+  changedAt,
+}) => ({
+  FolgaID: `TROCA-FIXA-${swapId}-${employee.FuncionarioID}`,
+  FuncionarioID: employee.FuncionarioID,
+  NomeFuncionario: employee.Nome || "",
+  EmailFuncionario: employee.Email || "",
+  LojaID: employee.LojaID || "",
+  NomeLoja: employee.NomeLoja || "",
+  DataInicio: targetDate,
+  DataFim: targetDate,
+  TipoFolga: "Troca de folga fixa",
+  Periodo: "Dia inteiro",
+  Motivo: "Troca semanal de folga fixa aprovada",
+  Origem: "Troca semanal de folga fixa",
+  Status: APP.status.approved,
+  TrocaFolgaID: swapId,
+  FolgaFixaSubstituidaData: sourceDate,
+  ImpactaSaldoFolgas: false,
+  DataAprovacao: changedAt,
+  AprovadoPor: actor.Email || "",
+  DataCriacao: changedAt,
+  CriadoPor: actor.Email || "",
+  DataAtualizacao: changedAt,
+});
+
 const sha256 = async (value) => {
   const bytes = new TextEncoder().encode(String(value || ""));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -148,80 +405,113 @@ export function createAdvancedHandlers() {
 
     async getTimeOffSwapCandidates() {
       const profile = await runtime.requireProfile();
-      const [employees, timeOff] = await Promise.all([
-        runtime.list("Funcionarios", { profile }),
-        runtime.list("Folgas", { profile }),
-      ]);
-      const active = employees.filter((item) => asBoolean(item.Ativo));
-      return success(
-        active.map((employee) => ({
-          ...employee,
-          folgas: timeOff.filter(
-            (item) =>
-              item.FuncionarioID === employee.FuncionarioID &&
-              item.Status === APP.status.approved &&
-              item.DataInicio >= todayIso(),
-          ),
-        })),
-      );
+      return success(await swapCandidateRows(profile));
     },
 
     async createTimeOffSwap(args) {
       const profile = await runtime.requireProfile();
       const payload = args[0] || {};
-      const origin = await runtime.getById(
-        "Folgas",
-        payload.folgaOrigemId || payload.FolgaOrigemID,
+      const rows = await swapCandidateRows(profile);
+      const originId =
+        payload.folgaOrigemId || payload.FolgaOrigemID || "";
+      const destinationEmployeeId =
+        payload.funcionarioDestinoId || payload.FuncionarioDestinoID || "";
+      const destinationTimeOffId =
+        payload.folgaDestinoId || payload.FolgaDestinoID || "";
+      const inferredOrigin = rows.find((employee) =>
+        timeOffList(employee.folgas).some(
+          (item) => String(item.FolgaID || "") === String(originId),
+        ),
       );
-      assert(origin, "Folga de origem não encontrada.");
-      scopeRecord(profile, origin);
+      const originEmployeeId =
+        payload.funcionarioOrigemId ||
+        payload.FuncionarioOrigemID ||
+        profile.FuncionarioID ||
+        inferredOrigin?.FuncionarioID;
+      const originSelection = swapSelection(
+        rows,
+        originEmployeeId,
+        originId,
+      );
+      assert(originSelection, "Folga de origem não encontrada.");
+      const { employee: originEmployee, timeOff: origin } =
+        originSelection;
+      scopeRecord(profile, {
+        FuncionarioID: originEmployee.FuncionarioID,
+        LojaID: originEmployee.LojaID,
+      });
       assert(
         origin.Status === APP.status.approved &&
           normalizedDateKey(origin.DataInicio) >= todayIso(),
         "Selecione uma folga futura e aprovada.",
       );
-      const destinationEmployee = await employeeById(
-        payload.funcionarioDestinoId || payload.FuncionarioDestinoID,
+      const destinationSelection = swapSelection(
+        rows,
+        destinationEmployeeId,
+        destinationTimeOffId,
       );
+      assert(
+        destinationSelection,
+        "Selecione uma folga válida do funcionário de destino.",
+      );
+      const {
+        employee: destinationEmployee,
+        timeOff: destinationTimeOff,
+      } = destinationSelection;
       assert(asBoolean(destinationEmployee.Ativo), "Funcionário inativo.");
       assert(
-        destinationEmployee.FuncionarioID !== origin.FuncionarioID,
+        destinationEmployee.FuncionarioID !==
+          originEmployee.FuncionarioID,
         "Selecione outro funcionário para a troca.",
       );
       assert(
-        origin.LojaID === destinationEmployee.LojaID,
+        originEmployee.LojaID === destinationEmployee.LojaID,
         "A troca deve ocorrer entre funcionários da mesma loja.",
       );
-      const destinationTimeOffId =
-        payload.folgaDestinoId || payload.FolgaDestinoID || "";
       assert(
-        destinationTimeOffId,
-        "Selecione a folga aprovada do funcionário de destino.",
-      );
-      const destinationTimeOff = await runtime.getById(
-        "Folgas",
-        destinationTimeOffId,
-      );
-      assert(
-        destinationTimeOff &&
-          destinationTimeOff.FuncionarioID ===
-            destinationEmployee.FuncionarioID &&
-          destinationTimeOff.LojaID === origin.LojaID &&
-          destinationTimeOff.Status === APP.status.approved &&
+        destinationTimeOff.Status === APP.status.approved &&
           normalizedDateKey(destinationTimeOff.DataInicio) >= todayIso(),
         "A folga de destino não é válida para esta troca.",
       );
+      const originType = selectionType(origin);
+      const destinationType = selectionType(destinationTimeOff);
+      const fixedInvolved =
+        originType === "Fixa" || destinationType === "Fixa";
+      assert(
+        normalizedDateKey(origin.DataInicio) !==
+          normalizedDateKey(destinationTimeOff.DataInicio),
+        "Escolha duas datas diferentes para a troca.",
+      );
+      if (fixedInvolved) {
+        assert(
+          singleDaySelection(origin) &&
+            singleDaySelection(destinationTimeOff),
+          "A troca de folga fixa deve usar dias inteiros.",
+        );
+        assert(
+          sameSwapWeek(
+            normalizedDateKey(origin.DataInicio),
+            normalizedDateKey(destinationTimeOff.DataInicio),
+          ),
+          "A folga fixa só pode ser trocada por outro dia da mesma semana.",
+        );
+      }
       const saved = await runtime.upsert("TrocasFolga", {
         TrocaID: uuid(),
         FolgaOrigemID: origin.FolgaID,
         FolgaDestinoOriginalID: destinationTimeOff.FolgaID,
-        FuncionarioOrigemID: origin.FuncionarioID,
-        NomeFuncionarioOrigem: origin.NomeFuncionario,
+        TipoFolgaOrigem: originType,
+        TipoFolgaDestino: destinationType,
+        FuncionarioOrigemID: originEmployee.FuncionarioID,
+        NomeFuncionarioOrigem: originEmployee.Nome,
         FuncionarioDestinoID: destinationEmployee.FuncionarioID,
         NomeFuncionarioDestino: destinationEmployee.Nome,
-        LojaID: origin.LojaID,
-        DataFolgaOrigem: origin.DataInicio,
-        DataFolgaDestino: destinationTimeOff.DataInicio,
+        LojaID: originEmployee.LojaID,
+        DataFolgaOrigem: normalizedDateKey(origin.DataInicio),
+        DataFolgaDestino: normalizedDateKey(
+          destinationTimeOff.DataInicio,
+        ),
+        EscopoTroca: fixedInvolved ? "Semana selecionada" : "Datas selecionadas",
         Motivo: String(payload.motivo || payload.Motivo || ""),
         Status: "Aguardando aceite",
         AceiteDestino: "",
@@ -235,10 +525,10 @@ export function createAdvancedHandlers() {
       });
       await createNotification({
         employeeId: destinationEmployee.FuncionarioID,
-        email: destinationEmployee.Email,
-        storeId: origin.LojaID,
+        email: "",
+        storeId: originEmployee.LojaID,
         subject: "Proposta de troca de folga",
-        message: `${origin.NomeFuncionario} enviou uma proposta de troca.`,
+        message: `${originEmployee.Nome} enviou uma proposta de troca válida somente para as datas selecionadas.`,
         type: "Troca",
         relatedId: saved.TrocaID,
       });
@@ -292,56 +582,168 @@ export function createAdvancedHandlers() {
         return success(rejected, "Troca rejeitada.");
       }
 
-      const [origin, destination, allTimeOff] = await Promise.all([
-        runtime.getById("Folgas", current.FolgaOrigemID),
-        runtime.getById("Folgas", current.FolgaDestinoOriginalID),
-        runtime.list("Folgas", { profile }),
-      ]);
-      assert(
-        origin &&
-          destination &&
-          origin.Status === APP.status.approved &&
-          destination.Status === APP.status.approved,
-        "As duas folgas precisam continuar aprovadas.",
+      const [originEmployee, destinationEmployee, allTimeOff] =
+        await Promise.all([
+          employeeById(current.FuncionarioOrigemID),
+          employeeById(current.FuncionarioDestinoID),
+          runtime.list("Folgas", { profile }),
+        ]);
+      const resolveCurrentSelection = (
+        employee,
+        timeOffId,
+        expectedDate,
+        type,
+      ) => {
+        if (type === "Fixa" || fixedSwapParts(timeOffId)) {
+          const parts = fixedSwapParts(timeOffId);
+          assert(
+            parts &&
+              String(parts.employeeId) ===
+                String(employee.FuncionarioID) &&
+              parts.date === expectedDate &&
+              employeeHasFixedDay(employee, expectedDate) &&
+              !fixedDateWasSwapped(
+                allTimeOff,
+                employee.FuncionarioID,
+                expectedDate,
+              ),
+            "A folga fixa selecionada não está mais disponível.",
+          );
+          return {
+            FolgaID: timeOffId,
+            FuncionarioID: employee.FuncionarioID,
+            LojaID: employee.LojaID,
+            DataInicio: expectedDate,
+            DataFim: expectedDate,
+            Status: APP.status.approved,
+            TipoSelecao: "Fixa",
+          };
+        }
+        const record = allTimeOff.find(
+          (item) => String(item.FolgaID) === String(timeOffId),
+        );
+        assert(
+          record &&
+            record.Status === APP.status.approved &&
+            String(record.FuncionarioID) ===
+              String(employee.FuncionarioID) &&
+            normalizedDateKey(record.DataInicio) === expectedDate &&
+            !record.FolgaFixaSubstituidaData,
+          "A folga cadastrada selecionada não está mais disponível.",
+        );
+        return { ...record, TipoSelecao: "Cadastrada" };
+      };
+      const originType =
+        current.TipoFolgaOrigem ||
+        (fixedSwapParts(current.FolgaOrigemID) ? "Fixa" : "Cadastrada");
+      const destinationType =
+        current.TipoFolgaDestino ||
+        (fixedSwapParts(current.FolgaDestinoOriginalID)
+          ? "Fixa"
+          : "Cadastrada");
+      const origin = resolveCurrentSelection(
+        originEmployee,
+        current.FolgaOrigemID,
+        normalizedDateKey(current.DataFolgaOrigem),
+        originType,
+      );
+      const destination = resolveCurrentSelection(
+        destinationEmployee,
+        current.FolgaDestinoOriginalID,
+        normalizedDateKey(current.DataFolgaDestino),
+        destinationType,
       );
       assert(
-        origin.FuncionarioID === current.FuncionarioOrigemID &&
-          destination.FuncionarioID === current.FuncionarioDestinoID &&
-          origin.LojaID === current.LojaID &&
-          destination.LojaID === current.LojaID,
-        "Os dados atuais não correspondem à proposta original.",
+        String(originEmployee.LojaID) === String(current.LojaID) &&
+          String(destinationEmployee.LojaID) === String(current.LojaID),
+        "Os funcionários não pertencem mais à loja da proposta.",
       );
+      const fixedInvolved =
+        originType === "Fixa" || destinationType === "Fixa";
+      if (fixedInvolved) {
+        assert(
+          singleDaySelection(origin) &&
+            singleDaySelection(destination) &&
+            sameSwapWeek(origin.DataInicio, destination.DataInicio),
+          "A troca de folga fixa deve permanecer na mesma semana.",
+        );
+      }
       const originDates = shiftDateRange(origin, destination.DataInicio);
       const destinationDates = shiftDateRange(destination, origin.DataInicio);
-      const movingIds = new Set([origin.FolgaID, destination.FolgaID]);
-      const hasConflict = (record, dates) =>
+      const movingIds = new Set(
+        [origin, destination]
+          .filter((item) => item.TipoSelecao !== "Fixa")
+          .map((item) => item.FolgaID),
+      );
+      const hasConflict = (employee, dates) =>
         allTimeOff.some(
           (item) =>
             !movingIds.has(item.FolgaID) &&
-            item.FuncionarioID === record.FuncionarioID &&
-            ![APP.status.cancelled, APP.status.rejected].includes(item.Status) &&
+            String(item.FuncionarioID) ===
+              String(employee.FuncionarioID) &&
+            activeTimeOff(item) &&
             normalizedDateKey(item.DataInicio) <= dates.DataFim &&
             normalizedDateKey(item.DataFim || item.DataInicio) >=
               dates.DataInicio,
-        );
+        ) ||
+        (employeeHasFixedDay(employee, dates.DataInicio) &&
+          !fixedDateWasSwapped(
+            allTimeOff,
+            employee.FuncionarioID,
+            dates.DataInicio,
+          ));
       assert(
-        !hasConflict(origin, originDates) &&
-          !hasConflict(destination, destinationDates),
-        "A troca passou a conflitar com outra folga cadastrada.",
+        !hasConflict(originEmployee, originDates) &&
+          !hasConflict(destinationEmployee, destinationDates),
+        "A troca passou a conflitar com outra folga cadastrada ou fixa.",
       );
       const changedAt = nowIso();
+      const applicationItem = (
+        selection,
+        employee,
+        sourceDate,
+        targetDate,
+      ) => {
+        if (selection.TipoSelecao === "Fixa") {
+          const record = fixedOverrideRecord({
+            swapId: id,
+            employee,
+            sourceDate,
+            targetDate,
+            actor: profile,
+            changedAt,
+          });
+          return {
+            table: "Folgas",
+            id: record.FolgaID,
+            createIfMissing: true,
+            record,
+          };
+        }
+        return {
+          table: "Folgas",
+          id: selection.FolgaID,
+          changes: {
+            ...shiftDateRange(selection, targetDate),
+            TrocaFolgaID: id,
+            DataAtualizacao: changedAt,
+          },
+        };
+      };
       const [updatedOrigin, updatedDestination, saved] =
         await runtime.patchMany([
-          {
-            table: "Folgas",
-            id: origin.FolgaID,
-            changes: { ...originDates, DataAtualizacao: changedAt },
-          },
-          {
-            table: "Folgas",
-            id: destination.FolgaID,
-            changes: { ...destinationDates, DataAtualizacao: changedAt },
-          },
+          applicationItem(
+            origin,
+            originEmployee,
+            origin.DataInicio,
+            destination.DataInicio,
+          ),
+          applicationItem(
+            destination,
+            destinationEmployee,
+            destination.DataInicio,
+            origin.DataInicio,
+          ),
           {
             table: "TrocasFolga",
             id,
@@ -350,26 +752,29 @@ export function createAdvancedHandlers() {
               DecididoPor: profile.Email,
               DataDecisao: changedAt,
               ObservacaoGestor: String(observation || ""),
+              EscopoTroca: fixedInvolved
+                ? "Somente a semana selecionada"
+                : "Somente as datas selecionadas",
               DataAtualizacao: changedAt,
             },
           },
         ]);
       await Promise.all([
         createNotification({
-          employeeId: origin.FuncionarioID,
-          email: origin.EmailFuncionario,
-          storeId: origin.LojaID,
+          employeeId: originEmployee.FuncionarioID,
+          email: originEmployee.Email,
+          storeId: originEmployee.LojaID,
           subject: "Troca de folga aprovada",
-          message: `Sua folga foi transferida para ${updatedOrigin.DataInicio}.`,
+          message: `Sua folga desta semana foi transferida para ${updatedOrigin.DataInicio}. A folga fixa das próximas semanas não mudou.`,
           type: "Troca",
           relatedId: id,
         }),
         createNotification({
-          employeeId: destination.FuncionarioID,
-          email: destination.EmailFuncionario,
-          storeId: destination.LojaID,
+          employeeId: destinationEmployee.FuncionarioID,
+          email: destinationEmployee.Email,
+          storeId: destinationEmployee.LojaID,
           subject: "Troca de folga aprovada",
-          message: `Sua folga foi transferida para ${updatedDestination.DataInicio}.`,
+          message: `Sua folga desta semana foi transferida para ${updatedDestination.DataInicio}. A folga fixa das próximas semanas não mudou.`,
           type: "Troca",
           relatedId: id,
         }),
@@ -380,7 +785,12 @@ export function createAdvancedHandlers() {
         before: current,
         after: saved,
       });
-      return success(saved, "Troca aprovada e aplicada.");
+      return success(
+        saved,
+        fixedInvolved
+          ? "Troca aprovada somente para a semana selecionada."
+          : "Troca aprovada e aplicada.",
+      );
     },
 
     async acknowledgeTimeOff(args) {
