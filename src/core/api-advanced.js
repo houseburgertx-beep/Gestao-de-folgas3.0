@@ -218,6 +218,41 @@ const swapDirectoryRecord = (employee, records) => ({
   DataAtualizacao: nowIso(),
 });
 
+const SWAP_DIRECTORY_CATEGORY = "Sistema: Diretório de trocas";
+
+const fallbackSwapDirectoryRecord = (record) => ({
+  ComID: `DIRETORIO-TROCA-${record.FuncionarioID}`,
+  Categoria: SWAP_DIRECTORY_CATEGORY,
+  Titulo: "Diretório interno de trocas",
+  Corpo: "",
+  PublicoAlvo: "Todos",
+  ExigeConfirmacao: false,
+  Ativo: false,
+  FuncionarioID: record.FuncionarioID,
+  Nome: record.Nome,
+  LojaID: record.LojaID,
+  NomeLoja: record.NomeLoja,
+  FuncionarioAtivo: record.Ativo,
+  DiaFolgaPreferencial: record.DiaFolgaPreferencial,
+  SegundoDiaFolgaPreferencial: record.SegundoDiaFolgaPreferencial,
+  folgas: record.folgas,
+  DataHora: record.DataAtualizacao,
+  DataAtualizacao: record.DataAtualizacao,
+});
+
+const directoryFromFallback = (record) => ({
+  FuncionarioID: record.FuncionarioID,
+  Nome: record.Nome || "",
+  LojaID: record.LojaID || "",
+  NomeLoja: record.NomeLoja || "",
+  Ativo: asBoolean(record.FuncionarioAtivo),
+  DiaFolgaPreferencial: record.DiaFolgaPreferencial || "",
+  SegundoDiaFolgaPreferencial:
+    record.SegundoDiaFolgaPreferencial || "",
+  folgas: timeOffList(record.folgas),
+  DataAtualizacao: record.DataAtualizacao || record.DataHora || "",
+});
+
 const swapCandidateRows = async (profile) => {
   if (isManager(profile)) {
     const [employees, records] = await Promise.all([
@@ -227,33 +262,56 @@ const swapCandidateRows = async (profile) => {
     const directory = employees.map((employee) =>
       swapDirectoryRecord(employee, records),
     );
-    await Promise.all(
-      directory.map((record) =>
-        runtime.upsert("DiretorioTrocasFolga", record),
+    await Promise.all([
+      Promise.all(
+        directory.map((record) =>
+          runtime.upsert("DiretorioTrocasFolga", record),
+        ),
+      ).catch((error) =>
+        console.warn(
+          "Diretório dedicado de trocas indisponível:",
+          error.message,
+        ),
       ),
-    ).catch((error) =>
-      console.warn(
-        "Diretório de trocas será sincronizado após publicar as regras:",
-        error.message,
+      Promise.all(
+        directory.map((record) =>
+          runtime.upsert(
+            "Comunicados",
+            fallbackSwapDirectoryRecord(record),
+          ),
+        ),
       ),
-    );
+    ]);
     return directory.filter((record) => record.Ativo);
   }
 
-  const [directory, ownEmployees, ownRecords] = await Promise.all([
-    runtime.list("DiretorioTrocasFolga", { profile }),
-    runtime.list("Funcionarios", { profile }),
-    runtime.list("Folgas", { profile }),
-  ]);
+  const [directory, fallbackRows, ownEmployees, ownRecords] =
+    await Promise.all([
+      runtime
+        .list("DiretorioTrocasFolga", { profile })
+        .catch(() => []),
+      runtime.list("Comunicados", { profile }),
+      runtime.list("Funcionarios", { profile }),
+      runtime.list("Folgas", { profile }),
+    ]);
   const byEmployee = new Map(
-    directory.map((record) => [
+    fallbackRows
+      .filter((record) => record.Categoria === SWAP_DIRECTORY_CATEGORY)
+      .map(directoryFromFallback)
+      .map((record) => [
+        String(record.FuncionarioID || ""),
+        record,
+      ]),
+  );
+  directory.forEach((record) => {
+    byEmployee.set(
       String(record.FuncionarioID || ""),
       {
         ...record,
         folgas: timeOffList(record.folgas),
       },
-    ]),
-  );
+    );
+  });
   ownEmployees.forEach((employee) => {
     byEmployee.set(
       String(employee.FuncionarioID || ""),
@@ -400,7 +458,20 @@ export function createAdvancedHandlers() {
     },
 
     async getTimeOffSwaps() {
-      return success(await runtime.list("TrocasFolga"));
+      const profile = await runtime.requireProfile();
+      const rows = await runtime.list("TrocasFolga", { profile });
+      if (isManager(profile)) {
+        return success(rows.filter((item) => !item.TrocaPrincipalID));
+      }
+      const primaryIds = [
+        ...new Set(
+          rows.map((item) => item.TrocaPrincipalID || item.TrocaID),
+        ),
+      ].filter(Boolean);
+      const resolved = await Promise.all(
+        primaryIds.map((id) => runtime.getById("TrocasFolga", id)),
+      );
+      return success(resolved.filter(Boolean));
     },
 
     async getTimeOffSwapCandidates() {
@@ -496,8 +567,9 @@ export function createAdvancedHandlers() {
           "A folga fixa só pode ser trocada por outro dia da mesma semana.",
         );
       }
-      const saved = await runtime.upsert("TrocasFolga", {
-        TrocaID: uuid(),
+      const swapId = uuid();
+      const swapRecord = {
+        TrocaID: swapId,
         FolgaOrigemID: origin.FolgaID,
         FolgaDestinoOriginalID: destinationTimeOff.FolgaID,
         TipoFolgaOrigem: originType,
@@ -522,7 +594,33 @@ export function createAdvancedHandlers() {
         DataCriacao: nowIso(),
         CriadoPor: profile.Email,
         DataAtualizacao: nowIso(),
+      };
+      const pointerRecord = (employeeId) => ({
+        ...swapRecord,
+        TrocaID: `${swapId}__${employeeId}`,
+        TrocaPrincipalID: swapId,
+        FuncionarioID: employeeId,
       });
+      const [saved] = await runtime.patchMany([
+        {
+          table: "TrocasFolga",
+          id: swapId,
+          createIfMissing: true,
+          record: swapRecord,
+        },
+        {
+          table: "TrocasFolga",
+          id: `${swapId}__${originEmployee.FuncionarioID}`,
+          createIfMissing: true,
+          record: pointerRecord(originEmployee.FuncionarioID),
+        },
+        {
+          table: "TrocasFolga",
+          id: `${swapId}__${destinationEmployee.FuncionarioID}`,
+          createIfMissing: true,
+          record: pointerRecord(destinationEmployee.FuncionarioID),
+        },
+      ]);
       await createNotification({
         employeeId: destinationEmployee.FuncionarioID,
         email: "",
@@ -531,7 +629,12 @@ export function createAdvancedHandlers() {
         message: `${originEmployee.Nome} enviou uma proposta de troca válida somente para as datas selecionadas.`,
         type: "Troca",
         relatedId: saved.TrocaID,
-      });
+      }).catch((error) =>
+        console.warn(
+          "A proposta ficará disponível na central de pendências:",
+          error.message,
+        ),
+      );
       return success(saved, "Proposta de troca enviada.");
     },
 

@@ -506,25 +506,6 @@ export class FirebaseRuntime {
       );
     }
 
-    if (
-      table === "TrocasFolga" &&
-      isEmployeeProfile(profile) &&
-      employeeId
-    ) {
-      const snapshots = await Promise.all(
-        ["FuncionarioOrigemID", "FuncionarioDestinoID"].map((field) =>
-          get(query(tableRef, orderByChild(field), equalTo(employeeId))),
-        ),
-      );
-      const unique = new Map();
-      snapshots
-        .flatMap((snapshot) => this.recordsFromSnapshot(table, snapshot))
-        .forEach((record) => {
-          unique.set(String(record.TrocaID || uuid()), record);
-        });
-      return [...unique.values()];
-    }
-
     const storeField = STORE_SCOPED_FIELDS[table];
     if (isManagerProfile(profile) && storeId && storeField) {
       return this.recordsFromSnapshot(

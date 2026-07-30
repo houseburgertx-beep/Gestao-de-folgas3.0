@@ -87,7 +87,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.12");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.1.13");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -98,13 +98,13 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.1\.12/);
+  assert.match(serviceWorker, /house-folgas-v6\.1\.13/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /navigator\.serviceWorker\.register\("\.\/sw\.js"/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.12"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.1\.13"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -583,11 +583,12 @@ test("ponto duplicado usa a última saída final válida", () => {
 });
 
 test("troca de folga fixa vale somente na semana e é aplicada atomicamente", async () => {
-  const [api, client, dialogs, runtime, rules] = await Promise.all([
+  const [api, client, dialogs, runtime, constants, rules] = await Promise.all([
     readFile(new URL("../src/core/api-advanced.js", import.meta.url), "utf8"),
     readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
     readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8"),
     readFile(new URL("../src/core/runtime.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/constants.js", import.meta.url), "utf8"),
     readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
   ]);
   assert.match(dialogs, /id="swapDestinationTimeOff"/);
@@ -599,7 +600,11 @@ test("troca de folga fixa vale somente na semana e é aplicada atomicamente", as
   assert.match(api, /await runtime\.patchMany\(\[/);
   assert.match(api, /FolgaFixaSubstituidaData: sourceDate/);
   assert.match(api, /EscopoTroca: fixedInvolved/);
+  assert.match(api, /TrocaPrincipalID: swapId/);
+  assert.match(api, /SWAP_DIRECTORY_CATEGORY/);
+  assert.match(api, /runtime\.upsert\(\s*"Comunicados"/);
   assert.match(runtime, /createIfMissing = false/);
+  assert.match(constants, /TrocasFolga: "FuncionarioID"/);
   assert.match(rules, /DiretorioTrocasFolga/);
   assert.doesNotMatch(
     api,
