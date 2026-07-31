@@ -353,6 +353,28 @@ test("crédito mensal e débito de aprovação são idempotentes", async () => {
   assert.match(runtime, /SaldoFolgasLancamentos/);
   assert.match(runtime, /normalizedDesired - previousDelta/);
   assert.match(runtime, /SaldoFolgas: balanceAfter/);
+  assert.match(
+    runtime,
+    /!transaction\.committed && !transaction\.snapshot\.exists\(\)/,
+  );
+  assert.match(
+    runtime,
+    /recordKeys\.delete\(this\.recordCacheKey\("Funcionarios", id\)\)/,
+  );
+});
+
+test("aprovação bloqueia envios duplicados enquanto a decisão está pendente", async () => {
+  const client = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(client, /let APPROVAL_SUBMISSION_PENDING_ = false/);
+  assert.match(client, /if \(APPROVAL_SUBMISSION_PENDING_\) return/);
+  assert.match(client, /APPROVAL_SUBMISSION_PENDING_ = true/);
+  assert.match(
+    client,
+    /finally \{[\s\S]*?APPROVAL_SUBMISSION_PENDING_ = false/,
+  );
 });
 
 test("decisão de folga aceita cadastros e perfis antigos sem afetar rejeições", async () => {

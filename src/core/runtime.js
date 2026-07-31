@@ -799,46 +799,60 @@ export class FirebaseRuntime {
     if (!id || !rawKey) throw new Error("Movimento de saldo inválido.");
     const key = pathKey(rawKey);
     let outcome = null;
-    const storageKey = await this.resolveStorageKey("Funcionarios", id);
-    const transaction = await runTransaction(
-      this.appRef(`tables/Funcionarios/${storageKey}`),
-      (current) => {
-        if (!current || typeof current !== "object") return;
-        const entries = {
-          ...(current.SaldoFolgasLancamentos || {}),
-        };
-        const previousDelta = Number(entries[key]?.Delta || 0);
-        const normalizedDesired =
-          Math.round(Number(desiredDelta || 0) * 100) / 100;
-        const adjustment =
-          Math.round((normalizedDesired - previousDelta) * 100) / 100;
-        if (!adjustment) return;
-        const balanceBefore = Number(current.SaldoFolgas || 0);
-        const balanceAfter =
-          Math.round((balanceBefore + adjustment) * 100) / 100;
-        const appliedAt = nowIso();
-        entries[key] = cleanObject({
-          ...metadata,
-          Delta: normalizedDesired,
-          DataAtualizacao: appliedAt,
-        });
-        outcome = {
-          applied: true,
-          adjustment,
-          balanceBefore,
-          balanceAfter,
-          desiredDelta: normalizedDesired,
-          appliedAt,
-        };
-        return {
-          ...current,
-          SaldoFolgas: balanceAfter,
-          SaldoFolgasLancamentos: entries,
-          DataAtualizacao: appliedAt,
-        };
-      },
-      { applyLocally: false },
-    );
+    const runBalanceTransaction = (storageKey) =>
+      runTransaction(
+        this.appRef(`tables/Funcionarios/${storageKey}`),
+        (current) => {
+          if (!current || typeof current !== "object") return;
+          const entries = {
+            ...(current.SaldoFolgasLancamentos || {}),
+          };
+          const previousDelta = Number(entries[key]?.Delta || 0);
+          const normalizedDesired =
+            Math.round(Number(desiredDelta || 0) * 100) / 100;
+          const adjustment =
+            Math.round((normalizedDesired - previousDelta) * 100) / 100;
+          if (!adjustment) return;
+          const balanceBefore = Number(current.SaldoFolgas || 0);
+          const balanceAfter =
+            Math.round((balanceBefore + adjustment) * 100) / 100;
+          const appliedAt = nowIso();
+          entries[key] = cleanObject({
+            ...metadata,
+            Delta: normalizedDesired,
+            DataAtualizacao: appliedAt,
+          });
+          outcome = {
+            applied: true,
+            adjustment,
+            balanceBefore,
+            balanceAfter,
+            desiredDelta: normalizedDesired,
+            appliedAt,
+          };
+          return {
+            ...current,
+            SaldoFolgas: balanceAfter,
+            SaldoFolgasLancamentos: entries,
+            DataAtualizacao: appliedAt,
+          };
+        },
+        { applyLocally: false },
+      );
+
+    let storageKey = await this.resolveStorageKey("Funcionarios", id);
+    let transaction = await runBalanceTransaction(storageKey);
+    if (!transaction.committed && !transaction.snapshot.exists()) {
+      // Cadastros importados ou recriados podem continuar associados a uma
+      // chave antiga durante a sessão. Limpa o cache, localiza a chave atual e
+      // repete o lançamento idempotente uma única vez.
+      this.recordKeys.delete(this.recordCacheKey("Funcionarios", id));
+      const employee = await this.getById("Funcionarios", id);
+      if (!employee) throw new Error("Funcionário não encontrado.");
+      storageKey = await this.resolveStorageKey("Funcionarios", id);
+      outcome = null;
+      transaction = await runBalanceTransaction(storageKey);
+    }
     if (!transaction.committed) {
       const employee = transaction.snapshot.val();
       if (!employee) throw new Error("Funcionário não encontrado.");

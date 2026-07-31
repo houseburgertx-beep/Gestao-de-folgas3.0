@@ -11594,6 +11594,7 @@
   let CORE_BOOTSTRAP_PROMISE_ = null;
   let USERS_LOAD_PROMISE_ = null;
   let HOUSE_ARENA_MODULE_PROMISE_ = null;
+  let APPROVAL_SUBMISSION_PENDING_ = false;
 
   (function setupAppDownloadGuide() {
     const ua = navigator.userAgent || "";
@@ -14859,6 +14860,10 @@
   }
   async function saveApproval(e) {
     e.preventDefault();
+    if (APPROVAL_SUBMISSION_PENDING_) return;
+    APPROVAL_SUBMISSION_PENDING_ = true;
+    const submitButton = e.currentTarget.querySelector('[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
     const id = $("#approvalId").value,
       approve = $("#approvalAction").value === "approve",
       fn = approve ? FN.approveTimeOff : FN.rejectTimeOff,
@@ -14888,6 +14893,8 @@
     } catch (err) {
       toast(err.message, true);
     } finally {
+      APPROVAL_SUBMISSION_PENDING_ = false;
+      if (submitButton) submitButton.disabled = false;
       setLoading(false);
     }
   }
