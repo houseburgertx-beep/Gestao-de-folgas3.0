@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.2.3" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.2.4" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,7 +25,7 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
-    <meta name="app-version" content="6.2.3-firebase-github" />
+    <meta name="app-version" content="6.2.4-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -8365,6 +8365,272 @@
       );
     }
   }
+
+  body.monthly-leave-reward-open {
+    overflow: hidden;
+  }
+
+  .monthly-leave-reward-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(22, 20, 34, 0.54);
+    backdrop-filter: blur(8px);
+    animation: monthly-reward-backdrop-in 180ms ease both;
+  }
+
+  .monthly-leave-reward-overlay.is-closing {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+
+  .monthly-leave-reward-card {
+    width: min(100%, 390px);
+    max-height: min(720px, calc(100dvh - 32px));
+    overflow: auto;
+    padding: 28px;
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at 50% 0, var(--primary-soft), transparent 42%),
+      var(--surface);
+    color: var(--text);
+    text-align: center;
+    box-shadow: 0 28px 90px rgba(20, 17, 40, 0.32);
+    animation: monthly-reward-enter 420ms cubic-bezier(0.2, 0.9, 0.25, 1.15)
+      both;
+  }
+
+  .monthly-leave-reward-orbit {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 108px;
+    height: 94px;
+    margin: 0 auto 8px;
+  }
+
+  .monthly-leave-reward-ring {
+    position: absolute;
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary) 28%, transparent);
+    animation: monthly-reward-pulse 1.8s ease-out infinite;
+  }
+
+  .monthly-leave-reward-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #9789ff, var(--primary-dark));
+    font-size: 30px;
+    box-shadow: 0 14px 32px rgba(123, 104, 238, 0.34);
+  }
+
+  .monthly-leave-reward-spark {
+    position: absolute;
+    color: var(--primary);
+    font-size: 18px;
+    animation: monthly-reward-spark 1.5s ease-in-out infinite alternate;
+  }
+
+  .monthly-leave-reward-spark.spark-one {
+    top: 14px;
+    left: 1px;
+  }
+
+  .monthly-leave-reward-spark.spark-two {
+    top: 2px;
+    right: 3px;
+    animation-delay: 260ms;
+  }
+
+  .monthly-leave-reward-spark.spark-three {
+    right: 0;
+    bottom: 14px;
+    animation-delay: 520ms;
+  }
+
+  .monthly-leave-reward-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: 0.11em;
+  }
+
+  .monthly-leave-reward-card h2 {
+    margin: 14px 0 8px;
+    font-size: clamp(25px, 6vw, 31px);
+    line-height: 1.08;
+    letter-spacing: -0.045em;
+  }
+
+  .monthly-leave-reward-card > p {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .monthly-leave-reward-card > p strong {
+    color: var(--text);
+  }
+
+  .monthly-leave-reward-highlight {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 18px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+    text-align: left;
+  }
+
+  .monthly-leave-reward-plus {
+    display: grid;
+    place-items: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 15px;
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-size: 20px;
+    font-weight: 850;
+  }
+
+  .monthly-leave-reward-highlight > div:nth-child(2) {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .monthly-leave-reward-highlight strong {
+    font-size: 14px;
+  }
+
+  .monthly-leave-reward-highlight span {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .monthly-leave-reward-highlight svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: var(--success);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .monthly-leave-reward-card > .btn {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+  }
+
+  .monthly-leave-reward-card > .btn + .btn {
+    margin-top: 7px;
+  }
+
+  .monthly-leave-reward-primary span {
+    margin-left: 5px;
+    font-size: 17px;
+  }
+
+  @keyframes monthly-reward-backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes monthly-reward-enter {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes monthly-reward-pulse {
+    0% {
+      opacity: 0.75;
+      transform: scale(0.84);
+    }
+    80%,
+    100% {
+      opacity: 0;
+      transform: scale(1.2);
+    }
+  }
+
+  @keyframes monthly-reward-spark {
+    from {
+      opacity: 0.45;
+      transform: translateY(2px) scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(-3px) scale(1.12);
+    }
+  }
+
+  @media (max-width: 430px) {
+    .monthly-leave-reward-overlay {
+      align-items: end;
+      padding: 12px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .monthly-leave-reward-card {
+      width: 100%;
+      padding: 24px 18px 18px;
+      border-radius: 24px;
+    }
+  }
+
+  @media (max-width: 350px) {
+    .monthly-leave-reward-highlight {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .monthly-leave-reward-highlight > svg {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .monthly-leave-reward-overlay,
+    .monthly-leave-reward-card,
+    .monthly-leave-reward-ring,
+    .monthly-leave-reward-spark {
+      animation: none;
+    }
+  }
 </style>
 
   </head>
@@ -11404,7 +11670,7 @@
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.2.3"></script>
+<script type="module" src="./src/main.js?v=6.2.4"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -11516,6 +11782,7 @@
     clientModule: "getClientModuleBundle",
     updateProfile: "updateOwnProfile",
     sessionBootstrap: "getBootstrapDataWithSession",
+    acknowledgeMonthlyLeaveReward: "acknowledgeMonthlyLeaveReward",
     employeeRequest: "createEmployeeTimeOffRequest",
     dashboard: "getDashboardData",
     createStore: "createStore",
@@ -11595,6 +11862,8 @@
   let USERS_LOAD_PROMISE_ = null;
   let HOUSE_ARENA_MODULE_PROMISE_ = null;
   let APPROVAL_SUBMISSION_PENDING_ = false;
+  let MONTHLY_LEAVE_REWARD_TIMER_ = null;
+  let MONTHLY_LEAVE_REWARD_FOCUS_ = null;
 
   (function setupAppDownloadGuide() {
     const ua = navigator.userAgent || "";
@@ -11698,13 +11967,147 @@
       if (!isStandalone && !hasSeenInstallNotice()) {
         rememberInstallNotice();
         window.setTimeout(() => {
-          if (!document.querySelector(".app-download-overlay")) {
+          if (
+            !document.querySelector(".app-download-overlay") &&
+            !document.querySelector(".monthly-leave-reward-overlay")
+          ) {
             showDownloadHelp();
           }
         }, 1200);
       }
     });
   })();
+
+  function monthlyLeaveRewardStorageKey_(reward) {
+    return (
+      "gf-monthly-leave-reward-seen-v1:" +
+      encodeURIComponent(String(reward?.employeeId || "")) +
+      ":" +
+      String(reward?.month || "")
+    );
+  }
+
+  function monthlyLeaveRewardSeen_(reward) {
+    if (!reward?.credited || reward.acknowledged) return true;
+    try {
+      return localStorage.getItem(monthlyLeaveRewardStorageKey_(reward)) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function rememberMonthlyLeaveReward_(reward) {
+    try {
+      localStorage.setItem(monthlyLeaveRewardStorageKey_(reward), "1");
+    } catch {
+      // O comprovante no Firebase continua sendo a fonte principal de leitura.
+    }
+  }
+
+  function closeMonthlyLeaveReward_() {
+    const overlay = document.querySelector(".monthly-leave-reward-overlay");
+    if (!overlay) return;
+    overlay.classList.add("is-closing");
+    document.body.classList.remove("monthly-leave-reward-open");
+    window.setTimeout(() => {
+      overlay.remove();
+      MONTHLY_LEAVE_REWARD_FOCUS_?.focus?.();
+      MONTHLY_LEAVE_REWARD_FOCUS_ = null;
+    }, 190);
+  }
+
+  async function acknowledgeMonthlyLeaveReward_(goToBalance) {
+    const reward = state.bootstrap?.monthlyLeaveReward;
+    const overlay = document.querySelector(".monthly-leave-reward-overlay");
+    if (!reward || !overlay || overlay.dataset.pending === "1") return;
+    overlay.dataset.pending = "1";
+    overlay
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = true));
+    overlay.querySelector(".monthly-leave-reward-primary")?.classList.add(
+      "is-loading",
+    );
+    try {
+      await call(FN.acknowledgeMonthlyLeaveReward, { month: reward.month });
+      reward.acknowledged = true;
+      rememberMonthlyLeaveReward_(reward);
+      closeMonthlyLeaveReward_();
+      if (goToBalance) {
+        switchView("dashboard");
+        window.setTimeout(() => {
+          document
+            .querySelector('[data-metric="saldoFolgas"]')
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 220);
+      }
+    } catch (error) {
+      overlay.dataset.pending = "0";
+      overlay
+        .querySelectorAll("button")
+        .forEach((button) => (button.disabled = false));
+      overlay.querySelector(".monthly-leave-reward-primary")?.classList.remove(
+        "is-loading",
+      );
+      toast(error?.message || "Não foi possível confirmar o aviso.", true);
+    }
+  }
+
+  function showMonthlyLeaveReward_() {
+    const reward = state.bootstrap?.monthlyLeaveReward;
+    if (
+      monthlyLeaveRewardSeen_(reward) ||
+      document.querySelector(".monthly-leave-reward-overlay")
+    ) {
+      return;
+    }
+    MONTHLY_LEAVE_REWARD_FOCUS_ = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "monthly-leave-reward-overlay";
+    overlay.dataset.pending = "0";
+    overlay.innerHTML = `
+      <section class="monthly-leave-reward-card" role="dialog" aria-modal="true" aria-labelledby="monthlyLeaveRewardTitle" aria-describedby="monthlyLeaveRewardText">
+        <div class="monthly-leave-reward-orbit" aria-hidden="true">
+          <span class="monthly-leave-reward-ring"></span>
+          <div class="monthly-leave-reward-icon">🎉</div>
+          <span class="monthly-leave-reward-spark spark-one">✦</span>
+          <span class="monthly-leave-reward-spark spark-two">✦</span>
+          <span class="monthly-leave-reward-spark spark-three">•</span>
+        </div>
+        <span class="monthly-leave-reward-badge">BENEFÍCIO DO MÊS</span>
+        <h2 id="monthlyLeaveRewardTitle">Folga extra na área! 🎉</h2>
+        <p id="monthlyLeaveRewardText">Você recebeu <strong>+1 folga</strong> neste mês. Ela já está disponível no seu saldo — quando quiser aproveitar, é só solicitar pelo sistema.</p>
+        <div class="monthly-leave-reward-highlight">
+          <div class="monthly-leave-reward-plus">+1</div>
+          <div><strong>Folga adicionada</strong><span>Disponível no seu saldo</span></div>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        </div>
+        <button type="button" class="btn btn-primary monthly-leave-reward-primary">Ver meu saldo <span aria-hidden="true">→</span></button>
+        <button type="button" class="btn btn-ghost monthly-leave-reward-later">Agora não</button>
+      </section>`;
+    overlay.querySelector(".monthly-leave-reward-primary").onclick = () =>
+      acknowledgeMonthlyLeaveReward_(true);
+    overlay.querySelector(".monthly-leave-reward-later").onclick = () =>
+      acknowledgeMonthlyLeaveReward_(false);
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        acknowledgeMonthlyLeaveReward_(false);
+      }
+    });
+    document.body.appendChild(overlay);
+    document.body.classList.add("monthly-leave-reward-open");
+    overlay.querySelector(".monthly-leave-reward-primary").focus();
+  }
+
+  function scheduleMonthlyLeaveReward_() {
+    window.clearTimeout(MONTHLY_LEAVE_REWARD_TIMER_);
+    const reward = state.bootstrap?.monthlyLeaveReward;
+    if (monthlyLeaveRewardSeen_(reward)) return;
+    MONTHLY_LEAVE_REWARD_TIMER_ = window.setTimeout(
+      showMonthlyLeaveReward_,
+      isMobileClient_() ? 420 : 300,
+    );
+  }
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
@@ -12705,6 +13108,7 @@
     hideLogin();
     $("#app").classList.remove("hidden");
     $("#unauthorized").classList.add("hidden");
+    scheduleMonthlyLeaveReward_();
     document.body.classList.toggle("app-core-loading", deferred);
     saveTurboShellCache_();
     console.info("[performance] interface pronta", {
@@ -12796,6 +13200,7 @@
     renderDashboard();
     if (isEmployee()) renderEmployeeDashboardCards();
     if (isStoreManager()) renderWorkingToday();
+    scheduleMonthlyLeaveReward_();
     if (state.currentView !== "dashboard") renderCurrentView(state.currentView);
     saveTurboShellCache_();
     scheduleSecondaryLoads_();
@@ -13271,7 +13676,7 @@
     $("#cards").innerHTML = Object.entries(cards)
       .map(
         ([k, v], i) =>
-          `<article class="metric-card" style="--accent:${["#7b68ee", "#3788e5", "#20a06b", "#f0a020", "#e5484d", "#14b8a6"][i]}"><span>${labels[k]}</span><strong${k === "saldoHoras" ? cardValueStyle(v) : ""}>${esc(v)}</strong><small>${k === "saldoHoras" ? esc(hourBalanceSubtitle()) : "Somente seus dados"}</small></article>`,
+          `<article class="metric-card" data-metric="${esc(k)}" style="--accent:${["#7b68ee", "#3788e5", "#20a06b", "#f0a020", "#e5484d", "#14b8a6"][i]}"><span>${labels[k]}</span><strong${k === "saldoHoras" ? cardValueStyle(v) : ""}>${esc(v)}</strong><small>${k === "saldoHoras" ? esc(hourBalanceSubtitle()) : "Somente seus dados"}</small></article>`,
       )
       .join("");
     $("#storeChart").closest(".panel")?.classList.add("hidden");

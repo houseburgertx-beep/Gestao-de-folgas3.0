@@ -188,6 +188,45 @@ const ensureMonthlyLeaveCredits = async (profile, employees) => {
   return results.filter((result) => result.applied).length;
 };
 
+const currentEmployeeFrom = (employees, profile) =>
+  employees.find(
+    (employee) =>
+      (profile.FuncionarioID &&
+        String(employee.FuncionarioID || "") ===
+          String(profile.FuncionarioID)) ||
+      (profile.Email &&
+        normalizeEmail(employee.Email) === normalizeEmail(profile.Email)),
+  ) || null;
+
+const monthlyLeaveRewardReceiptId = (employeeId, month) =>
+  `folga-extra-${month}__${employeeId}`;
+
+const monthlyLeaveRewardFor = async (profile, employee, month) => {
+  if (
+    isAdmin(profile) ||
+    !employee?.FuncionarioID ||
+    !asBoolean(employee.Ativo)
+  ) {
+    return null;
+  }
+  const movementId = `credito-mensal-${employee.FuncionarioID}-${month}`;
+  const credited =
+    Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) === 1;
+  if (!credited) return null;
+  const receiptId = monthlyLeaveRewardReceiptId(
+    employee.FuncionarioID,
+    month,
+  );
+  const receipt = await runtime.getById("ComunicadosLeituras", receiptId);
+  return {
+    month,
+    employeeId: employee.FuncionarioID,
+    balance: Number(employee.SaldoFolgas || 0),
+    credited: true,
+    acknowledged: Boolean(receipt),
+  };
+};
+
 const employeeForTimeOff = async (record, profile) => {
   const direct = await runtime.getById(
     "Funcionarios",
@@ -355,17 +394,14 @@ async function bootstrap() {
   const employees = credited
     ? await runtime.list("Funcionarios", { profile })
     : initialEmployees;
-  const currentEmployee =
-    employees.find(
-      (employee) =>
-        (profile.FuncionarioID &&
-          String(employee.FuncionarioID || "") ===
-            String(profile.FuncionarioID)) ||
-        (profile.Email &&
-          normalizeEmail(employee.Email) === normalizeEmail(profile.Email)),
-    ) ||
-    employees[0] ||
-    {};
+  const ownEmployee = currentEmployeeFrom(employees, profile);
+  const currentEmployee = ownEmployee || employees[0] || {};
+  const currentMonth = todayIso().slice(0, 7);
+  const monthlyLeaveReward = await monthlyLeaveRewardFor(
+    profile,
+    ownEmployee,
+    currentMonth,
+  );
   const ownStoreId = String(profile.LojaID || currentEmployee.LojaID || "");
   const ownStoreName = String(
     profile.NomeLoja || currentEmployee.NomeLoja || "",
@@ -392,6 +428,7 @@ async function bootstrap() {
     holidays,
     users: [],
     dashboard: dashboardFrom(visibleStores, employees, timeOff),
+    monthlyLeaveReward,
     deferred: false,
     usersDeferred: isAdmin(profile),
     performance: { mode: "firebase-direct", serverMs: 0 },
@@ -913,6 +950,43 @@ export function createBaseHandlers(getArenaBundle) {
     async getDashboardData() {
       const data = await bootstrap();
       return success(data.dashboard, "Dashboard carregado.");
+    },
+
+    async acknowledgeMonthlyLeaveReward(args) {
+      const profile = await runtime.requireProfile();
+      assert(!isAdmin(profile), "Administradores não recebem a folga extra.");
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const month = String(payload.month || payload.competencia || "");
+      assert(/^\d{4}-\d{2}$/.test(month), "Competência mensal inválida.");
+      const employees = await runtime.list("Funcionarios", { profile });
+      const employee = currentEmployeeFrom(employees, profile);
+      assert(employee?.FuncionarioID, "Funcionário não encontrado.");
+      const movementId = `credito-mensal-${employee.FuncionarioID}-${month}`;
+      assert(
+        Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) === 1,
+        "A folga extra deste mês ainda não foi creditada.",
+      );
+      const receiptId = monthlyLeaveRewardReceiptId(
+        employee.FuncionarioID,
+        month,
+      );
+      const existing = await runtime.getById(
+        "ComunicadosLeituras",
+        receiptId,
+      );
+      if (existing) return success(existing, "Aviso já visualizado.");
+      const saved = await runtime.upsert("ComunicadosLeituras", {
+        LeituraID: receiptId,
+        ComID: `folga-extra-${month}`,
+        FuncionarioID: employee.FuncionarioID,
+        LojaID: employee.LojaID || profile.LojaID || "",
+        Tipo: "Folga extra mensal",
+        Competencia: month,
+        LidoEm: nowIso(),
+        UserAgent: String(globalThis.navigator?.userAgent || "").slice(0, 300),
+      });
+      return success(saved, "Aviso visualizado.");
     },
 
     async getStores() {

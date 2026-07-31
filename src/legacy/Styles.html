@@ -8336,4 +8336,270 @@
       );
     }
   }
+
+  body.monthly-leave-reward-open {
+    overflow: hidden;
+  }
+
+  .monthly-leave-reward-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(22, 20, 34, 0.54);
+    backdrop-filter: blur(8px);
+    animation: monthly-reward-backdrop-in 180ms ease both;
+  }
+
+  .monthly-leave-reward-overlay.is-closing {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+
+  .monthly-leave-reward-card {
+    width: min(100%, 390px);
+    max-height: min(720px, calc(100dvh - 32px));
+    overflow: auto;
+    padding: 28px;
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at 50% 0, var(--primary-soft), transparent 42%),
+      var(--surface);
+    color: var(--text);
+    text-align: center;
+    box-shadow: 0 28px 90px rgba(20, 17, 40, 0.32);
+    animation: monthly-reward-enter 420ms cubic-bezier(0.2, 0.9, 0.25, 1.15)
+      both;
+  }
+
+  .monthly-leave-reward-orbit {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 108px;
+    height: 94px;
+    margin: 0 auto 8px;
+  }
+
+  .monthly-leave-reward-ring {
+    position: absolute;
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary) 28%, transparent);
+    animation: monthly-reward-pulse 1.8s ease-out infinite;
+  }
+
+  .monthly-leave-reward-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #9789ff, var(--primary-dark));
+    font-size: 30px;
+    box-shadow: 0 14px 32px rgba(123, 104, 238, 0.34);
+  }
+
+  .monthly-leave-reward-spark {
+    position: absolute;
+    color: var(--primary);
+    font-size: 18px;
+    animation: monthly-reward-spark 1.5s ease-in-out infinite alternate;
+  }
+
+  .monthly-leave-reward-spark.spark-one {
+    top: 14px;
+    left: 1px;
+  }
+
+  .monthly-leave-reward-spark.spark-two {
+    top: 2px;
+    right: 3px;
+    animation-delay: 260ms;
+  }
+
+  .monthly-leave-reward-spark.spark-three {
+    right: 0;
+    bottom: 14px;
+    animation-delay: 520ms;
+  }
+
+  .monthly-leave-reward-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: 0.11em;
+  }
+
+  .monthly-leave-reward-card h2 {
+    margin: 14px 0 8px;
+    font-size: clamp(25px, 6vw, 31px);
+    line-height: 1.08;
+    letter-spacing: -0.045em;
+  }
+
+  .monthly-leave-reward-card > p {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .monthly-leave-reward-card > p strong {
+    color: var(--text);
+  }
+
+  .monthly-leave-reward-highlight {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 18px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+    text-align: left;
+  }
+
+  .monthly-leave-reward-plus {
+    display: grid;
+    place-items: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 15px;
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-size: 20px;
+    font-weight: 850;
+  }
+
+  .monthly-leave-reward-highlight > div:nth-child(2) {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .monthly-leave-reward-highlight strong {
+    font-size: 14px;
+  }
+
+  .monthly-leave-reward-highlight span {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .monthly-leave-reward-highlight svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: var(--success);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .monthly-leave-reward-card > .btn {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+  }
+
+  .monthly-leave-reward-card > .btn + .btn {
+    margin-top: 7px;
+  }
+
+  .monthly-leave-reward-primary span {
+    margin-left: 5px;
+    font-size: 17px;
+  }
+
+  @keyframes monthly-reward-backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes monthly-reward-enter {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes monthly-reward-pulse {
+    0% {
+      opacity: 0.75;
+      transform: scale(0.84);
+    }
+    80%,
+    100% {
+      opacity: 0;
+      transform: scale(1.2);
+    }
+  }
+
+  @keyframes monthly-reward-spark {
+    from {
+      opacity: 0.45;
+      transform: translateY(2px) scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(-3px) scale(1.12);
+    }
+  }
+
+  @media (max-width: 430px) {
+    .monthly-leave-reward-overlay {
+      align-items: end;
+      padding: 12px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .monthly-leave-reward-card {
+      width: 100%;
+      padding: 24px 18px 18px;
+      border-radius: 24px;
+    }
+  }
+
+  @media (max-width: 350px) {
+    .monthly-leave-reward-highlight {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .monthly-leave-reward-highlight > svg {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .monthly-leave-reward-overlay,
+    .monthly-leave-reward-card,
+    .monthly-leave-reward-ring,
+    .monthly-leave-reward-spark {
+      animation: none;
+    }
+  }
 </style>
