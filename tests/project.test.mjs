@@ -127,10 +127,11 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
 });
 
 test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () => {
-  const [client, main, builder] = await Promise.all([
+  const [client, main, builder, api] = await Promise.all([
     readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
     readFile(new URL("../src/main.js", import.meta.url), "utf8"),
     readFile(new URL("../scripts/build-index.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
   ]);
   assert.match(client, /await waitForPortalApi_\(\)/);
   assert.match(client, /PORTAL_API_NOT_READY/);
@@ -138,6 +139,15 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
   assert.match(builder, /main\.js\?v=6\.2\.4/);
+  assert.doesNotMatch(main, /\.html\?raw/);
+  assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
+  assert.match(api, /success\(await getArenaBundle\(\)/);
+  const runtimeSource = await readFile(
+    new URL("../src/core/runtime.js", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(runtimeSource, /from "firebase\//);
+  assert.match(runtimeSource, /gstatic\.com\/firebasejs\/12\.16\.0/);
 });
 
 test("registros de ponto recebem índices mensais de acesso", () => {

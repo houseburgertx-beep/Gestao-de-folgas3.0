@@ -1,9 +1,3 @@
-import arenaClient from "./legacy/ArenaClient.html?raw";
-import arenaMobileRuntime from "./legacy/ArenaMobileRuntime.html?raw";
-import arenaMobileStyles from "./legacy/ArenaMobileStyles.html?raw";
-import arenaStyles from "./legacy/ArenaStyles.html?raw";
-import houseLinkClient from "./legacy/HouseLinkClient.html?raw";
-import houseLinkStyles from "./legacy/HouseLinkStyles.html?raw";
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
 import "./pwa.js";
@@ -17,19 +11,49 @@ const unwrap = (source, tag) =>
     .replace(new RegExp(`^\\s*<${tag}[^>]*>\\s*`, "i"), "")
     .replace(new RegExp(`\\s*</${tag}>\\s*$`, "i"), "");
 
-const arenaBundle = () => ({
-  version: "6.2.4-firebase-github",
-  css: [
-    unwrap(arenaStyles, "style"),
-    unwrap(arenaMobileStyles, "style"),
-    unwrap(houseLinkStyles, "style"),
-  ],
-  scripts: [
-    unwrap(arenaClient, "script"),
-    unwrap(houseLinkClient, "script"),
-    unwrap(arenaMobileRuntime, "script"),
-  ],
-});
+const legacyText = async (path) => {
+  const response = await fetch(new URL(path, import.meta.url));
+  if (!response.ok) {
+    throw new Error(`Não foi possível carregar o módulo ${path}.`);
+  }
+  return response.text();
+};
+
+let arenaBundlePromise = null;
+const arenaBundle = () => {
+  if (!arenaBundlePromise) {
+    arenaBundlePromise = Promise.all([
+      legacyText("./legacy/ArenaStyles.html"),
+      legacyText("./legacy/ArenaMobileStyles.html"),
+      legacyText("./legacy/HouseLinkStyles.html"),
+      legacyText("./legacy/ArenaClient.html"),
+      legacyText("./legacy/HouseLinkClient.html"),
+      legacyText("./legacy/ArenaMobileRuntime.html"),
+    ]).then(
+      ([
+        arenaStyles,
+        arenaMobileStyles,
+        houseLinkStyles,
+        arenaClient,
+        houseLinkClient,
+        arenaMobileRuntime,
+      ]) => ({
+        version: "6.2.4-firebase-github",
+        css: [
+          unwrap(arenaStyles, "style"),
+          unwrap(arenaMobileStyles, "style"),
+          unwrap(houseLinkStyles, "style"),
+        ],
+        scripts: [
+          unwrap(arenaClient, "script"),
+          unwrap(houseLinkClient, "script"),
+          unwrap(arenaMobileRuntime, "script"),
+        ],
+      }),
+    );
+  }
+  return arenaBundlePromise;
+};
 
 const api = createApi(arenaBundle);
 window.__GESTAO_FIREBASE__ = { runtime, api };

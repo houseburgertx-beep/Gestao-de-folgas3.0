@@ -1,4 +1,9 @@
-import { deleteApp, getApp, getApps, initializeApp } from "firebase/app";
+import {
+  deleteApp,
+  getApp,
+  getApps,
+  initializeApp,
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -14,7 +19,7 @@ import {
   signOut,
   updateEmail,
   updatePassword,
-} from "firebase/auth";
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import {
   equalTo,
   get,
@@ -27,7 +32,7 @@ import {
   runTransaction,
   set,
   update,
-} from "firebase/database";
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 import { APP_ROOT, firebaseConfig } from "../firebase-config.js";
 import {
   APP,

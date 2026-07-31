@@ -944,7 +944,7 @@ export function createBaseHandlers(getArenaBundle) {
 
     async getClientModuleBundle(args) {
       assert(args[0] === "house-arena", "Módulo de interface inválido.");
-      return success(getArenaBundle(), "Módulo carregado.");
+      return success(await getArenaBundle(), "Módulo carregado.");
     },
 
     async getDashboardData() {
