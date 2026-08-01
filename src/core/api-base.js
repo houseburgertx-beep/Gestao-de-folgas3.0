@@ -49,11 +49,29 @@ const isManager = (profile) =>
   role(profile).includes("respons") ||
   role(profile).includes("gerente");
 
-const isActiveEmployee = (employee) =>
-  asBoolean(employee?.Ativo) ||
-  ["ativo", "active"].includes(
-    String(employee?.Ativo || "").trim().toLowerCase(),
+export const isMonthlyLeaveEmployeeEligible = (employee) => {
+  const activeValue = employee?.Ativo ?? employee?.ativo;
+  const status = String(
+    activeValue ?? employee?.Status ?? employee?.status ?? "",
+  )
+    .trim()
+    .toLowerCase();
+  const explicitlyInactive =
+    activeValue === false ||
+    activeValue === 0 ||
+    ["false", "0", "não", "nao", "inativo", "inactive", "desligado"].includes(
+      status,
+    );
+  return (
+    Boolean(employee?.FuncionarioID) &&
+    !explicitlyInactive &&
+    !role(employee).includes("admin")
   );
+};
+
+const isActiveEmployee = (employee) =>
+  isMonthlyLeaveEmployeeEligible(employee) ||
+  (Boolean(employee?.FuncionarioID) && role(employee).includes("admin"));
 
 const requireAdmin = (profile) =>
   assert(isAdmin(profile), "Somente o Administrador pode executar esta ação.");
@@ -208,15 +226,17 @@ const createMonthlyLeaveRewardNotice = async (employee, profile, month) =>
 
 const ensureMonthlyLeaveCredits = async (profile, employees) => {
   if (!isManager(profile)) {
-    return { applied: 0, confirmed: 0, failed: 0 };
+    return {
+      eligible: 0,
+      applied: 0,
+      confirmed: 0,
+      failed: 0,
+      noticesCreated: 0,
+      noticesFailed: 0,
+    };
   }
   const month = todayIso().slice(0, 7);
-  const eligible = employees.filter(
-    (employee) =>
-      employee?.FuncionarioID &&
-      isActiveEmployee(employee) &&
-      !role(employee).includes("admin"),
-  );
+  const eligible = employees.filter(isMonthlyLeaveEmployeeEligible);
   const existingNoticeIds = new Set(
     (await runtime.list("Notificacoes", { profile }).catch(() => []))
       .filter((notice) => String(notice.Competencia || "") === month)
@@ -224,44 +244,62 @@ const ensureMonthlyLeaveCredits = async (profile, employees) => {
   );
   const results = await Promise.all(
     eligible.map(async (employee) => {
+      let creditResult;
       try {
-        const entry = await runtime.resolveEmployeeEntry(employee, { profile });
-        if (!entry?.record?.FuncionarioID) {
-          throw new Error("Cadastro do funcionário não localizado.");
-        }
-        const currentEmployee = entry.record;
-        const result = await applyMonthlyLeaveCredit(
-          currentEmployee,
-          profile,
-          month,
-          entry.storageKey,
-        );
-        const noticeId = monthlyLeaveRewardNoticeId(
-          currentEmployee.FuncionarioID,
-          month,
-        );
-        if (!existingNoticeIds.has(noticeId)) {
-          await createMonthlyLeaveRewardNotice(
-            currentEmployee,
-            profile,
-            month,
-          );
-          existingNoticeIds.add(noticeId);
-        }
-        return { ...result, confirmed: true, failed: false };
+        // A listagem inicial já guardou no runtime a chave física de cada
+        // cadastro. Reutilizá-la evita baixar toda a tabela novamente para
+        // cada funcionário e mantém compatibilidade com chaves antigas.
+        creditResult = await applyMonthlyLeaveCredit(employee, profile, month);
       } catch (error) {
         console.warn(
           `Crédito mensal não aplicado para ${employee.FuncionarioID}:`,
           error.message,
         );
-        return { applied: false, confirmed: false, failed: true };
+        return {
+          applied: false,
+          confirmed: false,
+          failed: true,
+          noticeCreated: false,
+          noticeFailed: false,
+        };
       }
+
+      let noticeCreated = false;
+      let noticeFailed = false;
+      try {
+        const noticeId = monthlyLeaveRewardNoticeId(
+          employee.FuncionarioID,
+          month,
+        );
+        if (!existingNoticeIds.has(noticeId)) {
+          await createMonthlyLeaveRewardNotice(employee, profile, month);
+          existingNoticeIds.add(noticeId);
+          noticeCreated = true;
+        }
+      } catch (error) {
+        console.warn(
+          `Aviso mensal não criado para ${employee.FuncionarioID}:`,
+          error.message,
+        );
+        noticeFailed = true;
+      }
+
+      return {
+        ...creditResult,
+        confirmed: true,
+        failed: false,
+        noticeCreated,
+        noticeFailed,
+      };
     }),
   );
   return {
+    eligible: eligible.length,
     applied: results.filter((result) => result.applied).length,
     confirmed: results.filter((result) => result.confirmed).length,
     failed: results.filter((result) => result.failed).length,
+    noticesCreated: results.filter((result) => result.noticeCreated).length,
+    noticesFailed: results.filter((result) => result.noticeFailed).length,
   };
 };
 

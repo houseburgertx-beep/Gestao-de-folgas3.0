@@ -7,7 +7,10 @@ import {
   fixedTimeOffCandidates,
   nextTimeOffSummary,
 } from "../src/core/api-advanced.js";
-import { timeOffBalanceUnits } from "../src/core/api-base.js";
+import {
+  isMonthlyLeaveEmployeeEligible,
+  timeOffBalanceUnits,
+} from "../src/core/api-base.js";
 import {
   FirebaseRuntime,
   periodFieldsFor,
@@ -91,7 +94,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.7");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.8");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -102,14 +105,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.2\.7/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.8/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.7"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.8"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -142,7 +145,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.2\.7/);
+  assert.match(builder, /main\.js\?v=6\.2\.8/);
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
   assert.match(api, /success\(await getArenaBundle\(\)/);
@@ -487,8 +490,8 @@ test("pop-up da folga extra aparece uma vez por funcionário e mês", async () =
   );
   assert.match(api, /runtime\.create\("Notificacoes"/);
   assert.match(api, /monthlyCreditReport/);
-  assert.match(api, /resolveEmployeeEntry\(employee, \{ profile \}\)/);
-  assert.match(api, /entry\.storageKey/);
+  assert.doesNotMatch(api, /resolveEmployeeEntry\(employee, \{ profile \}\)/);
+  assert.match(api, /applyMonthlyLeaveCredit\(employee, profile, month\)/);
   assert.match(api, /monthlyLeaveReward,/);
   assert.match(api, /async acknowledgeMonthlyLeaveReward\(args\)/);
   assert.match(api, /runtime\.upsert\("ComunicadosLeituras"/);
@@ -497,7 +500,7 @@ test("pop-up da folga extra aparece uma vez por funcionário e mês", async () =
     /SaldoFolgasLancamentos\?\.\[movementId\]\?\.Delta \|\| 0\) === 1/,
   );
   assert.match(client, /acknowledgeMonthlyLeaveReward:/);
-  assert.match(client, /gf-monthly-leave-reward-seen-v1:/);
+  assert.match(client, /gf-monthly-leave-reward-seen-v2:/);
   assert.match(client, /Folga extra na área! 🎉/);
   assert.match(client, /Você recebeu <strong>\+1 folga<\/strong>/);
   assert.match(client, /rememberMonthlyLeaveReward_\(reward\)/);
@@ -515,10 +518,42 @@ test("crédito mensal reconcilia saldo e aviso persistente sem duplicar", async 
   assert.match(api, /existingNoticeIds = new Set/);
   assert.match(api, /if \(!existingNoticeIds\.has\(noticeId\)\)/);
   assert.match(api, /createMonthlyLeaveRewardNotice/);
-  assert.match(api, /return \{ \.\.\.result, confirmed: true, failed: false \}/);
   assert.match(api, /applied: results\.filter/);
   assert.match(api, /confirmed: results\.filter/);
   assert.match(api, /failed: results\.filter/);
+  assert.match(api, /noticesCreated: results\.filter/);
+  assert.match(api, /noticesFailed: results\.filter/);
+});
+
+test("folga mensal inclui cadastros antigos e exclui inativos e administradores", () => {
+  assert.equal(
+    isMonthlyLeaveEmployeeEligible({ FuncionarioID: "f-1", Ativo: true }),
+    true,
+  );
+  assert.equal(
+    isMonthlyLeaveEmployeeEligible({ FuncionarioID: "f-2", Status: "Ativo" }),
+    true,
+  );
+  assert.equal(
+    isMonthlyLeaveEmployeeEligible({ FuncionarioID: "f-3" }),
+    true,
+  );
+  assert.equal(
+    isMonthlyLeaveEmployeeEligible({ FuncionarioID: "f-4", Ativo: false }),
+    false,
+  );
+  assert.equal(
+    isMonthlyLeaveEmployeeEligible({ FuncionarioID: "f-5", Ativo: "Inativo" }),
+    false,
+  );
+  assert.equal(
+    isMonthlyLeaveEmployeeEligible({
+      FuncionarioID: "f-6",
+      Ativo: true,
+      Perfil: "Administrador",
+    }),
+    false,
+  );
 });
 
 test("aprovação bloqueia envios duplicados enquanto a decisão está pendente", async () => {
