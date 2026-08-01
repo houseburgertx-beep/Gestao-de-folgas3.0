@@ -47,8 +47,7 @@ const isAdmin = (profile) => role(profile).includes("admin");
 const isManager = (profile) =>
   isAdmin(profile) ||
   role(profile).includes("respons") ||
-  role(profile).includes("gerente") ||
-  role(profile).includes("chefe de cozinha");
+  role(profile).includes("gerente");
 
 const isActiveEmployee = (employee) =>
   asBoolean(employee?.Ativo) ||
