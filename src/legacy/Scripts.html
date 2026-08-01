@@ -94,6 +94,7 @@
       renderKey: "",
     },
     hourBalance: null,
+    timeClockBalance: null,
     coreReady: false,
     coreLoading: false,
     shellCached: false,
@@ -1392,6 +1393,7 @@
       state.dashboard = {};
       state.timeClock = null;
       state.hourBalance = null;
+      state.timeClockBalance = null;
       state.notifications = [];
       state.swaps = [];
       if (typeof resetHouseArenaState_ === "function")
@@ -1710,6 +1712,30 @@
     if (isEmployee()) renderEmployeeDashboardCards();
     else renderDashboard();
     saveTurboShellCache_();
+  }
+  async function loadTimeClockBalance_(month, funcionarioId) {
+    if (!sessionToken()) return null;
+    const cacheKey = month + "|" + (funcionarioId || "");
+    state.timeClockBalance = { _cacheKey: cacheKey, loading: true };
+    renderTimeClock();
+    try {
+      const balance = await call(FN.hourBalance, sessionToken(), {
+        month,
+        funcionarioId: funcionarioId || "",
+      });
+      if ((state.timeClock || {})._cacheKey !== cacheKey) return null;
+      balance._cacheKey = cacheKey;
+      state.timeClockBalance = balance;
+      renderTimeClock();
+      return balance;
+    } catch (error) {
+      if ((state.timeClock || {})._cacheKey === cacheKey) {
+        state.timeClockBalance = null;
+        renderTimeClock();
+      }
+      console.warn("Saldo acumulado de horas:", error.message);
+      return null;
+    }
   }
   function hydrateUser() {
     const u = state.user;
@@ -4106,6 +4132,9 @@
       Date.now() - Number(state.timeClock._loadedAt || 0) < 30000
     ) {
       renderTimeClock();
+      if ((state.timeClockBalance || {})._cacheKey !== cacheKey) {
+        loadTimeClockBalance_(month, funcionarioId);
+      }
       return state.timeClock;
     }
     try {
@@ -4117,6 +4146,7 @@
       d._loadedAt = Date.now();
       state.timeClock = d;
       renderTimeClock();
+      loadTimeClockBalance_(month, funcionarioId);
       saveTurboShellCache_();
       return d;
     } catch (e) {
@@ -4192,10 +4222,16 @@
   }
   function renderTimeClock() {
     const d = state.timeClock || {},
-      summary = d.summary || {};
+      summary = d.summary || {},
+      accumulated = state.timeClockBalance || {},
+      accumulatedMatches = accumulated._cacheKey === d._cacheKey;
     $("#clockWorkedMetric").textContent = summary.trabalhadoTexto || "0h 00min";
     $("#clockExpectedMetric").textContent = summary.previstoTexto || "0h 00min";
-    $("#clockBalanceMetric").textContent = summary.saldoTexto || "0h 00min";
+    $("#clockBalanceMetric").textContent = accumulatedMatches
+      ? accumulated.loading
+        ? "Calculando…"
+        : accumulated.totalTexto || "+0h 00min"
+      : summary.saldoTexto || "0h 00min";
     const labels = clockActionLabels_(),
       personalClock = isEmployee() || isKitchenChief(),
       teamOnlyView = canViewTeam() && !personalClock,

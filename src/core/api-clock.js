@@ -386,6 +386,177 @@ const dayBalanceState = (dateKey, metrics, currentDate = todayIso()) => {
   };
 };
 
+const lastDateOfMonth = (month) => {
+  const [year, monthNumber] = String(month || "")
+    .split("-")
+    .map(Number);
+  if (!year || !monthNumber || monthNumber < 1 || monthNumber > 12) {
+    return todayIso();
+  }
+  return todayIso(new Date(year, monthNumber, 0, 12));
+};
+
+const nextDateKey = (dateKey) => {
+  const date = new Date(`${dateKey}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  return todayIso(date);
+};
+
+const hourBankMovementMinutes = (movement) => {
+  const rawMinutes = movement?.SaldoMinutos;
+  const explicitMinutes = Number(rawMinutes);
+  if (
+    rawMinutes !== "" &&
+    rawMinutes !== undefined &&
+    Number.isFinite(explicitMinutes)
+  ) {
+    return explicitMinutes;
+  }
+  const hours = Number(movement?.SaldoDia);
+  return Number.isFinite(hours) ? Math.round(hours * 60) : 0;
+};
+
+const accumulatedHourBalance = ({
+  employees = [],
+  records = [],
+  schedules = [],
+  timeOff = [],
+  justifications = [],
+  movements = [],
+  throughMonth = monthIso(),
+  employeeId = "",
+  currentDate = todayIso(),
+} = {}) => {
+  const month = /^\d{4}-\d{2}$/.test(String(throughMonth || ""))
+    ? String(throughMonth)
+    : monthIso();
+  const throughDate = [lastDateOfMonth(month), currentDate].sort()[0];
+  const allowed = employees.filter(
+    (item) =>
+      asBoolean(item.Ativo) &&
+      (!employeeId || String(item.FuncionarioID) === String(employeeId)),
+  );
+  const allowedIds = new Set(
+    allowed.map((item) => String(item.FuncionarioID || "")),
+  );
+  const validRecords = records.filter((item) => {
+    const date = normalizedDateKey(item.Data || item.DataHora);
+    return (
+      allowedIds.has(String(item.FuncionarioID || "")) &&
+      item.Status !== "Substituído" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+      date <= throughDate
+    );
+  });
+  const firstPunches = firstPunchDatesByEmployee(validRecords);
+  const recordsByEmployeeDate = new Map();
+  validRecords.forEach((item) => {
+    const date = normalizedDateKey(item.Data || item.DataHora);
+    const key = `${item.FuncionarioID}|${date}`;
+    const rows = recordsByEmployeeDate.get(key) || [];
+    rows.push(item);
+    recordsByEmployeeDate.set(key, rows);
+  });
+  const schedulesByEmployee = new Map();
+  schedules.forEach((item) => {
+    const id = String(item.FuncionarioID || "");
+    if (!allowedIds.has(id)) return;
+    const rows = schedulesByEmployee.get(id) || [];
+    rows.push(item);
+    schedulesByEmployee.set(id, rows);
+  });
+  const timeOffByEmployee = new Map();
+  timeOff.forEach((item) => {
+    const id = String(item.FuncionarioID || "");
+    if (!allowedIds.has(id)) return;
+    const rows = timeOffByEmployee.get(id) || [];
+    rows.push(item);
+    timeOffByEmployee.set(id, rows);
+  });
+  const justifiedDates = new Set(
+    justifications
+      .filter((item) => item.Status === "Aprovada")
+      .map(
+        (item) =>
+          `${item.FuncionarioID}|${normalizedDateKey(item.Data)}`,
+      ),
+  );
+  const movementTotals = new Map();
+  movements.forEach((item) => {
+    const id = String(item.FuncionarioID || "");
+    const date = normalizedDateKey(item.Data);
+    if (!allowedIds.has(id) || (date && date > throughDate)) return;
+    movementTotals.set(
+      id,
+      Number(movementTotals.get(id) || 0) + hourBankMovementMinutes(item),
+    );
+  });
+
+  const totals = [];
+  allowed.forEach((employee) => {
+    const id = String(employee.FuncionarioID || "");
+    const start = firstPunches.get(id);
+    if (!start) return;
+    const employeeSchedules = schedulesByEmployee.get(id) || [];
+    const employeeTimeOff = timeOffByEmployee.get(id) || [];
+    let balance = Number(movementTotals.get(id) || 0);
+    for (let date = start; date <= throughDate; date = nextDateKey(date)) {
+      const schedule = scheduleFor(employeeSchedules, id, date);
+      const rows = recordsByEmployeeDate.get(`${id}|${date}`) || [];
+      const approvedOff = employeeTimeOff.find(
+        (item) =>
+          ["Aprovada", "Concluída"].includes(item.Status) &&
+          normalizedDateKey(item.DataInicio) <= date &&
+          normalizedDateKey(item.DataFim || item.DataInicio) >= date,
+      );
+      const fixed =
+        !approvedOff && isFixedOffForDate(employee, date, employeeTimeOff);
+      const weekday = new Date(`${date}T12:00:00`).getDay();
+      if (
+        !rows.length &&
+        !approvedOff &&
+        !fixed &&
+        (!schedule || !workdayIndexes(schedule).includes(weekday))
+      ) {
+        continue;
+      }
+      if (
+        approvedOff ||
+        fixed ||
+        justifiedDates.has(`${id}|${date}`)
+      ) {
+        continue;
+      }
+      const state = dayBalanceState(
+        date,
+        dayMetrics(rows, schedule),
+        currentDate,
+      );
+      if (!state.pending) balance += Number(state.minutes || 0);
+    }
+    totals.push({
+      FuncionarioID: employee.FuncionarioID,
+      Nome: employee.Nome,
+      saldoMinutos: balance,
+      saldoTexto: (balance >= 0 ? "+" : "") + minutesText(balance),
+      desde: start,
+      ate: throughDate,
+    });
+  });
+  const totalMinutos = totals.reduce(
+    (sum, item) => sum + Number(item.saldoMinutos || 0),
+    0,
+  );
+  return {
+    month,
+    throughDate,
+    employees: totals,
+    totalMinutos,
+    totalTexto:
+      (totalMinutos >= 0 ? "+" : "") + minutesText(totalMinutos),
+  };
+};
+
 async function clockContext(filters = {}) {
   const profile = await runtime.requireProfile();
   const month = /^\d{4}-\d{2}$/.test(String(filters.month || ""))
@@ -1235,43 +1406,36 @@ export function createClockHandlers() {
     },
 
     async getHourBalanceOverviewWithSession(args) {
-      dropClientToken(args);
-      const context = await clockContext({
-        month: monthIso(),
-        includeHistoricalStart: true,
-      });
-      const employeeTotals = new Map();
-      balanceDays(context.days).forEach((item) => {
-          const current = employeeTotals.get(item.funcionarioId) || {
-            FuncionarioID: item.funcionarioId,
-            Nome: item.nome,
-            saldoMinutos: 0,
-            desde: item.data,
-          };
-          current.saldoMinutos += Number(item.saldoMinutos || 0);
-          if (item.data < current.desde) current.desde = item.data;
-          employeeTotals.set(item.funcionarioId, current);
-        });
-      const employees = [...employeeTotals.values()].map((item) => ({
-        ...item,
-        saldoTexto:
-          (item.saldoMinutos >= 0 ? "+" : "") + minutesText(item.saldoMinutos),
-      }));
-      const totalMinutos = employees.reduce(
-        (sum, item) => sum + item.saldoMinutos,
-        0,
+      const profile = await runtime.requireProfile();
+      const values = dropClientToken(args);
+      const filters = values[0] || {};
+      const [employees, records, schedules, timeOff, justifications, movements] =
+        await Promise.all([
+          runtime.list("Funcionarios", { profile }),
+          runtime.list("RegistrosPonto", { profile }),
+          runtime.list("JornadasPonto", { profile }),
+          runtime.list("Folgas", { profile }),
+          runtime.list("JustificativasPonto", { profile }),
+          runtime.list("BancoHorasMovimentos", { profile }),
+        ]);
+      return success(
+        accumulatedHourBalance({
+          employees,
+          records,
+          schedules,
+          timeOff,
+          justifications,
+          movements,
+          throughMonth: filters.month || monthIso(),
+          employeeId: filters.funcionarioId || "",
+        }),
       );
-      return success({
-        employees,
-        totalMinutos,
-        totalTexto:
-          (totalMinutos >= 0 ? "+" : "") + minutesText(totalMinutos),
-      });
     },
   };
 }
 
 export {
+  accumulatedHourBalance,
   balanceDays,
   clockContext,
   dayBalanceState,

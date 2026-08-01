@@ -17,6 +17,7 @@ import {
   selectEmployeeEntry,
 } from "../src/core/runtime.js";
 import {
+  accumulatedHourBalance,
   balanceDays,
   dayBalanceState,
   dayMetrics,
@@ -94,7 +95,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.8");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.9");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -105,14 +106,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.2\.8/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.9/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.8"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.9"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -145,7 +146,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.2\.8/);
+  assert.match(builder, /main\.js\?v=6\.2\.9/);
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
   assert.match(api, /success\(await getArenaBundle\(\)/);
@@ -833,6 +834,77 @@ test("banco de horas usa a jornada líquida e arredonda apenas o total", () => {
   );
   assert.equal(Math.round(metrics.worked), 475);
   assert.equal(Math.round(metrics.balance), 55);
+});
+
+test("saldo de horas acumula entre meses e considera compensações", () => {
+  const employee = {
+    FuncionarioID: "func-1",
+    Nome: "Funcionário",
+    Ativo: true,
+  };
+  const schedule = {
+    FuncionarioID: "func-1",
+    Ativa: true,
+    VigenteDe: "2026-07-01",
+    HoraEntrada: "08:00",
+    HoraSaida: "16:00",
+    DuracaoIntervaloMinutos: 0,
+    DiasTrabalho: "1,2,3,4,5,6",
+  };
+  const records = [
+    ["2026-07-31", "08:00", "17:00"],
+    ["2026-08-01", "08:00", "17:00"],
+  ].flatMap(([date, entry, exit]) => [
+    {
+      FuncionarioID: "func-1",
+      Data: date,
+      TipoMarcacao: "ENTRADA",
+      DataHora: `${date}T${entry}:00-03:00`,
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "func-1",
+      Data: date,
+      TipoMarcacao: "SAIDA_FINAL",
+      DataHora: `${date}T${exit}:00-03:00`,
+      Status: "Válido",
+    },
+  ]);
+
+  const july = accumulatedHourBalance({
+    employees: [employee],
+    records,
+    schedules: [schedule],
+    throughMonth: "2026-07",
+    currentDate: "2026-08-01",
+  });
+  const startOfAugust = accumulatedHourBalance({
+    employees: [employee],
+    records: records.filter((item) => item.Data === "2026-07-31"),
+    schedules: [schedule],
+    throughMonth: "2026-08",
+    currentDate: "2026-08-01",
+  });
+  const august = accumulatedHourBalance({
+    employees: [employee],
+    records,
+    schedules: [schedule],
+    movements: [
+      {
+        FuncionarioID: "func-1",
+        Data: "2026-08-01",
+        SaldoDia: -0.5,
+      },
+    ],
+    throughMonth: "2026-08",
+    currentDate: "2026-08-02",
+  });
+
+  assert.equal(july.employees[0].saldoMinutos, 60);
+  assert.equal(startOfAugust.employees[0].saldoMinutos, 60);
+  assert.equal(august.employees[0].saldoMinutos, 90);
+  assert.equal(august.employees[0].saldoTexto, "+1h 30min");
+  assert.equal(august.employees[0].desde, "2026-07-31");
 });
 
 test("ponto duplicado usa a última saída final válida", () => {
