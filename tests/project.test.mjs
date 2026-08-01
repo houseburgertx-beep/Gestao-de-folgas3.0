@@ -8,7 +8,10 @@ import {
   nextTimeOffSummary,
 } from "../src/core/api-advanced.js";
 import { timeOffBalanceUnits } from "../src/core/api-base.js";
-import { periodFieldsFor } from "../src/core/runtime.js";
+import {
+  FirebaseRuntime,
+  periodFieldsFor,
+} from "../src/core/runtime.js";
 import {
   balanceDays,
   dayBalanceState,
@@ -87,7 +90,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.4");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.5");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -98,14 +101,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.2\.4/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.5/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.4"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.5"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -138,7 +141,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.2\.4/);
+  assert.match(builder, /main\.js\?v=6\.2\.5/);
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
   assert.match(api, /success\(await getArenaBundle\(\)/);
@@ -233,12 +236,35 @@ test("registros antigos conservam a chave física ao serem atualizados", async (
   assert.match(runtime, /recordsFromSnapshot\(table, snapshot\)/);
   assert.match(
     runtime,
-    /this\.recordKeys\.set\(this\.recordCacheKey\(table, id\), key\)/,
+    /rememberRecordStorageKey\(table, lookupId, storageKey, record/,
   );
   assert.match(runtime, /async resolveStorageKey\(table, id\)/);
   assert.match(
     runtime,
     /const storageKey = await this\.resolveStorageKey\(table, id\);[\s\S]*?tables\/\$\{table\}\/\$\{storageKey\}/,
+  );
+});
+
+test("cadastro antigo associa a chave física ao ID atual do funcionário", () => {
+  const runtime = new FirebaseRuntime({}, "teste");
+  runtime.rememberRecordStorageKey(
+    "Funcionarios",
+    "funcionario-id-antigo",
+    "chave-fisica-antiga",
+    { FuncionarioID: "funcionario-id-atual" },
+  );
+
+  assert.equal(
+    runtime.recordKeys.get(
+      runtime.recordCacheKey("Funcionarios", "funcionario-id-antigo"),
+    ),
+    "chave-fisica-antiga",
+  );
+  assert.equal(
+    runtime.recordKeys.get(
+      runtime.recordCacheKey("Funcionarios", "funcionario-id-atual"),
+    ),
+    "chave-fisica-antiga",
   );
 });
 

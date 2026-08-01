@@ -432,11 +432,24 @@ export class FirebaseRuntime {
     return `${table}:${String(id || "")}`;
   }
 
+  rememberRecordStorageKey(table, lookupId, storageKey, record = null) {
+    const idField = ID_FIELDS[table];
+    const aliases = new Set([
+      String(lookupId || ""),
+      String(record?.[idField] || ""),
+    ]);
+    aliases.delete("");
+    aliases.forEach((id) => {
+      this.recordKeys.set(this.recordCacheKey(table, id), storageKey);
+    });
+    return storageKey;
+  }
+
   recordsFromSnapshot(table, snapshot) {
     const idField = ID_FIELDS[table];
     return snapshotEntries(snapshot).map(({ key, record }) => {
       const id = idField ? record?.[idField] : "";
-      if (id) this.recordKeys.set(this.recordCacheKey(table, id), key);
+      if (id) this.rememberRecordStorageKey(table, id, key, record);
       return record;
     });
   }
@@ -660,7 +673,16 @@ export class FirebaseRuntime {
         const cached = await get(
           this.appRef(`tables/${table}/${cachedKey}`),
         );
-        if (cached.exists()) return clone(cached.val());
+        if (cached.exists()) {
+          const record = cached.val();
+          this.rememberRecordStorageKey(
+            table,
+            normalizedId,
+            cachedKey,
+            record,
+          );
+          return clone(record);
+        }
         this.recordKeys.delete(this.recordCacheKey(table, normalizedId));
       } catch (error) {
         if (!isPermissionDenied(error)) throw error;
@@ -672,11 +694,14 @@ export class FirebaseRuntime {
         this.appRef(`tables/${table}/${pathKey(normalizedId)}`),
       );
       if (snapshot.exists()) {
-        this.recordKeys.set(
-          this.recordCacheKey(table, normalizedId),
+        const record = snapshot.val();
+        this.rememberRecordStorageKey(
+          table,
+          normalizedId,
           pathKey(normalizedId),
+          record,
         );
-        return clone(snapshot.val());
+        return clone(record);
       }
     } catch (error) {
       if (!isPermissionDenied(error)) throw error;
