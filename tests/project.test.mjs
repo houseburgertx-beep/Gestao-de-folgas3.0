@@ -91,7 +91,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.6");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.7");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -102,14 +102,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.2\.6/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.7/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.6"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.7"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -142,7 +142,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.2\.6/);
+  assert.match(builder, /main\.js\?v=6\.2\.7/);
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
   assert.match(api, /success\(await getArenaBundle\(\)/);
@@ -479,7 +479,16 @@ test("pop-up da folga extra aparece uma vez por funcionário e mês", async () =
     readFile(new URL("../src/legacy/Styles.html", import.meta.url), "utf8"),
   ]);
   assert.match(api, /monthlyLeaveRewardReceiptId/);
+  assert.match(api, /monthlyLeaveRewardNoticeId/);
   assert.match(api, /`folga-extra-\$\{month\}__\$\{employeeId\}`/);
+  assert.match(
+    api,
+    /`notificacao-folga-extra-\$\{month\}__\$\{employeeId\}`/,
+  );
+  assert.match(api, /runtime\.create\("Notificacoes"/);
+  assert.match(api, /monthlyCreditReport/);
+  assert.match(api, /resolveEmployeeEntry\(employee, \{ profile \}\)/);
+  assert.match(api, /entry\.storageKey/);
   assert.match(api, /monthlyLeaveReward,/);
   assert.match(api, /async acknowledgeMonthlyLeaveReward\(args\)/);
   assert.match(api, /runtime\.upsert\("ComunicadosLeituras"/);
@@ -496,6 +505,20 @@ test("pop-up da folga extra aparece uma vez por funcionário e mês", async () =
   assert.match(styles, /\.monthly-leave-reward-overlay/);
   assert.match(styles, /@media \(max-width: 430px\)/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
+});
+
+test("crédito mensal reconcilia saldo e aviso persistente sem duplicar", async () => {
+  const api = await readFile(
+    new URL("../src/core/api-base.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(api, /existingNoticeIds = new Set/);
+  assert.match(api, /if \(!existingNoticeIds\.has\(noticeId\)\)/);
+  assert.match(api, /createMonthlyLeaveRewardNotice/);
+  assert.match(api, /return \{ \.\.\.result, confirmed: true, failed: false \}/);
+  assert.match(api, /applied: results\.filter/);
+  assert.match(api, /confirmed: results\.filter/);
+  assert.match(api, /failed: results\.filter/);
 });
 
 test("aprovação bloqueia envios duplicados enquanto a decisão está pendente", async () => {

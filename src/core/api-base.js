@@ -47,7 +47,14 @@ const isAdmin = (profile) => role(profile).includes("admin");
 const isManager = (profile) =>
   isAdmin(profile) ||
   role(profile).includes("respons") ||
-  role(profile).includes("gerente");
+  role(profile).includes("gerente") ||
+  role(profile).includes("chefe de cozinha");
+
+const isActiveEmployee = (employee) =>
+  asBoolean(employee?.Ativo) ||
+  ["ativo", "active"].includes(
+    String(employee?.Ativo || "").trim().toLowerCase(),
+  );
 
 const requireAdmin = (profile) =>
   assert(isAdmin(profile), "Somente o Administrador pode executar esta ação.");
@@ -171,27 +178,92 @@ const applyMonthlyLeaveCredit = async (
   return result;
 };
 
+const monthlyLeaveRewardReceiptId = (employeeId, month) =>
+  `folga-extra-${month}__${employeeId}`;
+
+const monthlyLeaveRewardNoticeId = (employeeId, month) =>
+  `notificacao-folga-extra-${month}__${employeeId}`;
+
+const createMonthlyLeaveRewardNotice = async (employee, profile, month) =>
+  runtime.create("Notificacoes", {
+    NotificacaoID: monthlyLeaveRewardNoticeId(employee.FuncionarioID, month),
+    Destinatario: normalizeEmail(employee.Email),
+    DestinatarioID: employee.FuncionarioID,
+    LojaID: employee.LojaID || profile.LojaID || "",
+    Assunto: "Folga extra na área! 🎉",
+    Mensagem:
+      "Você recebeu +1 folga neste mês. Ela já está disponível no seu saldo.",
+    Tipo: "Folga extra mensal",
+    Status: "Pendente",
+    DataCriacao: nowIso(),
+    DataEnvio: nowIso(),
+    DataLeitura: "",
+    LidoPor: "",
+    Canal: "Aplicação",
+    TentativasEnvio: 0,
+    LinkAcao: "dashboard",
+    Erro: "",
+    RegistoRelacionadoID: `credito-mensal-${employee.FuncionarioID}-${month}`,
+    Competencia: month,
+  });
+
 const ensureMonthlyLeaveCredits = async (profile, employees) => {
-  if (!isManager(profile)) return 0;
+  if (!isManager(profile)) {
+    return { applied: 0, confirmed: 0, failed: 0 };
+  }
   const month = todayIso().slice(0, 7);
   const eligible = employees.filter(
     (employee) =>
       employee?.FuncionarioID &&
-      asBoolean(employee.Ativo) &&
+      isActiveEmployee(employee) &&
       !role(employee).includes("admin"),
   );
+  const existingNoticeIds = new Set(
+    (await runtime.list("Notificacoes", { profile }).catch(() => []))
+      .filter((notice) => String(notice.Competencia || "") === month)
+      .map((notice) => String(notice.NotificacaoID || "")),
+  );
   const results = await Promise.all(
-    eligible.map((employee) =>
-      applyMonthlyLeaveCredit(employee, profile, month).catch((error) => {
+    eligible.map(async (employee) => {
+      try {
+        const entry = await runtime.resolveEmployeeEntry(employee, { profile });
+        if (!entry?.record?.FuncionarioID) {
+          throw new Error("Cadastro do funcionário não localizado.");
+        }
+        const currentEmployee = entry.record;
+        const result = await applyMonthlyLeaveCredit(
+          currentEmployee,
+          profile,
+          month,
+          entry.storageKey,
+        );
+        const noticeId = monthlyLeaveRewardNoticeId(
+          currentEmployee.FuncionarioID,
+          month,
+        );
+        if (!existingNoticeIds.has(noticeId)) {
+          await createMonthlyLeaveRewardNotice(
+            currentEmployee,
+            profile,
+            month,
+          );
+          existingNoticeIds.add(noticeId);
+        }
+        return { ...result, confirmed: true, failed: false };
+      } catch (error) {
         console.warn(
           `Crédito mensal não aplicado para ${employee.FuncionarioID}:`,
           error.message,
         );
-        return { applied: false };
-      }),
-    ),
+        return { applied: false, confirmed: false, failed: true };
+      }
+    }),
   );
-  return results.filter((result) => result.applied).length;
+  return {
+    applied: results.filter((result) => result.applied).length,
+    confirmed: results.filter((result) => result.confirmed).length,
+    failed: results.filter((result) => result.failed).length,
+  };
 };
 
 const currentEmployeeFrom = (employees, profile) =>
@@ -204,20 +276,24 @@ const currentEmployeeFrom = (employees, profile) =>
         normalizeEmail(employee.Email) === normalizeEmail(profile.Email)),
   ) || null;
 
-const monthlyLeaveRewardReceiptId = (employeeId, month) =>
-  `folga-extra-${month}__${employeeId}`;
-
 const monthlyLeaveRewardFor = async (profile, employee, month) => {
   if (
     isAdmin(profile) ||
     !employee?.FuncionarioID ||
-    !asBoolean(employee.Ativo)
+    !isActiveEmployee(employee)
   ) {
     return null;
   }
   const movementId = `credito-mensal-${employee.FuncionarioID}-${month}`;
-  const credited =
+  const creditedInBalance =
     Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) === 1;
+  const notice = await runtime.getById(
+    "Notificacoes",
+    monthlyLeaveRewardNoticeId(employee.FuncionarioID, month),
+  );
+  const credited =
+    creditedInBalance ||
+    String(notice?.DestinatarioID || "") === String(employee.FuncionarioID);
   if (!credited) return null;
   const receiptId = monthlyLeaveRewardReceiptId(
     employee.FuncionarioID,
@@ -421,8 +497,11 @@ async function bootstrap() {
     runtime.list("Folgas", { profile }),
     runtime.list("Feriados", { profile }),
   ]);
-  const credited = await ensureMonthlyLeaveCredits(profile, initialEmployees);
-  const employees = credited
+  const monthlyCreditReport = await ensureMonthlyLeaveCredits(
+    profile,
+    initialEmployees,
+  );
+  const employees = monthlyCreditReport.applied
     ? await runtime.list("Funcionarios", { profile })
     : initialEmployees;
   const recoveredBalances = await reconcilePendingTimeOffBalances(
@@ -467,6 +546,7 @@ async function bootstrap() {
     users: [],
     dashboard: dashboardFrom(visibleStores, employees, visibleTimeOff),
     monthlyLeaveReward,
+    monthlyCreditReport,
     deferred: false,
     usersDeferred: isAdmin(profile),
     performance: { mode: "firebase-direct", serverMs: 0 },
@@ -1036,8 +1116,16 @@ export function createBaseHandlers(getArenaBundle) {
       const employee = currentEmployeeFrom(employees, profile);
       assert(employee?.FuncionarioID, "Funcionário não encontrado.");
       const movementId = `credito-mensal-${employee.FuncionarioID}-${month}`;
+      const noticeId = monthlyLeaveRewardNoticeId(
+        employee.FuncionarioID,
+        month,
+      );
+      const notice = await runtime.getById("Notificacoes", noticeId);
       assert(
-        Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) === 1,
+        Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) ===
+          1 ||
+          String(notice?.DestinatarioID || "") ===
+            String(employee.FuncionarioID),
         "A folga extra deste mês ainda não foi creditada.",
       );
       const receiptId = monthlyLeaveRewardReceiptId(
@@ -1048,7 +1136,18 @@ export function createBaseHandlers(getArenaBundle) {
         "ComunicadosLeituras",
         receiptId,
       );
-      if (existing) return success(existing, "Aviso já visualizado.");
+      if (existing) {
+        if (notice && notice.Status !== "Lida") {
+          await runtime
+            .patch("Notificacoes", noticeId, {
+              Status: "Lida",
+              DataLeitura: nowIso(),
+              LidoPor: profile.Email || "",
+            })
+            .catch(() => {});
+        }
+        return success(existing, "Aviso já visualizado.");
+      }
       const saved = await runtime.upsert("ComunicadosLeituras", {
         LeituraID: receiptId,
         ComID: `folga-extra-${month}`,
@@ -1059,6 +1158,15 @@ export function createBaseHandlers(getArenaBundle) {
         LidoEm: nowIso(),
         UserAgent: String(globalThis.navigator?.userAgent || "").slice(0, 300),
       });
+      if (notice) {
+        await runtime
+          .patch("Notificacoes", noticeId, {
+            Status: "Lida",
+            DataLeitura: nowIso(),
+            LidoPor: profile.Email || "",
+          })
+          .catch(() => {});
+      }
       return success(saved, "Aviso visualizado.");
     },
 
