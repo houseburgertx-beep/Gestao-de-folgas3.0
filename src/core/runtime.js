@@ -79,6 +79,64 @@ const snapshotEntries = (snapshot) => {
   return entries;
 };
 
+const normalizedIdentity = (value) =>
+  String(value || "").trim().toLowerCase();
+
+const employeeReferenceIds = (source = {}) =>
+  new Set(
+    [
+      source.FuncionarioID,
+      source.funcionarioId,
+      source.employeeId,
+      source.id,
+      source.AuthUID,
+      source.UsuarioID,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  );
+
+export const selectEmployeeEntry = (entries = [], reference = {}) => {
+  const ids = employeeReferenceIds(reference);
+  const email = normalizeEmail(
+    reference.EmailFuncionario || reference.Email || reference.email,
+  );
+  const name = normalizedIdentity(
+    reference.NomeFuncionario || reference.Nome || reference.name,
+  );
+  const storeId = String(
+    reference.LojaID || reference.lojaId || reference.storeId || "",
+  );
+
+  const ranked = entries
+    .map((entry) => {
+      const record = entry?.record || {};
+      const recordIds = employeeReferenceIds(record);
+      const recordEmail = normalizeEmail(record.Email || record.email);
+      const recordName = normalizedIdentity(record.Nome || record.nome);
+      const recordStore = String(record.LojaID || record.lojaId || "");
+      let score = 0;
+
+      if ([...recordIds].some((id) => ids.has(id))) score = 100;
+      else if (email && recordEmail === email) score = 80;
+      else if (
+        name &&
+        recordName === name &&
+        (!storeId || recordStore === storeId)
+      ) {
+        score = 60;
+      } else if (ids.has(String(entry?.key || ""))) score = 40;
+
+      if (score && storeId && recordStore === storeId) score += 10;
+      if (score && asBoolean(record.Ativo)) score += 1;
+      return { ...entry, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0] || null;
+};
+
 const snapshotList = (snapshot) =>
   snapshotEntries(snapshot).map((entry) => entry.record);
 
@@ -548,6 +606,51 @@ export class FirebaseRuntime {
     return this.scopedRows(table, profile);
   }
 
+  async resolveEmployeeEntry(reference = {}, options = {}) {
+    const profile = options.profile || (await this.requireProfile());
+    const tableRef = this.appRef("tables/Funcionarios");
+    const profileStoreId = String(profile.LojaID || "");
+    const profileEmployeeId = String(profile.FuncionarioID || "");
+    let snapshot = null;
+
+    if (isAdminProfile(profile)) {
+      snapshot = await get(tableRef);
+    } else if (isManagerProfile(profile) && profileStoreId) {
+      snapshot = await get(
+        query(tableRef, orderByChild("LojaID"), equalTo(profileStoreId)),
+      );
+    } else if (profileEmployeeId) {
+      snapshot = await get(
+        query(
+          tableRef,
+          orderByChild("FuncionarioID"),
+          equalTo(profileEmployeeId),
+        ),
+      );
+    }
+    if (!snapshot) return null;
+
+    const entries = snapshotEntries(snapshot);
+    entries.forEach(({ key, record }) => {
+      const recordId = String(record?.FuncionarioID || "");
+      if (recordId) {
+        this.rememberRecordStorageKey("Funcionarios", recordId, key, record);
+      }
+    });
+    const selected = selectEmployeeEntry(entries, reference);
+    if (!selected) return null;
+
+    employeeReferenceIds(reference).forEach((alias) => {
+      this.rememberRecordStorageKey(
+        "Funcionarios",
+        alias,
+        selected.key,
+        selected.record,
+      );
+    });
+    return { storageKey: selected.key, record: clone(selected.record) };
+  }
+
   async periodIndexesReady() {
     const snapshot = await get(
       this.appRef(`meta/migrations/${PERIOD_INDEX_MIGRATION}`),
@@ -820,6 +923,7 @@ export class FirebaseRuntime {
 
   async applyEmployeeLeaveBalance({
     employeeId,
+    storageKey: preferredStorageKey = "",
     movementKey,
     desiredDelta,
     metadata = {},
@@ -870,7 +974,15 @@ export class FirebaseRuntime {
         { applyLocally: false },
       );
 
-    let storageKey = await this.resolveStorageKey("Funcionarios", id);
+    let storageKey = String(preferredStorageKey || "");
+    if (!storageKey) {
+      storageKey = await this.resolveStorageKey("Funcionarios", id);
+    } else {
+      this.recordKeys.set(
+        this.recordCacheKey("Funcionarios", id),
+        storageKey,
+      );
+    }
     let transaction = await runBalanceTransaction(storageKey);
     if (!transaction.committed && !transaction.snapshot.exists()) {
       // Cadastros importados ou recriados podem continuar associados a uma

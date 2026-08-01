@@ -11,6 +11,7 @@ import { timeOffBalanceUnits } from "../src/core/api-base.js";
 import {
   FirebaseRuntime,
   periodFieldsFor,
+  selectEmployeeEntry,
 } from "../src/core/runtime.js";
 import {
   balanceDays,
@@ -90,7 +91,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.5");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.2.6");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -101,14 +102,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.2\.5/);
+  assert.match(serviceWorker, /house-folgas-v6\.2\.6/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.5"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.2\.6"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -141,7 +142,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.2\.5/);
+  assert.match(builder, /main\.js\?v=6\.2\.6/);
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
   assert.match(api, /success\(await getArenaBundle\(\)/);
@@ -268,6 +269,66 @@ test("cadastro antigo associa a chave física ao ID atual do funcionário", () =
   );
 });
 
+test("aprovação escolhe o cadastro atual e preserva sua chave física", () => {
+  const selected = selectEmployeeEntry(
+    [
+      {
+        key: "funcionario-id-antigo",
+        record: {
+          FuncionarioID: "cadastro-obsoleto",
+          Nome: "Ana Souza",
+          Email: "antigo@house190.com",
+          LojaID: "loja-1",
+          Ativo: false,
+        },
+      },
+      {
+        key: "-chave-firebase-atual",
+        record: {
+          FuncionarioID: "funcionario-id-atual",
+          Nome: "Ana Souza",
+          Email: "ana@house190.com",
+          LojaID: "loja-1",
+          Ativo: true,
+        },
+      },
+    ],
+    {
+      FuncionarioID: "funcionario-id-atual",
+      EmailFuncionario: "ana@house190.com",
+      NomeFuncionario: "Ana Souza",
+      LojaID: "loja-1",
+    },
+  );
+
+  assert.equal(selected.key, "-chave-firebase-atual");
+  assert.equal(selected.record.FuncionarioID, "funcionario-id-atual");
+});
+
+test("aprovação antiga pode localizar o funcionário pela chave física", () => {
+  const selected = selectEmployeeEntry(
+    [
+      {
+        key: "funcionario-id-antigo",
+        record: {
+          FuncionarioID: "funcionario-id-atual",
+          Nome: "Carlos Lima",
+          LojaID: "loja-1",
+          Ativo: true,
+        },
+      },
+    ],
+    {
+      FuncionarioID: "funcionario-id-antigo",
+      NomeFuncionario: "Carlos Lima",
+      LojaID: "loja-1",
+    },
+  );
+
+  assert.equal(selected.key, "funcionario-id-antigo");
+  assert.equal(selected.record.FuncionarioID, "funcionario-id-atual");
+});
+
 test("selecionar funcionário preenche a loja no pedido de folga", async () => {
   const client = await readFile(
     new URL("../src/legacy/Scripts.html", import.meta.url),
@@ -379,7 +440,7 @@ test("crédito mensal e débito de aprovação são idempotentes", async () => {
   assert.match(api, /desiredDelta: approved \? -units : 0/);
   assert.match(
     api,
-    /if \(approved && employee\) \{[\s\S]*?await reconcileTimeOffBalance\(updated, profile, employee\)/,
+    /if \(approved && employeeEntry\) \{[\s\S]*?await reconcileTimeOffBalance\(updated, profile, employeeEntry\)/,
   );
   assert.doesNotMatch(
     api,
@@ -397,6 +458,17 @@ test("crédito mensal e débito de aprovação são idempotentes", async () => {
   assert.match(
     runtime,
     /recordKeys\.delete\(this\.recordCacheKey\("Funcionarios", id\)\)/,
+  );
+  assert.match(runtime, /storageKey: preferredStorageKey/);
+  assert.match(api, /SaldoFolgasStatus: "Pendente"/);
+  assert.match(api, /reconcilePendingTimeOffBalances/);
+  const decision =
+    api.match(
+      /const timeOffDecision = async[\s\S]*?\n};\n\nconst preferredWeekdayIndex/,
+    )?.[0] || "";
+  assert.doesNotMatch(
+    decision,
+    /await runtime\.upsert\("Folgas", current\)\.catch\(\(\) => \{\}\);/,
   );
 });
 
@@ -446,7 +518,8 @@ test("decisão de folga aceita cadastros e perfis antigos sem afetar rejeições
     readFile(new URL("../src/core/constants.js", import.meta.url), "utf8"),
     readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
   ]);
-  assert.match(api, /normalizeEmail\(record\.EmailFuncionario\)/);
+  assert.match(api, /runtime\.resolveEmployeeEntry/);
+  assert.match(api, /EmailFuncionario: record\.EmailFuncionario/);
   assert.match(api, /record\.NomeFuncionario/);
   const decision =
     api.match(

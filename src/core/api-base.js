@@ -132,7 +132,12 @@ const saveLeaveBalanceMovement = async ({
     );
 };
 
-const applyMonthlyLeaveCredit = async (employee, profile, month) => {
+const applyMonthlyLeaveCredit = async (
+  employee,
+  profile,
+  month,
+  storageKey = "",
+) => {
   const movementId = `credito-mensal-${employee.FuncionarioID}-${month}`;
   if (
     Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) === 1
@@ -147,6 +152,7 @@ const applyMonthlyLeaveCredit = async (employee, profile, month) => {
   }
   const result = await runtime.applyEmployeeLeaveBalance({
     employeeId: employee.FuncionarioID,
+    storageKey,
     movementKey: movementId,
     desiredDelta: 1,
     metadata: {
@@ -227,47 +233,41 @@ const monthlyLeaveRewardFor = async (profile, employee, month) => {
   };
 };
 
-const employeeForTimeOff = async (record, profile) => {
-  const direct = await runtime.getById(
-    "Funcionarios",
-    record.FuncionarioID,
+const employeeEntryForTimeOff = async (record, profile) =>
+  runtime.resolveEmployeeEntry(
+    {
+      FuncionarioID: record.FuncionarioID,
+      funcionarioId: record.funcionarioId,
+      EmailFuncionario: record.EmailFuncionario,
+      NomeFuncionario: record.NomeFuncionario,
+      LojaID: record.LojaID || profile.LojaID || "",
+    },
+    { profile },
   );
-  if (direct) return direct;
-  const employees = await runtime.list("Funcionarios", { profile });
-  const email = normalizeEmail(record.EmailFuncionario);
-  const name = String(record.NomeFuncionario || "").trim().toLowerCase();
-  const storeId = String(record.LojaID || "");
-  return (
-    employees.find(
-      (employee) =>
-        email && normalizeEmail(employee.Email) === email,
-    ) ||
-    employees.find(
-      (employee) =>
-        name &&
-        String(employee.Nome || "").trim().toLowerCase() === name &&
-        (!storeId || String(employee.LojaID || "") === storeId),
-    ) ||
-    null
-  );
-};
 
 const reconcileTimeOffBalance = async (
   record,
   profile,
-  knownEmployee = null,
+  knownEmployeeEntry = null,
 ) => {
-  const employee =
-    knownEmployee || (await employeeForTimeOff(record, profile));
+  const employeeEntry =
+    knownEmployeeEntry || (await employeeEntryForTimeOff(record, profile));
+  const employee = employeeEntry?.record || null;
   assert(employee, "Funcionário não encontrado para atualizar o saldo.");
   if (!role(employee).includes("admin")) {
-    await applyMonthlyLeaveCredit(employee, profile, todayIso().slice(0, 7));
+    await applyMonthlyLeaveCredit(
+      employee,
+      profile,
+      todayIso().slice(0, 7),
+      employeeEntry.storageKey,
+    );
   }
   const units = timeOffBalanceUnits(record);
   const approved = record.Status === APP.status.approved;
   const movementId = `folga-${record.FolgaID}`;
   const result = await runtime.applyEmployeeLeaveBalance({
     employeeId: employee.FuncionarioID,
+    storageKey: employeeEntry.storageKey,
     movementKey: movementId,
     desiredDelta: approved ? -units : 0,
     metadata: {
@@ -288,6 +288,37 @@ const reconcileTimeOffBalance = async (
     actor: profile,
   });
   return result;
+};
+
+const reconcilePendingTimeOffBalances = async (profile, records) => {
+  if (!isManager(profile)) return 0;
+  const pending = records
+    .filter(
+      (record) =>
+        record.Status === APP.status.approved &&
+        record.SaldoFolgasStatus === "Pendente",
+    )
+    .slice(0, 25);
+  let recovered = 0;
+  for (const record of pending) {
+    try {
+      const employeeEntry = await employeeEntryForTimeOff(record, profile);
+      if (!employeeEntry) continue;
+      await reconcileTimeOffBalance(record, profile, employeeEntry);
+      await runtime.patch("Folgas", record.FolgaID, {
+        SaldoFolgasStatus: "Aplicado",
+        SaldoFolgasErro: "",
+        SaldoFolgasUltimaTentativa: nowIso(),
+      });
+      recovered += 1;
+    } catch (error) {
+      console.warn(
+        `Saldo da folga ${record.FolgaID} ainda aguarda reconciliação:`,
+        error.message,
+      );
+    }
+  }
+  return recovered;
 };
 
 export async function audit(action, module, recordId, details = {}) {
@@ -394,6 +425,13 @@ async function bootstrap() {
   const employees = credited
     ? await runtime.list("Funcionarios", { profile })
     : initialEmployees;
+  const recoveredBalances = await reconcilePendingTimeOffBalances(
+    profile,
+    timeOff,
+  );
+  const visibleTimeOff = recoveredBalances
+    ? await runtime.list("Folgas", { profile })
+    : timeOff;
   const ownEmployee = currentEmployeeFrom(employees, profile);
   const currentEmployee = ownEmployee || employees[0] || {};
   const currentMonth = todayIso().slice(0, 7);
@@ -424,10 +462,10 @@ async function bootstrap() {
     permissions: PERMISSIONS[profile.Perfil] || [],
     stores: visibleStores,
     employees,
-    timeOff,
+    timeOff: visibleTimeOff,
     holidays,
     users: [],
-    dashboard: dashboardFrom(visibleStores, employees, timeOff),
+    dashboard: dashboardFrom(visibleStores, employees, visibleTimeOff),
     monthlyLeaveReward,
     deferred: false,
     usersDeferred: isAdmin(profile),
@@ -756,9 +794,22 @@ const timeOffDecision = async (id, approved, observation = "") => {
     current.Status === APP.status.pending,
     "Somente pedidos pendentes podem receber uma decisão.",
   );
+  let employeeEntry = null;
   let employee = null;
   if (approved) {
-    employee = await employeeForTimeOff(current, profile);
+    employeeEntry = await employeeEntryForTimeOff(current, profile);
+    employee = employeeEntry?.record
+      ? {
+          ...employeeEntry.record,
+          FuncionarioID:
+            employeeEntry.record.FuncionarioID ||
+            current.FuncionarioID ||
+            employeeEntry.storageKey,
+        }
+      : null;
+    if (employeeEntry && employee) {
+      employeeEntry = { ...employeeEntry, record: employee };
+    }
     const policyEmployee = employee || {
       FuncionarioID: current.FuncionarioID || `pedido-${current.FolgaID}`,
       Nome: current.NomeFuncionario || "Funcionário não vinculado",
@@ -777,7 +828,7 @@ const timeOffDecision = async (id, approved, observation = "") => {
       approving: true,
     });
   }
-  const updated = await runtime.patch("Folgas", id, {
+  let updated = await runtime.patch("Folgas", id, {
     ...(employee
       ? {
           FuncionarioID: employee.FuncionarioID,
@@ -788,19 +839,41 @@ const timeOffDecision = async (id, approved, observation = "") => {
         }
       : {}),
     Status: approved ? APP.status.approved : APP.status.rejected,
+    SaldoFolgasStatus: approved ? "Processando" : "Não aplicável",
     AprovadoPor: profile.Email,
     DataAprovacao: nowIso(),
     ObservacaoAprovacao: String(observation || ""),
     DataAtualizacao: nowIso(),
   });
-  if (approved && employee) {
+  if (approved && employeeEntry) {
     try {
-      await reconcileTimeOffBalance(updated, profile, employee);
+      await reconcileTimeOffBalance(updated, profile, employeeEntry);
+      updated = await runtime.patch("Folgas", id, {
+        SaldoFolgasStatus: "Aplicado",
+        SaldoFolgasErro: "",
+        SaldoFolgasUltimaTentativa: nowIso(),
+      });
     } catch (error) {
-      await runtime.upsert("Folgas", current).catch(() => {});
-      throw error;
+      updated = await runtime
+        .patch("Folgas", id, {
+          SaldoFolgasStatus: "Pendente",
+          SaldoFolgasErro: String(error?.message || error).slice(0, 180),
+          SaldoFolgasUltimaTentativa: nowIso(),
+        })
+        .catch(() => updated);
+      console.warn(
+        `Folga ${updated.FolgaID} aprovada; ajuste de saldo será reconciliado automaticamente:`,
+        error.message,
+      );
     }
   } else if (approved) {
+    updated = await runtime
+      .patch("Folgas", id, {
+        SaldoFolgasStatus: "Pendente",
+        SaldoFolgasErro: "Cadastro atual do funcionário não localizado.",
+        SaldoFolgasUltimaTentativa: nowIso(),
+      })
+      .catch(() => updated);
     console.warn(
       `Folga ${updated.FolgaID} aprovada sem ajuste de saldo: cadastro atual do funcionário não localizado.`,
     );
