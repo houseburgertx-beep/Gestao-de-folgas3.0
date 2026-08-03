@@ -505,7 +505,7 @@
             : `${esc(item.storeName || "Sem unidade")} · combo ${Number(item.combo || 0)}`;
         return `<div class="arena-rank-row ${position <= 3 ? "podium" : ""} ${mine ? "is-mine" : ""}">
           <span class="arena-rank-position">${medal}</span>
-          <div class="arena-rank-avatar">${esc(initials(item.playerName || "J"))}</div>
+          <div class="arena-rank-avatar ${validAvatarId_(item.avatarId) ? "has-hero-avatar" : ""}">${validAvatarId_(item.avatarId) ? `<img src="./avatars/${esc(item.avatarId)}.webp" alt="">` : esc(initials(item.playerName || "J"))}</div>
           <div class="arena-rank-copy"><strong>${esc(item.playerName || "Jogador")}${mine ? " <em>VOCÊ</em>" : ""}</strong><small>${detail}</small><i style="--arena-progress:${width}%"></i></div>
           <div class="arena-rank-score"><strong>${formatArenaScore_(item.score)}</strong><small>pontos</small></div>
         </div>`;

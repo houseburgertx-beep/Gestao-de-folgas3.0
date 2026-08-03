@@ -1200,11 +1200,62 @@
     if (submit.dataset.originalText)
       submit.textContent = submit.dataset.originalText;
   }
-  function applyAvatar(element, name) {
+  const HERO_AVATARS_ = Array.from(
+    { length: 12 },
+    (_, index) => `avatar-${String(index).padStart(2, "0")}`,
+  );
+  function validAvatarId_(value) {
+    return HERO_AVATARS_.includes(String(value || "")) ? String(value) : "";
+  }
+  function employeeAvatarId_(subject, email = "") {
+    if (subject && typeof subject === "object") {
+      const direct = validAvatarId_(val(subject, "AvatarID", "avatarId"));
+      if (direct) return direct;
+    }
+    const name = typeof subject === "object"
+        ? val(subject, "Nome", "nome", "NomeFuncionario", "nomeFuncionario")
+        : subject,
+      employeeId = typeof subject === "object"
+        ? val(subject, "FuncionarioID", "funcionarioId")
+        : "",
+      normalizedEmail = String(
+        email || (typeof subject === "object" ? val(subject, "Email", "email", "EmailFuncionario", "emailFuncionario") : ""),
+      ).toLowerCase(),
+      employee = arr(state.employees).find((item) =>
+        (employeeId && String(idOf(item, "Funcionario")) === String(employeeId)) ||
+        (normalizedEmail && String(val(item, "Email", "email")).toLowerCase() === normalizedEmail) ||
+        (name && String(val(item, "Nome", "nome")).trim().toLowerCase() === String(name).trim().toLowerCase()),
+      );
+    return validAvatarId_(val(employee, "AvatarID", "avatarId"));
+  }
+  function avatarMarkup_(subject, extraClass = "", email = "") {
+    const name = typeof subject === "object"
+        ? val(subject, "Nome", "nome", "NomeFuncionario", "nomeFuncionario")
+        : subject,
+      avatarId = employeeAvatarId_(subject, email);
+    return `<div class="avatar hero-avatar ${esc(extraClass)}${avatarId ? " has-hero-avatar" : ""}">${avatarId ? `<img src="./avatars/${esc(avatarId)}.webp" alt="" loading="lazy">` : esc(initials(name))}</div>`;
+  }
+  function renderAvatarPicker_(containerId, inputId, selected) {
+    const container = $("#" + containerId), input = $("#" + inputId);
+    if (!container || !input) return;
+    const active = validAvatarId_(selected) || "avatar-00";
+    input.value = active;
+    container.innerHTML = HERO_AVATARS_.map(
+      (id, index) => `<button type="button" class="avatar-option ${id === active ? "selected" : ""}" data-avatar-id="${id}" role="radio" aria-checked="${id === active}" aria-label="Herói ${index + 1}"><img src="./avatars/${id}.webp" alt=""></button>`,
+    ).join("");
+    container.querySelectorAll("[data-avatar-id]").forEach((button) => {
+      button.onclick = () => renderAvatarPicker_(containerId, inputId, button.dataset.avatarId);
+    });
+  }
+  function applyAvatar(element, name, subject) {
     if (!element) return;
     element.classList.remove("has-photo");
     element.style.backgroundImage = "";
-    element.textContent = initials(name);
+    const avatarId = employeeAvatarId_(subject || state.user || name);
+    element.classList.toggle("has-hero-avatar", !!avatarId);
+    element.innerHTML = avatarId
+      ? `<img src="./avatars/${esc(avatarId)}.webp" alt="">`
+      : esc(initials(name));
   }
   function openOwnProfile() {
     const user = state.user || {},
@@ -1212,6 +1263,7 @@
     $("#profileForm").reset();
     $("#profileName").value = name;
     $("#profileEmail").value = val(user, "email", "Email");
+    renderAvatarPicker_("profileAvatarPicker", "profileAvatar", employeeAvatarId_(user) || "avatar-00");
     toggleProfilePasswords_();
     openDialog("profileDialog");
   }
@@ -1265,6 +1317,7 @@
       );
     const payload = {
       Email: email,
+      AvatarID: $("#profileAvatar").value,
       SenhaAtual: currentPassword,
       NovaSenha: newPassword,
       ConfirmarNovaSenha: confirmation,
@@ -1278,7 +1331,10 @@
       const employee = state.employees.find(
         (item) => String(idOf(item, "Funcionario")) === String(employeeId),
       );
-      if (employee) employee.Email = email;
+      if (employee) {
+        employee.Email = email;
+        employee.AvatarID = payload.AvatarID;
+      }
       hydrateUser();
       closeDialog("profileDialog");
       if (emailChanged || newPassword) {
@@ -1748,7 +1804,7 @@
 
     $("#userName").textContent = name;
     $("#userRole").textContent = profile(u) || "Perfil";
-    applyAvatar($("#userAvatar"), name);
+    applyAvatar($("#userAvatar"), name, u);
     $("#greeting").textContent = employeeMode
       ? `Olá, ${name.split(" ")[0]}! Estas são as suas folgas.`
       : `Olá, ${name.split(" ")[0]}! Vamos organizar a escala?`;
@@ -2207,10 +2263,10 @@
       control = isKitchenChief()
         ? '<span class="status">Somente leitura</span>'
         : `<button class="btn btn-ghost" data-action="${action}" data-id="${esc(idOf(x, "Folga"))}">Ver</button>`;
-    return `<div class="activity-item"><div class="avatar">${initials(n)}</div><div><strong>${esc(n)}</strong><span>${dateBR(val(x, "DataInicio", "dataInicio"))} • ${esc(val(x, "NomeLoja", "nomeLoja"))}</span></div>${control}</div>`;
+    return `<div class="activity-item">${avatarMarkup_(x)}<div><strong>${esc(n)}</strong><span>${dateBR(val(x, "DataInicio", "dataInicio"))} • ${esc(val(x, "NomeLoja", "nomeLoja"))}</span></div>${control}</div>`;
   }
-  function person(n, email = "") {
-    return `<div class="person-cell"><div class="avatar">${initials(n)}</div><div><strong>${esc(n || "—")}</strong>${email ? `<span>${esc(email)}</span>` : ""}</div></div>`;
+  function person(n, email = "", record = null) {
+    return `<div class="person-cell">${avatarMarkup_(record || n, "", email)}<div><strong>${esc(n || "—")}</strong>${email ? `<span>${esc(email)}</span>` : ""}</div></div>`;
   }
   function normalizedWeekday_(value) {
     return String(value || "")
@@ -2571,7 +2627,7 @@
             fixed =
               val(x, "DiaFolgaPreferencial", "diaFolgaPreferencial") || "—";
           const active = bool(val(x, "Ativo", "ativo"));
-          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"))}</td><td>${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td>${esc(val(x, "Cargo", "cargo"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td>${esc(fixed)}</td><td>${badge(active ? "Ativo" : "Inativo")}</td><td><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
+          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}</td><td>${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td>${esc(val(x, "Cargo", "cargo"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td>${esc(fixed)}</td><td>${badge(active ? "Ativo" : "Inativo")}</td><td><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -3122,6 +3178,11 @@
     $("#employeeStore").value = val(x, "LojaID", "lojaId");
     $("#employeeRole").value = val(x, "Cargo", "cargo");
     $("#employeeProfile").value = val(x, "Perfil", "perfil") || "Funcionário";
+    renderAvatarPicker_(
+      "employeeAvatarPicker",
+      "employeeAvatar",
+      employeeAvatarId_(x) || "avatar-00",
+    );
     $("#employeeAdmission").value = iso(val(x, "DataAdmissao", "dataAdmissao"));
     $("#employeeContract").value = val(x, "TipoContrato", "tipoContrato");
     $("#employeeBalance").value = val(x, "SaldoFolgas", "saldoFolgas") || 0;
@@ -3243,6 +3304,7 @@
       LojaID: $("#employeeStore").value,
       Cargo: $("#employeeRole").value,
       Perfil: $("#employeeProfile").value,
+      AvatarID: $("#employeeAvatar").value,
       DataAdmissao: $("#employeeAdmission").value,
       TipoContrato: $("#employeeContract").value,
       SaldoFolgas: Number($("#employeeBalance").value || 0),
@@ -4371,7 +4433,7 @@
           const actions = isManager()
             ? `<button class="btn btn-primary clock-review-btn" data-action="clock-review" data-id="${esc(a.AjustePontoID)}">Revisar ajuste</button>`
             : `<div class="pending-request-status">${badge(a.Status || "Pendente")}<small>${a.Status === "Pendente" ? "Aguardando análise do gestor" : "Solicitação concluída"}</small></div>`;
-          return `<article class="request-card clock-request-card pending-unified-card"><div class="request-head"><div class="avatar">${initials(a.NomeFuncionario)}</div><div><strong>${esc(a.NomeFuncionario)}</strong><span>${esc(labels[a.TipoMarcacao] || a.TipoMarcacao)}</span></div></div><div class="clock-request-change"><div><small>Registrado</small><strong>${esc(formatClockDateTime(a.DataHoraOriginal))}</strong></div><b>→</b><div><small>Solicitado</small><strong>${esc(formatClockDateTime(a.DataHoraSolicitada))}</strong></div></div><p><strong>Motivo:</strong> ${esc(a.Motivo)}</p>${actions}</article>`;
+          return `<article class="request-card clock-request-card pending-unified-card"><div class="request-head">${avatarMarkup_(a)}<div><strong>${esc(a.NomeFuncionario)}</strong><span>${esc(labels[a.TipoMarcacao] || a.TipoMarcacao)}</span></div></div><div class="clock-request-change"><div><small>Registrado</small><strong>${esc(formatClockDateTime(a.DataHoraOriginal))}</strong></div><b>→</b><div><small>Solicitado</small><strong>${esc(formatClockDateTime(a.DataHoraSolicitada))}</strong></div></div><p><strong>Motivo:</strong> ${esc(a.Motivo)}</p>${actions}</article>`;
         })
         .join("") ||
       `<div class="panel pending-empty-state"><span>⌁</span><strong>${isManager() ? "Nenhum ajuste de ponto pendente" : "Você não possui pedidos de ajuste"}</strong><p>${isManager() ? "As correções enviadas pela equipe aparecerão aqui." : "Para solicitar uma correção, abra Meu ponto e escolha uma marcação."}</p></div>`;
@@ -4959,7 +5021,8 @@
     if (!a) return toast("Pedido de ajuste não encontrado.", true);
     $("#clockDecisionForm").reset();
     $("#clockDecisionId").value = id;
-    $("#clockDecisionAvatar").textContent = initials(a.NomeFuncionario);
+    $("#clockDecisionAvatar").replaceChildren();
+    applyAvatar($("#clockDecisionAvatar"), a.NomeFuncionario, a);
     $("#clockDecisionEmployee").textContent =
       a.NomeFuncionario || "Funcionário";
     $("#clockDecisionType").textContent = a.TipoMarcacao || "Marcação";

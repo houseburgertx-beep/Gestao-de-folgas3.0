@@ -173,6 +173,14 @@
     </div>
     <div class="dialog-body">
       <input id="employeeId" type="hidden" />
+      <input id="employeeAvatar" type="hidden" value="avatar-00" />
+      <section class="avatar-picker-section">
+        <div class="avatar-picker-heading">
+          <div><span class="eyebrow">IDENTIDADE DE HERÓI</span><h4>Escolha o avatar</h4></div>
+          <span class="avatar-picker-hint">Aparecerá em todo o sistema</span>
+        </div>
+        <div id="employeeAvatarPicker" class="avatar-picker" role="radiogroup" aria-label="Avatar do funcionário"></div>
+      </section>
       <div class="dialog-grid">
         <label>Nome<input id="employeeName" required /></label
         ><label>E-mail<input id="employeeEmail" type="email" required /></label
@@ -747,6 +755,14 @@
       </button>
     </div>
     <div class="dialog-body">
+      <input id="profileAvatar" type="hidden" value="avatar-00" />
+      <section class="avatar-picker-section profile-avatar-picker-section">
+        <div class="avatar-picker-heading">
+          <div><span class="eyebrow">SEU HERÓI</span><h4>Escolha seu avatar</h4></div>
+          <span class="avatar-picker-hint">Seu personagem em todo o portal</span>
+        </div>
+        <div id="profileAvatarPicker" class="avatar-picker" role="radiogroup" aria-label="Meu avatar"></div>
+      </section>
       <div class="dialog-grid profile-fields">
         <label>Nome<input id="profileName" readonly /></label
         ><label
