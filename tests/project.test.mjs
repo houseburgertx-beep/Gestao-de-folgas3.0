@@ -95,7 +95,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.3.6");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.3.7");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -106,14 +106,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.3\.6/);
+  assert.match(serviceWorker, /house-folgas-v6\.3\.7/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.3\.6"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.3\.7"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -146,7 +146,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.3\.6/);
+  assert.match(builder, /main\.js\?v=6\.3\.7/);
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
   assert.match(api, /success\(await getArenaBundle\(\)/);
@@ -555,6 +555,37 @@ test("crédito mensal reconcilia saldo e aviso persistente sem duplicar", async 
   assert.match(api, /failed: results\.filter/);
   assert.match(api, /noticesCreated: results\.filter/);
   assert.match(api, /noticesFailed: results\.filter/);
+});
+
+test("feriado novo concede +1 folga e mostra aviso único para todos os ativos", async () => {
+  const [api, client] = await Promise.all([
+    readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(
+    api,
+    /`credito-feriado-\$\{holidayId\}-\$\{employeeId\}`/,
+  );
+  assert.match(api, /const ensureHolidayLeaveCredits/);
+  assert.match(api, /employees\.filter\(isActiveEmployee\)/);
+  assert.match(api, /movementKey: movementId,[\s\S]*?desiredDelta: 1/);
+  assert.match(api, /Tipo: "Crédito por feriado"/);
+  assert.match(api, /Assunto: `Feriado cadastrado: \$\{name\} 🎉`/);
+  assert.match(api, /Tipo: "Folga extra de feriado"/);
+  assert.match(api, /holidayLeaveRewards/);
+  assert.match(api, /async acknowledgeHolidayLeaveReward\(args\)/);
+  assert.match(api, /`feriado-aviso-v1-\$\{holidayId\}`/);
+  assert.match(
+    api,
+    /ensureHolidayLeaveCredits\(\s*profile,\s*saved,\s*employees/,
+  );
+  assert.match(client, /acknowledgeHolidayLeaveReward:/);
+  assert.match(client, /gf-holiday-leave-reward-seen-v1:/);
+  assert.match(client, /FERIADO CADASTRADO/);
+  assert.match(client, /Folga de feriado adicionada/);
+  assert.match(client, /pendingHolidayLeaveReward_/);
+  assert.match(client, /scheduleLeaveRewardPopups_/);
+  assert.match(client, /loadApplication\(true, false, "", true\)/);
 });
 
 test("folga mensal inclui todos os funcionários ativos, inclusive administradores", () => {

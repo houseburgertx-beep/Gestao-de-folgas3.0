@@ -199,6 +199,25 @@ const monthlyLeaveRewardReceiptId = (employeeId, month) =>
 const monthlyLeaveRewardNoticeId = (employeeId, month) =>
   `notificacao-folga-extra-v3-${month}__${employeeId}`;
 
+const holidayLeaveCreditMovementId = (employeeId, holidayId) =>
+  `credito-feriado-${holidayId}-${employeeId}`;
+
+const holidayLeaveRewardReceiptBaseId = (holidayId) =>
+  `feriado-aviso-v1-${holidayId}`;
+
+const holidayLeaveRewardReceiptId = (employeeId, holidayId) =>
+  `${holidayLeaveRewardReceiptBaseId(holidayId)}__${employeeId}`;
+
+const holidayLeaveRewardNoticeId = (employeeId, holidayId) =>
+  `notificacao-feriado-v1-${holidayId}__${employeeId}`;
+
+const holidayDateText = (value) => {
+  const date = String(value || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? date.split("-").reverse().join("/")
+    : date;
+};
+
 const createMonthlyLeaveRewardNotice = async (employee, profile, month) =>
   runtime.create("Notificacoes", {
     NotificacaoID: monthlyLeaveRewardNoticeId(employee.FuncionarioID, month),
@@ -221,6 +240,141 @@ const createMonthlyLeaveRewardNotice = async (employee, profile, month) =>
     RegistoRelacionadoID: `credito-mensal-${employee.FuncionarioID}-${month}`,
     Competencia: month,
   });
+
+const applyHolidayLeaveCredit = async (employee, holiday, profile) => {
+  const movementId = holidayLeaveCreditMovementId(
+    employee.FuncionarioID,
+    holiday.FeriadoID,
+  );
+  if (
+    Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) === 1
+  ) {
+    return {
+      applied: false,
+      adjustment: 0,
+      balanceBefore: Number(employee.SaldoFolgas || 0),
+      balanceAfter: Number(employee.SaldoFolgas || 0),
+      desiredDelta: 1,
+    };
+  }
+  const result = await runtime.applyEmployeeLeaveBalance({
+    employeeId: employee.FuncionarioID,
+    movementKey: movementId,
+    desiredDelta: 1,
+    metadata: {
+      Tipo: "Crédito por feriado",
+      FeriadoID: holiday.FeriadoID,
+      NomeFeriado: holiday.NomeFeriado || "Feriado",
+      DataFeriado: holiday.Data || "",
+    },
+  });
+  await saveLeaveBalanceMovement({
+    movementId,
+    employee,
+    type: `Crédito por feriado: ${holiday.NomeFeriado || "Feriado"}`,
+    competence: String(holiday.Data || "").slice(0, 7),
+    referenceId: holiday.FeriadoID,
+    result,
+    actor: profile,
+  });
+  return result;
+};
+
+const createHolidayLeaveRewardNotice = async (employee, holiday) => {
+  const name = String(holiday.NomeFeriado || "Novo feriado").trim();
+  const date = holidayDateText(holiday.Data);
+  return runtime.create("Notificacoes", {
+    NotificacaoID: holidayLeaveRewardNoticeId(
+      employee.FuncionarioID,
+      holiday.FeriadoID,
+    ),
+    Destinatario: normalizeEmail(employee.Email),
+    DestinatarioID: employee.FuncionarioID,
+    LojaID: employee.LojaID || "",
+    Assunto: `Feriado cadastrado: ${name} 🎉`,
+    Mensagem: `${name}, em ${date}, gerou +1 folga. Ela já está disponível no seu saldo.`,
+    Tipo: "Folga extra de feriado",
+    Status: "Pendente",
+    DataCriacao: nowIso(),
+    DataEnvio: nowIso(),
+    DataLeitura: "",
+    LidoPor: "",
+    Canal: "Aplicação",
+    TentativasEnvio: 0,
+    LinkAcao: "dashboard",
+    Erro: "",
+    RegistoRelacionadoID: holiday.FeriadoID,
+    FeriadoID: holiday.FeriadoID,
+    NomeFeriado: name,
+    DataFeriado: holiday.Data || "",
+  });
+};
+
+const ensureHolidayLeaveCredits = async (profile, holiday, employees) => {
+  const eligible = holiday.Ativo === false
+    ? []
+    : employees.filter(isActiveEmployee);
+  const existingNoticeIds = new Set(
+    (await runtime.list("Notificacoes", { profile }).catch(() => []))
+      .map((notice) => String(notice.NotificacaoID || "")),
+  );
+  const results = await Promise.all(
+    eligible.map(async (employee) => {
+      let creditResult;
+      try {
+        creditResult = await applyHolidayLeaveCredit(employee, holiday, profile);
+      } catch (error) {
+        console.warn(
+          `Crédito do feriado não aplicado para ${employee.FuncionarioID}:`,
+          error.message,
+        );
+        return {
+          applied: false,
+          confirmed: false,
+          failed: true,
+          noticeCreated: false,
+          noticeFailed: false,
+        };
+      }
+
+      let noticeCreated = false;
+      let noticeFailed = false;
+      try {
+        const noticeId = holidayLeaveRewardNoticeId(
+          employee.FuncionarioID,
+          holiday.FeriadoID,
+        );
+        if (!existingNoticeIds.has(noticeId)) {
+          await createHolidayLeaveRewardNotice(employee, holiday);
+          existingNoticeIds.add(noticeId);
+          noticeCreated = true;
+        }
+      } catch (error) {
+        console.warn(
+          `Aviso do feriado não criado para ${employee.FuncionarioID}:`,
+          error.message,
+        );
+        noticeFailed = true;
+      }
+
+      return {
+        ...creditResult,
+        confirmed: true,
+        failed: false,
+        noticeCreated,
+        noticeFailed,
+      };
+    }),
+  );
+  return {
+    eligible: eligible.length,
+    applied: results.filter((result) => result.applied).length,
+    confirmed: results.filter((result) => result.confirmed).length,
+    failed: results.filter((result) => result.failed).length,
+    noticesCreated: results.filter((result) => result.noticeCreated).length,
+    noticesFailed: results.filter((result) => result.noticeFailed).length,
+  };
+};
 
 const ensureMonthlyLeaveCredits = async (profile, employees) => {
   if (!isManager(profile)) {
@@ -310,6 +464,47 @@ const currentEmployeeFrom = (employees, profile) =>
       (profile.Email &&
         normalizeEmail(employee.Email) === normalizeEmail(profile.Email)),
   ) || null;
+
+const holidayLeaveRewardsFor = async (profile, employee, holidays) => {
+  if (!employee?.FuncionarioID || !isActiveEmployee(employee)) return [];
+  const [notices, receipts] = await Promise.all([
+    runtime.list("Notificacoes", { profile }).catch(() => []),
+    runtime.list("ComunicadosLeituras", { profile }).catch(() => []),
+  ]);
+  const holidayById = new Map(
+    holidays.map((holiday) => [String(holiday.FeriadoID || ""), holiday]),
+  );
+  const receiptIds = new Set(
+    receipts.map((receipt) => String(receipt.LeituraID || "")),
+  );
+  return notices
+    .filter(
+      (notice) =>
+        String(notice.Tipo || "") === "Folga extra de feriado" &&
+        String(notice.DestinatarioID || "") ===
+          String(employee.FuncionarioID),
+    )
+    .map((notice) => {
+      const holidayId = String(
+        notice.FeriadoID || notice.RegistoRelacionadoID || "",
+      );
+      const holiday = holidayById.get(holidayId) || {};
+      return {
+        holidayId,
+        employeeId: employee.FuncionarioID,
+        name: notice.NomeFeriado || holiday.NomeFeriado || "Feriado",
+        date: notice.DataFeriado || holiday.Data || "",
+        balance: Number(employee.SaldoFolgas || 0),
+        credited: true,
+        acknowledged: receiptIds.has(
+          holidayLeaveRewardReceiptId(employee.FuncionarioID, holidayId),
+        ),
+        createdAt: notice.DataCriacao || "",
+      };
+    })
+    .filter((reward) => reward.holidayId && !reward.acknowledged)
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+};
 
 const monthlyLeaveRewardFor = async (profile, employee, month) => {
   if (
@@ -553,6 +748,11 @@ async function bootstrap() {
     ownEmployee,
     currentMonth,
   );
+  const holidayLeaveRewards = await holidayLeaveRewardsFor(
+    profile,
+    ownEmployee,
+    holidays,
+  );
   const ownStoreId = String(profile.LojaID || currentEmployee.LojaID || "");
   const ownStoreName = String(
     profile.NomeLoja || currentEmployee.NomeLoja || "",
@@ -580,6 +780,7 @@ async function bootstrap() {
     users: [],
     dashboard: dashboardFrom(visibleStores, employees, visibleTimeOff),
     monthlyLeaveReward,
+    holidayLeaveRewards,
     monthlyCreditReport,
     deferred: false,
     usersDeferred: isAdmin(profile),
@@ -1206,6 +1407,73 @@ export function createBaseHandlers(getArenaBundle) {
       return success(saved, "Aviso visualizado.");
     },
 
+    async acknowledgeHolidayLeaveReward(args) {
+      const profile = await runtime.requireProfile();
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const holidayId = String(payload.holidayId || payload.FeriadoID || "");
+      assert(holidayId, "Feriado inválido.");
+      const employees = await runtime.list("Funcionarios", { profile });
+      const employee = currentEmployeeFrom(employees, profile);
+      assert(employee?.FuncionarioID, "Funcionário não encontrado.");
+      const movementId = holidayLeaveCreditMovementId(
+        employee.FuncionarioID,
+        holidayId,
+      );
+      const noticeId = holidayLeaveRewardNoticeId(
+        employee.FuncionarioID,
+        holidayId,
+      );
+      const notice = await runtime.getById("Notificacoes", noticeId);
+      assert(
+        Number(employee.SaldoFolgasLancamentos?.[movementId]?.Delta || 0) ===
+          1 ||
+          String(notice?.DestinatarioID || "") ===
+            String(employee.FuncionarioID),
+        "A folga extra deste feriado ainda não foi creditada.",
+      );
+      const receiptId = holidayLeaveRewardReceiptId(
+        employee.FuncionarioID,
+        holidayId,
+      );
+      const existing = await runtime.getById(
+        "ComunicadosLeituras",
+        receiptId,
+      );
+      if (existing) {
+        if (notice && notice.Status !== "Lida") {
+          await runtime
+            .patch("Notificacoes", noticeId, {
+              Status: "Lida",
+              DataLeitura: nowIso(),
+              LidoPor: profile.Email || "",
+            })
+            .catch(() => {});
+        }
+        return success(existing, "Aviso já visualizado.");
+      }
+      const saved = await runtime.upsert("ComunicadosLeituras", {
+        LeituraID: receiptId,
+        ComID: holidayLeaveRewardReceiptBaseId(holidayId),
+        FuncionarioID: employee.FuncionarioID,
+        LojaID: employee.LojaID || profile.LojaID || "",
+        Tipo: "Folga extra de feriado",
+        FeriadoID: holidayId,
+        LidoEm: nowIso(),
+        UserAgent: String(globalThis.navigator?.userAgent || "").slice(0, 300),
+      });
+      if (notice) {
+        await runtime
+          .patch("Notificacoes", noticeId, {
+            Status: "Lida",
+            DataLeitura: nowIso(),
+            LidoPor: profile.Email || "",
+          })
+          .catch(() => {});
+      }
+      return success(saved, "Aviso do feriado visualizado.");
+    },
+
     async getStores() {
       return success(await runtime.list("Lojas"));
     },
@@ -1488,6 +1756,14 @@ export function createBaseHandlers(getArenaBundle) {
       const profile = await runtime.requireProfile();
       requireAdmin(profile);
       const payload = args[0] || {};
+      assert(
+        String(payload.NomeFeriado || "").trim(),
+        "Informe o nome do feriado.",
+      );
+      assert(
+        /^\d{4}-\d{2}-\d{2}$/.test(String(payload.Data || "")),
+        "Informe a data do feriado.",
+      );
       const saved = await runtime.upsert("Feriados", {
         ...payload,
         FeriadoID: payload.FeriadoID || uuid(),
@@ -1498,7 +1774,20 @@ export function createBaseHandlers(getArenaBundle) {
         DataCriacao: nowIso(),
         CriadoPor: profile.Email,
       });
-      return success(saved, "Feriado criado.");
+      const employees = await runtime.list("Funcionarios", { profile });
+      const creditReport = await ensureHolidayLeaveCredits(
+        profile,
+        saved,
+        employees,
+      );
+      await audit("Criar feriado", "Feriados", saved.FeriadoID, {
+        after: saved,
+        message: `Crédito de feriado confirmado para ${creditReport.confirmed} funcionário(s).`,
+      });
+      return success(
+        { ...saved, CreditoFolgaRelatorio: creditReport },
+        "Feriado criado com folga extra.",
+      );
     },
 
     async updateHoliday(args) {

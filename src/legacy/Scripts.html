@@ -111,6 +111,7 @@
     updateProfile: "updateOwnProfile",
     sessionBootstrap: "getBootstrapDataWithSession",
     acknowledgeMonthlyLeaveReward: "acknowledgeMonthlyLeaveReward",
+    acknowledgeHolidayLeaveReward: "acknowledgeHolidayLeaveReward",
     employeeRequest: "createEmployeeTimeOffRequest",
     dashboard: "getDashboardData",
     createStore: "createStore",
@@ -360,6 +361,7 @@
       reward.acknowledged = true;
       rememberMonthlyLeaveReward_(reward);
       closeMonthlyLeaveReward_();
+      window.setTimeout(scheduleLeaveRewardPopups_, 240);
       if (goToBalance) {
         switchView("dashboard");
         window.setTimeout(() => {
@@ -428,11 +430,136 @@
   }
 
   function scheduleMonthlyLeaveReward_() {
+    scheduleLeaveRewardPopups_();
+  }
+
+  function holidayLeaveRewardStorageKey_(reward) {
+    return (
+      "gf-holiday-leave-reward-seen-v1:" +
+      encodeURIComponent(String(reward?.employeeId || "")) +
+      ":" +
+      encodeURIComponent(String(reward?.holidayId || ""))
+    );
+  }
+
+  function holidayLeaveRewardSeen_(reward) {
+    if (!reward?.credited || reward.acknowledged) return true;
+    try {
+      return localStorage.getItem(holidayLeaveRewardStorageKey_(reward)) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function rememberHolidayLeaveReward_(reward) {
+    try {
+      localStorage.setItem(holidayLeaveRewardStorageKey_(reward), "1");
+    } catch {
+      // O comprovante no Firebase continua sendo a fonte principal de leitura.
+    }
+  }
+
+  function pendingHolidayLeaveReward_() {
+    return arr(state.bootstrap?.holidayLeaveRewards).find(
+      (reward) => !holidayLeaveRewardSeen_(reward),
+    );
+  }
+
+  async function acknowledgeHolidayLeaveReward_(reward, goToBalance) {
+    const overlay = document.querySelector(".monthly-leave-reward-overlay");
+    if (!reward || !overlay || overlay.dataset.pending === "1") return;
+    overlay.dataset.pending = "1";
+    overlay
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = true));
+    overlay.querySelector(".monthly-leave-reward-primary")?.classList.add(
+      "is-loading",
+    );
+    try {
+      await call(FN.acknowledgeHolidayLeaveReward, {
+        holidayId: reward.holidayId,
+      });
+      reward.acknowledged = true;
+      rememberHolidayLeaveReward_(reward);
+      closeMonthlyLeaveReward_();
+      window.setTimeout(scheduleLeaveRewardPopups_, 240);
+      if (goToBalance) {
+        switchView("dashboard");
+        window.setTimeout(() => {
+          document
+            .querySelector('[data-metric="saldoFolgas"]')
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 220);
+      }
+    } catch (error) {
+      overlay.dataset.pending = "0";
+      overlay
+        .querySelectorAll("button")
+        .forEach((button) => (button.disabled = false));
+      overlay.querySelector(".monthly-leave-reward-primary")?.classList.remove(
+        "is-loading",
+      );
+      toast(error?.message || "Não foi possível confirmar o aviso.", true);
+    }
+  }
+
+  function showHolidayLeaveReward_() {
+    const reward = pendingHolidayLeaveReward_();
+    if (!reward || document.querySelector(".monthly-leave-reward-overlay")) {
+      return;
+    }
+    MONTHLY_LEAVE_REWARD_FOCUS_ = document.activeElement;
+    const overlay = document.createElement("div");
+    const holidayName = esc(reward.name || "Novo feriado");
+    const holidayDate = esc(dateBR(reward.date));
+    overlay.className = "monthly-leave-reward-overlay holiday-leave-reward-overlay";
+    overlay.dataset.pending = "0";
+    overlay.innerHTML = `
+      <section class="monthly-leave-reward-card" role="dialog" aria-modal="true" aria-labelledby="holidayLeaveRewardTitle" aria-describedby="holidayLeaveRewardText">
+        <div class="monthly-leave-reward-orbit" aria-hidden="true">
+          <span class="monthly-leave-reward-ring"></span>
+          <div class="monthly-leave-reward-icon">🎉</div>
+          <span class="monthly-leave-reward-spark spark-one">✦</span>
+          <span class="monthly-leave-reward-spark spark-two">✦</span>
+          <span class="monthly-leave-reward-spark spark-three">•</span>
+        </div>
+        <span class="monthly-leave-reward-badge">FERIADO CADASTRADO</span>
+        <h2 id="holidayLeaveRewardTitle">${holidayName}</h2>
+        <p id="holidayLeaveRewardText">O feriado de <strong>${holidayName}</strong>, em <strong>${holidayDate}</strong>, gerou <strong>+1 folga</strong> para você. Ela já está disponível no seu saldo.</p>
+        <div class="monthly-leave-reward-highlight">
+          <div class="monthly-leave-reward-plus">+1</div>
+          <div><strong>Folga de feriado adicionada</strong><span>Disponível no seu saldo</span></div>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        </div>
+        <button type="button" class="btn btn-primary monthly-leave-reward-primary">Ver meu saldo <span aria-hidden="true">→</span></button>
+        <button type="button" class="btn btn-ghost monthly-leave-reward-later">Agora não</button>
+      </section>`;
+    overlay.querySelector(".monthly-leave-reward-primary").onclick = () =>
+      acknowledgeHolidayLeaveReward_(reward, true);
+    overlay.querySelector(".monthly-leave-reward-later").onclick = () =>
+      acknowledgeHolidayLeaveReward_(reward, false);
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        acknowledgeHolidayLeaveReward_(reward, false);
+      }
+    });
+    document.body.appendChild(overlay);
+    document.body.classList.add("monthly-leave-reward-open");
+    overlay.querySelector(".monthly-leave-reward-primary").focus();
+  }
+
+  function scheduleLeaveRewardPopups_() {
     window.clearTimeout(MONTHLY_LEAVE_REWARD_TIMER_);
-    const reward = state.bootstrap?.monthlyLeaveReward;
-    if (monthlyLeaveRewardSeen_(reward)) return;
+    const monthlyReward = state.bootstrap?.monthlyLeaveReward;
+    const showReward = !monthlyLeaveRewardSeen_(monthlyReward)
+      ? showMonthlyLeaveReward_
+      : pendingHolidayLeaveReward_()
+        ? showHolidayLeaveReward_
+        : null;
+    if (!showReward) return;
     MONTHLY_LEAVE_REWARD_TIMER_ = window.setTimeout(
-      showMonthlyLeaveReward_,
+      showReward,
       isMobileClient_() ? 420 : 300,
     );
   }
@@ -3546,6 +3673,7 @@
   async function saveHoliday(e) {
     e.preventDefault();
     const id = $("#holidayId").value,
+      isNewHoliday = !id,
       p = {
         FeriadoID: id,
         feriadoId: id,
@@ -3565,7 +3693,21 @@
       upsertState("holidays", saved, "Feriado");
       closeDialog("holidayDialog");
       renderHolidays();
-      toast("Feriado guardado.");
+      if (isNewHoliday) {
+        await loadApplication(true, false, "", true);
+        const report = saved.CreditoFolgaRelatorio || {};
+        const complete =
+          Number(report.failed || 0) === 0 &&
+          Number(report.noticesFailed || 0) === 0;
+        toast(
+          complete
+            ? `Feriado criado. +1 folga e aviso enviados para ${Number(report.confirmed || 0)} funcionário(s).`
+            : `Feriado criado, mas ${Number(report.failed || 0)} crédito(s) e ${Number(report.noticesFailed || 0)} aviso(s) precisam de atenção.`,
+          !complete,
+        );
+      } else {
+        toast("Feriado atualizado.");
+      }
     } catch (err) {
       toast(err.message, true);
     } finally {
