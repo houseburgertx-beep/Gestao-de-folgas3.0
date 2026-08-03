@@ -627,6 +627,9 @@ const normalizeEmployee = async (payload, current, profile) => {
     NomeLoja: store?.NomeLoja || payload.NomeLoja || "",
     Cargo: String(payload.Cargo || "").trim(),
     Perfil: payload.Perfil || APP.profiles.employee,
+    AvatarID: /^avatar-(0[0-9]|1[01])$/.test(String(payload.AvatarID || ""))
+      ? String(payload.AvatarID)
+      : current?.AvatarID || "avatar-00",
     DataAdmissao: payload.DataAdmissao || "",
     TipoContrato: payload.TipoContrato || "",
     DiasTrabalhoSemana: payload.DiasTrabalhoSemana || "",
@@ -1733,6 +1736,11 @@ export function createBaseHandlers(getArenaBundle) {
       const saved = {
         ...profile,
         Email: email,
+        AvatarID: /^avatar-(0[0-9]|1[01])$/.test(
+          String(payload.AvatarID || ""),
+        )
+          ? String(payload.AvatarID)
+          : profile.AvatarID || "avatar-00",
         FotoPerfil: "",
         PrimeiroAcesso: password ? false : profile.PrimeiroAcesso,
         DataAtualizacao: nowIso(),
@@ -1752,6 +1760,7 @@ export function createBaseHandlers(getArenaBundle) {
         await runtime
           .patch("Funcionarios", saved.FuncionarioID, {
             Email: email,
+            AvatarID: saved.AvatarID,
             DataAtualizacao: nowIso(),
           })
           .catch((error) => {

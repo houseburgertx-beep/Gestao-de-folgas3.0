@@ -60,6 +60,7 @@ async function saveArenaResult(profile, gameId, result) {
       UsuarioID: profile.UsuarioID,
       FuncionarioID: profile.FuncionarioID,
       NomeJogador: profile.Nome,
+      AvatarID: profile.AvatarID || "avatar-00",
       LojaID: profile.LojaID || "",
       NomeLoja: profile.NomeLoja || "Sem unidade",
       MelhorPontuacao: Number(best.score || 0),
@@ -201,6 +202,7 @@ async function arenaRanking(filters = {}) {
 
   const items = playerRows.map((item) => ({
     playerName: item.raw.NomeJogador,
+    avatarId: item.raw.AvatarID || "",
     storeName: item.raw.NomeLoja,
     score: item.score,
     combo: item.combo,
@@ -274,6 +276,7 @@ const roomPlayer = (profile) => ({
   usuarioId: profile.UsuarioID,
   funcionarioId: profile.FuncionarioID,
   nome: profile.Nome,
+  avatarId: profile.AvatarID || "avatar-00",
   lojaId: profile.LojaID || "",
   nomeLoja: profile.NomeLoja || "Unidade",
   lastSeen: Date.now(),
@@ -497,6 +500,7 @@ const publicRoom = (room, profile) => {
       ? {
           slot: valueSlot,
           name: value.nome,
+          avatarId: value.avatarId || "",
           initials: String(value.nome || "")
             .split(/\s+/)
             .slice(0, 2)
@@ -604,7 +608,11 @@ export function createArenaHandlers() {
         rankedLimit: 0,
         products: ARENA_PRODUCTS,
         ingredients: ARENA_INGREDIENTS,
-        player: { name: profile.Nome, storeName: profile.NomeLoja },
+        player: {
+          name: profile.Nome,
+          storeName: profile.NomeLoja,
+          avatarId: profile.AvatarID || "avatar-00",
+        },
       });
     },
 

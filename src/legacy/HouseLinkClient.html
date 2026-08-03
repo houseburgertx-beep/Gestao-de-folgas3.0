@@ -253,8 +253,8 @@
   function houseLinkPlayerCard_(player, mine, ready) {
     return `
       <article class="house-link-player-card ${mine ? "is-me" : ""}">
-        <div class="house-link-avatar ${player.online ? "is-online" : ""}">
-          <span>${esc(player.initials || "?")}</span><i></i>
+        <div class="house-link-avatar ${player.online ? "is-online" : ""} ${validAvatarId_(player.avatarId) ? "has-hero-avatar" : ""}">
+          ${validAvatarId_(player.avatarId) ? `<img src="./avatars/${esc(player.avatarId)}.webp" alt="">` : `<span>${esc(player.initials || "?")}</span>`}<i></i>
         </div>
         <small>${mine ? "VOCÊ" : "PARCEIRO"}</small>
         <strong>${esc(player.name || "Jogador")}</strong>
@@ -328,7 +328,7 @@
           <div class="house-link-partner-mini ${
             snapshot.partner?.online ? "is-online" : ""
           }">
-            <span>${esc(snapshot.partner?.initials || "?")}</span>
+            <span class="${validAvatarId_(snapshot.partner?.avatarId) ? "has-hero-avatar" : ""}">${validAvatarId_(snapshot.partner?.avatarId) ? `<img src="./avatars/${esc(snapshot.partner.avatarId)}.webp" alt="">` : esc(snapshot.partner?.initials || "?")}</span>
             <small>${snapshot.partner?.online ? "AO VIVO" : "RECONECTANDO"}</small>
           </div>
         </section>
@@ -668,7 +668,7 @@
           <strong>${esc(medal.title || "Parceiro House")}</strong>
           <p>${esc(medal.text || "Manteve a dupla conectada.")}</p>
         </div>
-        <b>${esc(player.initials || "?")}</b>
+        <b class="${validAvatarId_(player.avatarId) ? "has-hero-avatar" : ""}">${validAvatarId_(player.avatarId) ? `<img src="./avatars/${esc(player.avatarId)}.webp" alt="">` : esc(player.initials || "?")}</b>
       </article>`;
   }
 
