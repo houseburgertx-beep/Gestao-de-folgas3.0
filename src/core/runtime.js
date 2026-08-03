@@ -989,9 +989,11 @@ export class FirebaseRuntime {
       // chave antiga durante a sessão. Limpa o cache, localiza a chave atual e
       // repete o lançamento idempotente uma única vez.
       this.recordKeys.delete(this.recordCacheKey("Funcionarios", id));
-      const employee = await this.getById("Funcionarios", id);
-      if (!employee) throw new Error("Funcionário não encontrado.");
-      storageKey = await this.resolveStorageKey("Funcionarios", id);
+      const employeeEntry = await this.resolveEmployeeEntry({
+        FuncionarioID: id,
+      });
+      if (!employeeEntry) throw new Error("Funcionário não encontrado.");
+      storageKey = employeeEntry.storageKey;
       outcome = null;
       transaction = await runBalanceTransaction(storageKey);
     }
