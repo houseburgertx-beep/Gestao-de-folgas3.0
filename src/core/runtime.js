@@ -997,14 +997,17 @@ export class FirebaseRuntime {
       const recoveredSnapshot = await get(
         this.appRef(`tables/Funcionarios/${storageKey}`),
       );
-      console.info("[monthly-credit-storage]", {
-        employeeId: id,
-        storageKey,
-        recovered: recoveredSnapshot.exists(),
-        recoveredEmployeeId: String(
-          recoveredSnapshot.val()?.FuncionarioID || "",
-        ),
-      });
+      console.info(
+        "[monthly-credit-storage] " +
+          JSON.stringify({
+            employeeId: id,
+            storageKey,
+            recovered: recoveredSnapshot.exists(),
+            recoveredEmployeeId: String(
+              recoveredSnapshot.val()?.FuncionarioID || "",
+            ),
+          }),
+      );
       outcome = null;
       transaction = await runBalanceTransaction(storageKey);
     }
