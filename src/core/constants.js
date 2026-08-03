@@ -1,6 +1,6 @@
 export const APP = Object.freeze({
   name: "Gestão de Folgas",
-  version: "6.3.3-firebase-github",
+  version: "6.3.4-firebase-github",
   profiles: {
     admin: "Administrador",
     manager: "Responsável de loja",
