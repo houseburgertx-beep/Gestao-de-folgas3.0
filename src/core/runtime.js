@@ -933,13 +933,15 @@ export class FirebaseRuntime {
     if (!id || !rawKey) throw new Error("Movimento de saldo inválido.");
     const key = pathKey(rawKey);
     let outcome = null;
-    const runBalanceTransaction = (storageKey) =>
+    const runBalanceTransaction = (storageKey, fallbackRecord = null) =>
       runTransaction(
         this.appRef(`tables/Funcionarios/${storageKey}`),
         (current) => {
-          if (!current || typeof current !== "object") return;
+          const employee =
+            current && typeof current === "object" ? current : fallbackRecord;
+          if (!employee || typeof employee !== "object") return;
           const entries = {
-            ...(current.SaldoFolgasLancamentos || {}),
+            ...(employee.SaldoFolgasLancamentos || {}),
           };
           const previousDelta = Number(entries[key]?.Delta || 0);
           const normalizedDesired =
@@ -947,7 +949,7 @@ export class FirebaseRuntime {
           const adjustment =
             Math.round((normalizedDesired - previousDelta) * 100) / 100;
           if (!adjustment) return;
-          const balanceBefore = Number(current.SaldoFolgas || 0);
+          const balanceBefore = Number(employee.SaldoFolgas || 0);
           const balanceAfter =
             Math.round((balanceBefore + adjustment) * 100) / 100;
           const appliedAt = nowIso();
@@ -965,7 +967,7 @@ export class FirebaseRuntime {
             appliedAt,
           };
           return {
-            ...current,
+            ...employee,
             SaldoFolgas: balanceAfter,
             SaldoFolgasLancamentos: entries,
             DataAtualizacao: appliedAt,
@@ -1009,7 +1011,10 @@ export class FirebaseRuntime {
           }),
       );
       outcome = null;
-      transaction = await runBalanceTransaction(storageKey);
+      transaction = await runBalanceTransaction(
+        storageKey,
+        employeeEntry.record,
+      );
     }
     if (!transaction.committed) {
       const employee = transaction.snapshot.val();
