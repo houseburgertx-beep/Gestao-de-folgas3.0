@@ -95,7 +95,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.3.0");
+  assert.equal(manifest.start_url, "./?source=pwa&v=6.3.1");
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -106,14 +106,14 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.3\.0/);
+  assert.match(serviceWorker, /house-folgas-v6\.3\.1/);
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.3\.0"/,
+    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.3\.1"/,
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -146,7 +146,7 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.3\.0/);
+  assert.match(builder, /main\.js\?v=6\.3\.1/);
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
   assert.match(api, /success\(await getArenaBundle\(\)/);
@@ -526,7 +526,7 @@ test("crédito mensal reconcilia saldo e aviso persistente sem duplicar", async 
   assert.match(api, /noticesFailed: results\.filter/);
 });
 
-test("folga mensal inclui cadastros antigos e exclui inativos e administradores", () => {
+test("folga mensal inclui todos os funcionários ativos, inclusive administradores", () => {
   assert.equal(
     isMonthlyLeaveEmployeeEligible({ FuncionarioID: "f-1", Ativo: true }),
     true,
@@ -553,7 +553,7 @@ test("folga mensal inclui cadastros antigos e exclui inativos e administradores"
       Ativo: true,
       Perfil: "Administrador",
     }),
-    false,
+    true,
   );
 });
 
