@@ -194,10 +194,10 @@ const applyMonthlyLeaveCredit = async (
 };
 
 const monthlyLeaveRewardReceiptId = (employeeId, month) =>
-  `folga-extra-${month}__${employeeId}`;
+  `folga-extra-aviso-v3-${month}__${employeeId}`;
 
 const monthlyLeaveRewardNoticeId = (employeeId, month) =>
-  `notificacao-folga-extra-${month}__${employeeId}`;
+  `notificacao-folga-extra-v3-${month}__${employeeId}`;
 
 const createMonthlyLeaveRewardNotice = async (employee, profile, month) =>
   runtime.create("Notificacoes", {
@@ -1186,7 +1186,7 @@ export function createBaseHandlers(getArenaBundle) {
       }
       const saved = await runtime.upsert("ComunicadosLeituras", {
         LeituraID: receiptId,
-        ComID: `folga-extra-${month}`,
+        ComID: `folga-extra-aviso-v3-${month}`,
         FuncionarioID: employee.FuncionarioID,
         LojaID: employee.LojaID || profile.LojaID || "",
         Tipo: "Folga extra mensal",
