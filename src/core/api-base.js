@@ -64,14 +64,12 @@ export const isMonthlyLeaveEmployeeEligible = (employee) => {
     );
   return (
     Boolean(employee?.FuncionarioID) &&
-    !explicitlyInactive &&
-    !role(employee).includes("admin")
+    !explicitlyInactive
   );
 };
 
 const isActiveEmployee = (employee) =>
-  isMonthlyLeaveEmployeeEligible(employee) ||
-  (Boolean(employee?.FuncionarioID) && role(employee).includes("admin"));
+  isMonthlyLeaveEmployeeEligible(employee);
 
 const requireAdmin = (profile) =>
   assert(isAdmin(profile), "Somente o Administrador pode executar esta ação.");
@@ -315,7 +313,6 @@ const currentEmployeeFrom = (employees, profile) =>
 
 const monthlyLeaveRewardFor = async (profile, employee, month) => {
   if (
-    isAdmin(profile) ||
     !employee?.FuncionarioID ||
     !isActiveEmployee(employee)
   ) {
@@ -1147,7 +1144,6 @@ export function createBaseHandlers(getArenaBundle) {
 
     async acknowledgeMonthlyLeaveReward(args) {
       const profile = await runtime.requireProfile();
-      assert(!isAdmin(profile), "Administradores não recebem a folga extra.");
       const values = dropClientToken(args);
       const payload = values[0] || {};
       const month = String(payload.month || payload.competencia || "");
