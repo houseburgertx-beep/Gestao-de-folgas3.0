@@ -11,10 +11,12 @@ const unwrap = (source, tag) =>
     .replace(new RegExp(`^\\s*<${tag}[^>]*>\\s*`, "i"), "")
     .replace(new RegExp(`\\s*</${tag}>\\s*$`, "i"), "");
 
-const legacyText = async (path) => {
-  const response = await fetch(new URL(path, import.meta.url));
+const legacyText = async (url) => {
+  const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Não foi possível carregar o módulo ${path}.`);
+    throw new Error(
+      `Não foi possível carregar o módulo ${url.pathname || url}.`,
+    );
   }
   return response.text();
 };
@@ -23,12 +25,12 @@ let arenaBundlePromise = null;
 const arenaBundle = () => {
   if (!arenaBundlePromise) {
     arenaBundlePromise = Promise.all([
-      legacyText("./legacy/ArenaStyles.html"),
-      legacyText("./legacy/ArenaMobileStyles.html"),
-      legacyText("./legacy/HouseLinkStyles.html"),
-      legacyText("./legacy/ArenaClient.html"),
-      legacyText("./legacy/HouseLinkClient.html"),
-      legacyText("./legacy/ArenaMobileRuntime.html"),
+      legacyText(new URL("./legacy/ArenaStyles.html", import.meta.url)),
+      legacyText(new URL("./legacy/ArenaMobileStyles.html", import.meta.url)),
+      legacyText(new URL("./legacy/HouseLinkStyles.html", import.meta.url)),
+      legacyText(new URL("./legacy/ArenaClient.html", import.meta.url)),
+      legacyText(new URL("./legacy/HouseLinkClient.html", import.meta.url)),
+      legacyText(new URL("./legacy/ArenaMobileRuntime.html", import.meta.url)),
     ]).then(
       ([
         arenaStyles,
