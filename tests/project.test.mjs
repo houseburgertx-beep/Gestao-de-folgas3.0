@@ -148,7 +148,12 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
   assert.match(builder, /window\.__GESTAO_API_READY__/);
   assert.match(builder, /main\.js\?v=6\.3\.7/);
   assert.doesNotMatch(main, /\.html\?raw/);
-  assert.match(main, /fetch\(new URL\(path, import\.meta\.url\)\)/);
+  assert.match(main, /const legacyText = async \(url\)/);
+  assert.match(main, /const response = await fetch\(url\)/);
+  assert.match(
+    main,
+    /legacyText\(new URL\("\.\/legacy\/HouseLinkStyles\.html", import\.meta\.url\)\)/,
+  );
   assert.match(api, /success\(await getArenaBundle\(\)/);
   const runtimeSource = await readFile(
     new URL("../src/core/runtime.js", import.meta.url),
