@@ -78,6 +78,10 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
     appRules.tables.BancoHorasMovimentos.$record[".write"],
     /Compensação de folga/,
   );
+  assert.match(
+    appRules.tables.BancoHorasMovimentos[".read"],
+    /Administrador/,
+  );
 });
 
 test("o aplicativo possui manifesto, ícones e service worker seguros", async () => {
