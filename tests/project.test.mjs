@@ -927,6 +927,39 @@ test("regras restringem ponto ao próprio funcionário e a uma criação idempot
   );
 });
 
+test("regras liberam auditoria e trocas somente para os perfis previstos", async () => {
+  const [rulesSource, runtime] = await Promise.all([
+    readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/runtime.js", import.meta.url), "utf8"),
+  ]);
+  const rules = JSON.parse(rulesSource).rules["gestao-folgas"].v2.tables;
+  const audit = rules.Auditoria;
+  const swaps = rules.TrocasFolga;
+
+  assert.match(audit[".read"], /Perfil'\)\.val\(\) === 'Administrador'/);
+  assert.match(audit.$record[".write"], /!data\.exists\(\)/);
+  assert.match(audit.$record[".write"], /newData\.child\('FuncionarioID'\)/);
+  assert.match(audit.$record[".validate"], /AuditoriaID/);
+
+  assert.match(swaps[".read"], /Perfil'\)\.val\(\) === 'Administrador'/);
+  assert.match(swaps[".read"], /query\.orderByChild === 'LojaID'/);
+  assert.match(swaps[".read"], /query\.orderByChild === 'FuncionarioID'/);
+  assert.deepEqual(swaps[".indexOn"], [
+    "LojaID",
+    "FuncionarioID",
+    "FuncionarioOrigemID",
+    "FuncionarioDestinoID",
+  ]);
+  assert.match(swaps.$record[".read"], /data\.child\('FuncionarioDestinoID'\)/);
+  assert.match(swaps.$record[".write"], /Status'\)\.val\(\) === 'Aguardando aceite'/);
+  assert.match(swaps.$record[".write"], /Status'\)\.val\(\) === 'Aguardando gestor'/);
+  assert.match(swaps.$record[".write"], /Status'\)\.val\(\) === 'Recusada'/);
+
+  assert.match(runtime, /const isStoreReaderProfile = \(profile\)/);
+  assert.match(runtime, /isStoreReaderProfile\(profile\) && storeId/);
+  assert.doesNotMatch(runtime, /isManagerProfile/);
+});
+
 test("banco de horas usa a jornada líquida e arredonda apenas o total", () => {
   const schedule = {
     HoraEntrada: "1899-12-30T18:34:04.000Z",
