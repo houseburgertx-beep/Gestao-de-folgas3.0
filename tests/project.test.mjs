@@ -833,6 +833,31 @@ test("saldo de horas começa somente na primeira marcação do funcionário", ()
   assert.equal(starts.has("sem-marcacao"), false);
 });
 
+test("saldo começa na primeira entrada válida, não em marcação isolada", () => {
+  const starts = firstPunchDatesByEmployee([
+    {
+      FuncionarioID: "func-1",
+      Data: "2026-07-01",
+      TipoMarcacao: "SEM_DESCANSO",
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "func-1",
+      Data: "2026-07-02",
+      TipoMarcacao: "SAIDA_FINAL",
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "func-1",
+      Data: "2026-07-03",
+      TipoMarcacao: "ENTRADA",
+      Status: "Válido",
+    },
+  ]);
+
+  assert.equal(starts.get("func-1"), "2026-07-03");
+});
+
 test("foto de perfil e envio de documentos não aparecem na interface", async () => {
   const [interfaceHtml, dialogs, client, advancedApi] = await Promise.all([
     readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
@@ -901,6 +926,32 @@ test("banco de horas usa a jornada líquida e arredonda apenas o total", () => {
   );
   assert.equal(Math.round(metrics.worked), 475);
   assert.equal(Math.round(metrics.balance), 55);
+});
+
+test("jornada sem descanso contabiliza todo o período entre entrada e saída", () => {
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T15:28:00-03:00" },
+      {
+        TipoMarcacao: "SEM_DESCANSO",
+        DataHora: "2026-08-08T17:36:00-03:00",
+      },
+      {
+        TipoMarcacao: "SAIDA_FINAL",
+        DataHora: "2026-08-09T00:09:00-03:00",
+      },
+    ],
+    {
+      HoraEntrada: "15:00",
+      HoraSaida: "23:00",
+      DuracaoIntervaloMinutos: 60,
+    },
+  );
+
+  assert.equal(metrics.worked, 521);
+  assert.equal(metrics.expected, 420);
+  assert.equal(metrics.balance, 101);
+  assert.equal(metrics.complete, true);
 });
 
 test("saldo de horas acumula entre meses e considera compensações", () => {
@@ -1206,6 +1257,35 @@ test("dia atual só entra no saldo depois da saída final", () => {
     minutes: 0,
     text: "+0h 00min",
   });
+});
+
+test("jornada incompleta continua pendente depois da virada do dia", () => {
+  const schedule = { CargaDiariaMinutos: 420 };
+  const missing = dayBalanceState(
+    "2026-08-08",
+    dayMetrics([], schedule),
+    "2026-08-09",
+  );
+  const partial = dayBalanceState(
+    "2026-08-08",
+    dayMetrics(
+      [
+        {
+          TipoMarcacao: "ENTRADA",
+          DataHora: "2026-08-08T15:28:00-03:00",
+        },
+        {
+          TipoMarcacao: "SEM_DESCANSO",
+          DataHora: "2026-08-08T17:36:00-03:00",
+        },
+      ],
+      schedule,
+    ),
+    "2026-08-09",
+  );
+
+  assert.deepEqual(missing, { pending: true, minutes: 0, text: "—" });
+  assert.deepEqual(partial, { pending: true, minutes: 0, text: "—" });
 });
 
 test("próxima folga mostra apenas a aprovada com dias e data", () => {
