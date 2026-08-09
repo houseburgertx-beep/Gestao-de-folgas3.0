@@ -55,7 +55,9 @@ const roleName = (profile) =>
   String(profile?.Perfil || profile?.perfil || "").toLowerCase();
 
 const isAdminProfile = (profile) => roleName(profile).includes("admin");
-const isManagerProfile = (profile) =>
+// Perfis que podem consultar dados da própria loja. Isso inclui o chefe de
+// cozinha, mas não concede as ações de gestão protegidas por requireManager.
+const isStoreReaderProfile = (profile) =>
   roleName(profile).includes("respons") ||
   roleName(profile).includes("gerente") ||
   roleName(profile).includes("chefe de cozinha");
@@ -591,7 +593,7 @@ export class FirebaseRuntime {
     }
 
     const storeField = STORE_SCOPED_FIELDS[table];
-    if (isManagerProfile(profile) && storeId && storeField) {
+    if (isStoreReaderProfile(profile) && storeId && storeField) {
       return this.recordsFromSnapshot(
         table,
         await get(query(tableRef, orderByChild(storeField), equalTo(storeId))),
@@ -623,7 +625,7 @@ export class FirebaseRuntime {
 
     if (isAdminProfile(profile)) {
       snapshot = await get(tableRef);
-    } else if (isManagerProfile(profile) && profileStoreId) {
+    } else if (isStoreReaderProfile(profile) && profileStoreId) {
       snapshot = await get(
         query(tableRef, orderByChild("LojaID"), equalTo(profileStoreId)),
       );
