@@ -95,6 +95,7 @@
     },
     hourBalance: null,
     timeClockBalance: null,
+    adminHourBalances: null,
     coreReady: false,
     coreLoading: false,
     shellCached: false,
@@ -174,6 +175,7 @@
     houseLinkHeartbeat: "heartbeatHouseLink",
     houseLinkLeave: "leaveHouseLinkRoom",
     hourBalance: "getHourBalanceOverviewWithSession",
+    adjustHourBalance: "adjustHourBalanceWithSession",
     vacationRequest: "solicitarFerias",
     vacations: "listarSolicitacoesFerias",
     vacationDecision: "decidirFerias",
@@ -1062,6 +1064,10 @@
     $("#clockDecisionForm").onsubmit = approveClockAdjustment;
     $("#clockDecisionReject").onclick = rejectClockAdjustment;
     $("#clockJustificationForm").onsubmit = saveClockJustification_;
+    $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
+    $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
+    $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
+    $("#hourBalanceAdjustmentForm").onsubmit = saveHourBalanceAdjustment_;
     $("#captureStoreLocation").onclick = captureStoreLocation;
     $$("[data-close]").forEach(
       (b) => (b.onclick = () => closeDialog(b.dataset.close)),
@@ -1577,6 +1583,7 @@
       state.timeClock = null;
       state.hourBalance = null;
       state.timeClockBalance = null;
+      state.adminHourBalances = null;
       state.notifications = [];
       state.swaps = [];
       if (typeof resetHouseArenaState_ === "function")
@@ -1920,6 +1927,127 @@
       return null;
     }
   }
+  async function loadAdminHourBalances_(force = false) {
+    if (!sessionToken() || !isAdmin()) return null;
+    const monthInput = $("#adminHourBalanceMonth");
+    const month = monthInput.value || iso(new Date()).slice(0, 7);
+    monthInput.value = month;
+    if (
+      !force &&
+      state.adminHourBalances &&
+      state.adminHourBalances.month === month
+    ) {
+      renderAdminHourBalances_();
+      return state.adminHourBalances;
+    }
+    const refresh = $("#adminHourBalanceRefresh");
+    refresh.disabled = true;
+    refresh.textContent = "Calculando…";
+    $("#adminHourBalanceBody").innerHTML = empty(8, "Calculando os saldos…");
+    try {
+      const result = await call(FN.hourBalance, sessionToken(), { month });
+      state.adminHourBalances = result;
+      renderAdminHourBalances_();
+      return result;
+    } catch (error) {
+      state.adminHourBalances = null;
+      $("#adminHourBalanceBody").innerHTML = empty(
+        8,
+        "Não foi possível carregar os saldos.",
+      );
+      toast(error.message, true);
+      return null;
+    } finally {
+      refresh.disabled = false;
+      refresh.textContent = "↻ Atualizar";
+    }
+  }
+  function renderAdminHourBalances_() {
+    const data = state.adminHourBalances || {},
+      all = arr(data.employees),
+      query = String($("#adminHourBalanceSearch").value || "")
+        .trim()
+        .toLowerCase(),
+      rows = all.filter((item) =>
+        `${item.Nome || ""} ${item.NomeLoja || ""}`
+          .toLowerCase()
+          .includes(query),
+      );
+    $("#adminHourBalanceCount").textContent = all.length;
+    $("#adminHourBalanceTotal").textContent = data.totalTexto || "+0h 00min";
+    $("#adminHourBalanceTotal").style.color =
+      Number(data.totalMinutos || 0) < 0 ? "var(--danger)" : "var(--success)";
+    $("#adminHourBalancePending").textContent = all.reduce(
+      (sum, item) => sum + Number(item.pendencias || 0),
+      0,
+    );
+    $("#adminHourBalanceBody").innerHTML =
+      rows
+        .map((item) => {
+          const negative = Number(item.saldoMinutos || 0) < 0;
+          return `<tr><td><strong>${esc(item.Nome || "—")}</strong></td><td>${esc(item.NomeLoja || "—")}</td><td>${esc(item.trabalhadoTexto || "0h 00min")}</td><td>${esc(item.previstoTexto || "0h 00min")}</td><td>${esc(item.ajustesTexto || "+0h 00min")}</td><td>${Number(item.pendencias || 0) ? `<span class="status pending">${esc(item.pendencias)} pendente(s)</span>` : "—"}</td><td><span class="status ${negative ? "rejected" : "approved"}">${esc(item.saldoTexto || "+0h 00min")}</span></td><td><button class="btn btn-secondary" type="button" data-action="adjust-hour-balance" data-id="${esc(item.FuncionarioID)}">Editar saldo</button></td></tr>`;
+        })
+        .join("") || empty(8, "Nenhum funcionário encontrado.");
+  }
+  function openHourBalanceAdjustment_(employeeId) {
+    if (!isAdmin())
+      return toast("Somente o Administrador pode editar o saldo.", true);
+    const item = arr((state.adminHourBalances || {}).employees).find(
+      (row) => String(row.FuncionarioID) === String(employeeId),
+    );
+    if (!item) return toast("Funcionário não encontrado.", true);
+    $("#hourBalanceAdjustmentForm").reset();
+    $("#hourBalanceAdjustmentEmployeeId").value = item.FuncionarioID;
+    $("#hourBalanceAdjustmentEmployee").innerHTML =
+      `<strong>${esc(item.Nome)}</strong>${item.NomeLoja ? ` · ${esc(item.NomeLoja)}` : ""}`;
+    $("#hourBalanceAdjustmentCurrent").textContent =
+      "Saldo atual: " + (item.saldoTexto || "+0h 00min");
+    const month =
+        $("#adminHourBalanceMonth").value || iso(new Date()).slice(0, 7),
+      today = iso(new Date()).slice(0, 10);
+    $("#hourBalanceAdjustmentDate").value =
+      month === today.slice(0, 7)
+        ? today
+        : month +
+          "-" +
+          String(
+            new Date(
+              Number(month.slice(0, 4)),
+              Number(month.slice(5, 7)),
+              0,
+            ).getDate(),
+          ).padStart(2, "0");
+    openDialog("hourBalanceAdjustmentDialog");
+  }
+  async function saveHourBalanceAdjustment_(event) {
+    event.preventDefault();
+    const hours = Math.trunc(
+        Number($("#hourBalanceAdjustmentHours").value || 0),
+      ),
+      remainder = Math.trunc(
+        Number($("#hourBalanceAdjustmentMinutes").value || 0),
+      ),
+      absoluteMinutes = hours * 60 + remainder,
+      sign =
+        $("#hourBalanceAdjustmentOperation").value === "subtract" ? -1 : 1;
+    if (!absoluteMinutes)
+      return toast("Informe as horas ou os minutos do ajuste.", true);
+    try {
+      await call(FN.adjustHourBalance, sessionToken(), {
+        funcionarioId: $("#hourBalanceAdjustmentEmployeeId").value,
+        data: $("#hourBalanceAdjustmentDate").value,
+        minutos: sign * absoluteMinutes,
+        motivo: $("#hourBalanceAdjustmentReason").value.trim(),
+      });
+      closeDialog("hourBalanceAdjustmentDialog");
+      state.hourBalance = null;
+      state.timeClockBalance = null;
+      await loadAdminHourBalances_(true);
+      toast("Saldo de horas ajustado e registrado na auditoria.");
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
   function hydrateUser() {
     const u = state.user;
     const name = val(u, "nome", "Nome") || "Utilizador";
@@ -2189,6 +2317,7 @@
         });
     }
     else if (view === "timeclock") loadTimeClock();
+    else if (view === "hour-balances") loadAdminHourBalances_();
     else if (
       [
         "communication",
@@ -4164,6 +4293,7 @@
     if (a === "clock-review") openClockDecision(id);
     if (a === "clock-justify-day")
       openClockJustification_(b.dataset.employee, b.dataset.date);
+    if (a === "adjust-hour-balance") openHourBalanceAdjustment_(id);
     if (a === "disable-employee")
       confirmThen(
         "Desativar funcionário?",

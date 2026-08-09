@@ -503,7 +503,11 @@ const accumulatedHourBalance = ({
     if (!start) return;
     const employeeSchedules = schedulesByEmployee.get(id) || [];
     const employeeTimeOff = timeOffByEmployee.get(id) || [];
-    let balance = Number(movementTotals.get(id) || 0);
+    const adjustments = Number(movementTotals.get(id) || 0);
+    let balance = adjustments;
+    let worked = 0;
+    let expected = 0;
+    let pending = 0;
     for (let date = start; date <= throughDate; date = nextDateKey(date)) {
       const schedule = scheduleFor(employeeSchedules, id, date);
       const rows = recordsByEmployeeDate.get(`${id}|${date}`) || [];
@@ -531,16 +535,29 @@ const accumulatedHourBalance = ({
       ) {
         continue;
       }
-      const state = dayBalanceState(
-        date,
-        dayMetrics(rows, schedule),
-        currentDate,
-      );
-      if (!state.pending) balance += Number(state.minutes || 0);
+      const metrics = dayMetrics(rows, schedule);
+      const state = dayBalanceState(date, metrics, currentDate);
+      if (state.pending) {
+        pending += 1;
+      } else {
+        worked += Number(metrics.worked || 0);
+        expected += Number(metrics.expected || 0);
+        balance += Number(state.minutes || 0);
+      }
     }
     totals.push({
       FuncionarioID: employee.FuncionarioID,
       Nome: employee.Nome,
+      LojaID: employee.LojaID || "",
+      NomeLoja: employee.NomeLoja || "",
+      trabalhadoMinutos: worked,
+      trabalhadoTexto: minutesText(worked),
+      previstoMinutos: expected,
+      previstoTexto: minutesText(expected),
+      ajustesMinutos: adjustments,
+      ajustesTexto:
+        (adjustments >= 0 ? "+" : "") + minutesText(adjustments),
+      pendencias: pending,
       saldoMinutos: balance,
       saldoTexto: (balance >= 0 ? "+" : "") + minutesText(balance),
       desde: start,
@@ -1434,6 +1451,54 @@ export function createClockHandlers() {
           employeeId: filters.funcionarioId || "",
         }),
       );
+    },
+
+    async adjustHourBalanceWithSession(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const employee = await runtime.getById(
+        "Funcionarios",
+        payload.funcionarioId || payload.FuncionarioID,
+      );
+      assert(employee, "Funcionário não encontrado.");
+      const date = normalizedDateKey(payload.data || todayIso());
+      const minutes = Math.trunc(Number(payload.minutos));
+      const reason = String(payload.motivo || "").trim();
+      assert(
+        /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= todayIso(),
+        "Informe uma data válida, sem usar uma data futura.",
+      );
+      assert(
+        Number.isFinite(minutes) && minutes !== 0 && Math.abs(minutes) <= 240 * 60,
+        "Informe um ajuste entre -240h e +240h.",
+      );
+      assert(reason.length >= 5, "Explique o motivo do ajuste.");
+      const movement = await runtime.upsert("BancoHorasMovimentos", {
+        MovID: uuid(),
+        FuncionarioID: employee.FuncionarioID,
+        NomeFuncionario: employee.Nome,
+        LojaID: employee.LojaID || "",
+        NomeLoja: employee.NomeLoja || "",
+        Data: date,
+        HorasTrabalhadas: 0,
+        JornadaContratual: 0,
+        SaldoMinutos: minutes,
+        SaldoDia: minutes / 60,
+        SaldoAcumulado: 0,
+        Origem: "Ajuste manual do saldo de horas",
+        Observacao: reason,
+        DataCriacao: nowIso(),
+        CriadoPor: profile.Email,
+      });
+      await audit(
+        "Ajustar saldo de horas",
+        "BancoHorasMovimentos",
+        movement.MovID,
+        { after: movement },
+      );
+      return success(movement, "Saldo de horas ajustado.");
     },
   };
 }
