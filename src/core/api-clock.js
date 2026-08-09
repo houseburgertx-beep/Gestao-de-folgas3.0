@@ -202,6 +202,7 @@ const firstPunchDatesByEmployee = (records = []) => {
       (item) =>
         item.FuncionarioID &&
         item.Status !== "Substituído" &&
+        item.TipoMarcacao === "ENTRADA" &&
         /^\d{4}-\d{2}-\d{2}$/.test(
           normalizedDateKey(item.Data || item.DataHora),
         ),
@@ -376,7 +377,10 @@ const dayMetrics = (records, schedule) => {
 };
 
 const dayBalanceState = (dateKey, metrics, currentDate = todayIso()) => {
-  const pending = dateKey === currentDate && !metrics.complete;
+  // Sem ENTRADA e SAIDA_FINAL, a duração da jornada não é confiável.
+  // Ela deve continuar pendente após a virada do dia, em vez de virar
+  // automaticamente um débito equivalente à jornada inteira.
+  const pending = !metrics.complete;
   return {
     pending,
     minutes: pending ? 0 : metrics.balance,
