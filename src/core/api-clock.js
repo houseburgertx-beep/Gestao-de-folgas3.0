@@ -242,10 +242,18 @@ const sequenceFor = (schedule) =>
     ? ["ENTRADA", "SAIDA_INTERVALO", "RETORNO_INTERVALO", "SAIDA_FINAL"]
     : ["ENTRADA", "SAIDA_FINAL"];
 
+const dateTimeNumber = (value) => {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const compareRecordsByDateTime = (a, b) =>
+  dateTimeNumber(a?.DataHora) - dateTimeNumber(b?.DataHora);
+
 const nextClockAction = (records, schedule) => {
   const types = records
     .filter((item) => item.Status !== "Substituído")
-    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)))
+    .sort(compareRecordsByDateTime)
     .map((item) => item.TipoMarcacao);
   if (types.includes("SAIDA_FINAL")) return "";
   if (types.includes("SEM_DESCANSO")) return "SAIDA_FINAL";
@@ -273,7 +281,7 @@ const operationalDayFor = (
         normalizedDateKey(item.Data) === previousDay &&
         item.Status !== "Substituído",
     )
-    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
+    .sort(compareRecordsByDateTime);
   const hasOpenShift =
     previousRecords.some((item) => item.TipoMarcacao === "ENTRADA") &&
     !previousRecords.some((item) => item.TipoMarcacao === "SAIDA_FINAL");
@@ -333,12 +341,12 @@ const balanceDays = (days) =>
 const dayMetrics = (records, schedule) => {
   const ordered = records
     .filter((item) => item.Status !== "Substituído")
-    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
+    .sort(compareRecordsByDateTime);
   const firstOf = (type, after = "") =>
     ordered.find(
       (item) =>
         item.TipoMarcacao === type &&
-        (!after || String(item.DataHora) >= String(after)),
+        (!after || dateTimeNumber(item.DataHora) >= dateTimeNumber(after)),
     );
   const entry = firstOf("ENTRADA");
   const breakOut = firstOf("SAIDA_INTERVALO", entry?.DataHora);
@@ -347,7 +355,7 @@ const dayMetrics = (records, schedule) => {
   const exits = ordered.filter(
     (item) =>
       item.TipoMarcacao === "SAIDA_FINAL" &&
-      (!entry || String(item.DataHora) >= String(entry.DataHora)),
+      (!entry || dateTimeNumber(item.DataHora) >= dateTimeNumber(entry.DataHora)),
   );
   const exit = exits[exits.length - 1];
   let worked = 0;
@@ -435,10 +443,12 @@ const accumulatedHourBalance = ({
     ? String(throughMonth)
     : monthIso();
   const throughDate = [lastDateOfMonth(month), currentDate].sort()[0];
+  // O painel administrativo precisa representar o cadastro inteiro. A
+  // ausência de marcações significa saldo ainda não iniciado, não ausência do
+  // funcionário no relatório.
   const allowed = employees.filter(
     (item) =>
-      asBoolean(item.Ativo) &&
-      (!employeeId || String(item.FuncionarioID) === String(employeeId)),
+      !employeeId || String(item.FuncionarioID) === String(employeeId),
   );
   const allowedIds = new Set(
     allowed.map((item) => String(item.FuncionarioID || "")),
@@ -500,7 +510,6 @@ const accumulatedHourBalance = ({
   allowed.forEach((employee) => {
     const id = String(employee.FuncionarioID || "");
     const start = firstPunches.get(id);
-    if (!start) return;
     const employeeSchedules = schedulesByEmployee.get(id) || [];
     const employeeTimeOff = timeOffByEmployee.get(id) || [];
     const adjustments = Number(movementTotals.get(id) || 0);
@@ -508,7 +517,7 @@ const accumulatedHourBalance = ({
     let worked = 0;
     let expected = 0;
     let pending = 0;
-    for (let date = start; date <= throughDate; date = nextDateKey(date)) {
+    for (let date = start; date && date <= throughDate; date = nextDateKey(date)) {
       const schedule = scheduleFor(employeeSchedules, id, date);
       const rows = recordsByEmployeeDate.get(`${id}|${date}`) || [];
       const approvedOff = employeeTimeOff.find(
@@ -550,6 +559,7 @@ const accumulatedHourBalance = ({
       Nome: employee.Nome,
       LojaID: employee.LojaID || "",
       NomeLoja: employee.NomeLoja || "",
+      Ativo: asBoolean(employee.Ativo),
       trabalhadoMinutos: worked,
       trabalhadoTexto: minutesText(worked),
       previstoMinutos: expected,
@@ -560,7 +570,7 @@ const accumulatedHourBalance = ({
       pendencias: pending,
       saldoMinutos: balance,
       saldoTexto: (balance >= 0 ? "+" : "") + minutesText(balance),
-      desde: start,
+      desde: start || "",
       ate: throughDate,
     });
   });
@@ -614,7 +624,7 @@ async function clockContext(filters = {}) {
         normalizedDateKey(item.Data).slice(0, 7) === month &&
         item.Status !== "Substituído",
     )
-    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
+    .sort(compareRecordsByDateTime);
   const monthAdjustments = adjustments.filter(
     (item) =>
       allowedIds.has(item.FuncionarioID) &&
@@ -642,7 +652,7 @@ async function clockContext(filters = {}) {
             normalizedDateKey(item.Data) === operationalDay &&
             item.Status !== "Substituído",
         )
-        .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)))
+        .sort(compareRecordsByDateTime)
     : [];
   const todayTimeOff = ownEmployee
     ? timeOff.find(
@@ -827,7 +837,7 @@ async function quickClockContext() {
         normalizedDateKey(item.Data) === operationalDay &&
         item.Status !== "Substituído",
     )
-    .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)));
+    .sort(compareRecordsByDateTime);
   const approvedOff = timeOff.find(
     (item) =>
       item.FuncionarioID === employee.FuncionarioID &&
@@ -1406,7 +1416,7 @@ export function createClockHandlers() {
             item.TipoMarcacao === "ENTRADA" &&
             item.Status !== "Substituído",
         )
-        .sort((a, b) => String(a.DataHora).localeCompare(String(b.DataHora)))) {
+        .sort(compareRecordsByDateTime)) {
         const key = `${record.FuncionarioID}|${record.Data}`;
         if (!first.has(key)) first.set(key, record);
         else {
@@ -1466,6 +1476,7 @@ export function createClockHandlers() {
       const date = normalizedDateKey(payload.data || todayIso());
       const minutes = Math.trunc(Number(payload.minutos));
       const reason = String(payload.motivo || "").trim();
+      const requestId = String(payload.requestId || "").trim();
       assert(
         /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= todayIso(),
         "Informe uma data válida, sem usar uma data futura.",
@@ -1475,8 +1486,16 @@ export function createClockHandlers() {
         "Informe um ajuste entre -240h e +240h.",
       );
       assert(reason.length >= 5, "Explique o motivo do ajuste.");
+      assert(
+        /^[A-Za-z0-9_-]{16,100}$/.test(requestId),
+        "Identificador do ajuste inválido. Atualize a página e tente novamente.",
+      );
       const movement = await runtime.upsert("BancoHorasMovimentos", {
-        MovID: uuid(),
+        // A mesma tentativa sempre usa a mesma chave. Se a resposta se perder
+        // e o navegador reenviar, o Firebase substitui o registro em vez de
+        // somar o ajuste outra vez.
+        MovID: `ajuste-${requestId}`,
+        RequestID: requestId,
         FuncionarioID: employee.FuncionarioID,
         NomeFuncionario: employee.Nome,
         LojaID: employee.LojaID || "",

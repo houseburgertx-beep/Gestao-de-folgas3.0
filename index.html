@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.3.0" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.3.9" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,7 +25,7 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
-    <meta name="app-version" content="6.3.0-firebase-github" />
+    <meta name="app-version" content="6.3.9-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -8035,6 +8035,47 @@
   }
 
   /* Controle de ponto no celular: fluxo compacto e leitura rápida */
+  .hour-balance-month-label,
+  .admin-hour-balance-search {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .hour-balance-month-label input {
+    min-width: 170px;
+  }
+  .admin-hour-balance-search {
+    width: min(320px, 100%);
+  }
+  .admin-hour-balance-panel .status {
+    white-space: nowrap;
+  }
+  .admin-hour-balance-panel tbody strong {
+    color: var(--text);
+  }
+  @media (max-width: 760px) {
+    .admin-hour-balance-metrics {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .admin-hour-balance-metrics .metric-card {
+      min-height: 120px;
+      padding: 18px 14px;
+    }
+    .admin-hour-balance-metrics .metric-card strong {
+      font-size: clamp(20px, 5vw, 28px);
+    }
+    .admin-hour-balance-panel .panel-head {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    .admin-hour-balance-search {
+      width: 100%;
+    }
+  }
+
+  /* Controle de ponto no celular: fluxo compacto e leitura rápida */
   @media (max-width: 700px) {
     #view-timeclock .section-toolbar {
       gap: 10px;
@@ -8920,6 +8961,9 @@
           <button class="nav-item permission-manager" data-view="employees">
             <span>♙</span><b>Funcionários</b>
           </button>
+          <button class="nav-item permission-admin" data-view="hour-balances">
+            <span>◷</span><b>Saldo de horas</b>
+          </button>
           <button class="nav-item permission-manager" data-view="stores">
             <span>⌂</span><b>Lojas</b>
           </button>
@@ -9696,6 +9740,51 @@
                     </tr>
                   </thead>
                   <tbody id="clockHistoryBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-hour-balances" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">ADMINISTRAÇÃO</span>
+                <h2>Saldo de horas dos funcionários</h2>
+                <p>Consulte o acumulado de toda a equipe e registre ajustes com histórico.</p>
+              </div>
+              <div class="toolbar-actions">
+                <label class="hour-balance-month-label">Até o mês
+                  <input id="adminHourBalanceMonth" type="month" />
+                </label>
+                <button id="adminHourBalanceRefresh" class="btn btn-secondary" type="button">↻ Atualizar</button>
+              </div>
+            </div>
+            <div class="metric-grid admin-hour-balance-metrics">
+              <div class="metric-card">
+                <span>Funcionários</span><strong id="adminHourBalanceCount">0</strong>
+              </div>
+              <div class="metric-card">
+                <span>Saldo total</span><strong id="adminHourBalanceTotal">0h 00min</strong>
+              </div>
+              <div class="metric-card">
+                <span>Pendências</span><strong id="adminHourBalancePending">0</strong>
+              </div>
+            </div>
+            <div class="panel table-panel admin-hour-balance-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">EQUIPE</span>
+                  <h3>Banco de horas individual</h3>
+                </div>
+                <label class="admin-hour-balance-search">Buscar funcionário
+                  <input id="adminHourBalanceSearch" type="search" placeholder="Digite o nome ou a loja" />
+                </label>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr>
+                    <th>Funcionário</th><th>Loja</th><th>Trabalhado</th><th>Previsto</th><th>Ajustes</th><th>Pendências</th><th>Saldo</th><th></th>
+                  </tr></thead>
+                  <tbody id="adminHourBalanceBody"></tbody>
                 </table>
               </div>
             </div>
@@ -10899,6 +10988,47 @@
     </div>
   </form>
 </dialog>
+<dialog id="hourBalanceAdjustmentDialog">
+  <form id="hourBalanceAdjustmentForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">BANCO DE HORAS</span>
+        <h3>Ajustar saldo</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="hourBalanceAdjustmentDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <input id="hourBalanceAdjustmentEmployeeId" type="hidden" />
+      <p id="hourBalanceAdjustmentEmployee"></p>
+      <p id="hourBalanceAdjustmentCurrent" class="form-hint"></p>
+      <div class="dialog-grid">
+        <label>Operação
+          <select id="hourBalanceAdjustmentOperation" required>
+            <option value="add">Adicionar horas</option>
+            <option value="subtract">Descontar horas</option>
+          </select>
+        </label>
+        <label>Data
+          <input id="hourBalanceAdjustmentDate" type="date" required />
+        </label>
+        <label>Horas
+          <input id="hourBalanceAdjustmentHours" type="number" min="0" max="240" step="1" value="0" required />
+        </label>
+        <label>Minutos
+          <input id="hourBalanceAdjustmentMinutes" type="number" min="0" max="59" step="1" value="0" required />
+        </label>
+        <label class="full">Motivo
+          <textarea id="hourBalanceAdjustmentReason" minlength="5" required placeholder="Explique por que o saldo está sendo ajustado"></textarea>
+        </label>
+      </div>
+      <p class="form-hint">O ajuste será somado ao cálculo e ficará registrado na auditoria. As batidas originais não serão alteradas.</p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="hourBalanceAdjustmentDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Salvar ajuste</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="approvalDialog">
   <form id="approvalForm">
     <div class="dialog-head">
@@ -11772,7 +11902,7 @@
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.3.0"></script>
+<script type="module" src="./src/main.js?v=6.3.9"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -11870,6 +12000,8 @@
     },
     hourBalance: null,
     timeClockBalance: null,
+    adminHourBalances: null,
+    hourBalanceAdjustmentRequestId: "",
     coreReady: false,
     coreLoading: false,
     shellCached: false,
@@ -11886,6 +12018,7 @@
     updateProfile: "updateOwnProfile",
     sessionBootstrap: "getBootstrapDataWithSession",
     acknowledgeMonthlyLeaveReward: "acknowledgeMonthlyLeaveReward",
+    acknowledgeHolidayLeaveReward: "acknowledgeHolidayLeaveReward",
     employeeRequest: "createEmployeeTimeOffRequest",
     dashboard: "getDashboardData",
     createStore: "createStore",
@@ -11948,6 +12081,7 @@
     houseLinkHeartbeat: "heartbeatHouseLink",
     houseLinkLeave: "leaveHouseLinkRoom",
     hourBalance: "getHourBalanceOverviewWithSession",
+    adjustHourBalance: "adjustHourBalanceWithSession",
     vacationRequest: "solicitarFerias",
     vacations: "listarSolicitacoesFerias",
     vacationDecision: "decidirFerias",
@@ -12083,7 +12217,7 @@
 
   function monthlyLeaveRewardStorageKey_(reward) {
     return (
-      "gf-monthly-leave-reward-seen-v2:" +
+      "gf-monthly-leave-reward-seen-v3:" +
       encodeURIComponent(String(reward?.employeeId || "")) +
       ":" +
       String(reward?.month || "")
@@ -12135,6 +12269,7 @@
       reward.acknowledged = true;
       rememberMonthlyLeaveReward_(reward);
       closeMonthlyLeaveReward_();
+      window.setTimeout(scheduleLeaveRewardPopups_, 240);
       if (goToBalance) {
         switchView("dashboard");
         window.setTimeout(() => {
@@ -12203,11 +12338,136 @@
   }
 
   function scheduleMonthlyLeaveReward_() {
+    scheduleLeaveRewardPopups_();
+  }
+
+  function holidayLeaveRewardStorageKey_(reward) {
+    return (
+      "gf-holiday-leave-reward-seen-v1:" +
+      encodeURIComponent(String(reward?.employeeId || "")) +
+      ":" +
+      encodeURIComponent(String(reward?.holidayId || ""))
+    );
+  }
+
+  function holidayLeaveRewardSeen_(reward) {
+    if (!reward?.credited || reward.acknowledged) return true;
+    try {
+      return localStorage.getItem(holidayLeaveRewardStorageKey_(reward)) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function rememberHolidayLeaveReward_(reward) {
+    try {
+      localStorage.setItem(holidayLeaveRewardStorageKey_(reward), "1");
+    } catch {
+      // O comprovante no Firebase continua sendo a fonte principal de leitura.
+    }
+  }
+
+  function pendingHolidayLeaveReward_() {
+    return arr(state.bootstrap?.holidayLeaveRewards).find(
+      (reward) => !holidayLeaveRewardSeen_(reward),
+    );
+  }
+
+  async function acknowledgeHolidayLeaveReward_(reward, goToBalance) {
+    const overlay = document.querySelector(".monthly-leave-reward-overlay");
+    if (!reward || !overlay || overlay.dataset.pending === "1") return;
+    overlay.dataset.pending = "1";
+    overlay
+      .querySelectorAll("button")
+      .forEach((button) => (button.disabled = true));
+    overlay.querySelector(".monthly-leave-reward-primary")?.classList.add(
+      "is-loading",
+    );
+    try {
+      await call(FN.acknowledgeHolidayLeaveReward, {
+        holidayId: reward.holidayId,
+      });
+      reward.acknowledged = true;
+      rememberHolidayLeaveReward_(reward);
+      closeMonthlyLeaveReward_();
+      window.setTimeout(scheduleLeaveRewardPopups_, 240);
+      if (goToBalance) {
+        switchView("dashboard");
+        window.setTimeout(() => {
+          document
+            .querySelector('[data-metric="saldoFolgas"]')
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 220);
+      }
+    } catch (error) {
+      overlay.dataset.pending = "0";
+      overlay
+        .querySelectorAll("button")
+        .forEach((button) => (button.disabled = false));
+      overlay.querySelector(".monthly-leave-reward-primary")?.classList.remove(
+        "is-loading",
+      );
+      toast(error?.message || "Não foi possível confirmar o aviso.", true);
+    }
+  }
+
+  function showHolidayLeaveReward_() {
+    const reward = pendingHolidayLeaveReward_();
+    if (!reward || document.querySelector(".monthly-leave-reward-overlay")) {
+      return;
+    }
+    MONTHLY_LEAVE_REWARD_FOCUS_ = document.activeElement;
+    const overlay = document.createElement("div");
+    const holidayName = esc(reward.name || "Novo feriado");
+    const holidayDate = esc(dateBR(reward.date));
+    overlay.className = "monthly-leave-reward-overlay holiday-leave-reward-overlay";
+    overlay.dataset.pending = "0";
+    overlay.innerHTML = `
+      <section class="monthly-leave-reward-card" role="dialog" aria-modal="true" aria-labelledby="holidayLeaveRewardTitle" aria-describedby="holidayLeaveRewardText">
+        <div class="monthly-leave-reward-orbit" aria-hidden="true">
+          <span class="monthly-leave-reward-ring"></span>
+          <div class="monthly-leave-reward-icon">🎉</div>
+          <span class="monthly-leave-reward-spark spark-one">✦</span>
+          <span class="monthly-leave-reward-spark spark-two">✦</span>
+          <span class="monthly-leave-reward-spark spark-three">•</span>
+        </div>
+        <span class="monthly-leave-reward-badge">FERIADO CADASTRADO</span>
+        <h2 id="holidayLeaveRewardTitle">${holidayName}</h2>
+        <p id="holidayLeaveRewardText">O feriado de <strong>${holidayName}</strong>, em <strong>${holidayDate}</strong>, gerou <strong>+1 folga</strong> para você. Ela já está disponível no seu saldo.</p>
+        <div class="monthly-leave-reward-highlight">
+          <div class="monthly-leave-reward-plus">+1</div>
+          <div><strong>Folga de feriado adicionada</strong><span>Disponível no seu saldo</span></div>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        </div>
+        <button type="button" class="btn btn-primary monthly-leave-reward-primary">Ver meu saldo <span aria-hidden="true">→</span></button>
+        <button type="button" class="btn btn-ghost monthly-leave-reward-later">Agora não</button>
+      </section>`;
+    overlay.querySelector(".monthly-leave-reward-primary").onclick = () =>
+      acknowledgeHolidayLeaveReward_(reward, true);
+    overlay.querySelector(".monthly-leave-reward-later").onclick = () =>
+      acknowledgeHolidayLeaveReward_(reward, false);
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        acknowledgeHolidayLeaveReward_(reward, false);
+      }
+    });
+    document.body.appendChild(overlay);
+    document.body.classList.add("monthly-leave-reward-open");
+    overlay.querySelector(".monthly-leave-reward-primary").focus();
+  }
+
+  function scheduleLeaveRewardPopups_() {
     window.clearTimeout(MONTHLY_LEAVE_REWARD_TIMER_);
-    const reward = state.bootstrap?.monthlyLeaveReward;
-    if (monthlyLeaveRewardSeen_(reward)) return;
+    const monthlyReward = state.bootstrap?.monthlyLeaveReward;
+    const showReward = !monthlyLeaveRewardSeen_(monthlyReward)
+      ? showMonthlyLeaveReward_
+      : pendingHolidayLeaveReward_()
+        ? showHolidayLeaveReward_
+        : null;
+    if (!showReward) return;
     MONTHLY_LEAVE_REWARD_TIMER_ = window.setTimeout(
-      showMonthlyLeaveReward_,
+      showReward,
       isMobileClient_() ? 420 : 300,
     );
   }
@@ -12710,6 +12970,10 @@
     $("#clockDecisionForm").onsubmit = approveClockAdjustment;
     $("#clockDecisionReject").onclick = rejectClockAdjustment;
     $("#clockJustificationForm").onsubmit = saveClockJustification_;
+    $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
+    $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
+    $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
+    $("#hourBalanceAdjustmentForm").onsubmit = saveHourBalanceAdjustment_;
     $("#captureStoreLocation").onclick = captureStoreLocation;
     $$("[data-close]").forEach(
       (b) => (b.onclick = () => closeDialog(b.dataset.close)),
@@ -13225,6 +13489,7 @@
       state.timeClock = null;
       state.hourBalance = null;
       state.timeClockBalance = null;
+      state.adminHourBalances = null;
       state.notifications = [];
       state.swaps = [];
       if (typeof resetHouseArenaState_ === "function")
@@ -13568,6 +13833,133 @@
       return null;
     }
   }
+  async function loadAdminHourBalances_(force = false) {
+    if (!sessionToken() || !isAdmin()) return null;
+    const monthInput = $("#adminHourBalanceMonth");
+    const month = monthInput.value || iso(new Date()).slice(0, 7);
+    monthInput.value = month;
+    if (
+      !force &&
+      state.adminHourBalances &&
+      state.adminHourBalances.month === month
+    ) {
+      renderAdminHourBalances_();
+      return state.adminHourBalances;
+    }
+    const refresh = $("#adminHourBalanceRefresh");
+    refresh.disabled = true;
+    refresh.textContent = "Calculando…";
+    $("#adminHourBalanceBody").innerHTML = empty(8, "Calculando os saldos…");
+    try {
+      const result = await call(FN.hourBalance, sessionToken(), { month });
+      state.adminHourBalances = result;
+      renderAdminHourBalances_();
+      return result;
+    } catch (error) {
+      state.adminHourBalances = null;
+      $("#adminHourBalanceBody").innerHTML = empty(
+        8,
+        "Não foi possível carregar os saldos.",
+      );
+      toast(error.message, true);
+      return null;
+    } finally {
+      refresh.disabled = false;
+      refresh.textContent = "↻ Atualizar";
+    }
+  }
+  function renderAdminHourBalances_() {
+    const data = state.adminHourBalances || {},
+      all = arr(data.employees),
+      query = String($("#adminHourBalanceSearch").value || "")
+        .trim()
+        .toLowerCase(),
+      rows = all.filter((item) =>
+        `${item.Nome || ""} ${item.NomeLoja || ""}`
+          .toLowerCase()
+          .includes(query),
+      );
+    $("#adminHourBalanceCount").textContent = all.length;
+    $("#adminHourBalanceTotal").textContent = data.totalTexto || "+0h 00min";
+    $("#adminHourBalanceTotal").style.color =
+      Number(data.totalMinutos || 0) < 0 ? "var(--danger)" : "var(--success)";
+    $("#adminHourBalancePending").textContent = all.reduce(
+      (sum, item) => sum + Number(item.pendencias || 0),
+      0,
+    );
+    $("#adminHourBalanceBody").innerHTML =
+      rows
+        .map((item) => {
+          const negative = Number(item.saldoMinutos || 0) < 0;
+          const inactive = item.Ativo === false;
+          return `<tr><td><strong>${esc(item.Nome || "—")}</strong>${inactive ? ' <span class="status">Inativo</span>' : ""}</td><td>${esc(item.NomeLoja || "—")}</td><td>${esc(item.trabalhadoTexto || "0h 00min")}</td><td>${esc(item.previstoTexto || "0h 00min")}</td><td>${esc(item.ajustesTexto || "+0h 00min")}</td><td>${Number(item.pendencias || 0) ? `<span class="status pending">${esc(item.pendencias)} pendente(s)</span>` : "—"}</td><td><span class="status ${negative ? "rejected" : "approved"}">${esc(item.saldoTexto || "+0h 00min")}</span></td><td><button class="btn btn-secondary" type="button" data-action="adjust-hour-balance" data-id="${esc(item.FuncionarioID)}">Editar saldo</button></td></tr>`;
+        })
+        .join("") || empty(8, "Nenhum funcionário encontrado.");
+  }
+  function openHourBalanceAdjustment_(employeeId) {
+    if (!isAdmin())
+      return toast("Somente o Administrador pode editar o saldo.", true);
+    const item = arr((state.adminHourBalances || {}).employees).find(
+      (row) => String(row.FuncionarioID) === String(employeeId),
+    );
+    if (!item) return toast("Funcionário não encontrado.", true);
+    $("#hourBalanceAdjustmentForm").reset();
+    state.hourBalanceAdjustmentRequestId =
+      window.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    $("#hourBalanceAdjustmentEmployeeId").value = item.FuncionarioID;
+    $("#hourBalanceAdjustmentEmployee").innerHTML =
+      `<strong>${esc(item.Nome)}</strong>${item.NomeLoja ? ` · ${esc(item.NomeLoja)}` : ""}`;
+    $("#hourBalanceAdjustmentCurrent").textContent =
+      "Saldo atual: " + (item.saldoTexto || "+0h 00min");
+    const month =
+        $("#adminHourBalanceMonth").value || iso(new Date()).slice(0, 7),
+      today = iso(new Date()).slice(0, 10);
+    $("#hourBalanceAdjustmentDate").value =
+      month === today.slice(0, 7)
+        ? today
+        : month +
+          "-" +
+          String(
+            new Date(
+              Number(month.slice(0, 4)),
+              Number(month.slice(5, 7)),
+              0,
+            ).getDate(),
+          ).padStart(2, "0");
+    openDialog("hourBalanceAdjustmentDialog");
+  }
+  async function saveHourBalanceAdjustment_(event) {
+    event.preventDefault();
+    const hours = Math.trunc(
+        Number($("#hourBalanceAdjustmentHours").value || 0),
+      ),
+      remainder = Math.trunc(
+        Number($("#hourBalanceAdjustmentMinutes").value || 0),
+      ),
+      absoluteMinutes = hours * 60 + remainder,
+      sign =
+        $("#hourBalanceAdjustmentOperation").value === "subtract" ? -1 : 1;
+    if (!absoluteMinutes)
+      return toast("Informe as horas ou os minutos do ajuste.", true);
+    try {
+      await call(FN.adjustHourBalance, sessionToken(), {
+        funcionarioId: $("#hourBalanceAdjustmentEmployeeId").value,
+        data: $("#hourBalanceAdjustmentDate").value,
+        minutos: sign * absoluteMinutes,
+        motivo: $("#hourBalanceAdjustmentReason").value.trim(),
+        requestId: state.hourBalanceAdjustmentRequestId,
+      });
+      closeDialog("hourBalanceAdjustmentDialog");
+      state.hourBalanceAdjustmentRequestId = "";
+      state.hourBalance = null;
+      state.timeClockBalance = null;
+      await loadAdminHourBalances_(true);
+      toast("Saldo de horas ajustado e registrado na auditoria.");
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }
   function hydrateUser() {
     const u = state.user;
     const name = val(u, "nome", "Nome") || "Utilizador";
@@ -13837,6 +14229,7 @@
         });
     }
     else if (view === "timeclock") loadTimeClock();
+    else if (view === "hour-balances") loadAdminHourBalances_();
     else if (
       [
         "communication",
@@ -15321,6 +15714,7 @@
   async function saveHoliday(e) {
     e.preventDefault();
     const id = $("#holidayId").value,
+      isNewHoliday = !id,
       p = {
         FeriadoID: id,
         feriadoId: id,
@@ -15340,7 +15734,21 @@
       upsertState("holidays", saved, "Feriado");
       closeDialog("holidayDialog");
       renderHolidays();
-      toast("Feriado guardado.");
+      if (isNewHoliday) {
+        await loadApplication(true, false, "", true);
+        const report = saved.CreditoFolgaRelatorio || {};
+        const complete =
+          Number(report.failed || 0) === 0 &&
+          Number(report.noticesFailed || 0) === 0;
+        toast(
+          complete
+            ? `Feriado criado. +1 folga e aviso enviados para ${Number(report.confirmed || 0)} funcionário(s).`
+            : `Feriado criado, mas ${Number(report.failed || 0)} crédito(s) e ${Number(report.noticesFailed || 0)} aviso(s) precisam de atenção.`,
+          !complete,
+        );
+      } else {
+        toast("Feriado atualizado.");
+      }
     } catch (err) {
       toast(err.message, true);
     } finally {
@@ -15797,6 +16205,7 @@
     if (a === "clock-review") openClockDecision(id);
     if (a === "clock-justify-day")
       openClockJustification_(b.dataset.employee, b.dataset.date);
+    if (a === "adjust-hour-balance") openHourBalanceAdjustment_(id);
     if (a === "disable-employee")
       confirmThen(
         "Desativar funcionário?",
