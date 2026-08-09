@@ -46,6 +46,12 @@
             }
           },
           "BancoHorasMovimentos": {
+            ".read": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || (((root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja' || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Gerente') || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Chefe de cozinha') && query.orderByChild === 'LojaID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()) || (query.orderByChild === 'FuncionarioID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val()))",
+            ".indexOn": [
+              "LojaID",
+              "FuncionarioID",
+              "Data"
+            ],
             "$record": {
               ".write": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || ((root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja' || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Gerente') && !data.exists() && newData.exists() && newData.child('LojaID').val() === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val() && newData.child('Origem').val() === 'Compensação de folga' && newData.child('SaldoDia').isNumber() && newData.child('SaldoDia').val() <= -0.5 && newData.child('SaldoDia').val() >= -24))",
               ".validate": "newData.hasChildren(['MovID','FuncionarioID','LojaID','Data','Origem'])"
