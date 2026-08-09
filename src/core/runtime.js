@@ -328,6 +328,14 @@ export class FirebaseRuntime {
       normalizeEmail(email),
       password,
     );
+    const bootstrapOwner = await this.transactPath(
+      "meta/bootstrapOwner",
+      (current) => current || credential.user.uid,
+    );
+    if (bootstrapOwner !== credential.user.uid) {
+      await deleteUser(credential.user).catch(() => {});
+      throw new Error("A configuração inicial já está sendo realizada em outro dispositivo.");
+    }
     const employeeId = uuid();
     const createdAt = nowIso();
     const profile = {

@@ -65,11 +65,27 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
   );
   assert.equal(rules.rules[".read"], false);
   assert.equal(rules.rules[".write"], false);
-  assert.ok(rules.rules["gestao-folgas"].v2.access);
-  assert.ok(rules.rules["gestao-folgas"].v2.tables);
+  const appRules = rules.rules["gestao-folgas"].v2;
+  assert.ok(appRules.access);
+  assert.ok(appRules.tables);
+  assert.match(appRules.meta.initialized[".write"], /bootstrapOwner/);
+  assert.match(appRules.access.$uid[".write"], /bootstrapOwner/);
+  assert.doesNotMatch(
+    appRules.tables.$table.$record[".write"],
+    /\$table === 'BancoHorasMovimentos'/,
+  );
+  assert.match(
+    appRules.tables.BancoHorasMovimentos.$record[".write"],
+    /Compensação de folga/,
+  );
 });
 
 test("o aplicativo possui manifesto, ícones e service worker seguros", async () => {
+  const packageData = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  const version = packageData.version;
+  const escapedVersion = version.replaceAll(".", "\\.");
   const [
     manifest,
     serviceWorker,
@@ -95,7 +111,7 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
     ]);
 
   assert.equal(manifest.display, "standalone");
-  assert.equal(manifest.start_url, "./?source=pwa&v=6.3.8");
+  assert.equal(manifest.start_url, `./?source=pwa&v=${version}`);
   assert.ok(manifest.icons.some((icon) => icon.sizes === "180x180"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
@@ -106,14 +122,17 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
         icon.purpose === "maskable",
     ),
   );
-  assert.match(serviceWorker, /house-folgas-v6\.3\.8/);
+  assert.match(serviceWorker, new RegExp(`house-folgas-v${escapedVersion}`));
+  assert.match(pwa, new RegExp(`SERVICE_WORKER_VERSION = "${escapedVersion}"`));
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.doesNotMatch(serviceWorker, /firebaseio|googleapis/);
   assert.match(pwa, /updateViaCache: "none"/);
   assert.match(pwa, /controllerchange/);
   assert.match(
     interfaceHtml,
-    /rel="manifest" href="\.\/manifest\.webmanifest\?v=6\.3\.8"/,
+    new RegExp(
+      `rel="manifest" href="\\.\\/manifest\\.webmanifest\\?v=${escapedVersion}"`,
+    ),
   );
   assert.match(interfaceHtml, /apple-mobile-web-app-capable/);
   assert.match(interfaceHtml, /rel="apple-touch-icon"/);
@@ -135,18 +154,22 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
 });
 
 test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () => {
-  const [client, main, builder, api] = await Promise.all([
+  const [client, main, builder, api, packageData] = await Promise.all([
     readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
     readFile(new URL("../src/main.js", import.meta.url), "utf8"),
     readFile(new URL("../scripts/build-index.mjs", import.meta.url), "utf8"),
     readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8").then(JSON.parse),
   ]);
   assert.match(client, /await waitForPortalApi_\(\)/);
   assert.match(client, /PORTAL_API_NOT_READY/);
   assert.doesNotMatch(client, /Abra a aplicação pelo link \/exec/);
   assert.match(main, /signalApiReady\(\)/);
   assert.match(builder, /window\.__GESTAO_API_READY__/);
-  assert.match(builder, /main\.js\?v=6\.3\.8/);
+  assert.match(
+    builder,
+    new RegExp(`main\\.js\\?v=${packageData.version.replaceAll(".", "\\.")}`),
+  );
   assert.doesNotMatch(main, /\.html\?raw/);
   assert.match(main, /const legacyText = async \(url\)/);
   assert.match(main, /const response = await fetch\(url\)/);
@@ -1029,6 +1052,38 @@ test("saldo de horas acumula entre meses e considera compensações", () => {
   assert.equal(august.employees[0].pendencias, 0);
 });
 
+test("painel de saldo inclui funcionários sem ponto e funcionários inativos", () => {
+  const result = accumulatedHourBalance({
+    employees: [
+      { FuncionarioID: "novo", Nome: "Novo", Ativo: true },
+      { FuncionarioID: "inativo", Nome: "Inativo", Ativo: false },
+    ],
+    throughMonth: "2026-08",
+    currentDate: "2026-08-09",
+  });
+
+  assert.deepEqual(
+    result.employees.map((item) => item.FuncionarioID),
+    ["novo", "inativo"],
+  );
+  assert.equal(result.employees[0].saldoMinutos, 0);
+  assert.equal(result.employees[0].desde, "");
+  assert.equal(result.employees[1].Ativo, false);
+});
+
+test("marcações com fusos diferentes são ordenadas pelo instante real", () => {
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T10:00:00+02:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T09:30:00Z" },
+    ],
+    { CargaDiariaMinutos: 90 },
+  );
+
+  assert.equal(metrics.worked, 90);
+  assert.equal(metrics.balance, 0);
+});
+
 test("administrador possui aba para consultar e ajustar saldos de horas", async () => {
   const [interfaceHtml, dialogs, client, clockApi] = await Promise.all([
     readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
@@ -1051,6 +1106,8 @@ test("administrador possui aba para consultar e ajustar saldos de horas", async 
     /async adjustHourBalanceWithSession\(args\)[\s\S]*?requireAdmin\(profile\)/,
   );
   assert.match(clockApi, /SaldoMinutos: minutes/);
+  assert.match(clockApi, /MovID: `ajuste-\$\{requestId\}`/);
+  assert.match(client, /requestId: state\.hourBalanceAdjustmentRequestId/);
   assert.match(clockApi, /"Ajustar saldo de horas"/);
 });
 
@@ -1234,9 +1291,10 @@ test("House Link oferece sala e código a usuários autenticados", async () => {
   assert.match(rules, /"arenaLink"/);
   const parsedRules = JSON.parse(rules).rules["gestao-folgas"].v2.arenaLink;
   assert.equal(parsedRules.codes.$code[".read"], "auth != null");
-  assert.equal(parsedRules.codes.$code[".write"], "auth != null");
+  assert.match(parsedRules.codes.$code[".write"], /ownerUid/);
   assert.equal(parsedRules.rooms.$room[".read"], "auth != null");
-  assert.equal(parsedRules.rooms.$room[".write"], "auth != null");
+  assert.match(parsedRules.rooms.$room[".write"], /players/);
+  assert.match(parsedRules.rooms.$room[".write"], /usuarioId/);
   assert.equal(parsedRules[".read"], undefined);
   assert.equal(parsedRules[".write"], undefined);
 });

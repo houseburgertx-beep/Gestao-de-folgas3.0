@@ -96,6 +96,7 @@
     hourBalance: null,
     timeClockBalance: null,
     adminHourBalances: null,
+    hourBalanceAdjustmentRequestId: "",
     coreReady: false,
     coreLoading: false,
     shellCached: false,
@@ -1985,7 +1986,8 @@
       rows
         .map((item) => {
           const negative = Number(item.saldoMinutos || 0) < 0;
-          return `<tr><td><strong>${esc(item.Nome || "—")}</strong></td><td>${esc(item.NomeLoja || "—")}</td><td>${esc(item.trabalhadoTexto || "0h 00min")}</td><td>${esc(item.previstoTexto || "0h 00min")}</td><td>${esc(item.ajustesTexto || "+0h 00min")}</td><td>${Number(item.pendencias || 0) ? `<span class="status pending">${esc(item.pendencias)} pendente(s)</span>` : "—"}</td><td><span class="status ${negative ? "rejected" : "approved"}">${esc(item.saldoTexto || "+0h 00min")}</span></td><td><button class="btn btn-secondary" type="button" data-action="adjust-hour-balance" data-id="${esc(item.FuncionarioID)}">Editar saldo</button></td></tr>`;
+          const inactive = item.Ativo === false;
+          return `<tr><td><strong>${esc(item.Nome || "—")}</strong>${inactive ? ' <span class="status">Inativo</span>' : ""}</td><td>${esc(item.NomeLoja || "—")}</td><td>${esc(item.trabalhadoTexto || "0h 00min")}</td><td>${esc(item.previstoTexto || "0h 00min")}</td><td>${esc(item.ajustesTexto || "+0h 00min")}</td><td>${Number(item.pendencias || 0) ? `<span class="status pending">${esc(item.pendencias)} pendente(s)</span>` : "—"}</td><td><span class="status ${negative ? "rejected" : "approved"}">${esc(item.saldoTexto || "+0h 00min")}</span></td><td><button class="btn btn-secondary" type="button" data-action="adjust-hour-balance" data-id="${esc(item.FuncionarioID)}">Editar saldo</button></td></tr>`;
         })
         .join("") || empty(8, "Nenhum funcionário encontrado.");
   }
@@ -1997,6 +1999,9 @@
     );
     if (!item) return toast("Funcionário não encontrado.", true);
     $("#hourBalanceAdjustmentForm").reset();
+    state.hourBalanceAdjustmentRequestId =
+      window.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     $("#hourBalanceAdjustmentEmployeeId").value = item.FuncionarioID;
     $("#hourBalanceAdjustmentEmployee").innerHTML =
       `<strong>${esc(item.Nome)}</strong>${item.NomeLoja ? ` · ${esc(item.NomeLoja)}` : ""}`;
@@ -2038,8 +2043,10 @@
         data: $("#hourBalanceAdjustmentDate").value,
         minutos: sign * absoluteMinutes,
         motivo: $("#hourBalanceAdjustmentReason").value.trim(),
+        requestId: state.hourBalanceAdjustmentRequestId,
       });
       closeDialog("hourBalanceAdjustmentDialog");
+      state.hourBalanceAdjustmentRequestId = "";
       state.hourBalance = null;
       state.timeClockBalance = null;
       await loadAdminHourBalances_(true);
