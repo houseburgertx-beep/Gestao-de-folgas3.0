@@ -235,6 +235,9 @@
           <button class="nav-item permission-manager" data-view="employees">
             <span>♙</span><b>Funcionários</b>
           </button>
+          <button class="nav-item permission-admin" data-view="hour-balances">
+            <span>◷</span><b>Saldo de horas</b>
+          </button>
           <button class="nav-item permission-manager" data-view="stores">
             <span>⌂</span><b>Lojas</b>
           </button>
@@ -1011,6 +1014,51 @@
                     </tr>
                   </thead>
                   <tbody id="clockHistoryBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-hour-balances" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">ADMINISTRAÇÃO</span>
+                <h2>Saldo de horas dos funcionários</h2>
+                <p>Consulte o acumulado de toda a equipe e registre ajustes com histórico.</p>
+              </div>
+              <div class="toolbar-actions">
+                <label class="hour-balance-month-label">Até o mês
+                  <input id="adminHourBalanceMonth" type="month" />
+                </label>
+                <button id="adminHourBalanceRefresh" class="btn btn-secondary" type="button">↻ Atualizar</button>
+              </div>
+            </div>
+            <div class="metric-grid admin-hour-balance-metrics">
+              <div class="metric-card">
+                <span>Funcionários</span><strong id="adminHourBalanceCount">0</strong>
+              </div>
+              <div class="metric-card">
+                <span>Saldo total</span><strong id="adminHourBalanceTotal">0h 00min</strong>
+              </div>
+              <div class="metric-card">
+                <span>Pendências</span><strong id="adminHourBalancePending">0</strong>
+              </div>
+            </div>
+            <div class="panel table-panel admin-hour-balance-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">EQUIPE</span>
+                  <h3>Banco de horas individual</h3>
+                </div>
+                <label class="admin-hour-balance-search">Buscar funcionário
+                  <input id="adminHourBalanceSearch" type="search" placeholder="Digite o nome ou a loja" />
+                </label>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr>
+                    <th>Funcionário</th><th>Loja</th><th>Trabalhado</th><th>Previsto</th><th>Ajustes</th><th>Pendências</th><th>Saldo</th><th></th>
+                  </tr></thead>
+                  <tbody id="adminHourBalanceBody"></tbody>
                 </table>
               </div>
             </div>

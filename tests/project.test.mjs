@@ -1023,6 +1023,35 @@ test("saldo de horas acumula entre meses e considera compensações", () => {
   assert.equal(august.employees[0].saldoMinutos, 90);
   assert.equal(august.employees[0].saldoTexto, "+1h 30min");
   assert.equal(august.employees[0].desde, "2026-07-31");
+  assert.equal(august.employees[0].trabalhadoMinutos, 1080);
+  assert.equal(august.employees[0].previstoMinutos, 960);
+  assert.equal(august.employees[0].ajustesMinutos, -30);
+  assert.equal(august.employees[0].pendencias, 0);
+});
+
+test("administrador possui aba para consultar e ajustar saldos de horas", async () => {
+  const [interfaceHtml, dialogs, client, clockApi] = await Promise.all([
+    readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    interfaceHtml,
+    /class="nav-item permission-admin" data-view="hour-balances"/,
+  );
+  assert.match(interfaceHtml, /id="view-hour-balances"/);
+  assert.match(interfaceHtml, /id="adminHourBalanceBody"/);
+  assert.match(dialogs, /id="hourBalanceAdjustmentForm"/);
+  assert.match(client, /data-action="adjust-hour-balance"/);
+  assert.match(client, /adjustHourBalance: "adjustHourBalanceWithSession"/);
+  assert.match(
+    clockApi,
+    /async adjustHourBalanceWithSession\(args\)[\s\S]*?requireAdmin\(profile\)/,
+  );
+  assert.match(clockApi, /SaldoMinutos: minutes/);
+  assert.match(clockApi, /"Ajustar saldo de horas"/);
 });
 
 test("ponto duplicado usa a última saída final válida", () => {

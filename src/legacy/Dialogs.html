@@ -114,6 +114,47 @@
     </div>
   </form>
 </dialog>
+<dialog id="hourBalanceAdjustmentDialog">
+  <form id="hourBalanceAdjustmentForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">BANCO DE HORAS</span>
+        <h3>Ajustar saldo</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="hourBalanceAdjustmentDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <input id="hourBalanceAdjustmentEmployeeId" type="hidden" />
+      <p id="hourBalanceAdjustmentEmployee"></p>
+      <p id="hourBalanceAdjustmentCurrent" class="form-hint"></p>
+      <div class="dialog-grid">
+        <label>Operação
+          <select id="hourBalanceAdjustmentOperation" required>
+            <option value="add">Adicionar horas</option>
+            <option value="subtract">Descontar horas</option>
+          </select>
+        </label>
+        <label>Data
+          <input id="hourBalanceAdjustmentDate" type="date" required />
+        </label>
+        <label>Horas
+          <input id="hourBalanceAdjustmentHours" type="number" min="0" max="240" step="1" value="0" required />
+        </label>
+        <label>Minutos
+          <input id="hourBalanceAdjustmentMinutes" type="number" min="0" max="59" step="1" value="0" required />
+        </label>
+        <label class="full">Motivo
+          <textarea id="hourBalanceAdjustmentReason" minlength="5" required placeholder="Explique por que o saldo está sendo ajustado"></textarea>
+        </label>
+      </div>
+      <p class="form-hint">O ajuste será somado ao cálculo e ficará registrado na auditoria. As batidas originais não serão alteradas.</p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="hourBalanceAdjustmentDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Salvar ajuste</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="approvalDialog">
   <form id="approvalForm">
     <div class="dialog-head">

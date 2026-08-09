@@ -8006,6 +8006,47 @@
   }
 
   /* Controle de ponto no celular: fluxo compacto e leitura rápida */
+  .hour-balance-month-label,
+  .admin-hour-balance-search {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .hour-balance-month-label input {
+    min-width: 170px;
+  }
+  .admin-hour-balance-search {
+    width: min(320px, 100%);
+  }
+  .admin-hour-balance-panel .status {
+    white-space: nowrap;
+  }
+  .admin-hour-balance-panel tbody strong {
+    color: var(--text);
+  }
+  @media (max-width: 760px) {
+    .admin-hour-balance-metrics {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .admin-hour-balance-metrics .metric-card {
+      min-height: 120px;
+      padding: 18px 14px;
+    }
+    .admin-hour-balance-metrics .metric-card strong {
+      font-size: clamp(20px, 5vw, 28px);
+    }
+    .admin-hour-balance-panel .panel-head {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    .admin-hour-balance-search {
+      width: 100%;
+    }
+  }
+
+  /* Controle de ponto no celular: fluxo compacto e leitura rápida */
   @media (max-width: 700px) {
     #view-timeclock .section-toolbar {
       gap: 10px;
