@@ -605,12 +605,14 @@ const reconcileTimeOffBalance = async (
 
 const reconcilePendingTimeOffBalances = async (profile, records) => {
   if (!isManager(profile)) return 0;
-  // Repassar todas as aprovações também corrige retroativamente movimentos
-  // gravados com regras antigas. A operação é idempotente: apenas a diferença
-  // entre o débito anterior e o débito atual altera o saldo do funcionário.
-  const pending = records.filter(
-    (record) => record.Status === APP.status.approved && record.FolgaID,
-  );
+  const pending = records
+    .filter(
+      (record) =>
+        record.Status === APP.status.approved &&
+        record.SaldoFolgasStatus === "Pendente" &&
+        record.FolgaID,
+    )
+    .slice(0, 25);
   let recovered = 0;
   for (const record of pending) {
     try {
@@ -740,13 +742,12 @@ async function bootstrap() {
   const employees = monthlyCreditReport.applied
     ? await runtime.list("Funcionarios", { profile })
     : initialEmployees;
-  const recoveredBalances = await reconcilePendingTimeOffBalances(
-    profile,
-    timeOff,
+  // Pendências antigas são reconciliadas sem bloquear a abertura do portal.
+  // Novas aprovações continuam sendo debitadas antes de a decisão concluir.
+  reconcilePendingTimeOffBalances(profile, timeOff).catch((error) =>
+    console.warn("Reconciliação de saldos de folgas:", error.message),
   );
-  const visibleTimeOff = recoveredBalances
-    ? await runtime.list("Folgas", { profile })
-    : timeOff;
+  const visibleTimeOff = timeOff;
   const ownEmployee = currentEmployeeFrom(employees, profile);
   const currentEmployee = ownEmployee || employees[0] || {};
   const currentMonth = todayIso().slice(0, 7);
