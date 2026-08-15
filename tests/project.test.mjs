@@ -1288,6 +1288,74 @@ test("trabalho fora da escala conta integralmente como hora extra", () => {
   assert.equal(result.employees[0].saldoMinutos, 480);
 });
 
+test("folga fixa substitui a exclusão antiga do domingo na jornada", () => {
+  const employee = {
+    FuncionarioID: "func-1",
+    Nome: "Funcionário",
+    Ativo: true,
+    DiaFolgaPreferencial: "Terça-feira",
+  };
+  const schedule = {
+    FuncionarioID: "func-1",
+    Ativa: true,
+    VigenteDe: "2026-08-01",
+    CargaDiariaMinutos: 480,
+    DiasTrabalho: "1,2,3,4,5,6",
+  };
+  const records = ["2026-08-02", "2026-08-04"].flatMap((date) => [
+    {
+      FuncionarioID: "func-1",
+      Data: date,
+      TipoMarcacao: "ENTRADA",
+      DataHora: `${date}T08:00:00-03:00`,
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "func-1",
+      Data: date,
+      TipoMarcacao: "SAIDA_FINAL",
+      DataHora: `${date}T16:00:00-03:00`,
+      Status: "Válido",
+    },
+  ]);
+  const result = accumulatedHourBalance({
+    employees: [employee],
+    records,
+    schedules: [schedule],
+    throughMonth: "2026-08",
+    currentDate: "2026-08-05",
+  });
+
+  assert.equal(result.employees[0].trabalhadoMinutos, 960);
+  assert.equal(result.employees[0].previstoMinutos, 480);
+  assert.equal(result.employees[0].saldoMinutos, 480);
+});
+
+test("tolerância da jornada zera somente pequenas diferenças", () => {
+  const schedule = {
+    CargaDiariaMinutos: 420,
+    ToleranciaMinutos: 5,
+  };
+  const withinTolerance = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T16:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T23:04:00-03:00" },
+    ],
+    schedule,
+  );
+  const outsideTolerance = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T16:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T23:06:00-03:00" },
+    ],
+    schedule,
+  );
+
+  assert.equal(withinTolerance.rawBalance, 4);
+  assert.equal(withinTolerance.balance, 0);
+  assert.equal(outsideTolerance.balance, 6);
+});
+
 test("troca de folga fixa vale somente na semana e é aplicada atomicamente", async () => {
   const [api, client, dialogs, runtime, constants, rules] = await Promise.all([
     readFile(new URL("../src/core/api-advanced.js", import.meta.url), "utf8"),

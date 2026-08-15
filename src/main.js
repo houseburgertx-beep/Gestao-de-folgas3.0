@@ -40,7 +40,7 @@ const arenaBundle = () => {
         houseLinkClient,
         arenaMobileRuntime,
       ]) => ({
-        version: "6.3.10-firebase-github",
+        version: "6.3.11-firebase-github",
         css: [
           unwrap(arenaStyles, "style"),
           unwrap(arenaMobileStyles, "style"),

@@ -222,6 +222,17 @@ const workdayIndexes = (schedule) =>
     .map(Number)
     .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
 
+const hasRecurringFixedOff = (employee) =>
+  Boolean(
+    String(employee?.DiaFolgaPreferencial || "").trim() ||
+      String(employee?.SegundoDiaFolgaPreferencial || "").trim(),
+  );
+
+const isScheduledWorkday = (schedule, employee, weekday) =>
+  Boolean(schedule) &&
+  (hasRecurringFixedOff(employee) ||
+    workdayIndexes(schedule).includes(weekday));
+
 const scheduleFor = (schedules, employeeId, dateKey = todayIso()) => {
   const candidates = schedules
     .filter(
@@ -412,6 +423,9 @@ const dayMetrics = (records, schedule, options = {}) => {
     options.expectedMinutes === undefined
       ? scheduleExpectedMinutes(schedule)
       : Math.max(0, Number(options.expectedMinutes || 0));
+  const rawBalance = worked - expected;
+  const tolerance = Math.max(0, Number(schedule?.ToleranciaMinutos || 0));
+  const balance = Math.abs(rawBalance) <= tolerance ? 0 : rawBalance;
   return {
     entrada: entry ? timeValue(entry.DataHora) : "",
     saidaIntervalo: breakOut ? timeValue(breakOut.DataHora) : noBreak ? "Sem descanso" : "",
@@ -420,7 +434,9 @@ const dayMetrics = (records, schedule, options = {}) => {
     worked,
     rawWorked,
     expected,
-    balance: worked - expected,
+    rawBalance,
+    tolerance,
+    balance,
     complete: shifts.length > 0 && !openShift && !unmatchedEntry,
     reviewRequired,
   };
@@ -571,8 +587,11 @@ const accumulatedHourBalance = ({
       const fixed =
         !approvedOff && isFixedOffForDate(employee, date, employeeTimeOff);
       const weekday = new Date(`${date}T12:00:00`).getDay();
-      const scheduledDay =
-        !!schedule && workdayIndexes(schedule).includes(weekday);
+      const scheduledDay = isScheduledWorkday(
+        schedule,
+        employee,
+        weekday,
+      );
       if (
         !rows.length &&
         !approvedOff &&
@@ -747,8 +766,11 @@ async function clockContext(filters = {}) {
       const weekday = new Date(`${dateKey}T12:00:00`).getDay();
       const fixed =
         !approvedOff && isFixedOffForDate(employee, dateKey, timeOff);
-      const scheduledDay =
-        !!schedule && workdayIndexes(schedule).includes(weekday);
+      const scheduledDay = isScheduledWorkday(
+        schedule,
+        employee,
+        weekday,
+      );
       if (
         !rows.length &&
         !approvedOff &&
@@ -906,8 +928,11 @@ async function quickClockContext() {
     !approvedOff &&
     isFixedOffForDate(employee, operationalDay, timeOff);
   const operationalWeekday = new Date(`${operationalDay}T12:00:00`).getDay();
-  const scheduledDay =
-    !!schedule && workdayIndexes(schedule).includes(operationalWeekday);
+  const scheduledDay = isScheduledWorkday(
+    schedule,
+    employee,
+    operationalWeekday,
+  );
   const metrics = dayMetrics(todayRecords, schedule, {
     expectedMinutes:
       scheduledDay && !approvedOff && !fixedOff
