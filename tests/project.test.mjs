@@ -455,7 +455,7 @@ test("notificações exibem o texto completo com campos compatíveis", async () 
   );
 });
 
-test("saldo de folgas conta somente folgas e respeita períodos parciais", () => {
+test("saldo de folgas debita todos os tipos definidos e respeita períodos parciais", () => {
   assert.equal(
     timeOffBalanceUnits({
       TipoFolga: "Folga",
@@ -483,15 +483,28 @@ test("saldo de folgas conta somente folgas e respeita períodos parciais", () =>
     }),
     0.5,
   );
-  assert.equal(
-    timeOffBalanceUnits({
-      TipoFolga: "Férias",
-      Periodo: "Dia inteiro",
-      DataInicio: "2026-08-10",
-      DataFim: "2026-08-20",
-    }),
-    0,
-  );
+  for (const TipoFolga of [
+    "Folga semanal",
+    "Folga manual",
+    "Folga automática",
+    "Folga compensatória",
+    "Folga de feriado",
+    "Férias",
+    "Licença",
+    "Banco de horas",
+    "Outro",
+  ]) {
+    assert.equal(
+      timeOffBalanceUnits({
+        TipoFolga,
+        Periodo: "Dia inteiro",
+        DataInicio: "2026-08-10",
+        DataFim: "2026-08-12",
+      }),
+      3,
+      TipoFolga,
+    );
+  }
 });
 
 test("crédito mensal e débito de aprovação são idempotentes", async () => {
@@ -504,7 +517,7 @@ test("crédito mensal e débito de aprovação são idempotentes", async () => {
   assert.match(api, /desiredDelta: approved \? -units : 0/);
   assert.match(
     api,
-    /if \(approved && employeeEntry\) \{[\s\S]*?await reconcileTimeOffBalance\(updated, profile, employeeEntry\)/,
+    /if \(approved\) \{[\s\S]*?await reconcileTimeOffBalance\(updated, profile, employeeEntry\)/,
   );
   assert.doesNotMatch(
     api,
@@ -524,7 +537,10 @@ test("crédito mensal e débito de aprovação são idempotentes", async () => {
     /recordKeys\.delete\(this\.recordCacheKey\("Funcionarios", id\)\)/,
   );
   assert.match(runtime, /storageKey: preferredStorageKey/);
-  assert.match(api, /SaldoFolgasStatus: "Pendente"/);
+  assert.match(
+    api,
+    /Não foi possível aprovar: cadastro atual do funcionário não localizado/,
+  );
   assert.match(api, /reconcilePendingTimeOffBalances/);
   const decision =
     api.match(
@@ -665,7 +681,7 @@ test("aprovação bloqueia envios duplicados enquanto a decisão está pendente"
   );
 });
 
-test("decisão de folga aceita cadastros e perfis antigos sem afetar rejeições", async () => {
+test("decisão de folga localiza cadastros antigos e bloqueia aprovação sem vínculo", async () => {
   const [api, constants, rules] = await Promise.all([
     readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
     readFile(new URL("../src/core/constants.js", import.meta.url), "utf8"),
@@ -678,10 +694,9 @@ test("decisão de folga aceita cadastros e perfis antigos sem afetar rejeições
     api.match(
       /const timeOffDecision = async[\s\S]*?\n};\n\nconst preferredWeekdayIndex/,
     )?.[0] || "";
-  assert.match(decision, /const policyEmployee = employee \|\|/);
-  assert.doesNotMatch(
+  assert.match(
     decision,
-    /assert\(employee, "Funcionário não encontrado\."\)/,
+    /assert\([\s\S]*?employee,[\s\S]*?Não foi possível aprovar: cadastro atual do funcionário não localizado/,
   );
   assert.match(constants, /Gerente: MANAGER_PERMISSIONS/);
   assert.match(rules, /val\(\) === 'Gerente'/);
@@ -1014,6 +1029,80 @@ test("jornada sem descanso contabiliza todo o período entre entrada e saída", 
   assert.equal(metrics.complete, true);
 });
 
+test("intervalo real é descontado mesmo quando existe marcação sem descanso", () => {
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T15:28:00-03:00" },
+      { TipoMarcacao: "SEM_DESCANSO", DataHora: "2026-08-08T16:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_INTERVALO", DataHora: "2026-08-08T17:36:00-03:00" },
+      { TipoMarcacao: "RETORNO_INTERVALO", DataHora: "2026-08-08T18:11:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-09T00:09:00-03:00" },
+    ],
+    {
+      HoraEntrada: "15:00",
+      HoraSaida: "23:00",
+      DuracaoIntervaloMinutos: 60,
+    },
+  );
+
+  assert.equal(metrics.worked, 486);
+  assert.equal(metrics.balance, 66);
+});
+
+test("retorno de intervalo ausente desconta o intervalo previsto", () => {
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T15:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_INTERVALO", DataHora: "2026-08-08T17:30:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T23:00:00-03:00" },
+    ],
+    {
+      HoraEntrada: "15:00",
+      HoraSaida: "23:00",
+      DuracaoIntervaloMinutos: 60,
+    },
+  );
+
+  assert.equal(metrics.worked, 420);
+  assert.equal(metrics.balance, 0);
+  assert.equal(metrics.complete, true);
+});
+
+test("dois turnos somam apenas os períodos trabalhados", () => {
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T08:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T12:00:00-03:00" },
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T18:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T22:00:00-03:00" },
+    ],
+    { CargaDiariaMinutos: 480 },
+  );
+
+  assert.equal(metrics.worked, 480);
+  assert.equal(metrics.balance, 0);
+  assert.equal(metrics.complete, true);
+});
+
+test("jornada acima de 12 horas é limitada e fica pendente de revisão", () => {
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T08:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-09T07:30:00-03:00" },
+    ],
+    { CargaDiariaMinutos: 480 },
+  );
+
+  assert.equal(metrics.rawWorked, 1410);
+  assert.equal(metrics.worked, 720);
+  assert.equal(metrics.reviewRequired, true);
+  assert.deepEqual(dayBalanceState("2026-08-08", metrics, "2026-08-09"), {
+    pending: true,
+    minutes: 0,
+    text: "—",
+  });
+});
+
 test("saldo de horas acumula entre meses e considera compensações", () => {
   const employee = {
     FuncionarioID: "func-1",
@@ -1148,7 +1237,7 @@ test("administrador possui aba para consultar e ajustar saldos de horas", async 
   assert.match(clockApi, /"Ajustar saldo de horas"/);
 });
 
-test("ponto duplicado usa a última saída final válida", () => {
+test("saída duplicada não estende artificialmente o turno", () => {
   const metrics = dayMetrics(
     [
       { TipoMarcacao: "ENTRADA", DataHora: "2026-07-20T08:00:00-03:00" },
@@ -1157,8 +1246,46 @@ test("ponto duplicado usa a última saída final válida", () => {
     ],
     { CargaDiariaMinutos: 480 },
   );
-  assert.equal(metrics.worked, 600);
-  assert.equal(metrics.balance, 120);
+  assert.equal(metrics.worked, 540);
+  assert.equal(metrics.balance, 60);
+});
+
+test("trabalho fora da escala conta integralmente como hora extra", () => {
+  const employee = { FuncionarioID: "func-1", Nome: "Funcionário", Ativo: true };
+  const schedule = {
+    FuncionarioID: "func-1",
+    Ativa: true,
+    VigenteDe: "2026-08-01",
+    CargaDiariaMinutos: 480,
+    DiasTrabalho: "1,2,3,4,5",
+  };
+  const records = [
+    {
+      FuncionarioID: "func-1",
+      Data: "2026-08-08",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-08-08T08:00:00-03:00",
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "func-1",
+      Data: "2026-08-08",
+      TipoMarcacao: "SAIDA_FINAL",
+      DataHora: "2026-08-08T16:00:00-03:00",
+      Status: "Válido",
+    },
+  ];
+  const result = accumulatedHourBalance({
+    employees: [employee],
+    records,
+    schedules: [schedule],
+    throughMonth: "2026-08",
+    currentDate: "2026-08-09",
+  });
+
+  assert.equal(result.employees[0].trabalhadoMinutos, 480);
+  assert.equal(result.employees[0].previstoMinutos, 0);
+  assert.equal(result.employees[0].saldoMinutos, 480);
 });
 
 test("troca de folga fixa vale somente na semana e é aplicada atomicamente", async () => {

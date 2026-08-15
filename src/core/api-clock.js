@@ -332,55 +332,97 @@ const scheduleExpectedMinutes = (schedule) => {
 const balanceDays = (days) =>
   days.filter(
     (item) =>
-      !item.folga &&
-      !item.folgaFixa &&
+      (!item.folga || item.trabalhou) &&
+      (!item.folgaFixa || item.trabalhou) &&
       !item.justificado &&
       !item.saldoPendente,
   );
 
-const dayMetrics = (records, schedule) => {
+const MAX_DAILY_WORK_MINUTES = 12 * 60;
+
+const dayMetrics = (records, schedule, options = {}) => {
   const ordered = records
     .filter((item) => item.Status !== "Substituído")
     .sort(compareRecordsByDateTime);
-  const firstOf = (type, after = "") =>
-    ordered.find(
-      (item) =>
-        item.TipoMarcacao === type &&
-        (!after || dateTimeNumber(item.DataHora) >= dateTimeNumber(after)),
-    );
-  const entry = firstOf("ENTRADA");
-  const breakOut = firstOf("SAIDA_INTERVALO", entry?.DataHora);
-  const breakIn = firstOf("RETORNO_INTERVALO", breakOut?.DataHora);
-  const noBreak = firstOf("SEM_DESCANSO", entry?.DataHora);
-  const exits = ordered.filter(
-    (item) =>
-      item.TipoMarcacao === "SAIDA_FINAL" &&
-      (!entry || dateTimeNumber(item.DataHora) >= dateTimeNumber(entry.DataHora)),
+  const scheduledBreak = Math.max(
+    0,
+    Number(schedule?.DuracaoIntervaloMinutos || 0),
   );
-  const exit = exits[exits.length - 1];
-  let worked = 0;
-  if (entry && exit) {
-    worked = exactMinutesBetween(entry.DataHora, exit.DataHora);
-    if (breakOut && breakIn && !noBreak) {
-      worked -= exactMinutesBetween(breakOut.DataHora, breakIn.DataHora);
+  const shifts = [];
+  let openShift = null;
+  let unmatchedEntry = false;
+
+  ordered.forEach((record) => {
+    if (record.TipoMarcacao === "ENTRADA") {
+      if (openShift) unmatchedEntry = true;
+      openShift = { entry: record, records: [] };
+      return;
     }
-  } else if (entry) {
-    const last = ordered[ordered.length - 1];
-    worked = Math.min(
-      24 * 60,
-      exactMinutesBetween(entry.DataHora, last?.DataHora || entry.DataHora),
+    if (!openShift) return;
+    if (record.TipoMarcacao === "SAIDA_FINAL") {
+      shifts.push({ ...openShift, exit: record });
+      openShift = null;
+      return;
+    }
+    openShift.records.push(record);
+  });
+
+  const rawWorked = shifts.reduce((total, shift) => {
+    const breakOut = shift.records.find(
+      (item) => item.TipoMarcacao === "SAIDA_INTERVALO",
     );
-  }
-  const expected = scheduleExpectedMinutes(schedule);
+    const breakIn = breakOut
+      ? shift.records.find(
+          (item) =>
+            item.TipoMarcacao === "RETORNO_INTERVALO" &&
+            dateTimeNumber(item.DataHora) >= dateTimeNumber(breakOut.DataHora),
+        )
+      : null;
+    const breakMinutes = breakOut
+      ? breakIn
+        ? exactMinutesBetween(breakOut.DataHora, breakIn.DataHora)
+        : scheduledBreak
+      : 0;
+    return (
+      total +
+      Math.max(
+        0,
+        exactMinutesBetween(shift.entry.DataHora, shift.exit.DataHora) -
+          breakMinutes,
+      )
+    );
+  }, 0);
+
+  const entry = shifts[0]?.entry || openShift?.entry || null;
+  const exit = shifts[shifts.length - 1]?.exit || null;
+  const displayRecords = shifts.flatMap((shift) => shift.records);
+  if (openShift) displayRecords.push(...openShift.records);
+  const breakOut = displayRecords.find(
+    (item) => item.TipoMarcacao === "SAIDA_INTERVALO",
+  );
+  const breakIn = displayRecords.find(
+    (item) => item.TipoMarcacao === "RETORNO_INTERVALO",
+  );
+  const noBreak = displayRecords.find(
+    (item) => item.TipoMarcacao === "SEM_DESCANSO",
+  );
+  const reviewRequired = rawWorked > MAX_DAILY_WORK_MINUTES;
+  const worked = Math.min(rawWorked, MAX_DAILY_WORK_MINUTES);
+  const expected =
+    options.expectedMinutes === undefined
+      ? scheduleExpectedMinutes(schedule)
+      : Math.max(0, Number(options.expectedMinutes || 0));
   return {
     entrada: entry ? timeValue(entry.DataHora) : "",
     saidaIntervalo: breakOut ? timeValue(breakOut.DataHora) : noBreak ? "Sem descanso" : "",
     retornoIntervalo: breakIn ? timeValue(breakIn.DataHora) : "",
     saida: exit ? timeValue(exit.DataHora) : "",
     worked,
+    rawWorked,
     expected,
     balance: worked - expected,
-    complete: !!entry && !!exit,
+    complete: shifts.length > 0 && !openShift && !unmatchedEntry,
+    reviewRequired,
   };
 };
 
@@ -388,7 +430,7 @@ const dayBalanceState = (dateKey, metrics, currentDate = todayIso()) => {
   // Sem ENTRADA e SAIDA_FINAL, a duração da jornada não é confiável.
   // Ela deve continuar pendente após a virada do dia, em vez de virar
   // automaticamente um débito equivalente à jornada inteira.
-  const pending = !metrics.complete;
+  const pending = !metrics.complete || metrics.reviewRequired;
   return {
     pending,
     minutes: pending ? 0 : metrics.balance,
@@ -529,22 +571,28 @@ const accumulatedHourBalance = ({
       const fixed =
         !approvedOff && isFixedOffForDate(employee, date, employeeTimeOff);
       const weekday = new Date(`${date}T12:00:00`).getDay();
+      const scheduledDay =
+        !!schedule && workdayIndexes(schedule).includes(weekday);
       if (
         !rows.length &&
         !approvedOff &&
         !fixed &&
-        (!schedule || !workdayIndexes(schedule).includes(weekday))
+        !scheduledDay
       ) {
         continue;
       }
       if (
-        approvedOff ||
-        fixed ||
-        justifiedDates.has(`${id}|${date}`)
+        justifiedDates.has(`${id}|${date}`) ||
+        ((approvedOff || fixed) && !rows.length)
       ) {
         continue;
       }
-      const metrics = dayMetrics(rows, schedule);
+      const metrics = dayMetrics(rows, schedule, {
+        expectedMinutes:
+          scheduledDay && !approvedOff && !fixed
+            ? scheduleExpectedMinutes(schedule)
+            : 0,
+      });
       const state = dayBalanceState(date, metrics, currentDate);
       if (state.pending) {
         pending += 1;
@@ -699,15 +747,22 @@ async function clockContext(filters = {}) {
       const weekday = new Date(`${dateKey}T12:00:00`).getDay();
       const fixed =
         !approvedOff && isFixedOffForDate(employee, dateKey, timeOff);
+      const scheduledDay =
+        !!schedule && workdayIndexes(schedule).includes(weekday);
       if (
         !rows.length &&
         !approvedOff &&
         !fixed &&
-        (!schedule || !workdayIndexes(schedule).includes(weekday))
+        !scheduledDay
       ) {
         continue;
       }
-      const metrics = dayMetrics(rows, schedule);
+      const metrics = dayMetrics(rows, schedule, {
+        expectedMinutes:
+          scheduledDay && !approvedOff && !fixed
+            ? scheduleExpectedMinutes(schedule)
+            : 0,
+      });
       const justification = justifications.find(
         (item) =>
           item.FuncionarioID === employee.FuncionarioID &&
@@ -732,8 +787,10 @@ async function clockContext(filters = {}) {
         saldoMinutos: balanceState.minutes,
         saldoTexto: balanceState.text,
         saldoPendente: balanceState.pending,
+        revisaoObrigatoria: metrics.reviewRequired,
         folga: !!approvedOff,
         folgaFixa: fixed,
+        trabalhou: rows.length > 0,
         justificado: !!justification,
         justificativaId: justification?.JustificativaPontoID || "",
         justificativaTipo: justification?.Tipo || "",
@@ -848,7 +905,15 @@ async function quickClockContext() {
   const fixedOff =
     !approvedOff &&
     isFixedOffForDate(employee, operationalDay, timeOff);
-  const metrics = dayMetrics(todayRecords, schedule);
+  const operationalWeekday = new Date(`${operationalDay}T12:00:00`).getDay();
+  const scheduledDay =
+    !!schedule && workdayIndexes(schedule).includes(operationalWeekday);
+  const metrics = dayMetrics(todayRecords, schedule, {
+    expectedMinutes:
+      scheduledDay && !approvedOff && !fixedOff
+        ? scheduleExpectedMinutes(schedule)
+        : 0,
+  });
   return {
     month: operationalDay.slice(0, 7),
     date: operationalDay,

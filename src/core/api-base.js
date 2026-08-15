@@ -100,7 +100,15 @@ const scopeRecord = (profile, record) => {
 
 export const timeOffBalanceUnits = (record = {}) => {
   const type = String(record.TipoFolga || "Folga").toLowerCase();
-  if (!type.includes("folga")) return 0;
+  const debitTypes = [
+    "férias",
+    "ferias",
+    "licença",
+    "licenca",
+    "banco de horas",
+    "outro",
+  ];
+  if (!type.includes("folga") && !debitTypes.includes(type.trim())) return 0;
   const start = String(record.DataInicio || "");
   const end = String(record.DataFim || start);
   if (
@@ -597,13 +605,12 @@ const reconcileTimeOffBalance = async (
 
 const reconcilePendingTimeOffBalances = async (profile, records) => {
   if (!isManager(profile)) return 0;
-  const pending = records
-    .filter(
-      (record) =>
-        record.Status === APP.status.approved &&
-        record.SaldoFolgasStatus === "Pendente",
-    )
-    .slice(0, 25);
+  // Repassar todas as aprovações também corrige retroativamente movimentos
+  // gravados com regras antigas. A operação é idempotente: apenas a diferença
+  // entre o débito anterior e o débito atual altera o saldo do funcionário.
+  const pending = records.filter(
+    (record) => record.Status === APP.status.approved && record.FolgaID,
+  );
   let recovered = 0;
   for (const record of pending) {
     try {
@@ -1128,18 +1135,13 @@ const timeOffDecision = async (id, approved, observation = "") => {
     if (employeeEntry && employee) {
       employeeEntry = { ...employeeEntry, record: employee };
     }
-    const policyEmployee = employee || {
-      FuncionarioID: current.FuncionarioID || `pedido-${current.FolgaID}`,
-      Nome: current.NomeFuncionario || "Funcionário não vinculado",
-      Email: current.EmailFuncionario || "",
-      LojaID: current.LojaID || profile.LojaID || "",
-      NomeLoja: current.NomeLoja || profile.NomeLoja || "",
-      Cargo: "",
-      Ativo: false,
-    };
+    assert(
+      employee,
+      "Não foi possível aprovar: cadastro atual do funcionário não localizado. Corrija o vínculo e tente novamente.",
+    );
     await validateTimeOffPolicies({
       profile,
-      employee: policyEmployee,
+      employee,
       start: current.DataInicio,
       end: current.DataFim || current.DataInicio,
       current,
@@ -1163,7 +1165,7 @@ const timeOffDecision = async (id, approved, observation = "") => {
     ObservacaoAprovacao: String(observation || ""),
     DataAtualizacao: nowIso(),
   });
-  if (approved && employeeEntry) {
+  if (approved) {
     try {
       await reconcileTimeOffBalance(updated, profile, employeeEntry);
       updated = await runtime.patch("Folgas", id, {
@@ -1184,17 +1186,6 @@ const timeOffDecision = async (id, approved, observation = "") => {
         error.message,
       );
     }
-  } else if (approved) {
-    updated = await runtime
-      .patch("Folgas", id, {
-        SaldoFolgasStatus: "Pendente",
-        SaldoFolgasErro: "Cadastro atual do funcionário não localizado.",
-        SaldoFolgasUltimaTentativa: nowIso(),
-      })
-      .catch(() => updated);
-    console.warn(
-      `Folga ${updated.FolgaID} aprovada sem ajuste de saldo: cadastro atual do funcionário não localizado.`,
-    );
   }
   await createNotification({
     employeeId: updated.FuncionarioID,

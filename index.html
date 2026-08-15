@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.3.9" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.3.10" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,7 +25,7 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
-    <meta name="app-version" content="6.3.9-firebase-github" />
+    <meta name="app-version" content="6.3.10-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -11902,7 +11902,7 @@
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.3.9"></script>
+<script type="module" src="./src/main.js?v=6.3.10"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -16581,7 +16581,7 @@
           const adjustment = record && !isKitchenChief()
             ? `<button class="btn btn-ghost" data-action="clock-adjust" data-id="${esc(record.RegistroPontoID || "")}">Selecionar marcação</button>`
             : "—";
-          if (x.folga || x.folgaFixa) {
+          if ((x.folga || x.folgaFixa) && !x.trabalhou) {
             const label = x.folga ? "De folga" : "Folga fixa";
             return `<tr class="clock-off-row"><td>${esc(x.nome)}</td><td>${esc(formatDateUI(x.data))}</td><td colspan="4"><span class="status folga">${esc(label)}</span></td><td>—</td><td><span class="status folga">${esc(label)}</span></td><td>—</td></tr>`;
           }
@@ -16591,8 +16591,10 @@
               : x.justificativaTipo;
             return `<tr class="clock-off-row"><td>${esc(x.nome)}</td><td>${esc(formatDateUI(x.data))}</td><td colspan="4"><span class="status approved">Justificado</span><small class="clock-justification-note">${esc(details)}</small></td><td>0h 00min</td><td><span class="status approved">0h 00min</span></td><td>${isManager() ? `<button class="btn btn-ghost" data-action="clock-justify-day" data-employee="${esc(x.funcionarioId)}" data-date="${esc(x.data)}">Editar justificativa</button>` : "—"}</td></tr>`;
           }
-          const balance = x.saldoPendente
-            ? "—"
+          const balance = x.revisaoObrigatoria
+            ? '<span class="status pending">Revisão necessária</span>'
+            : x.saldoPendente
+              ? "—"
             : `<span class="status ${Number(x.saldoMinutos) >= 0 ? "approved" : "rejected"}">${esc(x.saldoTexto)}</span>`;
           const justify =
             isManager() && !record && Number(x.saldoMinutos) < 0
