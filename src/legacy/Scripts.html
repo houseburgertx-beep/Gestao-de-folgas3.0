@@ -2324,9 +2324,7 @@
     if (badgeEl) {
       if (!list.length) {
         badgeEl.textContent = "Sem dados";
-        badgeEl.style.background = "rgba(113,113,122,0.12)";
-        badgeEl.style.color = "var(--muted)";
-        badgeEl.style.borderColor = "transparent";
+        badgeEl.style.cssText = "background:rgba(113,113,122,0.12);color:var(--muted);border-color:transparent";
       } else {
         const parts = [];
         if (totals.trabalhando) parts.push(`${totals.trabalhando} trabalhando`);
@@ -2334,15 +2332,9 @@
         if (totals.ausente) parts.push(`${totals.ausente} ausente${totals.ausente > 1 ? "s" : ""}`);
         if (totals.folga) parts.push(`${totals.folga} folga`);
         badgeEl.textContent = parts.join(" · ") || `${totals.total} na equipe`;
-        if (totals.alertas > 0) {
-          badgeEl.style.background = "rgba(229,72,77,0.12)";
-          badgeEl.style.color = "#e5484d";
-          badgeEl.style.borderColor = "rgba(229,72,77,0.25)";
-        } else {
-          badgeEl.style.background = "rgba(32,160,107,0.12)";
-          badgeEl.style.color = "#20a06b";
-          badgeEl.style.borderColor = "rgba(32,160,107,0.25)";
-        }
+        badgeEl.style.cssText = totals.alertas > 0
+          ? "background:rgba(229,72,77,0.12);color:#e5484d;border-color:rgba(229,72,77,0.25)"
+          : "background:rgba(32,160,107,0.12);color:#20a06b;border-color:rgba(32,160,107,0.25)";
       }
     }
 
@@ -2350,57 +2342,94 @@
     if (!grid) return;
 
     if (!list.length) {
-      grid.innerHTML = '<div class="empty-state" style="padding:12px;text-align:center;font-size:13px;color:var(--muted)">Nenhum funcionário ativo na loja hoje.</div>';
+      grid.innerHTML = '<div style="padding:12px;text-align:center;font-size:13px;color:var(--muted)">Nenhum funcionário ativo na loja.</div>';
       return;
     }
 
-    grid.innerHTML = list
-      .map((item) => {
-        const dotClass =
-          item.status === "trabalhando" ? "dot-working"
-          : item.status === "intervalo" ? "dot-break"
-          : item.status === "concluido" ? "dot-completed"
-          : item.status === "folga" ? "dot-off"
-          : "dot-absent";
+    const active = list.filter((p) => p.status === "trabalhando" || p.status === "intervalo");
+    const done = list.filter((p) => p.status === "concluido");
+    const inactive = list.filter((p) => p.status === "ausente" || p.status === "folga");
 
-        const statusColorClass =
-          item.status === "trabalhando" ? "s-working"
-          : item.status === "intervalo" ? "s-break"
-          : item.status === "concluido" ? "s-completed"
-          : item.status === "folga" ? "s-off"
-          : "s-absent";
+    const empName = (item) => {
+      const n = item.Nome || item.nome || "";
+      return n || item.Cargo || "—";
+    };
 
-        const rowExtraClass =
-          item.alertLevel === "danger" ? "is-danger"
-          : item.alertLevel === "warning" ? "is-warning"
-          : "";
+    const renderRow = (item) => {
+      const dotClass =
+        item.status === "trabalhando" ? "dot-working"
+        : item.status === "intervalo" ? "dot-break"
+        : item.status === "concluido" ? "dot-completed"
+        : item.status === "folga" ? "dot-off"
+        : "dot-absent";
 
-        const alertBadge = item.alertMessage
-          ? ` <span class="live-alert-badge ${item.alertLevel}">${esc(item.alertMessage)}</span>`
-          : "";
+      const statusColorClass = "s-" + (
+        item.status === "trabalhando" ? "working"
+        : item.status === "intervalo" ? "break"
+        : item.status === "concluido" ? "completed"
+        : item.status === "folga" ? "off"
+        : "absent"
+      );
 
-        let detail = "";
-        if (item.status === "trabalhando") {
-          detail = item.elapsedTexto ? `${esc(item.entryTime || "")} · ${esc(item.elapsedTexto)} de turno` : esc(item.entryTime || "");
-        } else if (item.status === "intervalo") {
-          detail = `Pausa desde ${esc(item.lastPunchTime || "")}`;
-        } else if (item.status === "concluido") {
-          detail = `Saída ${esc(item.lastPunchTime || "")}`;
-        } else if (item.horarioEscala) {
-          detail = esc(item.horarioEscala);
-        }
+      const rowExtra = item.alertLevel === "danger" ? " is-danger" : item.alertLevel === "warning" ? " is-warning" : "";
 
-        return `<div class="live-presence-row ${rowExtraClass}">` +
-          `<i class="live-status-dot ${dotClass}"></i>` +
-          `<div class="live-row-info">` +
-            `<div class="live-row-main"><span class="live-row-name">${esc(item.Nome)}</span><span class="live-row-role">${esc(item.Cargo)}</span></div>` +
-            (detail ? `<span class="live-row-detail">${detail}</span>` : "") +
-            alertBadge +
-          `</div>` +
-          `<span class="live-row-status ${statusColorClass}">${esc(item.statusLabel)}</span>` +
-        `</div>`;
-      })
-      .join("");
+      let detail = "";
+      if (item.status === "trabalhando" && item.elapsedTexto) {
+        detail = `${esc(item.entryTime || "")} · ${esc(item.elapsedTexto)}`;
+      } else if (item.status === "intervalo") {
+        detail = `Pausa desde ${esc(item.lastPunchTime || "")}`;
+      } else if (item.status === "concluido") {
+        detail = `Saída ${esc(item.lastPunchTime || "")}`;
+      } else if (item.horarioEscala) {
+        detail = esc(item.horarioEscala);
+      }
+
+      const alert = item.alertMessage
+        ? ` <span class="live-alert-badge ${item.alertLevel}">${esc(item.alertMessage)}</span>`
+        : "";
+
+      const name = esc(empName(item));
+      const role = item.Nome ? esc(item.Cargo) : "";
+
+      return `<div class="live-presence-row${rowExtra}">` +
+        `<i class="live-status-dot ${dotClass}"></i>` +
+        `<div class="live-row-info">` +
+          `<div class="live-row-main"><span class="live-row-name">${name}</span>${role ? `<span class="live-row-role">${role}</span>` : ""}</div>` +
+          (detail ? `<span class="live-row-detail">${detail}</span>` : "") +
+          alert +
+        `</div>` +
+        `<span class="live-row-status ${statusColorClass}">${esc(item.statusLabel)}</span>` +
+      `</div>`;
+    };
+
+    let html = "";
+
+    if (active.length) {
+      html += active.map(renderRow).join("");
+    }
+
+    if (done.length) {
+      html += done.map(renderRow).join("");
+    }
+
+    if (inactive.length) {
+      const folgaCount = inactive.filter((p) => p.status === "folga").length;
+      const ausenteCount = inactive.filter((p) => p.status === "ausente").length;
+      const summaryParts = [];
+      if (ausenteCount) summaryParts.push(`${ausenteCount} ausente${ausenteCount > 1 ? "s" : ""}`);
+      if (folgaCount) summaryParts.push(`${folgaCount} de folga`);
+
+      html += `<div class="live-presence-row" style="cursor:pointer;user-select:none" onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.live-toggle-arrow').textContent=this.nextElementSibling.classList.contains('hidden')?'▸':'▾'">` +
+        `<i class="live-status-dot dot-absent" style="opacity:0.4"></i>` +
+        `<div class="live-row-info"><div class="live-row-main"><span class="live-row-name" style="color:var(--muted)">${summaryParts.join(" · ")}</span></div></div>` +
+        `<span class="live-toggle-arrow" style="font-size:12px;color:var(--muted)">▸</span>` +
+      `</div>`;
+      html += `<div class="hidden" style="border-left:2px solid var(--border,rgba(255,255,255,0.06));margin-left:12px">`;
+      html += inactive.map(renderRow).join("");
+      html += `</div>`;
+    }
+
+    grid.innerHTML = html;
   }
 
   async function openWhatsAppScheduleDialog_() {

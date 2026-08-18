@@ -1964,12 +1964,14 @@ export const calculateLivePresence = (
       }
     }
 
+    const empName = emp.Nome || emp.nome || emp.NomeFuncionario || emp.nomeFuncionario || "";
+
     presenceList.push({
       FuncionarioID: emp.FuncionarioID,
-      Nome: emp.Nome,
-      Cargo: emp.Cargo || "Equipe",
+      Nome: empName,
+      Cargo: emp.Cargo || emp.cargo || "Equipe",
       LojaID: emp.LojaID || "",
-      NomeLoja: emp.NomeLoja || "",
+      NomeLoja: emp.NomeLoja || emp.nomeLoja || "",
       status,
       statusLabel,
       entryTime,
