@@ -2324,10 +2324,25 @@
     if (badgeEl) {
       if (!list.length) {
         badgeEl.textContent = "Sem dados";
+        badgeEl.style.background = "rgba(113,113,122,0.12)";
         badgeEl.style.color = "var(--muted)";
+        badgeEl.style.borderColor = "transparent";
       } else {
-        badgeEl.textContent = `${totals.trabalhando || 0} presente${totals.trabalhando === 1 ? "" : "s"} · ${totals.intervalo || 0} intervalo · ${totals.folga || 0} folga`;
-        badgeEl.style.color = totals.alertas > 0 ? "#e5484d" : "#20a06b";
+        const parts = [];
+        if (totals.trabalhando) parts.push(`${totals.trabalhando} trabalhando`);
+        if (totals.intervalo) parts.push(`${totals.intervalo} intervalo`);
+        if (totals.ausente) parts.push(`${totals.ausente} ausente${totals.ausente > 1 ? "s" : ""}`);
+        if (totals.folga) parts.push(`${totals.folga} folga`);
+        badgeEl.textContent = parts.join(" · ") || `${totals.total} na equipe`;
+        if (totals.alertas > 0) {
+          badgeEl.style.background = "rgba(229,72,77,0.12)";
+          badgeEl.style.color = "#e5484d";
+          badgeEl.style.borderColor = "rgba(229,72,77,0.25)";
+        } else {
+          badgeEl.style.background = "rgba(32,160,107,0.12)";
+          badgeEl.style.color = "#20a06b";
+          badgeEl.style.borderColor = "rgba(32,160,107,0.25)";
+        }
       }
     }
 
@@ -2335,63 +2350,55 @@
     if (!grid) return;
 
     if (!list.length) {
-      grid.innerHTML = '<div class="empty-state">Nenhum funcionário ativo na loja hoje.</div>';
+      grid.innerHTML = '<div class="empty-state" style="padding:12px;text-align:center;font-size:13px;color:var(--muted)">Nenhum funcionário ativo na loja hoje.</div>';
       return;
     }
 
     grid.innerHTML = list
       .map((item) => {
         const dotClass =
-          item.status === "trabalhando"
-            ? "dot-working"
-            : item.status === "intervalo"
-              ? "dot-break"
-              : item.status === "concluido"
-                ? "dot-completed"
-                : item.status === "folga"
-                  ? "dot-off"
-                  : "dot-absent";
+          item.status === "trabalhando" ? "dot-working"
+          : item.status === "intervalo" ? "dot-break"
+          : item.status === "concluido" ? "dot-completed"
+          : item.status === "folga" ? "dot-off"
+          : "dot-absent";
 
-        const cardExtraClass =
-          item.alertLevel === "danger"
-            ? "is-danger"
-            : item.alertLevel === "warning"
-              ? "is-warning"
-              : item.status === "trabalhando"
-                ? "is-working"
-                : item.status === "intervalo"
-                  ? "is-break"
-                  : "";
+        const statusColorClass =
+          item.status === "trabalhando" ? "s-working"
+          : item.status === "intervalo" ? "s-break"
+          : item.status === "concluido" ? "s-completed"
+          : item.status === "folga" ? "s-off"
+          : "s-absent";
 
-        const alertBadge = item.alertMessage
-          ? `<span class="live-alert-badge ${item.alertLevel}">${esc(item.alertMessage)}</span>`
+        const rowExtraClass =
+          item.alertLevel === "danger" ? "is-danger"
+          : item.alertLevel === "warning" ? "is-warning"
           : "";
 
-        const timeInfo =
-          item.status === "trabalhando"
-            ? `Entrada: <strong>${esc(item.entryTime || "—")}</strong> (${esc(item.elapsedTexto)} de turno)`
-            : item.status === "intervalo"
-              ? `Em pausa desde <strong>${esc(item.lastPunchTime || "—")}</strong>`
-              : item.status === "concluido"
-                ? `Saída às <strong>${esc(item.lastPunchTime || "—")}</strong>`
-                : item.horarioEscala
-                  ? `Escala: ${esc(item.horarioEscala)}`
-                  : "";
+        const alertBadge = item.alertMessage
+          ? ` <span class="live-alert-badge ${item.alertLevel}">${esc(item.alertMessage)}</span>`
+          : "";
 
-        return `
-          <div class="live-presence-card ${cardExtraClass}">
-            <div class="live-card-header">
-              <span class="live-card-name">${esc(item.Nome)}</span>
-              <span class="live-card-role">${esc(item.Cargo)}</span>
-            </div>
-            <div class="live-card-status">
-              <i class="live-status-dot ${dotClass}"></i>
-              <span>${esc(item.statusLabel)}</span>
-            </div>
-            ${timeInfo ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${timeInfo}</div>` : ""}
-            ${alertBadge}
-          </div>
-        `;
+        let detail = "";
+        if (item.status === "trabalhando") {
+          detail = item.elapsedTexto ? `${esc(item.entryTime || "")} · ${esc(item.elapsedTexto)} de turno` : esc(item.entryTime || "");
+        } else if (item.status === "intervalo") {
+          detail = `Pausa desde ${esc(item.lastPunchTime || "")}`;
+        } else if (item.status === "concluido") {
+          detail = `Saída ${esc(item.lastPunchTime || "")}`;
+        } else if (item.horarioEscala) {
+          detail = esc(item.horarioEscala);
+        }
+
+        return `<div class="live-presence-row ${rowExtraClass}">` +
+          `<i class="live-status-dot ${dotClass}"></i>` +
+          `<div class="live-row-info">` +
+            `<div class="live-row-main"><span class="live-row-name">${esc(item.Nome)}</span><span class="live-row-role">${esc(item.Cargo)}</span></div>` +
+            (detail ? `<span class="live-row-detail">${detail}</span>` : "") +
+            alertBadge +
+          `</div>` +
+          `<span class="live-row-status ${statusColorClass}">${esc(item.statusLabel)}</span>` +
+        `</div>`;
       })
       .join("");
   }

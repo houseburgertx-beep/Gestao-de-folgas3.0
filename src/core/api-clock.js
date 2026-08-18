@@ -144,6 +144,23 @@ const timeValue = (dateTime) => {
     : "";
 };
 
+const formatScheduleTime = (schedule) => {
+  if (!schedule?.HoraEntrada || !schedule?.HoraSaida) return "";
+  const fmt = (val) => {
+    const s = String(val || "");
+    // Already "HH:MM" or "HH:MM:SS"
+    const hhmm = s.match(/^(\d{1,2}:\d{2})/);
+    if (hhmm) return hhmm[1];
+    // ISO timestamp like "1899-12-31T18:34:00"
+    const tv = timeValue(s);
+    if (tv) return tv;
+    return s.slice(0, 5);
+  };
+  const entry = fmt(schedule.HoraEntrada);
+  const exit = fmt(schedule.HoraSaida);
+  return entry && exit ? `${entry} às ${exit}` : "";
+};
+
 const normalizedDateKey = (value) => {
   const text = String(value || "");
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
@@ -1962,10 +1979,7 @@ export const calculateLivePresence = (
       elapsedTexto: elapsedMinutes > 0 ? minutesText(elapsedMinutes) : "",
       alertLevel,
       alertMessage,
-      horarioEscala:
-        sched?.HoraEntrada && sched?.HoraSaida
-          ? `${sched.HoraEntrada.slice(0, 5)} às ${sched.HoraSaida.slice(0, 5)}`
-          : "",
+      horarioEscala: formatScheduleTime(sched),
     });
   });
 
