@@ -2351,31 +2351,55 @@
     const inactive = list.filter((p) => p.status === "ausente" || p.status === "folga");
 
     const empName = (item) => {
-      const n = item.Nome || item.nome || "";
-      return n || item.Cargo || "—";
+      let n = item.Nome || item.nome || item.NomeFuncionario || item.nomeFuncionario || "";
+      if (n) return n;
+      const id = String(item.FuncionarioID || item.funcionarioId || "");
+      if (id && Array.isArray(state.employees)) {
+        const found = state.employees.find(
+          (e) =>
+            String(idOf(e, "Funcionario")) === id ||
+            String(e.FuncionarioID || e.funcionarioId || e.id) === id,
+        );
+        n = val(found, "Nome", "nome", "NomeFuncionario", "nomeFuncionario");
+        if (n) return n;
+      }
+      return "Colaborador";
     };
 
     const renderRow = (item) => {
       const dotClass =
-        item.status === "trabalhando" ? "dot-working"
-        : item.status === "intervalo" ? "dot-break"
-        : item.status === "concluido" ? "dot-completed"
-        : item.status === "folga" ? "dot-off"
-        : "dot-absent";
+        item.status === "trabalhando"
+          ? "dot-working"
+          : item.status === "intervalo"
+            ? "dot-break"
+            : item.status === "concluido"
+              ? "dot-completed"
+              : item.status === "folga"
+                ? "dot-off"
+                : "dot-absent";
 
-      const statusColorClass = "s-" + (
-        item.status === "trabalhando" ? "working"
-        : item.status === "intervalo" ? "break"
-        : item.status === "concluido" ? "completed"
-        : item.status === "folga" ? "off"
-        : "absent"
-      );
+      const statusColorClass =
+        "s-" +
+        (item.status === "trabalhando"
+          ? "working"
+          : item.status === "intervalo"
+            ? "break"
+            : item.status === "concluido"
+              ? "completed"
+              : item.status === "folga"
+                ? "off"
+                : "absent");
 
-      const rowExtra = item.alertLevel === "danger" ? " is-danger" : item.alertLevel === "warning" ? " is-warning" : "";
+      const rowExtra =
+        item.alertLevel === "danger"
+          ? " is-danger"
+          : item.alertLevel === "warning"
+            ? " is-warning"
+            : "";
 
       let detail = "";
       if (item.status === "trabalhando" && item.elapsedTexto) {
-        detail = `${esc(item.entryTime || "")} · ${esc(item.elapsedTexto)}`;
+        detail = `${esc(item.entryTime || "")} · ${esc(item.elapsedTexto)} de turno`;
       } else if (item.status === "intervalo") {
         detail = `Pausa desde ${esc(item.lastPunchTime || "")}`;
       } else if (item.status === "concluido") {
@@ -2389,17 +2413,19 @@
         : "";
 
       const name = esc(empName(item));
-      const role = item.Nome ? esc(item.Cargo) : "";
+      const role = item.Cargo ? esc(item.Cargo) : "";
 
-      return `<div class="live-presence-row${rowExtra}">` +
+      return (
+        `<div class="live-presence-row${rowExtra}">` +
         `<i class="live-status-dot ${dotClass}"></i>` +
         `<div class="live-row-info">` +
-          `<div class="live-row-main"><span class="live-row-name">${name}</span>${role ? `<span class="live-row-role">${role}</span>` : ""}</div>` +
-          (detail ? `<span class="live-row-detail">${detail}</span>` : "") +
-          alert +
+        `<div class="live-row-main"><span class="live-row-name">${name}</span>${role ? `<span class="live-row-role">${role}</span>` : ""}</div>` +
+        (detail ? `<span class="live-row-detail">${detail}</span>` : "") +
+        alert +
         `</div>` +
         `<span class="live-row-status ${statusColorClass}">${esc(item.statusLabel)}</span>` +
-      `</div>`;
+        `</div>`
+      );
     };
 
     let html = "";

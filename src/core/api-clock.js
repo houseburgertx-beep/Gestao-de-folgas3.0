@@ -1964,13 +1964,26 @@ export const calculateLivePresence = (
       }
     }
 
-    const empName = emp.Nome || emp.nome || emp.NomeFuncionario || emp.nomeFuncionario || "";
+    const empName =
+      emp.Nome ||
+      emp.nome ||
+      emp.NomeFuncionario ||
+      emp.nomeFuncionario ||
+      emp.NomeCompleto ||
+      emp.nomeCompleto ||
+      emp["Nome Completo"] ||
+      emp.Funcionario ||
+      emp.funcionario ||
+      rows[0]?.NomeFuncionario ||
+      rows[0]?.Nome ||
+      rows[0]?.nomeFuncionario ||
+      "";
 
     presenceList.push({
-      FuncionarioID: emp.FuncionarioID,
+      FuncionarioID: emp.FuncionarioID || emp.funcionarioId || emp.id || "",
       Nome: empName,
       Cargo: emp.Cargo || emp.cargo || "Equipe",
-      LojaID: emp.LojaID || "",
+      LojaID: emp.LojaID || emp.lojaId || "",
       NomeLoja: emp.NomeLoja || emp.nomeLoja || "",
       status,
       statusLabel,

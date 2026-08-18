@@ -8855,10 +8855,11 @@
 
   /* Presença ao vivo na loja — layout compacto lista */
   .live-presence-panel {
-    background: var(--surface, #18181b);
-    border: 1px solid var(--border);
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
     border-radius: 14px;
-    padding: 14px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   }
   .live-presence-head-actions {
     display: flex;
@@ -8867,7 +8868,7 @@
   }
   .live-presence-badge {
     background: rgba(32, 160, 107, 0.12);
-    color: #20a06b;
+    color: #1a8a5b;
     border: 1px solid rgba(32, 160, 107, 0.25);
     padding: 3px 10px;
     border-radius: 20px;
@@ -8885,38 +8886,41 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 4px;
-    border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+    padding: 9px 4px;
+    border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.06));
   }
   .live-presence-row:last-child {
     border-bottom: none;
   }
   .live-presence-row.is-warning {
-    background: rgba(240, 160, 32, 0.04);
+    background: rgba(240, 160, 32, 0.06);
+    border-radius: 6px;
   }
   .live-presence-row.is-danger {
-    background: rgba(229, 72, 77, 0.05);
+    background: rgba(229, 72, 77, 0.08);
+    border-radius: 6px;
   }
   .live-status-dot {
-    width: 8px;
-    height: 8px;
-    min-width: 8px;
+    width: 9px;
+    height: 9px;
+    min-width: 9px;
     border-radius: 50%;
     flex-shrink: 0;
   }
   .live-status-dot.dot-working {
     background: #20a06b;
-    box-shadow: 0 0 5px rgba(32, 160, 107, 0.5);
+    box-shadow: 0 0 6px rgba(32, 160, 107, 0.5);
   }
   .live-status-dot.dot-break {
     background: #f0a020;
+    box-shadow: 0 0 4px rgba(240, 160, 32, 0.4);
   }
   .live-status-dot.dot-completed {
     background: #71717a;
   }
   .live-status-dot.dot-absent {
-    background: #ef4444;
-    opacity: 0.6;
+    background: #e5484d;
+    opacity: 0.7;
   }
   .live-status-dot.dot-off {
     background: #8b5cf6;
@@ -8926,59 +8930,66 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
   }
   .live-row-main {
     display: flex;
-    align-items: baseline;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
   }
   .live-row-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary, #fff);
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text, #18181b);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .live-row-role {
     font-size: 11px;
-    color: var(--muted);
+    font-weight: 500;
+    color: var(--muted, #6b6883);
+    background: var(--surface2, rgba(0, 0, 0, 0.04));
+    padding: 1px 6px;
+    border-radius: 4px;
     white-space: nowrap;
   }
   .live-row-detail {
     font-size: 11px;
-    color: var(--muted);
+    color: var(--muted, #6b6883);
   }
   .live-row-status {
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
     flex-shrink: 0;
     text-align: right;
   }
-  .live-row-status.s-working { color: #20a06b; }
-  .live-row-status.s-break { color: #f0a020; }
+  .live-row-status.s-working { color: #1a8a5b; }
+  .live-row-status.s-break { color: #d97706; }
   .live-row-status.s-completed { color: #71717a; }
-  .live-row-status.s-absent { color: #ef4444; }
+  .live-row-status.s-absent { color: #e5484d; }
   .live-row-status.s-off { color: #8b5cf6; }
   .live-alert-badge {
     font-size: 10px;
-    padding: 2px 5px;
-    border-radius: 3px;
+    padding: 2px 6px;
+    border-radius: 4px;
     font-weight: 600;
     display: inline-block;
     margin-top: 2px;
   }
   .live-alert-badge.warning {
-    background: rgba(240, 160, 32, 0.12);
-    color: #f0a020;
+    background: rgba(240, 160, 32, 0.15);
+    color: #b45309;
+    border: 1px solid rgba(240, 160, 32, 0.3);
   }
   .live-alert-badge.danger {
     background: rgba(229, 72, 77, 0.15);
-    color: #e5484d;
+    color: #c92a2a;
+    border: 1px solid rgba(229, 72, 77, 0.3);
   }
 </style>
+
 
 
