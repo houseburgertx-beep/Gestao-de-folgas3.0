@@ -1092,3 +1092,33 @@
   </form>
 </dialog>
 
+<!-- Compartilhar Escala no WhatsApp -->
+<dialog id="whatsappScheduleDialog" style="max-width: 600px; width: 95vw;">
+  <div class="dialog-head">
+    <div>
+      <span class="eyebrow">COMUNICAÇÃO DA EQUIPE</span>
+      <h3>Escala Semanal para WhatsApp</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="whatsappScheduleDialog">✕</button>
+  </div>
+  <div class="dialog-body">
+    <div class="dialog-grid" style="margin-bottom: 12px;">
+      <label>Loja
+        <select id="whatsappScheduleStore"></select>
+      </label>
+      <label>Data de Início da Semana
+        <input id="whatsappScheduleStartDate" type="date" />
+      </label>
+    </div>
+    <label class="full" style="margin-bottom: 8px;">Mensagem formatada
+      <textarea id="whatsappScheduleText" rows="12" style="font-family: monospace; font-size: 13px; line-height: 1.45; white-space: pre-wrap;" readonly></textarea>
+    </label>
+  </div>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-secondary" data-close="whatsappScheduleDialog">Fechar</button>
+    <button type="button" id="copyWhatsAppScheduleBtn" class="btn btn-secondary">📋 Copiar Mensagem</button>
+    <button type="button" id="sendWhatsAppScheduleBtn" class="btn btn-primary" style="background:#25D366; border-color:#25D366; color:#09090b; font-weight:700">📲 Abrir no WhatsApp</button>
+  </div>
+</dialog>
+
+

@@ -426,6 +426,21 @@
             </div>
             <div id="cards" class="metric-grid"></div>
             <div id="proxima-folga"></div>
+            <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
+              <div class="panel-head" style="margin-bottom: 12px;">
+                <div>
+                  <span class="eyebrow">TEMPO REAL · HOJE</span>
+                  <h3>🏪 Presença na Loja Agora</h3>
+                </div>
+                <div class="live-presence-head-actions">
+                  <span id="livePresenceSummaryBadge" class="live-presence-badge">Atualizando…</span>
+                  <button id="livePresenceRefreshBtn" class="btn btn-ghost" type="button" style="padding: 4px 8px; font-size: 12px;">↻</button>
+                </div>
+              </div>
+              <div id="livePresenceGrid" class="live-presence-grid">
+                <div class="data-sync-message"><span></span>Carregando presença da equipe…</div>
+              </div>
+            </article>
             <div class="dashboard-grid">
               <article class="panel span-2">
                 <div class="panel-head">
@@ -504,7 +519,7 @@
                   <option value="">Todas as lojas</option></select
                 ><select id="calendarEmployeeFilter">
                   <option value="">Todos os funcionários</option></select
-                ><button id="calendarPdfBtn" class="btn btn-secondary">
+                ><button id="calendarWhatsAppBtn" class="btn btn-secondary" style="color:#25D366; font-weight:600">📲 WhatsApp</button><button id="calendarPdfBtn" class="btn btn-secondary">
                   ⇩ PDF</button
                 ><button id="calendarNewBtn" class="btn btn-primary">
                   ＋ Nova folga

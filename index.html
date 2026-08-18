@@ -8881,7 +8881,125 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  /* Presença ao vivo na loja */
+  .live-presence-panel {
+    background: var(--surface, #18181b);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .live-presence-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .live-presence-badge {
+    background: rgba(32, 160, 107, 0.15);
+    color: #20a06b;
+    border: 1px solid rgba(32, 160, 107, 0.3);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .live-presence-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .live-presence-card {
+    background: var(--surface2, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.15s ease;
+  }
+  .live-presence-card.is-working {
+    border-left: 3px solid #20a06b;
+  }
+  .live-presence-card.is-break {
+    border-left: 3px solid #f0a020;
+  }
+  .live-presence-card.is-warning {
+    border-color: rgba(240, 160, 32, 0.6);
+    background: rgba(240, 160, 32, 0.04);
+  }
+  .live-presence-card.is-danger {
+    border-color: rgba(229, 72, 77, 0.7);
+    background: rgba(229, 72, 77, 0.06);
+  }
+  .live-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .live-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .live-card-role {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .live-card-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .live-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .live-status-dot.dot-working {
+    background: #20a06b;
+    box-shadow: 0 0 6px rgba(32, 160, 107, 0.6);
+  }
+  .live-status-dot.dot-break {
+    background: #f0a020;
+  }
+  .live-status-dot.dot-completed {
+    background: #71717a;
+  }
+  .live-status-dot.dot-absent {
+    background: #ef4444;
+    opacity: 0.6;
+  }
+  .live-status-dot.dot-off {
+    background: #8b5cf6;
+  }
+  .live-alert-badge {
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .live-alert-badge.warning {
+    background: rgba(240, 160, 32, 0.15);
+    color: #f0a020;
+    border: 1px solid rgba(240, 160, 32, 0.3);
+  }
+  .live-alert-badge.danger {
+    background: rgba(229, 72, 77, 0.18);
+    color: #e5484d;
+    border: 1px solid rgba(229, 72, 77, 0.4);
+  }
 </style>
+
 
 
   </head>
@@ -9276,6 +9394,21 @@
             </div>
             <div id="cards" class="metric-grid"></div>
             <div id="proxima-folga"></div>
+            <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
+              <div class="panel-head" style="margin-bottom: 12px;">
+                <div>
+                  <span class="eyebrow">TEMPO REAL · HOJE</span>
+                  <h3>🏪 Presença na Loja Agora</h3>
+                </div>
+                <div class="live-presence-head-actions">
+                  <span id="livePresenceSummaryBadge" class="live-presence-badge">Atualizando…</span>
+                  <button id="livePresenceRefreshBtn" class="btn btn-ghost" type="button" style="padding: 4px 8px; font-size: 12px;">↻</button>
+                </div>
+              </div>
+              <div id="livePresenceGrid" class="live-presence-grid">
+                <div class="data-sync-message"><span></span>Carregando presença da equipe…</div>
+              </div>
+            </article>
             <div class="dashboard-grid">
               <article class="panel span-2">
                 <div class="panel-head">
@@ -9354,7 +9487,7 @@
                   <option value="">Todas as lojas</option></select
                 ><select id="calendarEmployeeFilter">
                   <option value="">Todos os funcionários</option></select
-                ><button id="calendarPdfBtn" class="btn btn-secondary">
+                ><button id="calendarWhatsAppBtn" class="btn btn-secondary" style="color:#25D366; font-weight:600">📲 WhatsApp</button><button id="calendarPdfBtn" class="btn btn-secondary">
                   ⇩ PDF</button
                 ><button id="calendarNewBtn" class="btn btn-primary">
                   ＋ Nova folga
@@ -12101,6 +12234,36 @@
   </form>
 </dialog>
 
+<!-- Compartilhar Escala no WhatsApp -->
+<dialog id="whatsappScheduleDialog" style="max-width: 600px; width: 95vw;">
+  <div class="dialog-head">
+    <div>
+      <span class="eyebrow">COMUNICAÇÃO DA EQUIPE</span>
+      <h3>Escala Semanal para WhatsApp</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="whatsappScheduleDialog">✕</button>
+  </div>
+  <div class="dialog-body">
+    <div class="dialog-grid" style="margin-bottom: 12px;">
+      <label>Loja
+        <select id="whatsappScheduleStore"></select>
+      </label>
+      <label>Data de Início da Semana
+        <input id="whatsappScheduleStartDate" type="date" />
+      </label>
+    </div>
+    <label class="full" style="margin-bottom: 8px;">Mensagem formatada
+      <textarea id="whatsappScheduleText" rows="12" style="font-family: monospace; font-size: 13px; line-height: 1.45; white-space: pre-wrap;" readonly></textarea>
+    </label>
+  </div>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-secondary" data-close="whatsappScheduleDialog">Fechar</button>
+    <button type="button" id="copyWhatsAppScheduleBtn" class="btn btn-secondary">📋 Copiar Mensagem</button>
+    <button type="button" id="sendWhatsAppScheduleBtn" class="btn btn-primary" style="background:#25D366; border-color:#25D366; color:#09090b; font-weight:700">📲 Abrir no WhatsApp</button>
+  </div>
+</dialog>
+
+
 
     <script>
   window.__GESTAO_API_STATUS__ = "loading";
@@ -12298,6 +12461,8 @@
     incompletePunches: "getIncompletePunchesWithSession",
     quickFixPunch: "quickFixIncompletePunch",
     settleHourBalance: "settleOrConvertHourBalanceWithSession",
+    livePresence: "getLiveStorePresenceWithSession",
+    whatsappSchedule: "getWhatsAppWeeklyScheduleWithSession",
     vacationRequest: "solicitarFerias",
     vacations: "listarSolicitacoesFerias",
     vacationDecision: "decidirFerias",
@@ -13206,6 +13371,18 @@
       });
     $("#settleHourBalanceForm") &&
       ($("#settleHourBalanceForm").onsubmit = saveSettleHourBalance_);
+    $("#livePresenceRefreshBtn") &&
+      ($("#livePresenceRefreshBtn").onclick = () => loadLivePresence_(true));
+    $("#calendarWhatsAppBtn") &&
+      ($("#calendarWhatsAppBtn").onclick = openWhatsAppScheduleDialog_);
+    $("#whatsappScheduleStore") &&
+      ($("#whatsappScheduleStore").onchange = updateWhatsAppScheduleText_);
+    $("#whatsappScheduleStartDate") &&
+      ($("#whatsappScheduleStartDate").onchange = updateWhatsAppScheduleText_);
+    $("#copyWhatsAppScheduleBtn") &&
+      ($("#copyWhatsAppScheduleBtn").onclick = copyWhatsAppSchedule_);
+    $("#sendWhatsAppScheduleBtn") &&
+      ($("#sendWhatsAppScheduleBtn").onclick = sendWhatsAppSchedule_);
     $("#hourBalanceAdjustmentForm").onsubmit = saveHourBalanceAdjustment_;
     $("#captureStoreLocation").onclick = captureStoreLocation;
     $$("[data-close]").forEach(
@@ -14397,6 +14574,175 @@
     }
   }
 
+  async function loadLivePresence_(force = false) {
+    if (!sessionToken() || isEmployee()) return null;
+    try {
+      const data = await call(FN.livePresence, sessionToken(), {
+        storeId: state.selectedStoreId || "",
+      });
+      state.livePresenceData = data;
+      renderLivePresence_();
+      return data;
+    } catch (e) {
+      console.warn("Presença na loja:", e.message);
+      return null;
+    }
+  }
+
+  function renderLivePresence_() {
+    const panel = $("#liveStorePresencePanel");
+    if (!panel || isEmployee()) {
+      if (panel) panel.classList.add("hidden");
+      return;
+    }
+    panel.classList.remove("hidden");
+
+    const data = state.livePresenceData || {};
+    const totals = data.totals || {};
+    const list = arr(data.presence);
+
+    const badgeEl = $("#livePresenceSummaryBadge");
+    if (badgeEl) {
+      if (!list.length) {
+        badgeEl.textContent = "Sem dados";
+        badgeEl.style.color = "var(--muted)";
+      } else {
+        badgeEl.textContent = `${totals.trabalhando || 0} presente${totals.trabalhando === 1 ? "" : "s"} · ${totals.intervalo || 0} intervalo · ${totals.folga || 0} folga`;
+        badgeEl.style.color = totals.alertas > 0 ? "#e5484d" : "#20a06b";
+      }
+    }
+
+    const grid = $("#livePresenceGrid");
+    if (!grid) return;
+
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty-state">Nenhum funcionário ativo na loja hoje.</div>';
+      return;
+    }
+
+    grid.innerHTML = list
+      .map((item) => {
+        const dotClass =
+          item.status === "trabalhando"
+            ? "dot-working"
+            : item.status === "intervalo"
+              ? "dot-break"
+              : item.status === "concluido"
+                ? "dot-completed"
+                : item.status === "folga"
+                  ? "dot-off"
+                  : "dot-absent";
+
+        const cardExtraClass =
+          item.alertLevel === "danger"
+            ? "is-danger"
+            : item.alertLevel === "warning"
+              ? "is-warning"
+              : item.status === "trabalhando"
+                ? "is-working"
+                : item.status === "intervalo"
+                  ? "is-break"
+                  : "";
+
+        const alertBadge = item.alertMessage
+          ? `<span class="live-alert-badge ${item.alertLevel}">${esc(item.alertMessage)}</span>`
+          : "";
+
+        const timeInfo =
+          item.status === "trabalhando"
+            ? `Entrada: <strong>${esc(item.entryTime || "—")}</strong> (${esc(item.elapsedTexto)} de turno)`
+            : item.status === "intervalo"
+              ? `Em pausa desde <strong>${esc(item.lastPunchTime || "—")}</strong>`
+              : item.status === "concluido"
+                ? `Saída às <strong>${esc(item.lastPunchTime || "—")}</strong>`
+                : item.horarioEscala
+                  ? `Escala: ${esc(item.horarioEscala)}`
+                  : "";
+
+        return `
+          <div class="live-presence-card ${cardExtraClass}">
+            <div class="live-card-header">
+              <span class="live-card-name">${esc(item.Nome)}</span>
+              <span class="live-card-role">${esc(item.Cargo)}</span>
+            </div>
+            <div class="live-card-status">
+              <i class="live-status-dot ${dotClass}"></i>
+              <span>${esc(item.statusLabel)}</span>
+            </div>
+            ${timeInfo ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${timeInfo}</div>` : ""}
+            ${alertBadge}
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  async function openWhatsAppScheduleDialog_() {
+    if (!sessionToken()) return;
+    const dialog = $("#whatsappScheduleDialog");
+    if (!dialog) return;
+
+    const storeSelect = $("#whatsappScheduleStore");
+    const stores = arr(state.stores).filter((s) => bool(val(s, "Ativa", "ativa")));
+    storeSelect.innerHTML =
+      `<option value="">Todas as lojas</option>` +
+      stores
+        .map(
+          (s) => `
+      <option value="${esc(idOf(s, "Loja"))}">${esc(val(s, "Nome", "nome"))}</option>
+    `,
+        )
+        .join("");
+
+    const startDateInput = $("#whatsappScheduleStartDate");
+    const today = iso(new Date()).slice(0, 10);
+    const currDate = new Date(`${today}T12:00:00`);
+    const dayOfWeek = currDate.getDay();
+    currDate.setDate(currDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    startDateInput.value = todayIso(currDate);
+
+    await updateWhatsAppScheduleText_();
+    openDialog("whatsappScheduleDialog");
+  }
+
+  async function updateWhatsAppScheduleText_() {
+    const textEl = $("#whatsappScheduleText");
+    if (!textEl) return;
+    textEl.value = "Gerando escala formatada para o WhatsApp…";
+
+    const storeId = $("#whatsappScheduleStore")?.value || "";
+    const startDate = $("#whatsappScheduleStartDate")?.value || todayIso();
+
+    try {
+      const res = await call(FN.whatsappSchedule, sessionToken(), {
+        storeId,
+        startDate,
+      });
+      state.whatsappScheduleMessage = res?.message || "";
+      textEl.value = state.whatsappScheduleMessage;
+    } catch (e) {
+      textEl.value = "Erro ao gerar escala: " + e.message;
+    }
+  }
+
+  function copyWhatsAppSchedule_() {
+    const text =
+      $("#whatsappScheduleText")?.value || state.whatsappScheduleMessage || "";
+    if (!text) return toast("Nenhuma mensagem para copiar.", true);
+    navigator.clipboard.writeText(text).then(
+      () => toast("📋 Mensagem copiada! Cole diretamente no WhatsApp."),
+      () => toast("Erro ao copiar para a área de transferência.", true),
+    );
+  }
+
+  function sendWhatsAppSchedule_() {
+    const text =
+      $("#whatsappScheduleText")?.value || state.whatsappScheduleMessage || "";
+    if (!text) return toast("Nenhuma mensagem para enviar.", true);
+    const encoded = encodeURIComponent(text);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank");
+  }
+
   function hydrateUser() {
     const u = state.user;
     const name = val(u, "nome", "Nome") || "Utilizador";
@@ -14862,6 +15208,7 @@
     renderPendingCenterSummary_();
     if (typeof renderProximaFolga === "function") renderProximaFolga();
     checkIncompletePunches_();
+    loadLivePresence_();
   }
   function activity(x) {
     const n = val(x, "NomeFuncionario", "nomeFuncionario"),

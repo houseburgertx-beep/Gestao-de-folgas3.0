@@ -1804,8 +1804,200 @@ export function createClockHandlers() {
           : "Horas quitadas com sucesso.",
       );
     },
+
+    async getLiveStorePresenceWithSession(args) {
+      const profile = await runtime.requireProfile();
+      const values = dropClientToken(args);
+      const filters = values[0] || {};
+      const targetStoreId = String(
+        filters.storeId || filters.LojaID || profile.LojaID || "",
+      );
+      const currentDay = todayIso();
+      const [employees, records, schedules, timeOff] = await Promise.all([
+        runtime.list("Funcionarios", { profile }),
+        runtime.listPeriods("RegistrosPonto", [currentDay.slice(0, 7)], {
+          profile,
+        }),
+        runtime.list("JornadasPonto", { profile }),
+        runtime.list("Folgas", { profile }),
+      ]);
+      let allowedEmployees = employees.filter((e) => asBoolean(e.Ativo));
+      if (!isAdmin(profile) && targetStoreId) {
+        allowedEmployees = allowedEmployees.filter(
+          (e) => String(e.LojaID || "") === targetStoreId,
+        );
+      } else if (targetStoreId) {
+        allowedEmployees = allowedEmployees.filter(
+          (e) => String(e.LojaID || "") === targetStoreId,
+        );
+      }
+      return success(
+        calculateLivePresence(
+          allowedEmployees,
+          records,
+          schedules,
+          timeOff,
+          new Date(),
+        ),
+      );
+    },
   };
 }
+
+export const calculateLivePresence = (
+  employees = [],
+  records = [],
+  schedules = [],
+  timeOff = [],
+  now = new Date(),
+) => {
+  const currentDay = todayIso(now);
+  const nowTs = now.getTime();
+  const validRecords = records.filter(
+    (item) =>
+      item.FuncionarioID &&
+      item.Status !== "Substituído" &&
+      normalizedDateKey(item.Data || item.DataHora) === currentDay,
+  );
+
+  const byEmployee = new Map();
+  validRecords.forEach((r) => {
+    const list = byEmployee.get(String(r.FuncionarioID)) || [];
+    list.push(r);
+    byEmployee.set(String(r.FuncionarioID), list);
+  });
+
+  const presenceList = [];
+  employees.forEach((emp) => {
+    if (!asBoolean(emp.Ativo)) return;
+    const empId = String(emp.FuncionarioID);
+    const rows = (byEmployee.get(empId) || []).sort(compareRecordsByDateTime);
+    const approvedOff = timeOff.find(
+      (item) =>
+        item.FuncionarioID === emp.FuncionarioID &&
+        ["Aprovada", "Concluída"].includes(item.Status) &&
+        normalizedDateKey(item.DataInicio) <= currentDay &&
+        normalizedDateKey(item.DataFim || item.DataInicio) >= currentDay,
+    );
+    const fixedOff =
+      !approvedOff && isFixedOffForDate(emp, currentDay, timeOff);
+    const sched = scheduleFor(schedules, empId, currentDay);
+
+    let status = "ausente";
+    let statusLabel = "Não iniciou";
+    let entryTime = "";
+    let lastPunchType = "";
+    let lastPunchTime = "";
+    let elapsedMinutes = 0;
+    let alertLevel = "normal";
+    let alertMessage = "";
+
+    if (approvedOff || fixedOff) {
+      status = "folga";
+      statusLabel = approvedOff ? "De folga" : "Folga fixa";
+    }
+
+    if (rows.length > 0) {
+      const entry = rows.find((r) => r.TipoMarcacao === "ENTRADA");
+      const last = rows[rows.length - 1];
+      lastPunchType = last.TipoMarcacao;
+      lastPunchTime = timeValue(last.DataHora);
+      if (entry) entryTime = timeValue(entry.DataHora);
+
+      if (lastPunchType === "SAIDA_FINAL") {
+        status = "concluido";
+        statusLabel = "Turno encerrado";
+      } else if (lastPunchType === "SAIDA_INTERVALO") {
+        status = "intervalo";
+        statusLabel = "Em intervalo";
+      } else {
+        status = "trabalhando";
+        statusLabel = "Trabalhando agora";
+
+        if (entry?.DataHora) {
+          const entryTs = new Date(entry.DataHora).getTime();
+          const breakOut = rows.find(
+            (r) => r.TipoMarcacao === "SAIDA_INTERVALO",
+          );
+          const breakIn = rows.find(
+            (r) => r.TipoMarcacao === "RETORNO_INTERVALO",
+          );
+          let breakDuration = 0;
+          if (breakOut && breakIn) {
+            breakDuration = exactMinutesBetween(
+              breakOut.DataHora,
+              breakIn.DataHora,
+            );
+          }
+          if (Number.isFinite(entryTs) && nowTs >= entryTs) {
+            elapsedMinutes = Math.max(
+              0,
+              Math.round((nowTs - entryTs) / 60000) - breakDuration,
+            );
+          }
+
+          if (elapsedMinutes >= 10 * 60) {
+            alertLevel = "danger";
+            alertMessage = `🚨 ${minutesText(elapsedMinutes)} em turno (Limite excessivo)`;
+          } else if (elapsedMinutes >= 8 * 60) {
+            alertLevel = "warning";
+            alertMessage = `⚠️ ${minutesText(elapsedMinutes)} em turno (Hora extra)`;
+          }
+        }
+      }
+    }
+
+    presenceList.push({
+      FuncionarioID: emp.FuncionarioID,
+      Nome: emp.Nome,
+      Cargo: emp.Cargo || "Equipe",
+      LojaID: emp.LojaID || "",
+      NomeLoja: emp.NomeLoja || "",
+      status,
+      statusLabel,
+      entryTime,
+      lastPunchType,
+      lastPunchTime,
+      elapsedMinutes,
+      elapsedTexto: elapsedMinutes > 0 ? minutesText(elapsedMinutes) : "",
+      alertLevel,
+      alertMessage,
+      horarioEscala:
+        sched?.HoraEntrada && sched?.HoraSaida
+          ? `${sched.HoraEntrada.slice(0, 5)} às ${sched.HoraSaida.slice(0, 5)}`
+          : "",
+    });
+  });
+
+  const order = {
+    trabalhando: 0,
+    intervalo: 1,
+    concluido: 2,
+    ausente: 3,
+    folga: 4,
+  };
+  presenceList.sort((a, b) => {
+    const diff = (order[a.status] ?? 99) - (order[b.status] ?? 99);
+    if (diff !== 0) return diff;
+    return (b.elapsedMinutes || 0) - (a.elapsedMinutes || 0);
+  });
+
+  const totals = {
+    trabalhando: presenceList.filter((p) => p.status === "trabalhando").length,
+    intervalo: presenceList.filter((p) => p.status === "intervalo").length,
+    concluido: presenceList.filter((p) => p.status === "concluido").length,
+    ausente: presenceList.filter((p) => p.status === "ausente").length,
+    folga: presenceList.filter((p) => p.status === "folga").length,
+    alertas: presenceList.filter((p) => p.alertLevel !== "normal").length,
+    total: presenceList.length,
+  };
+
+  return {
+    date: currentDay,
+    presence: presenceList,
+    totals,
+  };
+};
 
 export const findIncompletePunches = (
   records = [],

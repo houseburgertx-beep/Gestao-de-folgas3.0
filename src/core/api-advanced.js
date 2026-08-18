@@ -1599,7 +1599,123 @@ export function createAdvancedHandlers() {
       });
       return success(saved, "Delegação criada.");
     },
+
+    async getWhatsAppWeeklyScheduleWithSession(args) {
+      const profile = await runtime.requireProfile();
+      const values = dropClientToken(args);
+      const filters = values[0] || {};
+      const targetStoreId = String(
+        filters.storeId || filters.LojaID || profile.LojaID || "",
+      );
+      const startDate = normalizedDateKey(filters.startDate || todayIso());
+      const [employees, timeOff, schedules, stores] = await Promise.all([
+        runtime.list("Funcionarios", { profile }),
+        runtime.list("Folgas", { profile }),
+        runtime.list("JornadasPonto", { profile }),
+        runtime.list("Lojas", { profile }),
+      ]);
+      return success(
+        generateWhatsAppWeeklySchedule({
+          employees,
+          timeOff,
+          schedules,
+          stores,
+          startDate,
+          storeId: targetStoreId,
+        }),
+      );
+    },
   };
 }
 
+export const generateWhatsAppWeeklySchedule = ({
+  employees = [],
+  timeOff = [],
+  schedules = [],
+  stores = [],
+  startDate = todayIso(),
+  storeId = "",
+}) => {
+  const start = new Date(`${startDate}T12:00:00`);
+  const days = [];
+  for (let i = 0; i < 7; i += 1) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(todayIso(d));
+  }
+  const periodText = `${days[0].split("-").reverse().join("/")} a ${days[6].split("-").reverse().join("/")}`;
+
+  let targetEmployees = employees.filter((e) => asBoolean(e.Ativo));
+  if (storeId) {
+    targetEmployees = targetEmployees.filter(
+      (e) => String(e.LojaID || "") === String(storeId),
+    );
+  }
+  const store = stores.find((s) => String(s.LojaID || "") === String(storeId));
+  const storeName = store?.Nome || targetEmployees[0]?.NomeLoja || "HOUSE 190";
+
+  const byRole = new Map();
+  targetEmployees.forEach((emp) => {
+    const roleName = String(emp.Cargo || "Equipe Geral").trim();
+    const list = byRole.get(roleName) || [];
+    list.push(emp);
+    byRole.set(roleName, list);
+  });
+
+  const lines = [
+    `🍔 *${storeName.toUpperCase()} — ESCALA DA SEMANA*`,
+    `📅 *Período:* ${periodText}`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+  ];
+
+  const weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  for (const [roleName, roleEmployees] of byRole.entries()) {
+    lines.push(`\n📌 *${roleName.toUpperCase()}*`);
+    roleEmployees.forEach((emp) => {
+      const empSchedules = schedules.filter(
+        (s) => String(s.FuncionarioID || "") === String(emp.FuncionarioID),
+      );
+      const sched = empSchedules[0];
+      const hoursText =
+        sched?.HoraEntrada && sched?.HoraSaida
+          ? ` (${sched.HoraEntrada.slice(0, 5)} às ${sched.HoraSaida.slice(0, 5)})`
+          : "";
+
+      const offDaysThisWeek = [];
+      days.forEach((dayKey) => {
+        const approvedOff = timeOff.find(
+          (item) =>
+            item.FuncionarioID === emp.FuncionarioID &&
+            ["Aprovada", "Concluída"].includes(item.Status) &&
+            normalizedDateKey(item.DataInicio) <= dayKey &&
+            normalizedDateKey(item.DataFim || item.DataInicio) >= dayKey,
+        );
+        const isFixed = !approvedOff && employeeHasFixedDay(emp, dayKey);
+        if (approvedOff || isFixed) {
+          const wDay = weekdayNames[new Date(`${dayKey}T12:00:00`).getDay()];
+          const dayBR = dayKey.split("-").reverse().slice(0, 2).join("/");
+          offDaysThisWeek.push(`${wDay} (${dayBR})`);
+        }
+      });
+
+      const offText = offDaysThisWeek.length
+        ? ` — 🏖️ *Folga:* ${offDaysThisWeek.join(", ")}`
+        : ` — *Sem folga na semana*`;
+
+      lines.push(`• *${emp.Nome}*${hoursText}${offText}`);
+    });
+  }
+
+  lines.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`📲 _Consulte suas folgas e saldo no portal Gestão de Folgas!_`);
+
+  return {
+    period: periodText,
+    storeName,
+    message: lines.join("\n"),
+  };
+};
+
 export { nextTimeOffSummary };
+

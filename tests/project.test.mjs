@@ -5,6 +5,7 @@ import { createApi } from "../src/core/api.js";
 import {
   employeeHasFixedDay,
   fixedTimeOffCandidates,
+  generateWhatsAppWeeklySchedule,
   nextTimeOffSummary,
 } from "../src/core/api-advanced.js";
 import {
@@ -19,6 +20,7 @@ import {
 import {
   accumulatedHourBalance,
   balanceDays,
+  calculateLivePresence,
   dayBalanceState,
   dayMetrics,
   findIncompletePunches,
@@ -1680,4 +1682,81 @@ test("detecção de saídas esquecidas identifica jornadas abertas de dias anter
   assert.equal(incomplete[0].Data, "2026-08-10");
   assert.equal(incomplete[0].HorarioSugeridoSaida, "23:20");
 });
+
+test("presença ao vivo calcula status em tempo real e alerta de horas excessivas", () => {
+  const employees = [
+    { FuncionarioID: "e1", Nome: "Lucas", Cargo: "Chapeiro", Ativo: true },
+    { FuncionarioID: "e2", Nome: "Julia", Cargo: "Atendente", Ativo: true },
+    { FuncionarioID: "e3", Nome: "Pedro", Cargo: "Caixa", Ativo: true },
+  ];
+  const now = new Date("2026-08-18T19:00:00-03:00");
+  const records = [
+    // Lucas bateu entrada às 10:00 (9 horas atrás -> warning)
+    {
+      FuncionarioID: "e1",
+      Data: "2026-08-18",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-08-18T10:00:00-03:00",
+      Status: "Válido",
+    },
+    // Julia entrou às 15:00 e saiu para intervalo às 18:00
+    {
+      FuncionarioID: "e2",
+      Data: "2026-08-18",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-08-18T15:00:00-03:00",
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "e2",
+      Data: "2026-08-18",
+      TipoMarcacao: "SAIDA_INTERVALO",
+      DataHora: "2026-08-18T18:00:00-03:00",
+      Status: "Válido",
+    },
+  ];
+  const presenceData = calculateLivePresence(employees, records, [], [], now);
+  assert.equal(presenceData.totals.trabalhando, 1);
+  assert.equal(presenceData.totals.intervalo, 1);
+  assert.equal(presenceData.totals.ausente, 1);
+  assert.equal(presenceData.totals.alertas, 1);
+
+  const lucas = presenceData.presence.find((p) => p.FuncionarioID === "e1");
+  assert.equal(lucas.status, "trabalhando");
+  assert.equal(lucas.alertLevel, "warning");
+});
+
+test("escala para WhatsApp gera mensagem formatada com setores e folgas", () => {
+  const employees = [
+    {
+      FuncionarioID: "e1",
+      Nome: "Carlos",
+      Cargo: "Cozinha",
+      Ativo: true,
+      LojaID: "loja-1",
+      DiaFolgaPreferencial: "Segunda-feira",
+    },
+  ];
+  const schedules = [
+    {
+      FuncionarioID: "e1",
+      Ativa: true,
+      HoraEntrada: "16:00",
+      HoraSaida: "00:20",
+    },
+  ];
+  const scheduleMsg = generateWhatsAppWeeklySchedule({
+    employees,
+    timeOff: [],
+    schedules,
+    stores: [{ LojaID: "loja-1", Nome: "House Burger Teixeira" }],
+    startDate: "2026-08-18",
+    storeId: "loja-1",
+  });
+  assert.match(scheduleMsg.message, /ESCALA DA SEMANA/);
+  assert.match(scheduleMsg.message, /COZINHA/);
+  assert.match(scheduleMsg.message, /Carlos/);
+  assert.match(scheduleMsg.message, /16:00 às 00:20/);
+});
+
 

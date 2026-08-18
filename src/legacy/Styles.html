@@ -8852,5 +8852,123 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  /* Presença ao vivo na loja */
+  .live-presence-panel {
+    background: var(--surface, #18181b);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .live-presence-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .live-presence-badge {
+    background: rgba(32, 160, 107, 0.15);
+    color: #20a06b;
+    border: 1px solid rgba(32, 160, 107, 0.3);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .live-presence-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .live-presence-card {
+    background: var(--surface2, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.15s ease;
+  }
+  .live-presence-card.is-working {
+    border-left: 3px solid #20a06b;
+  }
+  .live-presence-card.is-break {
+    border-left: 3px solid #f0a020;
+  }
+  .live-presence-card.is-warning {
+    border-color: rgba(240, 160, 32, 0.6);
+    background: rgba(240, 160, 32, 0.04);
+  }
+  .live-presence-card.is-danger {
+    border-color: rgba(229, 72, 77, 0.7);
+    background: rgba(229, 72, 77, 0.06);
+  }
+  .live-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .live-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .live-card-role {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .live-card-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .live-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .live-status-dot.dot-working {
+    background: #20a06b;
+    box-shadow: 0 0 6px rgba(32, 160, 107, 0.6);
+  }
+  .live-status-dot.dot-break {
+    background: #f0a020;
+  }
+  .live-status-dot.dot-completed {
+    background: #71717a;
+  }
+  .live-status-dot.dot-absent {
+    background: #ef4444;
+    opacity: 0.6;
+  }
+  .live-status-dot.dot-off {
+    background: #8b5cf6;
+  }
+  .live-alert-badge {
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .live-alert-badge.warning {
+    background: rgba(240, 160, 32, 0.15);
+    color: #f0a020;
+    border: 1px solid rgba(240, 160, 32, 0.3);
+  }
+  .live-alert-badge.danger {
+    background: rgba(229, 72, 77, 0.18);
+    color: #e5484d;
+    border: 1px solid rgba(229, 72, 77, 0.4);
+  }
 </style>
+
 

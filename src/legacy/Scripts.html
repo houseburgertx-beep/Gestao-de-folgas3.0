@@ -180,6 +180,8 @@
     incompletePunches: "getIncompletePunchesWithSession",
     quickFixPunch: "quickFixIncompletePunch",
     settleHourBalance: "settleOrConvertHourBalanceWithSession",
+    livePresence: "getLiveStorePresenceWithSession",
+    whatsappSchedule: "getWhatsAppWeeklyScheduleWithSession",
     vacationRequest: "solicitarFerias",
     vacations: "listarSolicitacoesFerias",
     vacationDecision: "decidirFerias",
@@ -1088,6 +1090,18 @@
       });
     $("#settleHourBalanceForm") &&
       ($("#settleHourBalanceForm").onsubmit = saveSettleHourBalance_);
+    $("#livePresenceRefreshBtn") &&
+      ($("#livePresenceRefreshBtn").onclick = () => loadLivePresence_(true));
+    $("#calendarWhatsAppBtn") &&
+      ($("#calendarWhatsAppBtn").onclick = openWhatsAppScheduleDialog_);
+    $("#whatsappScheduleStore") &&
+      ($("#whatsappScheduleStore").onchange = updateWhatsAppScheduleText_);
+    $("#whatsappScheduleStartDate") &&
+      ($("#whatsappScheduleStartDate").onchange = updateWhatsAppScheduleText_);
+    $("#copyWhatsAppScheduleBtn") &&
+      ($("#copyWhatsAppScheduleBtn").onclick = copyWhatsAppSchedule_);
+    $("#sendWhatsAppScheduleBtn") &&
+      ($("#sendWhatsAppScheduleBtn").onclick = sendWhatsAppSchedule_);
     $("#hourBalanceAdjustmentForm").onsubmit = saveHourBalanceAdjustment_;
     $("#captureStoreLocation").onclick = captureStoreLocation;
     $$("[data-close]").forEach(
@@ -2279,6 +2293,175 @@
     }
   }
 
+  async function loadLivePresence_(force = false) {
+    if (!sessionToken() || isEmployee()) return null;
+    try {
+      const data = await call(FN.livePresence, sessionToken(), {
+        storeId: state.selectedStoreId || "",
+      });
+      state.livePresenceData = data;
+      renderLivePresence_();
+      return data;
+    } catch (e) {
+      console.warn("Presença na loja:", e.message);
+      return null;
+    }
+  }
+
+  function renderLivePresence_() {
+    const panel = $("#liveStorePresencePanel");
+    if (!panel || isEmployee()) {
+      if (panel) panel.classList.add("hidden");
+      return;
+    }
+    panel.classList.remove("hidden");
+
+    const data = state.livePresenceData || {};
+    const totals = data.totals || {};
+    const list = arr(data.presence);
+
+    const badgeEl = $("#livePresenceSummaryBadge");
+    if (badgeEl) {
+      if (!list.length) {
+        badgeEl.textContent = "Sem dados";
+        badgeEl.style.color = "var(--muted)";
+      } else {
+        badgeEl.textContent = `${totals.trabalhando || 0} presente${totals.trabalhando === 1 ? "" : "s"} · ${totals.intervalo || 0} intervalo · ${totals.folga || 0} folga`;
+        badgeEl.style.color = totals.alertas > 0 ? "#e5484d" : "#20a06b";
+      }
+    }
+
+    const grid = $("#livePresenceGrid");
+    if (!grid) return;
+
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty-state">Nenhum funcionário ativo na loja hoje.</div>';
+      return;
+    }
+
+    grid.innerHTML = list
+      .map((item) => {
+        const dotClass =
+          item.status === "trabalhando"
+            ? "dot-working"
+            : item.status === "intervalo"
+              ? "dot-break"
+              : item.status === "concluido"
+                ? "dot-completed"
+                : item.status === "folga"
+                  ? "dot-off"
+                  : "dot-absent";
+
+        const cardExtraClass =
+          item.alertLevel === "danger"
+            ? "is-danger"
+            : item.alertLevel === "warning"
+              ? "is-warning"
+              : item.status === "trabalhando"
+                ? "is-working"
+                : item.status === "intervalo"
+                  ? "is-break"
+                  : "";
+
+        const alertBadge = item.alertMessage
+          ? `<span class="live-alert-badge ${item.alertLevel}">${esc(item.alertMessage)}</span>`
+          : "";
+
+        const timeInfo =
+          item.status === "trabalhando"
+            ? `Entrada: <strong>${esc(item.entryTime || "—")}</strong> (${esc(item.elapsedTexto)} de turno)`
+            : item.status === "intervalo"
+              ? `Em pausa desde <strong>${esc(item.lastPunchTime || "—")}</strong>`
+              : item.status === "concluido"
+                ? `Saída às <strong>${esc(item.lastPunchTime || "—")}</strong>`
+                : item.horarioEscala
+                  ? `Escala: ${esc(item.horarioEscala)}`
+                  : "";
+
+        return `
+          <div class="live-presence-card ${cardExtraClass}">
+            <div class="live-card-header">
+              <span class="live-card-name">${esc(item.Nome)}</span>
+              <span class="live-card-role">${esc(item.Cargo)}</span>
+            </div>
+            <div class="live-card-status">
+              <i class="live-status-dot ${dotClass}"></i>
+              <span>${esc(item.statusLabel)}</span>
+            </div>
+            ${timeInfo ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${timeInfo}</div>` : ""}
+            ${alertBadge}
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  async function openWhatsAppScheduleDialog_() {
+    if (!sessionToken()) return;
+    const dialog = $("#whatsappScheduleDialog");
+    if (!dialog) return;
+
+    const storeSelect = $("#whatsappScheduleStore");
+    const stores = arr(state.stores).filter((s) => bool(val(s, "Ativa", "ativa")));
+    storeSelect.innerHTML =
+      `<option value="">Todas as lojas</option>` +
+      stores
+        .map(
+          (s) => `
+      <option value="${esc(idOf(s, "Loja"))}">${esc(val(s, "Nome", "nome"))}</option>
+    `,
+        )
+        .join("");
+
+    const startDateInput = $("#whatsappScheduleStartDate");
+    const today = iso(new Date()).slice(0, 10);
+    const currDate = new Date(`${today}T12:00:00`);
+    const dayOfWeek = currDate.getDay();
+    currDate.setDate(currDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    startDateInput.value = todayIso(currDate);
+
+    await updateWhatsAppScheduleText_();
+    openDialog("whatsappScheduleDialog");
+  }
+
+  async function updateWhatsAppScheduleText_() {
+    const textEl = $("#whatsappScheduleText");
+    if (!textEl) return;
+    textEl.value = "Gerando escala formatada para o WhatsApp…";
+
+    const storeId = $("#whatsappScheduleStore")?.value || "";
+    const startDate = $("#whatsappScheduleStartDate")?.value || todayIso();
+
+    try {
+      const res = await call(FN.whatsappSchedule, sessionToken(), {
+        storeId,
+        startDate,
+      });
+      state.whatsappScheduleMessage = res?.message || "";
+      textEl.value = state.whatsappScheduleMessage;
+    } catch (e) {
+      textEl.value = "Erro ao gerar escala: " + e.message;
+    }
+  }
+
+  function copyWhatsAppSchedule_() {
+    const text =
+      $("#whatsappScheduleText")?.value || state.whatsappScheduleMessage || "";
+    if (!text) return toast("Nenhuma mensagem para copiar.", true);
+    navigator.clipboard.writeText(text).then(
+      () => toast("📋 Mensagem copiada! Cole diretamente no WhatsApp."),
+      () => toast("Erro ao copiar para a área de transferência.", true),
+    );
+  }
+
+  function sendWhatsAppSchedule_() {
+    const text =
+      $("#whatsappScheduleText")?.value || state.whatsappScheduleMessage || "";
+    if (!text) return toast("Nenhuma mensagem para enviar.", true);
+    const encoded = encodeURIComponent(text);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank");
+  }
+
   function hydrateUser() {
     const u = state.user;
     const name = val(u, "nome", "Nome") || "Utilizador";
@@ -2744,6 +2927,7 @@
     renderPendingCenterSummary_();
     if (typeof renderProximaFolga === "function") renderProximaFolga();
     checkIncompletePunches_();
+    loadLivePresence_();
   }
   function activity(x) {
     const n = val(x, "NomeFuncionario", "nomeFuncionario"),
