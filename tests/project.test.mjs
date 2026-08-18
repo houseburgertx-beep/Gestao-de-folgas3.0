@@ -21,6 +21,7 @@ import {
   balanceDays,
   dayBalanceState,
   dayMetrics,
+  findIncompletePunches,
   firstPunchDatesByEmployee,
   isFixedOffForDate,
   operationalDayFor,
@@ -1629,3 +1630,54 @@ test("próxima folga mostra apenas a aprovada com dias e data", () => {
   assert.equal(result.diaSemana, "Sexta");
   assert.equal(result.data, "2026-09-11");
 });
+
+test("detecção de saídas esquecidas identifica jornadas abertas de dias anteriores", () => {
+  const employees = [
+    { FuncionarioID: "f1", Nome: "Carlos", Ativo: true, LojaID: "loja1" },
+    { FuncionarioID: "f2", Nome: "Maria", Ativo: true, LojaID: "loja1" },
+  ];
+  const schedules = [
+    {
+      FuncionarioID: "f1",
+      Ativa: true,
+      HoraEntrada: "15:00",
+      HoraSaida: "23:20",
+    },
+  ];
+  const records = [
+    // Dia anterior com entrada mas sem saída
+    {
+      FuncionarioID: "f1",
+      Data: "2026-08-10",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-08-10T15:00:00-03:00",
+      Status: "Válido",
+    },
+    // Dia anterior completo
+    {
+      FuncionarioID: "f2",
+      Data: "2026-08-10",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-08-10T08:00:00-03:00",
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "f2",
+      Data: "2026-08-10",
+      TipoMarcacao: "SAIDA_FINAL",
+      DataHora: "2026-08-10T17:00:00-03:00",
+      Status: "Válido",
+    },
+  ];
+  const incomplete = findIncompletePunches(
+    records,
+    schedules,
+    employees,
+    "2026-08-11",
+  );
+  assert.equal(incomplete.length, 1);
+  assert.equal(incomplete[0].FuncionarioID, "f1");
+  assert.equal(incomplete[0].Data, "2026-08-10");
+  assert.equal(incomplete[0].HorarioSugeridoSaida, "23:20");
+});
+

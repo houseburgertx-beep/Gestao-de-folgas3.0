@@ -1014,3 +1014,81 @@
     </div>
   </form>
 </dialog>
+
+<!-- Ajuste rápido de saídas esquecidas -->
+<dialog id="quickFixPunchDialog" class="quick-fix-dialog" style="max-width: 680px; width: 95vw;">
+  <form id="quickFixPunchForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">PONTO INCOMPLETO</span>
+        <h3>Ajustar saídas esquecidas</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="quickFixPunchDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px">
+        Estes colaboradores registraram entrada em dias anteriores mas não bateram a saída final.
+        Confirme o horário da saída para fechar o turno e atualizar o banco de horas.
+      </p>
+      <div id="quickFixPunchList" class="quick-fix-punch-list">
+        <!-- Renderizado dinamicamente -->
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="quickFixPunchDialog">Fechar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Fechamento / Conversão de Banco de Horas -->
+<dialog id="settleHourBalanceDialog" style="max-width: 540px; width: 95vw;">
+  <form id="settleHourBalanceForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">BANCO DE HORAS</span>
+        <h3>Fechar Mês / Quitar Banco</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="settleHourBalanceDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-grid">
+        <label>Competência (Mês)
+          <input id="settleMonth" type="month" required />
+        </label>
+        <label>Funcionário
+          <select id="settleEmployee" required></select>
+        </label>
+        <div class="full" style="background:var(--surface2, rgba(255,255,255,0.05));border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);">
+          <div>
+            <span style="font-size:12px;color:var(--muted);display:block">Saldo apurado no mês</span>
+            <strong id="settleCurrentBalance" style="font-size:18px;color:#20a06b">+0h 00min</strong>
+          </div>
+          <div style="text-align:right">
+            <span style="font-size:12px;color:var(--muted);display:block">Carga diária contratual</span>
+            <strong id="settleDailyWorkload" style="font-size:14px">7h 20min</strong>
+          </div>
+        </div>
+        <label class="full">Ação desejada
+          <select id="settleMode" required>
+            <option value="converter_folga">🏖️ Converter em Folgas Compensatórias</option>
+            <option value="quitar_folha">💵 Quitar / Pagar Horas Extras em Folha</option>
+          </select>
+        </label>
+        <label id="settleLeaveCountField">Folgas a creditar
+          <input id="settleLeaveCount" type="number" step="0.5" min="0.5" value="1" />
+        </label>
+        <label id="settleMinutesField">Minutos a abater do banco
+          <input id="settleMinutes" type="number" step="1" min="1" value="440" required />
+        </label>
+        <label class="full">Motivo / Observação
+          <input id="settleReason" type="text" placeholder="Ex: Acordo de compensação / Quitação em folha" />
+        </label>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="settleHourBalanceDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Confirmar Fechamento</button>
+    </div>
+  </form>
+</dialog>
+

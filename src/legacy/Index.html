@@ -414,6 +414,16 @@
                 </button>
               </div>
             </div>
+            <div id="incompletePunchesAlert" class="incomplete-punches-alert hidden">
+              <div class="incomplete-alert-content">
+                <span class="incomplete-alert-icon">⚠️</span>
+                <div class="incomplete-alert-text">
+                  <strong id="incompletePunchesTitle">Saídas esquecidas detectadas</strong>
+                  <p id="incompletePunchesDesc">Há colaboradores sem registro de saída em dias anteriores.</p>
+                </div>
+              </div>
+              <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
+            </div>
             <div id="cards" class="metric-grid"></div>
             <div id="proxima-folga"></div>
             <div class="dashboard-grid">
@@ -1030,6 +1040,7 @@
                   <input id="adminHourBalanceMonth" type="month" />
                 </label>
                 <button id="adminHourBalanceRefresh" class="btn btn-secondary" type="button">↻ Atualizar</button>
+                <button id="adminHourBalanceSettleBtn" class="btn btn-primary" type="button">⚖️ Fechar / Quitar Mês</button>
               </div>
             </div>
             <div class="metric-grid admin-hour-balance-metrics">

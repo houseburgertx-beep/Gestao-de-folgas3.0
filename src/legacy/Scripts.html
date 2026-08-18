@@ -177,6 +177,9 @@
     houseLinkLeave: "leaveHouseLinkRoom",
     hourBalance: "getHourBalanceOverviewWithSession",
     adjustHourBalance: "adjustHourBalanceWithSession",
+    incompletePunches: "getIncompletePunchesWithSession",
+    quickFixPunch: "quickFixIncompletePunch",
+    settleHourBalance: "settleOrConvertHourBalanceWithSession",
     vacationRequest: "solicitarFerias",
     vacations: "listarSolicitacoesFerias",
     vacationDecision: "decidirFerias",
@@ -1065,9 +1068,26 @@
     $("#clockDecisionForm").onsubmit = approveClockAdjustment;
     $("#clockDecisionReject").onclick = rejectClockAdjustment;
     $("#clockJustificationForm").onsubmit = saveClockJustification_;
+    $("#incompletePunchesActionBtn") &&
+      ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
     $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
     $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
     $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
+    $("#adminHourBalanceSettleBtn") &&
+      ($("#adminHourBalanceSettleBtn").onclick = openSettleHourBalanceDialog_);
+    $("#settleEmployee") &&
+      ($("#settleEmployee").onchange = updateSettleHourBalanceFields_);
+    $("#settleMonth") &&
+      ($("#settleMonth").onchange = updateSettleHourBalanceFields_);
+    $("#settleMode") &&
+      ($("#settleMode").onchange = updateSettleHourBalanceFields_);
+    $("#settleLeaveCount") &&
+      ($("#settleLeaveCount").oninput = () => {
+        $("#settleLeaveCount").dataset.userEdited = "true";
+        updateSettleHourBalanceFields_();
+      });
+    $("#settleHourBalanceForm") &&
+      ($("#settleHourBalanceForm").onsubmit = saveSettleHourBalance_);
     $("#hourBalanceAdjustmentForm").onsubmit = saveHourBalanceAdjustment_;
     $("#captureStoreLocation").onclick = captureStoreLocation;
     $$("[data-close]").forEach(
@@ -2055,6 +2075,210 @@
       toast(error.message, true);
     }
   }
+
+  async function checkIncompletePunches_() {
+    const alertEl = $("#incompletePunchesAlert");
+    if (!alertEl || !sessionToken() || isEmployee()) {
+      if (alertEl) alertEl.classList.add("hidden");
+      return;
+    }
+    try {
+      const res = await call(FN.incompletePunches, sessionToken());
+      const list = arr(res?.incompletos);
+      state.incompletePunches = list;
+      if (list.length > 0) {
+        $("#incompletePunchesTitle").textContent = `${list.length} saída${list.length > 1 ? "s" : ""} esquecida${list.length > 1 ? "s" : ""} detectada${list.length > 1 ? "s" : ""}`;
+        $("#incompletePunchesDesc").textContent = `Há colaborador${list.length > 1 ? "es" : ""} sem batida de saída em dias anteriores. Clique para ajustar.`;
+        alertEl.classList.remove("hidden");
+      } else {
+        alertEl.classList.add("hidden");
+      }
+    } catch (e) {
+      if (alertEl) alertEl.classList.add("hidden");
+    }
+  }
+
+  function openQuickFixPunchesDialog_() {
+    const list = arr(state.incompletePunches);
+    if (!list.length) return toast("Nenhuma saída pendente no momento.");
+    const container = $("#quickFixPunchList");
+    container.innerHTML = list
+      .map(
+        (item, idx) => `
+      <div class="quick-fix-item" id="quickFixItem_${idx}">
+        <div class="quick-fix-info">
+          <strong>${esc(item.NomeFuncionario)}</strong>
+          <span>${esc(item.NomeLoja ? item.NomeLoja + " · " : "")}${esc(item.DataBR || item.Data)} · Entrada às ${esc(item.EntradaTexto || "—")}</span>
+        </div>
+        <div class="quick-fix-controls">
+          <label style="margin:0;font-size:12px;display:flex;align-items:center;gap:6px">
+            Saída:
+            <input type="time" id="quickFixTime_${idx}" class="quick-fix-input" value="${esc(item.HorarioSugeridoSaida || "23:00")}" required />
+          </label>
+          <button type="button" class="quick-fix-submit-btn" data-action="quick-fix-punch" data-idx="${idx}">Concluir Saída</button>
+        </div>
+      </div>
+    `,
+      )
+      .join("");
+    openDialog("quickFixPunchDialog");
+  }
+
+  async function handleQuickFixPunchAction_(idx) {
+    const item = (state.incompletePunches || [])[idx];
+    if (!item) return;
+    const timeInput = $(`#quickFixTime_${idx}`);
+    const timeVal = timeInput?.value || item.HorarioSugeridoSaida || "23:00";
+    const btn = $(`[data-action="quick-fix-punch"][data-idx="${idx}"]`);
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Salvando…";
+    }
+    try {
+      await call(FN.quickFixPunch, sessionToken(), {
+        funcionarioId: item.FuncionarioID,
+        data: item.Data,
+        horaSaida: timeVal,
+        observacao: `Saída ajustada rapidamente pelo gestor.`,
+      });
+      toast(
+        `Saída de ${item.NomeFuncionario} em ${item.DataBR || item.Data} registrada com sucesso!`,
+      );
+      const rowEl = $(`#quickFixItem_${idx}`);
+      if (rowEl) rowEl.remove();
+      state.incompletePunches = (state.incompletePunches || []).filter(
+        (_, i) => i !== Number(idx),
+      );
+      if (state.incompletePunches.length === 0) {
+        closeDialog("quickFixPunchDialog");
+        $("#incompletePunchesAlert")?.classList.add("hidden");
+      } else {
+        $("#incompletePunchesTitle").textContent =
+          `${state.incompletePunches.length} saída(s) esquecida(s) detectada(s)`;
+      }
+      state.hourBalance = null;
+      renderDashboard();
+    } catch (e) {
+      toast(e.message, true);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Concluir Saída";
+      }
+    }
+  }
+
+  function openSettleHourBalanceDialog_() {
+    if (!isManager())
+      return toast(
+        "Somente gestores ou administradores podem fechar o banco de horas.",
+        true,
+      );
+    const monthInput = $("#settleMonth");
+    const currentMonth =
+      $("#adminHourBalanceMonth")?.value || iso(new Date()).slice(0, 7);
+    monthInput.value = currentMonth;
+
+    const employees = (
+      state.adminHourBalances?.employees ||
+      state.employees ||
+      []
+    ).filter((e) => bool(val(e, "Ativo", "ativo")));
+    const empSelect = $("#settleEmployee");
+    empSelect.innerHTML = employees
+      .map(
+        (e) => `
+      <option value="${esc(e.FuncionarioID || idOf(e, "Funcionario"))}">${esc(e.Nome || val(e, "Nome", "nome"))}${e.NomeLoja ? ` (${esc(e.NomeLoja)})` : ""}</option>
+    `,
+      )
+      .join("");
+
+    updateSettleHourBalanceFields_();
+    openDialog("settleHourBalanceDialog");
+  }
+
+  function updateSettleHourBalanceFields_() {
+    const empId = $("#settleEmployee")?.value;
+    const empData = (state.adminHourBalances?.employees || []).find(
+      (e) => String(e.FuncionarioID) === String(empId),
+    );
+    const balanceMin = Number(empData?.saldoMinutos || 0);
+    const balanceText =
+      empData?.saldoTexto ||
+      (balanceMin >= 0 ? "+" : "") + minutesText(balanceMin);
+
+    const balanceEl = $("#settleCurrentBalance");
+    if (balanceEl) {
+      balanceEl.textContent = balanceText;
+      balanceEl.style.color = balanceMin < 0 ? "#e5484d" : "#20a06b";
+    }
+
+    const sched = (state.schedules || []).find(
+      (s) => String(s.FuncionarioID) === String(empId) && bool(s.Ativa),
+    );
+    const dailyMin = Number(sched?.CargaDiariaMinutos || 440);
+    const dailyEl = $("#settleDailyWorkload");
+    if (dailyEl) dailyEl.textContent = minutesText(dailyMin);
+
+    const mode = $("#settleMode")?.value;
+    const isLeaveMode = mode === "converter_folga";
+    $("#settleLeaveCountField")?.classList.toggle("hidden", !isLeaveMode);
+
+    if (isLeaveMode) {
+      const possibleLeaves = Math.max(
+        0.5,
+        Math.floor((Math.max(0, balanceMin) / dailyMin) * 2) / 2,
+      );
+      const leaveInput = $("#settleLeaveCount");
+      if (leaveInput && !leaveInput.dataset.userEdited) {
+        leaveInput.value = possibleLeaves > 0 ? possibleLeaves : 1;
+      }
+      const leaves = Number(leaveInput?.value || 1);
+      $("#settleMinutes").value = Math.round(leaves * dailyMin);
+    } else {
+      $("#settleMinutes").value = Math.max(0, balanceMin);
+    }
+  }
+
+  async function saveSettleHourBalance_(event) {
+    event.preventDefault();
+    const empId = $("#settleEmployee").value;
+    const month = $("#settleMonth").value;
+    const mode = $("#settleMode").value;
+    const minutes = Number($("#settleMinutes").value || 0);
+    const leaves = Number($("#settleLeaveCount")?.value || 1);
+    const reason = $("#settleReason").value.trim();
+
+    if (!empId) return toast("Selecione o funcionário.", true);
+    if (!minutes || minutes <= 0)
+      return toast("Informe uma quantidade válida de minutos.", true);
+
+    setLoading(true);
+    try {
+      await call(FN.settleHourBalance, sessionToken(), {
+        funcionarioId: empId,
+        month,
+        modo: mode,
+        minutos: minutes,
+        folgas: leaves,
+        motivo: reason,
+      });
+      closeDialog("settleHourBalanceDialog");
+      state.hourBalance = null;
+      state.timeClockBalance = null;
+      toast(
+        mode === "converter_folga"
+          ? `Horas convertidas com sucesso! +${leaves} folga(s) creditada(s) no saldo.`
+          : `Banco de horas quitado com sucesso em folha de pagamento.`,
+      );
+      await loadAdminHourBalances_(true);
+      renderDashboard();
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function hydrateUser() {
     const u = state.user;
     const name = val(u, "nome", "Nome") || "Utilizador";
@@ -2519,6 +2743,7 @@
     renderStoreChart();
     renderPendingCenterSummary_();
     if (typeof renderProximaFolga === "function") renderProximaFolga();
+    checkIncompletePunches_();
   }
   function activity(x) {
     const n = val(x, "NomeFuncionario", "nomeFuncionario"),
@@ -4300,6 +4525,7 @@
     if (a === "clock-review") openClockDecision(id);
     if (a === "clock-justify-day")
       openClockJustification_(b.dataset.employee, b.dataset.date);
+    if (a === "quick-fix-punch") handleQuickFixPunchAction_(b.dataset.idx);
     if (a === "adjust-hour-balance") openHourBalanceAdjustment_(id);
     if (a === "disable-employee")
       confirmThen(
