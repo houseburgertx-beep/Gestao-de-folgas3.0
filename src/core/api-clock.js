@@ -340,6 +340,8 @@ const clockMinutes = (value) => {
   const text = String(value || "");
   const plain = text.match(/^(\d{1,2}):(\d{2})/);
   if (plain) return Number(plain[1]) * 60 + Number(plain[2]);
+  const embedded = text.match(/[T\s](\d{1,2}):(\d{2})(?::\d{2})?/);
+  if (embedded) return Number(embedded[1]) * 60 + Number(embedded[2]);
   const date = new Date(value);
   return Number.isFinite(date.getTime())
     ? date.getUTCHours() * 60 + date.getUTCMinutes()
@@ -454,6 +456,7 @@ const dayMetrics = (records, schedule, options = {}) => {
     rawBalance,
     tolerance,
     balance,
+    hasPunches: ordered.length > 0,
     complete: shifts.length > 0 && !openShift && !unmatchedEntry,
     reviewRequired,
   };
@@ -681,7 +684,7 @@ async function clockContext(filters = {}) {
   if (month === monthIso()) {
     recordPeriods.add(previousDateKey(todayIso()).slice(0, 7));
   }
-  const [employees, records, schedules, adjustments, timeOff, justifications] =
+  const [employees, records, schedules, adjustments, timeOff, justifications, bankMovements] =
     await Promise.all([
       runtime.list("Funcionarios", { profile }),
       runtime.listPeriods("RegistrosPonto", [...recordPeriods], { profile }),
@@ -689,6 +692,7 @@ async function clockContext(filters = {}) {
       runtime.list("AjustesPonto", { profile }),
       runtime.list("Folgas", { profile }),
       runtime.list("JustificativasPonto", { profile }),
+      runtime.list("BancoHorasMovimentos", { profile }),
     ]);
   const trackingRecords =
     filters.includeHistoricalStart === true && isAdmin(profile)
@@ -837,14 +841,26 @@ async function clockContext(filters = {}) {
       });
     }
   }
-  const totals = balanceDays(days).reduce(
+  const validDays = balanceDays(days);
+  const totals = validDays.reduce(
     (result, item) => {
-      result.worked += item.trabalhadoMinutos;
-      result.expected += item.previstoMinutos;
+      result.worked += Number(item.trabalhadoMinutos || 0);
+      result.expected += Number(item.previstoMinutos || 0);
+      result.balance += Number(item.saldoMinutos || 0);
       return result;
     },
-    { worked: 0, expected: 0 },
+    { worked: 0, expected: 0, balance: 0 },
   );
+  const monthBankMovements = bankMovements.filter(
+    (item) =>
+      allowedIds.has(String(item.FuncionarioID || "")) &&
+      normalizedDateKey(item.Data).slice(0, 7) === month,
+  );
+  const movementsBalance = monthBankMovements.reduce(
+    (sum, item) => sum + hourBankMovementMinutes(item),
+    0,
+  );
+  const finalBalanceMinutes = totals.balance + movementsBalance;
   return {
     month,
     date: operationalDay,
@@ -855,6 +871,7 @@ async function clockContext(filters = {}) {
     ),
     locations: [],
     adjustments: monthAdjustments,
+    bankMovements: monthBankMovements,
     justifications: justifications.filter(
       (item) =>
         allowedIds.has(item.FuncionarioID) &&
@@ -876,12 +893,12 @@ async function clockContext(filters = {}) {
     summary: {
       trabalhadoMinutos: totals.worked,
       previstoMinutos: totals.expected,
-      saldoMinutos: totals.worked - totals.expected,
+      saldoMinutos: finalBalanceMinutes,
       trabalhadoTexto: minutesText(totals.worked),
       previstoTexto: minutesText(totals.expected),
       saldoTexto:
-        (totals.worked - totals.expected >= 0 ? "+" : "") +
-        minutesText(totals.worked - totals.expected),
+        (finalBalanceMinutes >= 0 ? "+" : "") +
+        minutesText(finalBalanceMinutes),
     },
   };
 }

@@ -5037,27 +5037,43 @@
     const d = state.timeClock || {},
       summary = d.summary || {},
       accumulated = state.timeClockBalance || {},
-      accumulatedMatches = accumulated._cacheKey === d._cacheKey;
-    $("#clockWorkedMetric").textContent = summary.trabalhadoTexto || "0h 00min";
-    $("#clockExpectedMetric").textContent = summary.previstoTexto || "0h 00min";
-    $("#clockBalanceMetric").textContent = accumulatedMatches
-      ? accumulated.loading
-        ? "Calculando…"
-        : accumulated.totalTexto || "+0h 00min"
-      : summary.saldoTexto || "0h 00min";
-    const labels = clockActionLabels_(),
+      accumulatedMatches = accumulated._cacheKey === d._cacheKey,
+      labels = clockActionLabels_(),
       personalClock = isEmployee() || isKitchenChief(),
       teamOnlyView = canViewTeam() && !personalClock,
-      operationalDay = normalizeClockDay_(d.date || iso(new Date())),
-      timelineRecords = (
-        teamOnlyView
-          ? arr(d.records).filter(
-              (record) =>
-                String(record.Status || "") !== "Substituído" &&
-                normalizeClockDay_(record.Data) === operationalDay,
-            )
-          : arr(d.todayRecords)
-      ).sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+      employeeSelected = $("#clockEmployeeFilter")?.value || "",
+      operationalDay = normalizeClockDay_(d.date || iso(new Date()));
+    $("#clockWorkedMetric").textContent = summary.trabalhadoTexto || "0h 00min";
+    $("#clockExpectedMetric").textContent = summary.previstoTexto || "0h 00min";
+    let balanceText = "0h 00min";
+    if (accumulatedMatches) {
+      if (accumulated.loading) {
+        balanceText = "Calculando…";
+      } else if (employeeSelected) {
+        const emp = arr(accumulated.employees).find((e) => String(e.FuncionarioID) === String(employeeSelected));
+        balanceText = emp ? emp.saldoTexto : (accumulated.totalTexto || "+0h 00min");
+      } else if (personalClock) {
+        const me = arr(accumulated.employees)[0];
+        balanceText = me ? me.saldoTexto : (accumulated.totalTexto || "+0h 00min");
+      } else {
+        balanceText = (accumulated.totalTexto ? "Equipe: " + accumulated.totalTexto : "+0h 00min");
+      }
+    } else {
+      balanceText = summary.saldoTexto || "0h 00min";
+      if (!employeeSelected && !personalClock && balanceText !== "0h 00min" && !balanceText.startsWith("Equipe:")) {
+        balanceText = "Equipe: " + balanceText;
+      }
+    }
+    $("#clockBalanceMetric").textContent = balanceText;
+    const timelineRecords = (
+      teamOnlyView
+        ? arr(d.records).filter(
+            (record) =>
+              String(record.Status || "") !== "Substituído" &&
+              normalizeClockDay_(record.Data) === operationalDay,
+          )
+        : arr(d.todayRecords)
+    ).sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
     const clockPrimaryLayout = $("#clockPrimaryLayout"),
       clockTodayPanel = $("#clockTodayPanel");
     if (clockPrimaryLayout) {

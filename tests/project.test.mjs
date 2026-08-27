@@ -1759,4 +1759,19 @@ test("escala para WhatsApp gera mensagem formatada com setores e folgas", () => 
   assert.match(scheduleMsg.message, /16:00 às 00:20/);
 });
 
+test("scheduleExpectedMinutes extrai horários nominais e embutidos corretamente", () => {
+  const scheduleIso = {
+    HoraEntrada: "2026-08-01T08:00:00.000Z",
+    HoraSaida: "2026-08-01T17:00:00.000Z",
+    DuracaoIntervaloMinutos: 60,
+  };
+  const schedulePlain = {
+    HoraEntrada: "08:00",
+    HoraSaida: "17:00",
+    DuracaoIntervaloMinutos: 60,
+  };
+  assert.equal(scheduleExpectedMinutes(scheduleIso), 480);
+  assert.equal(scheduleExpectedMinutes(schedulePlain), 480);
+});
+
 
