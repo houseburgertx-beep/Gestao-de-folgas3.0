@@ -387,7 +387,18 @@ const sha256 = async (value) => {
     .join("");
 };
 
-const nextTimeOffSummary = (records, employeeId, currentDay = todayIso()) => {
+const nextTimeOffSummary = (records, employeeId, currentDay = todayIso(), employee = null) => {
+  const weekdays = [
+    "Domingo",
+    "Segunda",
+    "Terça",
+    "Quarta",
+    "Quinta",
+    "Sexta",
+    "Sábado",
+  ];
+
+  // Próximo pedido de folga aprovado
   const next = records
     .filter(
       (item) =>
@@ -400,28 +411,52 @@ const nextTimeOffSummary = (records, employeeId, currentDay = todayIso()) => {
         normalizedDateKey(b.DataInicio),
       ),
     )[0];
-  if (!next) return null;
 
-  const dateKey = normalizedDateKey(next.DataInicio);
-  const nextDate = new Date(`${dateKey}T12:00:00`);
-  const currentDate = new Date(`${currentDay}T12:00:00`);
-  const days =
-    Math.max(0, Math.round((nextDate - currentDate) / 86400000)) + 1;
-  const weekdays = [
-    "Domingo",
-    "Segunda",
-    "Terça",
-    "Quarta",
-    "Quinta",
-    "Sexta",
-    "Sábado",
-  ];
-  return {
-    ...next,
-    dias: days,
-    diaSemana: weekdays[nextDate.getDay()],
-    data: dateKey,
-  };
+  // Próxima ocorrência da folga fixa semanal (nos próximos 14 dias)
+  let fixedDayEntry = null;
+  if (employee) {
+    const searchLimit = 14;
+    for (let offset = 0; offset <= searchLimit; offset++) {
+      const d = new Date(`${currentDay}T12:00:00`);
+      d.setDate(d.getDate() + offset);
+      const dKey = d.toISOString().slice(0, 10);
+      if (employeeHasFixedDay(employee, dKey)) {
+        // Verificar se essa data não foi trocada por um pedido de folga
+        const swapped = fixedDateWasSwapped(records, employeeId, dKey);
+        if (!swapped) {
+          fixedDayEntry = {
+            _tipo: "folga_fixa",
+            dateKey: dKey,
+            date: dKey,
+            diaSemana: weekdays[d.getDay()],
+            dias: offset,
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  // Construir resultado do pedido aprovado
+  let approvedEntry = null;
+  if (next) {
+    const dateKey = normalizedDateKey(next.DataInicio);
+    const nextDate = new Date(`${dateKey}T12:00:00`);
+    const currentDate = new Date(`${currentDay}T12:00:00`);
+    const days = Math.max(0, Math.round((nextDate - currentDate) / 86400000));
+    approvedEntry = {
+      ...next,
+      dias: days,
+      diaSemana: weekdays[nextDate.getDay()],
+      data: dateKey,
+    };
+  }
+
+  // Retornar o que vier primeiro (menor dias)
+  if (!approvedEntry && !fixedDayEntry) return null;
+  if (!approvedEntry) return { ...fixedDayEntry };
+  if (!fixedDayEntry) return approvedEntry;
+  return fixedDayEntry.dias <= approvedEntry.dias ? { ...fixedDayEntry } : approvedEntry;
 };
 
 export function createAdvancedHandlers() {
@@ -963,9 +998,12 @@ export function createAdvancedHandlers() {
     async getProximaFolgaFuncionario(args) {
       dropClientToken(args);
       const profile = await runtime.requireProfile();
-      const records = await runtime.list("Folgas", { profile });
+      const [records, employee] = await Promise.all([
+        runtime.list("Folgas", { profile }),
+        runtime.getById("Funcionarios", profile.FuncionarioID),
+      ]);
       return success(
-        nextTimeOffSummary(records, profile.FuncionarioID),
+        nextTimeOffSummary(records, profile.FuncionarioID, todayIso(), employee),
       );
     },
 

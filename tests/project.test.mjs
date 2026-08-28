@@ -1612,6 +1612,7 @@ test("jornada incompleta continua pendente depois da virada do dia", () => {
 
 test("próxima folga mostra apenas a aprovada com dias e data", () => {
   const employeeId = "ana";
+  // Sem funcionário passado => só considera pedidos aprovados (sem folga fixa)
   const result = nextTimeOffSummary(
     [
       {
@@ -1627,8 +1628,10 @@ test("próxima folga mostra apenas a aprovada com dias e data", () => {
     ],
     employeeId,
     "2026-07-28",
+    null, // sem objeto funcionário — não considera folga fixa
   );
-  assert.equal(result.dias, 46);
+  // 2026-07-28 → 2026-09-11 = 45 dias corridos
+  assert.equal(result.dias, 45);
   assert.equal(result.diaSemana, "Sexta");
   assert.equal(result.data, "2026-09-11");
 });

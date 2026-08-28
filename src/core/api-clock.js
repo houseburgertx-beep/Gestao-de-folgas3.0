@@ -1573,8 +1573,20 @@ export function createClockHandlers() {
           runtime.list("JustificativasPonto", { profile }),
           runtime.list("BancoHorasMovimentos", { profile }),
         ]);
-      return success(
-        accumulatedHourBalance({
+      const result = accumulatedHourBalance({
+        employees,
+        records,
+        schedules,
+        timeOff,
+        justifications,
+        movements,
+        throughMonth: filters.month || monthIso(),
+        employeeId: filters.funcionarioId || "",
+      });
+      // Para gestores e administradores, calcular também o saldo individual
+      // do próprio usuário logado, para exibir no card "Meu saldo" do dashboard.
+      if (!filters.funcionarioId && isManager(profile) && profile.FuncionarioID) {
+        const selfResult = accumulatedHourBalance({
           employees,
           records,
           schedules,
@@ -1582,9 +1594,18 @@ export function createClockHandlers() {
           justifications,
           movements,
           throughMonth: filters.month || monthIso(),
-          employeeId: filters.funcionarioId || "",
-        }),
-      );
+          employeeId: String(profile.FuncionarioID),
+        });
+        const selfEntry = (selfResult.employees || [])[0] || null;
+        result.selfBalance = selfEntry
+          ? {
+              saldoMinutos: selfEntry.saldoMinutos,
+              saldoTexto: selfEntry.saldoTexto,
+              desde: selfEntry.desde || "",
+            }
+          : null;
+      }
+      return success(result);
     },
 
     async adjustHourBalanceWithSession(args) {

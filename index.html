@@ -15134,7 +15134,22 @@
         ? "Desde " + dateBR(mine.desde)
         : "Ainda sem marcações";
     }
-    return "Desde a 1ª marcação de cada um";
+    return "Soma de todos da equipe";
+  }
+  function meuSaldoHorasText() {
+    const d = state.hourBalance;
+    if (!d) return "…";
+    const self = d.selfBalance;
+    if (!self) return "—";
+    return self.saldoTexto || "—";
+  }
+  function meuSaldoHorasSubtitle() {
+    const d = state.hourBalance;
+    if (!d) return "Carregando…";
+    const self = d.selfBalance;
+    return self && self.desde
+      ? "Desde " + dateBR(self.desde)
+      : "Sem marcações";
   }
   function cardValueStyle(v) {
     const s = String(v).trim(),
@@ -15161,6 +15176,7 @@
             folgasProximos7Dias: "…",
             pedidosPendentes: "…",
             saldoHoras: "…",
+            meuSaldoHoras: "…",
           };
     }
     const today = iso(new Date()),
@@ -15216,6 +15232,7 @@
       folgasProximos7Dias: upcoming,
       pedidosPendentes: pending,
       saldoHoras: hourBalanceText,
+      meuSaldoHoras: meuSaldoHorasText(),
     };
   }
   function hourBalanceCardText() {
@@ -15230,6 +15247,7 @@
   function renderDashboard() {
     const cards = Object.assign({}, state.dashboard.cards || computeCards(), {
         saldoHoras: hourBalanceCardText(),
+        meuSaldoHoras: meuSaldoHorasText(),
       }),
       labels = {
         totalFuncionariosAtivos: "Funcionários ativos",
@@ -15238,13 +15256,22 @@
         folgasProximos7Dias: "Próximos 7 dias",
         pedidosPendentes: "Pedidos pendentes",
         conflitos: "Conflitos",
-        saldoHoras: "Saldo de horas",
+        saldoHoras: "Saldo da equipe",
+        meuSaldoHoras: "Meu saldo",
       };
+    const accentColors = ["#7b68ee", "#3788e5", "#20a06b", "#f0a020", "#e5484d", "#14b8a6", "#9b59b6"];
     $("#cards").innerHTML = Object.entries(cards)
-      .slice(0, 6)
+      .slice(0, 7)
       .map(
-        ([k, v], i) =>
-          `<article class="metric-card" style="--accent:${["#7b68ee", "#3788e5", "#20a06b", "#f0a020", "#e5484d", "#14b8a6"][i]}"><span>${esc(labels[k] || k)}</span><strong${k === "saldoHoras" ? cardValueStyle(v) : ""}>${esc(v)}</strong><small>${k === "saldoHoras" ? esc(hourBalanceSubtitle()) : "Atualizado agora"}</small></article>`,
+        ([k, v], i) => {
+          const isBalance = k === "saldoHoras" || k === "meuSaldoHoras";
+          const subtitle = k === "saldoHoras"
+            ? esc(hourBalanceSubtitle())
+            : k === "meuSaldoHoras"
+              ? esc(meuSaldoHorasSubtitle())
+              : "Atualizado agora";
+          return `<article class="metric-card" style="--accent:${accentColors[i] || accentColors[5]}"><span>${esc(labels[k] || k)}</span><strong${isBalance ? cardValueStyle(v) : ""}>${esc(v)}</strong><small>${subtitle}</small></article>`;
+        },
       )
       .join("");
     const pending = state.timeOff.filter((x) => timeOffStatus(x) === "pending");
