@@ -239,16 +239,36 @@ const workdayIndexes = (schedule) =>
     .map(Number)
     .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
 
-const hasRecurringFixedOff = (employee) =>
-  Boolean(
-    String(employee?.DiaFolgaPreferencial || "").trim() ||
-      String(employee?.SegundoDiaFolgaPreferencial || "").trim(),
-  );
+const fixedOffWeekdayIndexes = (employee) => {
+  const names = [
+    "domingo",
+    "segunda",
+    "terca",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sabado",
+  ];
+  return [
+    employee?.DiaFolgaPreferencial,
+    employee?.SegundoDiaFolgaPreferencial,
+  ]
+    .filter(Boolean)
+    .map((day) => {
+      const norm = normalizedWeekday(day);
+      return names.findIndex((name) => norm.startsWith(name.slice(0, 4)));
+    })
+    .filter((idx) => idx >= 0);
+};
 
-const isScheduledWorkday = (schedule, employee, weekday) =>
-  Boolean(schedule) &&
-  (hasRecurringFixedOff(employee) ||
-    workdayIndexes(schedule).includes(weekday));
+const isScheduledWorkday = (schedule, employee, weekday) => {
+  if (!schedule) return false;
+  const fixedIndexes = fixedOffWeekdayIndexes(employee);
+  if (fixedIndexes.length > 0) {
+    return !fixedIndexes.includes(weekday);
+  }
+  return workdayIndexes(schedule).includes(weekday);
+};
 
 const scheduleFor = (schedules, employeeId, dateKey = todayIso()) => {
   const candidates = schedules
@@ -602,7 +622,9 @@ const accumulatedHourBalance = ({
         (item) =>
           ["Aprovada", "Concluída"].includes(item.Status) &&
           normalizedDateKey(item.DataInicio) <= date &&
-          normalizedDateKey(item.DataFim || item.DataInicio) >= date,
+          (item.DataFim
+            ? normalizedDateKey(item.DataFim)
+            : normalizedDateKey(item.DataInicio)) >= date,
       );
       const fixed =
         !approvedOff && isFixedOffForDate(employee, date, employeeTimeOff);
@@ -661,10 +683,9 @@ const accumulatedHourBalance = ({
       ate: throughDate,
     });
   });
-  const totalMinutos = totals.reduce(
-    (sum, item) => sum + Number(item.saldoMinutos || 0),
-    0,
-  );
+  const totalMinutos = totals
+    .filter((item) => item.Ativo !== false)
+    .reduce((sum, item) => sum + Number(item.saldoMinutos || 0), 0);
   return {
     month,
     throughDate,
@@ -748,7 +769,9 @@ async function clockContext(filters = {}) {
           item.FuncionarioID === ownEmployee.FuncionarioID &&
           ["Aprovada", "Concluída"].includes(item.Status) &&
           normalizedDateKey(item.DataInicio) <= operationalDay &&
-          normalizedDateKey(item.DataFim || item.DataInicio) >= operationalDay,
+          (item.DataFim
+            ? normalizedDateKey(item.DataFim)
+            : normalizedDateKey(item.DataInicio)) >= operationalDay,
       )
     : null;
   const fixedOff =
@@ -782,7 +805,9 @@ async function clockContext(filters = {}) {
           item.FuncionarioID === employee.FuncionarioID &&
           ["Aprovada", "Concluída"].includes(item.Status) &&
           normalizedDateKey(item.DataInicio) <= dateKey &&
-          normalizedDateKey(item.DataFim || item.DataInicio) >= dateKey,
+          (item.DataFim
+            ? normalizedDateKey(item.DataFim)
+            : normalizedDateKey(item.DataInicio)) >= dateKey,
       );
       const weekday = new Date(`${dateKey}T12:00:00`).getDay();
       const fixed =
@@ -956,7 +981,9 @@ async function quickClockContext() {
       item.FuncionarioID === employee.FuncionarioID &&
       ["Aprovada", "Concluída"].includes(item.Status) &&
       normalizedDateKey(item.DataInicio) <= operationalDay &&
-      normalizedDateKey(item.DataFim || item.DataInicio) >= operationalDay,
+      (item.DataFim
+        ? normalizedDateKey(item.DataFim)
+        : normalizedDateKey(item.DataInicio)) >= operationalDay,
   );
   const fixedOff =
     !approvedOff &&
@@ -1991,10 +2018,19 @@ export const calculateLivePresence = (
             );
           }
 
-          if (elapsedMinutes >= 10 * 60) {
+          // Limiares baseados na jornada real do funcionário.
+          // "Hora extra" = jornada prevista + 30min de tolerância.
+          // "Limite excessivo" = limiar fixo de revisão (12h brutas).
+          const expectedShiftMinutes = sched
+            ? scheduleExpectedMinutes(sched)
+            : 8 * 60;
+          const overtimeThreshold = expectedShiftMinutes + 30;
+          const dangerThreshold = MAX_DAILY_WORK_MINUTES; // 12 * 60
+
+          if (elapsedMinutes >= dangerThreshold) {
             alertLevel = "danger";
             alertMessage = `🚨 ${minutesText(elapsedMinutes)} em turno (Limite excessivo)`;
-          } else if (elapsedMinutes >= 8 * 60) {
+          } else if (elapsedMinutes >= overtimeThreshold) {
             alertLevel = "warning";
             alertMessage = `⚠️ ${minutesText(elapsedMinutes)} em turno (Hora extra)`;
           }
@@ -2141,6 +2177,8 @@ export {
   dayBalanceState,
   dayMetrics,
   firstPunchDatesByEmployee,
+  fixedOffWeekdayIndexes,
+  isScheduledWorkday,
   operationalDayFor,
   scheduleExpectedMinutes,
 };

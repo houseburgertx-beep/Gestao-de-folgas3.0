@@ -25,7 +25,9 @@ import {
   dayMetrics,
   findIncompletePunches,
   firstPunchDatesByEmployee,
+  fixedOffWeekdayIndexes,
   isFixedOffForDate,
+  isScheduledWorkday,
   operationalDayFor,
   scheduleExpectedMinutes,
 } from "../src/core/api-clock.js";
@@ -1776,5 +1778,110 @@ test("scheduleExpectedMinutes extrai horários nominais e embutidos corretamente
   assert.equal(scheduleExpectedMinutes(scheduleIso), 480);
   assert.equal(scheduleExpectedMinutes(schedulePlain), 480);
 });
+
+test("isScheduledWorkday calcula escala 6x1 considerando folga fixa semanal sem gerar hora extra indevida no domingo", () => {
+  const employeeTuesday = {
+    FuncionarioID: "emp-terca",
+    DiaFolgaPreferencial: "Terça-feira",
+  };
+  const schedule = {
+    DiasTrabalho: "1,2,3,4,5,6",
+  };
+
+  // Terça (2) é a folga fixa -> não deve ser dia de escala
+  assert.equal(isScheduledWorkday(schedule, employeeTuesday, 2), false);
+  // Domingo (0) é dia normal de trabalho na escala 6x1 com folga na terça
+  assert.equal(isScheduledWorkday(schedule, employeeTuesday, 0), true);
+  // Quarta (3), Quinta (4), etc. são dias de trabalho
+  assert.equal(isScheduledWorkday(schedule, employeeTuesday, 3), true);
+
+  // Funcionário 5x2 padrão sem folga fixa especificada
+  const employee5x2 = {
+    FuncionarioID: "emp-5x2",
+  };
+  const schedule5x2 = {
+    DiasTrabalho: "1,2,3,4,5",
+  };
+  assert.equal(isScheduledWorkday(schedule5x2, employee5x2, 0), false);
+  assert.equal(isScheduledWorkday(schedule5x2, employee5x2, 6), false);
+  assert.equal(isScheduledWorkday(schedule5x2, employee5x2, 1), true);
+});
+
+test("presença ao vivo calcula alertas de hora extra proporcionais à jornada do colaborador", () => {
+  const employee = {
+    FuncionarioID: "emp-1",
+    Nome: "Pedro",
+    Ativo: true,
+    LojaID: "loja-1",
+  };
+  // Jornada de 6h (360min)
+  const schedule6h = {
+    FuncionarioID: "emp-1",
+    Ativa: true,
+    CargaDiariaMinutos: 360,
+  };
+  // Funcionário entrou há 7h (420min): acima de 6h + 30min -> deve gerar alerta de hora extra
+  const now = new Date("2026-08-29T17:00:00-03:00");
+  const records = [
+    {
+      FuncionarioID: "emp-1",
+      Data: "2026-08-29",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-08-29T10:00:00-03:00",
+      Status: "Válido",
+    },
+  ];
+  const presence = calculateLivePresence(
+    [employee],
+    records,
+    [schedule6h],
+    [],
+    now,
+  );
+  const p = presence.presence[0];
+  assert.equal(p.status, "trabalhando");
+  assert.equal(p.alertLevel, "warning");
+  assert.match(p.alertMessage, /Hora extra/);
+});
+
+test("accumulatedHourBalance totalMinutos consolida apenas funcionários ativos", () => {
+  const result = accumulatedHourBalance({
+    employees: [
+      { FuncionarioID: "ativo", Nome: "Ativo", Ativo: true },
+      { FuncionarioID: "inativo", Nome: "Inativo", Ativo: false },
+    ],
+    records: [
+      {
+        FuncionarioID: "inativo",
+        Data: "2026-08-01",
+        TipoMarcacao: "ENTRADA",
+        DataHora: "2026-08-01T08:00:00-03:00",
+        Status: "Válido",
+      },
+      {
+        FuncionarioID: "inativo",
+        Data: "2026-08-01",
+        TipoMarcacao: "SAIDA_FINAL",
+        DataHora: "2026-08-01T17:00:00-03:00",
+        Status: "Válido",
+      },
+    ],
+    schedules: [
+      {
+        FuncionarioID: "inativo",
+        Ativa: true,
+        CargaDiariaMinutos: 480,
+      },
+    ],
+    throughMonth: "2026-08",
+    currentDate: "2026-08-05",
+  });
+  // O funcionário inativo continua no array para histórico individual
+  assert.equal(result.employees.length, 2);
+  // Mas o total da equipe soma apenas ativos (0)
+  assert.equal(result.totalMinutos, 0);
+  assert.equal(result.totalTexto, "+0h 00min");
+});
+
 
 
