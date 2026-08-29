@@ -14423,7 +14423,7 @@
         (item, idx) => `
       <div class="quick-fix-item" id="quickFixItem_${idx}">
         <div class="quick-fix-info">
-          <strong>${esc(item.NomeFuncionario)}</strong>
+          <strong>${esc(item.NomeFuncionario || item.Nome || "Colaborador")}</strong>
           <span>${esc(item.NomeLoja ? item.NomeLoja + " · " : "")}${esc(item.DataBR || item.Data)} · Entrada às ${esc(item.EntradaTexto || "—")}</span>
         </div>
         <div class="quick-fix-controls">
@@ -16076,6 +16076,13 @@
         state.employees[0] ||
         {},
       employeeMode = isEmployee();
+    if (employeeMode && !id) {
+      const myBalance = Number(val(me, "SaldoFolgas", "saldoFolgas") || 0);
+      if (myBalance <= 0) {
+        toast("Você não possui saldo de folgas disponível para solicitar.", true);
+        return;
+      }
+    }
     $("#timeOffForm").reset();
     $("#timeOffId").value = id || "";
     $("#timeOffDialogTitle").textContent = employeeMode
@@ -16195,6 +16202,11 @@
       let saved;
       if (isEmployee()) {
         if (id) throw new Error("Pedidos já enviados não podem ser editados.");
+        const me = state.employees[0] || {};
+        const myBalance = Number(val(me, "SaldoFolgas", "saldoFolgas") || 0);
+        if (myBalance <= 0) {
+          throw new Error("Você não possui saldo de folgas disponível para solicitar.");
+        }
         saved = await call(FN.employeeRequest, token, p);
       } else if (id) {
         saved = await call(FN.updateTimeOff, id, p);

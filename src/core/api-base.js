@@ -1079,6 +1079,22 @@ const createOrUpdateTimeOff = async (payload, current = null) => {
   const intendedStatus =
     current?.Status ||
     (employeeRequest ? APP.status.pending : payload.Status || APP.status.approved);
+
+  const units = timeOffBalanceUnits({
+    TipoFolga: type,
+    Periodo: period,
+    DataInicio: start,
+    DataFim: end,
+  });
+  const employeeBalance = Number(employee.SaldoFolgas || 0);
+
+  if (employeeRequest && units > 0) {
+    assert(
+      employeeBalance >= units,
+      `Você não possui saldo de folgas suficiente para este pedido. Saldo disponível: ${employeeBalance} folga(s), solicitado: ${units}.`,
+    );
+  }
+
   await validateTimeOffPolicies({
     profile,
     employee,

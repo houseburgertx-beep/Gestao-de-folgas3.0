@@ -1307,7 +1307,7 @@ test("folga fixa substitui a exclusão antiga do domingo na jornada", () => {
     CargaDiariaMinutos: 480,
     DiasTrabalho: "1,2,3,4,5,6",
   };
-  const records = ["2026-08-02", "2026-08-04"].flatMap((date) => [
+  const records = ["2026-08-02", "2026-08-03", "2026-08-04"].flatMap((date) => [
     {
       FuncionarioID: "func-1",
       Data: date,
@@ -1331,8 +1331,8 @@ test("folga fixa substitui a exclusão antiga do domingo na jornada", () => {
     currentDate: "2026-08-05",
   });
 
-  assert.equal(result.employees[0].trabalhadoMinutos, 960);
-  assert.equal(result.employees[0].previstoMinutos, 480);
+  assert.equal(result.employees[0].trabalhadoMinutos, 1440);
+  assert.equal(result.employees[0].previstoMinutos, 960);
   assert.equal(result.employees[0].saldoMinutos, 480);
 });
 
@@ -1583,7 +1583,7 @@ test("dia atual só entra no saldo depois da saída final", () => {
   });
 });
 
-test("jornada incompleta continua pendente depois da virada do dia", () => {
+test("falta em dia anterior gera débito negativo e batida incompleta fica pendente", () => {
   const schedule = { CargaDiariaMinutos: 420 };
   const missing = dayBalanceState(
     "2026-08-08",
@@ -1608,7 +1608,9 @@ test("jornada incompleta continua pendente depois da virada do dia", () => {
     "2026-08-09",
   );
 
-  assert.deepEqual(missing, { pending: true, minutes: 0, text: "—" });
+  // Falta em dia de trabalho anterior: gera débito da jornada não trabalhada (-420min = -7h)
+  assert.deepEqual(missing, { pending: false, minutes: -420, text: "-7h 00min" });
+  // Batida incompleta (sem saída): fica pendente de ajuste do gestor
   assert.deepEqual(partial, { pending: true, minutes: 0, text: "—" });
 });
 
@@ -1882,6 +1884,32 @@ test("accumulatedHourBalance totalMinutos consolida apenas funcionários ativos"
   assert.equal(result.totalMinutos, 0);
   assert.equal(result.totalTexto, "+0h 00min");
 });
+
+test("findIncompletePunches preenche o nome e loja do colaborador com fallbacks resilientes", () => {
+  const employees = [
+    {
+      FuncionarioID: "f1",
+      NomeCompleto: "Jakeline Santos",
+      NomeLoja: "HOUSE 190 TEIXEIRA",
+      Ativo: true,
+    },
+  ];
+  const records = [
+    {
+      FuncionarioID: "f1",
+      Data: "2026-08-28",
+      TipoMarcacao: "ENTRADA",
+      DataHora: "2026-08-28T16:59:00-03:00",
+      Status: "Válido",
+    },
+  ];
+  const list = findIncompletePunches(records, [], employees, "2026-08-29");
+  assert.equal(list.length, 1);
+  assert.equal(list[0].NomeFuncionario, "Jakeline Santos");
+  assert.equal(list[0].NomeLoja, "HOUSE 190 TEIXEIRA");
+  assert.equal(list[0].EntradaTexto, "16:59");
+});
+
 
 
 

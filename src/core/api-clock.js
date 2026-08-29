@@ -483,16 +483,53 @@ const dayMetrics = (records, schedule, options = {}) => {
 };
 
 const dayBalanceState = (dateKey, metrics, currentDate = todayIso()) => {
-  // Sem ENTRADA e SAIDA_FINAL, a duração da jornada não é confiável.
-  // Ela deve continuar pendente após a virada do dia, em vez de virar
-  // automaticamente um débito equivalente à jornada inteira.
-  const pending = !metrics.complete || metrics.reviewRequired;
+  const isPastDay = String(dateKey) < String(currentDate);
+
+  // Dia de hoje ou futuro ainda não finalizado
+  if (!isPastDay) {
+    const pending = !metrics.complete || metrics.reviewRequired;
+    return {
+      pending,
+      minutes: pending ? 0 : metrics.balance,
+      text: pending
+        ? "—"
+        : (metrics.balance >= 0 ? "+" : "") + minutesText(metrics.balance),
+    };
+  }
+
+  // Turno que excedeu o limite máximo (12h) e requer revisão administrativa
+  if (metrics.reviewRequired) {
+    return {
+      pending: true,
+      minutes: 0,
+      text: "—",
+    };
+  }
+
+  // Dia anterior completo e regular
+  if (metrics.complete) {
+    return {
+      pending: false,
+      minutes: metrics.balance,
+      text: (metrics.balance >= 0 ? "+" : "") + minutesText(metrics.balance),
+    };
+  }
+
+  // Dia anterior com falta (sem marcações e com jornada prevista)
+  if (!metrics.hasPunches && metrics.expected > 0) {
+    const missingDebit = -metrics.expected;
+    return {
+      pending: false,
+      minutes: missingDebit,
+      text: "-" + minutesText(metrics.expected),
+    };
+  }
+
+  // Dia anterior com marcação incompleta (ex: registrou entrada mas esqueceu a saída)
   return {
-    pending,
-    minutes: pending ? 0 : metrics.balance,
-    text: pending
-      ? "—"
-      : (metrics.balance >= 0 ? "+" : "") + minutesText(metrics.balance),
+    pending: true,
+    minutes: 0,
+    text: "—",
   };
 };
 
@@ -2151,11 +2188,31 @@ export const findIncompletePunches = (
           entryDate.getMinutes(),
         ).padStart(2, "0")}`;
       }
+      const empName =
+        emp.Nome ||
+        emp.nome ||
+        emp.NomeFuncionario ||
+        emp.nomeFuncionario ||
+        emp.NomeCompleto ||
+        emp.nomeCompleto ||
+        emp["Nome Completo"] ||
+        emp.Funcionario ||
+        emp.funcionario ||
+        entry?.NomeFuncionario ||
+        rows[0]?.NomeFuncionario ||
+        rows[0]?.Nome ||
+        "Colaborador";
+      const storeName =
+        emp.NomeLoja ||
+        emp.nomeLoja ||
+        entry?.NomeLoja ||
+        rows[0]?.NomeLoja ||
+        "";
       incomplete.push({
         FuncionarioID: emp.FuncionarioID,
-        NomeFuncionario: emp.Nome,
+        NomeFuncionario: empName,
         LojaID: emp.LojaID || "",
-        NomeLoja: emp.NomeLoja || "",
+        NomeLoja: storeName,
         Data: date,
         DataBR: date.split("-").reverse().join("/"),
         EntradaDataHora: entry.DataHora,
