@@ -744,7 +744,7 @@
             <option value="">Todas / não aplicável</option>
           </select></label
         ><label id="accessPasswordField"
-          >Senha inicial<input
+          ><span id="accessPasswordLabel">Senha inicial</span><input
             id="accessPassword"
             type="password"
             minlength="10"
@@ -1119,6 +1119,44 @@
     <button type="button" id="copyWhatsAppScheduleBtn" class="btn btn-secondary">📋 Copiar Mensagem</button>
     <button type="button" id="sendWhatsAppScheduleBtn" class="btn btn-primary" style="background:#25D366; border-color:#25D366; color:#09090b; font-weight:700">📲 Abrir no WhatsApp</button>
   </div>
+</dialog>
+
+<!-- Zerar Saldos da Loja (Administrador) -->
+<dialog id="resetStoreBalancesDialog" style="max-width: 540px; width: 95vw;">
+  <form id="resetStoreBalancesForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">ADMINISTRAÇÃO</span>
+        <h3>Zerar Saldos da Loja</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="resetStoreBalancesDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-grid">
+        <label class="full">Selecione a Loja
+          <select id="resetStoreSelect" required></select>
+        </label>
+        <label class="full">Qual saldo deseja zerar?
+          <select id="resetBalanceMode" required>
+            <option value="ambos">🔄 Ambos (Banco de Horas e Saldo de Folgas)</option>
+            <option value="banco_horas">⏱️ Apenas Banco de Horas</option>
+            <option value="saldo_folgas">🏖️ Apenas Saldo de Folgas</option>
+          </select>
+        </label>
+        <div class="full" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;">
+          <strong style="color:#ef4444;font-size:13px;display:block;margin-bottom:4px">⚠️ Atenção: Ação Administrativa</strong>
+          <span style="font-size:12px;color:var(--text, #333)">Esta operação irá calcular e zerar o saldo de todos os colaboradores ativos da loja selecionada, gravando a compensação e o histórico em auditoria.</span>
+        </div>
+        <label class="full">Motivo / Justificativa
+          <input id="resetStoreReason" type="text" placeholder="Ex: Fechamento de período / Acordo de compensação" required minlength="4" />
+        </label>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="resetStoreBalancesDialog">Cancelar</button>
+      <button class="btn btn-danger" type="submit" style="background:#dc2626;color:#fff;border:none">Confirmar e Zerar Saldos</button>
+    </div>
+  </form>
 </dialog>
 
 

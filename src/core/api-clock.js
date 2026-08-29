@@ -1924,6 +1924,161 @@ export function createClockHandlers() {
       );
     },
 
+    async resetStoreBalancesWithSession(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const storeId = String(payload.lojaId || payload.LojaID || "").trim();
+      assert(storeId, "Selecione a loja para zerar os saldos.");
+      const store = await runtime.getById("Lojas", storeId);
+      assert(store, "Loja não encontrada.");
+      const mode = String(payload.modo || payload.tipo || "ambos").toLowerCase();
+      const reason = String(payload.motivo || "").trim();
+      assert(
+        reason.length >= 4,
+        "Informe o motivo/justificativa para zerar os saldos.",
+      );
+
+      const currentDay = todayIso();
+      const currentMonth = currentDay.slice(0, 7);
+      const prevMonth = previousDateKey(currentDay).slice(0, 7);
+      const periods = [currentMonth, prevMonth];
+
+      const [employees, records, schedules, timeOff, justifications, movements] =
+        await Promise.all([
+          runtime.list("Funcionarios", { profile }),
+          runtime.listPeriods("RegistrosPonto", periods, { profile }),
+          runtime.list("JornadasPonto", { profile }),
+          runtime.list("Folgas", { profile }),
+          runtime.list("JustificativasPonto", { profile }),
+          runtime.list("BancoHorasMovimentos", { profile }),
+        ]);
+
+      const storeEmployees = employees.filter(
+        (e) => String(e.LojaID || "") === storeId && asBoolean(e.Ativo),
+      );
+      assert(
+        storeEmployees.length > 0,
+        "Nenhum colaborador ativo encontrado nesta loja.",
+      );
+
+      const resetBank = mode === "banco_horas" || mode === "ambos";
+      const resetLeaves = mode === "saldo_folgas" || mode === "ambos";
+      const results = [];
+      const timestamp = nowIso();
+
+      for (const employee of storeEmployees) {
+        const empId = String(employee.FuncionarioID || "");
+        const empName = employee.Nome || "Colaborador";
+
+        let bankResetMinutes = 0;
+        if (resetBank) {
+          const overview = accumulatedHourBalance({
+            employees: [employee],
+            records,
+            schedules,
+            timeOff,
+            justifications,
+            bankMovements: movements,
+            employeeId: empId,
+            currentDate: currentDay,
+            throughMonth: currentMonth,
+          });
+          const empOverview = overview.employees[0];
+          const currentBalance = Number(empOverview?.saldoMinutos || 0);
+          if (currentBalance !== 0) {
+            bankResetMinutes = currentBalance;
+            const requestId = uuid();
+            const resetMovement = await runtime.upsert("BancoHorasMovimentos", {
+              MovID: `reset-loja-${storeId}-${empId}-${Date.now()}`,
+              RequestID: requestId,
+              FuncionarioID: empId,
+              NomeFuncionario: empName,
+              LojaID: storeId,
+              NomeLoja: store.NomeLoja || store.Nome || "",
+              Data: currentDay,
+              HorasTrabalhadas: 0,
+              JornadaContratual: 0,
+              SaldoMinutos: -currentBalance,
+              SaldoDia: -currentBalance / 60,
+              SaldoAcumulado: 0,
+              Origem: "Zerar saldos da loja pelo administrador",
+              Observacao: `Zerar saldo da loja ${store.NomeLoja || storeId}: ${reason}`,
+              DataCriacao: timestamp,
+              CriadoPor: profile.Email,
+            });
+            await audit(
+              "Zerar banco de horas da loja",
+              "BancoHorasMovimentos",
+              resetMovement.MovID,
+              { after: resetMovement },
+            );
+          }
+        }
+
+        let leaveResetUnits = 0;
+        if (resetLeaves) {
+          const currentLeaves = Number(employee.SaldoFolgas || 0);
+          if (currentLeaves !== 0) {
+            leaveResetUnits = currentLeaves;
+            const movementKey = `reset-folgas-loja-${storeId}-${empId}-${Date.now()}`;
+            await runtime.applyEmployeeLeaveBalance({
+              employeeId: empId,
+              movementKey,
+              desiredDelta: -currentLeaves,
+              metadata: {
+                Tipo: "Zerar saldo de folgas da loja",
+                LojaID: storeId,
+                Motivo: reason,
+              },
+            });
+            await runtime.upsert("MovimentosSaldoFolgas", {
+              MovimentoID: movementKey,
+              FuncionarioID: empId,
+              NomeFuncionario: empName,
+              LojaID: storeId,
+              Tipo: "Zerar saldo de folgas da loja",
+              Competencia: currentMonth,
+              DataCriacao: timestamp,
+              CriadoPor: profile.Email,
+              Observacao: reason,
+            });
+          }
+        }
+
+        results.push({
+          FuncionarioID: empId,
+          Nome: empName,
+          minutosZerados: bankResetMinutes,
+          folgasZeradas: leaveResetUnits,
+        });
+      }
+
+      await audit(
+        "Zerar saldos da loja",
+        "Lojas",
+        storeId,
+        {
+          loja: store.NomeLoja || storeId,
+          modo: mode,
+          motivo: reason,
+          totalFuncionarios: results.length,
+        },
+      );
+
+      return success(
+        {
+          lojaId: storeId,
+          nomeLoja: store.NomeLoja || store.Nome || storeId,
+          modo: mode,
+          totalFuncionarios: results.length,
+          detalhes: results,
+        },
+        `Saldos da loja ${store.NomeLoja || storeId} zerados com sucesso para ${results.length} colaborador(es).`,
+      );
+    },
+
     async getLiveStorePresenceWithSession(args) {
       const profile = await runtime.requireProfile();
       const values = dropClientToken(args);

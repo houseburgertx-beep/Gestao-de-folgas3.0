@@ -180,6 +180,8 @@
     incompletePunches: "getIncompletePunchesWithSession",
     quickFixPunch: "quickFixIncompletePunch",
     settleHourBalance: "settleOrConvertHourBalanceWithSession",
+    resetStoreBalances: "resetStoreBalancesWithSession",
+    adminResetPassword: "adminSendPasswordReset",
     livePresence: "getLiveStorePresenceWithSession",
     whatsappSchedule: "getWhatsAppWeeklyScheduleWithSession",
     vacationRequest: "solicitarFerias",
@@ -1077,6 +1079,10 @@
     $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
     $("#adminHourBalanceSettleBtn") &&
       ($("#adminHourBalanceSettleBtn").onclick = openSettleHourBalanceDialog_);
+    $("#adminResetStoreBalancesBtn") &&
+      ($("#adminResetStoreBalancesBtn").onclick = openResetStoreBalancesDialog_);
+    $("#resetStoreBalancesForm") &&
+      ($("#resetStoreBalancesForm").onsubmit = saveResetStoreBalances_);
     $("#settleEmployee") &&
       ($("#settleEmployee").onchange = updateSettleHourBalanceFields_);
     $("#settleMonth") &&
@@ -2293,6 +2299,60 @@
     }
   }
 
+  function openResetStoreBalancesDialog_() {
+    if (!isAdmin()) {
+      return toast("Apenas administradores podem zerar saldos de lojas.", true);
+    }
+    const storeSelect = $("#resetStoreSelect");
+    if (!storeSelect) return;
+    const stores = arr(state.stores);
+    if (!stores.length) return toast("Nenhuma loja cadastrada.", true);
+    storeSelect.innerHTML = stores
+      .map(
+        (s) =>
+          `<option value="${esc(idOf(s, "Loja"))}">${esc(val(s, "NomeLoja", "nomeLoja", "Nome"))}</option>`,
+      )
+      .join("");
+    $("#resetStoreReason").value = "";
+    $("#resetBalanceMode").value = "ambos";
+    openDialog("resetStoreBalancesDialog");
+  }
+
+  async function saveResetStoreBalances_(event) {
+    event.preventDefault();
+    if (!isAdmin()) {
+      return toast("Apenas administradores podem executar esta ação.", true);
+    }
+    const storeId = $("#resetStoreSelect").value;
+    const mode = $("#resetBalanceMode").value;
+    const reason = $("#resetStoreReason").value.trim();
+
+    if (!storeId) return toast("Selecione a loja.", true);
+    if (!reason || reason.length < 4) {
+      return toast("Informe o motivo para zerar os saldos.", true);
+    }
+
+    setLoading(true);
+    try {
+      const res = await call(FN.resetStoreBalances, sessionToken(), {
+        lojaId: storeId,
+        modo: mode,
+        motivo: reason,
+      });
+      closeDialog("resetStoreBalancesDialog");
+      state.hourBalance = null;
+      state.timeClockBalance = null;
+      toast(res?.message || "Saldos da loja zerados com sucesso!");
+      await loadAdminHourBalances_(true);
+      renderDashboard();
+      renderEmployees();
+    } catch (err) {
+      toast(err.message || "Erro ao zerar saldos da loja.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function loadLivePresence_(force = false) {
     if (!sessionToken() || isEmployee()) return null;
     try {
@@ -3388,7 +3448,7 @@
             fixed =
               val(x, "DiaFolgaPreferencial", "diaFolgaPreferencial") || "—";
           const active = bool(val(x, "Ativo", "ativo"));
-          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}</td><td>${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td>${esc(val(x, "Cargo", "cargo"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td>${esc(fixed)}</td><td>${badge(active ? "Ativo" : "Inativo")}</td><td><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
+          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}</td><td>${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td>${esc(val(x, "Cargo", "cargo"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td>${esc(fixed)}</td><td>${badge(active ? "Ativo" : "Inativo")}</td><td><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -3486,7 +3546,7 @@
             store =
               val(x, "NomeLoja", "nomeLoja") ||
               storeName(val(x, "LojaID", "lojaId"));
-          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td>${esc(store || "—")}</td><td>${x._hasAccess ? dateBR(val(x, "UltimoAcesso", "ultimoAcesso")) : "—"}</td><td>${x._hasAccess ? badge(bool(val(x, "Ativo", "ativo")) ? "Ativo" : "Inativo") : badge("Sem acesso")}</td><td><div class="row-actions"><button data-action="edit-access" data-id="${esc(id)}">${x._hasAccess ? "Editar" : "Criar acesso"}</button></div></td></tr>`;
+          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td>${esc(store || "—")}</td><td>${x._hasAccess ? dateBR(val(x, "UltimoAcesso", "ultimoAcesso")) : "—"}</td><td>${x._hasAccess ? badge(bool(val(x, "Ativo", "ativo")) ? "Ativo" : "Inativo") : badge("Sem acesso")}</td><td><div class="row-actions"><button data-action="edit-access" data-id="${esc(id)}">${x._hasAccess ? "Editar" : "Criar acesso"}</button>${x._hasAccess ? `<button data-action="reset-access-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Trocar senha</button>` : ""}</div></td></tr>`;
         })
         .join("") || empty(6);
   }
@@ -4390,7 +4450,13 @@
     $("#accessStore").value = val(x, "LojaID", "lojaId");
     $("#accessPassword").required = !user;
     $("#accessPassword").value = "";
-    $("#accessPasswordField").classList.toggle("hidden", !!user);
+    const pwdLabel = $("#accessPasswordLabel");
+    if (pwdLabel) {
+      pwdLabel.textContent = user
+        ? "Nova senha (deixe em branco para manter a atual)"
+        : "Senha inicial";
+    }
+    $("#accessPasswordField").classList.toggle("hidden", false);
     $("#accessResetField").classList.toggle("hidden", !user);
     $("#accessSendReset").checked = false;
     $("#accessActive").checked = user
@@ -4412,6 +4478,7 @@
   async function saveAccess(e) {
     e.preventDefault();
     const id = $("#accessId").value,
+      pwdVal = $("#accessPassword").value.trim(),
       p = {
         UsuarioID: id,
         FuncionarioID: $("#accessEmployee").value,
@@ -4419,7 +4486,7 @@
         Email: $("#accessEmail").value,
         Perfil: $("#accessProfile").value,
         LojaID: $("#accessStore").value,
-        Senha: id ? "" : $("#accessPassword").value,
+        Senha: pwdVal,
         EnviarRedefinicao: !!id && $("#accessSendReset").checked,
         PrimeiroAcesso: $("#accessFirstLogin").checked,
         Ativo: $("#accessActive").checked,
@@ -4427,6 +4494,11 @@
     if (!id && p.Senha.length < 10)
       return toast(
         "Crie uma senha inicial com pelo menos 10 caracteres.",
+        true,
+      );
+    if (id && p.Senha && p.Senha.length < 10)
+      return toast(
+        "A nova senha deve ter pelo menos 10 caracteres.",
         true,
       );
     setLoading(true);
@@ -4437,7 +4509,7 @@
       upsertState("users", saved, "Usuario");
       closeDialog("accessDialog");
       renderAccess();
-      toast(id ? "Acesso atualizado." : "Acesso criado com sucesso.");
+      toast(id ? "Acesso atualizado com sucesso." : "Acesso criado com sucesso.");
     } catch (err) {
       toast(err.message, true);
     } finally {
@@ -4806,6 +4878,20 @@
     if (a === "edit-store") editStore(id);
     if (a === "edit-holiday") editHoliday(id);
     if (a === "edit-access") editAccess(id);
+    if (a === "reset-access-pwd") editAccess(id);
+    if (a === "reset-employee-pwd") {
+      const emp = state.employees.find(
+        (x) => String(idOf(x, "Funcionario")) === String(id),
+      );
+      const user = state.users.find(
+        (u) =>
+          String(val(u, "FuncionarioID", "funcionarioId")) === String(id) ||
+          (emp &&
+            String(val(u, "Email", "email") || "").toLowerCase() ===
+              String(val(emp, "Email", "email") || "").toLowerCase()),
+      );
+      editAccess(user ? (idOf(user, "Usuario") || val(user, "usuarioId", "id")) : id);
+    }
     if (a === "clock-adjust") openClockAdjustment(id);
     if (a === "clock-review") openClockDecision(id);
     if (a === "clock-justify-day")

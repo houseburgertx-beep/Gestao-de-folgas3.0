@@ -1910,6 +1910,24 @@ test("findIncompletePunches preenche o nome e loja do colaborador com fallbacks 
   assert.ok(list[0].EntradaTexto);
 });
 
+test("o administrador possui opcao de zerar saldos de loja e trocar/redefinir senha", async () => {
+  const [apiClock, apiBase, scripts, dialogs, index] = await Promise.all([
+    readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(apiClock, /async resetStoreBalancesWithSession/);
+  assert.match(apiBase, /async adminSendPasswordReset/);
+  assert.match(dialogs, /id="resetStoreBalancesDialog"/);
+  assert.match(index, /id="adminResetStoreBalancesBtn"/);
+  assert.match(scripts, /openResetStoreBalancesDialog_/);
+  assert.match(scripts, /reset-employee-pwd/);
+});
+
+
 
 
 

@@ -2001,6 +2001,21 @@ export function createBaseHandlers(getArenaBundle) {
       return success(saved, "Acesso atualizado.");
     },
 
+    async adminSendPasswordReset(args) {
+      const profile = await runtime.requireProfile();
+      requireAdmin(profile);
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const email = normalizeEmail(payload.email || payload.Email);
+      assert(email, "E-mail não informado.");
+      await runtime.sendPasswordReset(email);
+      await audit("Enviar redefinição de senha", "Usuarios", email, { email });
+      return success(
+        { email },
+        `Link seguro de redefinição de senha enviado para ${email}.`,
+      );
+    },
+
     async updateOwnProfile(args) {
       const profile = await runtime.requireProfile();
       const payload = args[0] || {};
