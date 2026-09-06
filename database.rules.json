@@ -86,7 +86,8 @@
               "UsuarioID",
               "Data",
               "DataInicio",
-              "Status"
+              "Status",
+              "DataCriacao"
             ],
             ".read": "auth != null && (root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Administrador' || $table === 'Configuracoes' || $table === 'Feriados' || $table === 'RegrasFolga' || $table === 'ArenaRanking' || (($table === 'Comunicados' || $table === 'Enquetes') && query.orderByChild === 'LojaID' && (query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val() || query.equalTo === '')) || ($table === 'LocaisPonto' && query.orderByChild === 'LojaID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()) || (((root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Responsável de loja' || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Gerente') || root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('Perfil').val() === 'Chefe de cozinha') && query.orderByChild === 'LojaID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('LojaID').val()) || (query.orderByChild === 'FuncionarioID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val()) || ($table === 'Notificacoes' && query.orderByChild === 'DestinatarioID' && query.equalTo === root.child('gestao-folgas').child('v2').child('access').child(auth.uid).child('FuncionarioID').val()))",
             "$record": {

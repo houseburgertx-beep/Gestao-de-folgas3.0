@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.3.12";
+const CACHE_NAME = "house-folgas-v6.4.0";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.3.12",
+  "./manifest.webmanifest?v=6.4.0",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -86,4 +86,29 @@ self.addEventListener("fetch", (event) => {
   if (["image", "font", "manifest"].includes(request.destination)) {
     event.respondWith(cachedAsset(request));
   }
+});
+
+// Web Push works while the page is closed; no background timers are required.
+self.addEventListener("push", event => {
+  let data = {};
+  try { data = event.data?.json() || {}; } catch { /* Always show a safe visible fallback. */ }
+  const destination = new URL("./", APP_BASE);
+  destination.searchParams.set("view", data.view === "timeclock" ? "timeclock" : "notifications");
+  event.waitUntil(self.registration.showNotification(String(data.title || "House 190"), {
+    body:String(data.body || "Você tem um novo aviso no aplicativo."),
+    icon:new URL("./icons/app-icon-192.png", APP_BASE).href,
+    badge:new URL("./icons/app-icon-192.png", APP_BASE).href,
+    tag:String(data.tag || "house-aviso"),
+    data:{url:destination.href},
+  }));
+});
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "./", APP_BASE);
+  if (target.origin !== APP_BASE.origin || !target.pathname.startsWith(APP_BASE.pathname)) return;
+  event.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(async clients => {
+    const existing = clients.find(client => new URL(client.url).pathname.startsWith(APP_BASE.pathname));
+    if (existing) { existing.postMessage({type:"gestao-open-view",view:target.searchParams.get("view")}); return existing.focus(); }
+    return self.clients.openWindow(target.href);
+  }));
 });

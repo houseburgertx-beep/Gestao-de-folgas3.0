@@ -312,6 +312,7 @@ export class FirebaseRuntime {
   }
 
   async logout() {
+    try { await globalThis.window?.__disableGestaoPush?.(); } catch { /* Logout remains available offline. */ }
     this.profile = null;
     await signOut(this.auth);
   }

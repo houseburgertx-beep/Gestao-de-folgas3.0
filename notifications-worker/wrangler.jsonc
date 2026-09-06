@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "house-folgas-notifications",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": {
+    "APP_ORIGIN": "https://houseburgertx-beep.github.io",
+    "APP_URL": "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0/",
+    "FIREBASE_PROJECT_ID": "github-737ec",
+    "FIREBASE_DATABASE_URL": "https://github-737ec-default-rtdb.firebaseio.com",
+    "FIREBASE_ROOT": "gestao-folgas/v2",
+    "VAPID_SUBJECT": "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0/",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "house-folgas-notifications",
+      "database_id": "5ccbf2a3-06be-4f77-bcbf-fbd6ae00efeb",
+      "migrations_dir": "migrations",
+    },
+  ],
+}

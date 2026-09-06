@@ -1,6 +1,7 @@
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
 import "./pwa.js";
+import "./push.js";
 import {
   firebaseConfigurationProblems,
   runtime,
@@ -40,7 +41,7 @@ const arenaBundle = () => {
         houseLinkClient,
         arenaMobileRuntime,
       ]) => ({
-        version: "6.3.12-firebase-github",
+        version: "6.4.0-firebase-github",
         css: [
           unwrap(arenaStyles, "style"),
           unwrap(arenaMobileStyles, "style"),

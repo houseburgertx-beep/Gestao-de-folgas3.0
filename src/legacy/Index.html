@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.3.12" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.4.0" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -213,7 +213,7 @@
         </div>
         <nav class="nav-list" aria-label="Navegação principal">
           <button class="nav-item active" data-view="dashboard">
-            <span>⌂</span><b>Dashboard</b>
+            <span>⌂</span><b>Início</b>
           </button>
           <button class="nav-item" data-view="calendar">
             <span>▦</span><b>Calendário</b>
@@ -236,7 +236,7 @@
             <span>♙</span><b>Funcionários</b>
           </button>
           <button class="nav-item permission-admin" data-view="hour-balances">
-            <span>◷</span><b>Saldo de horas</b>
+            <span>◷</span><b>Banco de horas</b>
           </button>
           <button class="nav-item permission-manager" data-view="stores">
             <span>⌂</span><b>Lojas</b>
@@ -275,7 +275,7 @@
                   d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
                 ></path>
                 <path d="M10 21h4"></path></svg></span
-            ><b>Notificações</b
+            ><b>Avisos e lembretes</b
             ><em id="notificationBadge" class="nav-badge">0</em>
           </button>
           <button class="nav-item" data-view="communication">
@@ -291,13 +291,13 @@
             class="nav-item permission-manager"
             data-view="advanced-reports"
           >
-            <span>▤</span><b>Gestão avançada</b>
+            <span>▤</span><b>Jornada e desempenho</b>
           </button>
           <button class="nav-item permission-admin" data-view="governance">
-            <span>♢</span><b>Governança</b>
+            <span>♢</span><b>Permissões e delegações</b>
           </button>
           <button class="nav-item permission-manager" data-view="reports">
-            <span>▥</span><b>Relatórios</b>
+            <span>▥</span><b>Resultados do mês</b>
           </button>
           <button class="nav-item permission-admin" data-view="audit">
             <span>≡</span><b>Auditoria</b>
@@ -317,8 +317,8 @@
           <div class="topbar-left">
             <button id="mobileMenu" class="icon-btn mobile-only">☰</button>
             <div>
-              <p id="breadcrumb">Workspace / Dashboard</p>
-              <h1 id="pageTitle">Dashboard</h1>
+              <p id="breadcrumb">House 190 / Início</p>
+              <h1 id="pageTitle">Início</h1>
             </div>
           </div>
           <div class="topbar-actions">
@@ -396,7 +396,7 @@
           </div>
         </header>
 
-        <main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard">⌂<span>Início</span></button><button type="button" data-view-target="timeoff">▦<span>Folgas</span></button><button type="button" data-view-target="timeclock">◉<span>Ponto</span></button><button type="button" data-view-target="notifications">♧<span>Avisos</span></button><button type="button" id="dockMore">☰<span>Mais</span></button></nav><main class="content">
           <section id="view-dashboard" class="view active">
             <div class="hero-row">
               <div>
@@ -425,21 +425,24 @@
               <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
             </div>
             <div id="cards" class="metric-grid"></div>
-            <div id="proxima-folga"></div>
+            <div class="home-shortcuts"><button class="btn btn-primary" data-view-target="timeclock">◉ Registrar ponto</button><button class="btn btn-secondary" data-view-target="pending-center">Conferir pendências</button><button class="btn btn-secondary" data-view-target="notifications">Ativar lembretes no celular</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
               <div class="panel-head" style="margin-bottom: 12px;">
                 <div>
-                  <span class="eyebrow">TEMPO REAL · HOJE</span>
-                  <h3>🏪 Presença na Loja Agora</h3>
+                  <span class="eyebrow">OPERAÇÃO AO VIVO</span>
+                  <h3>Equipe agora</h3>
                 </div>
                 <div class="live-presence-head-actions">
                   <span id="livePresenceSummaryBadge" class="live-presence-badge">Atualizando…</span>
                   <button id="livePresenceRefreshBtn" class="btn btn-ghost" type="button" style="padding: 4px 8px; font-size: 12px;">↻</button>
                 </div>
               </div>
+              <div class="presence-controls"><label>Loja<select id="presenceStoreFilter"><option value="">Todas as lojas</option></select></label><label>Buscar na equipe<input id="presenceSearch" type="search" placeholder="Nome ou função" /></label></div>
+              <div id="presenceFilters" class="presence-filters" aria-label="Filtrar situação"></div>
               <div id="livePresenceGrid" class="live-presence-grid">
                 <div class="data-sync-message"><span></span>Carregando presença da equipe…</div>
               </div>
+            <button id="presenceMore" type="button" class="btn btn-secondary presence-more">Ver equipe completa</button>
             </article>
             <div class="dashboard-grid">
               <article class="panel span-2">
@@ -1393,12 +1396,19 @@
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">CENTRAL</span>
-                <h2>Notificações</h2>
+                <h2>Avisos e lembretes</h2>
               </div>
               <button id="refreshNotificationsBtn" class="btn btn-secondary">
                 ↻ Atualizar
               </button>
             </div>
+            <section class="panel push-settings" aria-labelledby="pushHeading">
+              <div><span class="eyebrow">NO SEU CELULAR</span><h3 id="pushHeading">Seu turno, no horário certo</h3><p id="pushStatus" role="status">Verificando notificações…</p></div>
+              <div class="push-options"><label><input id="pushClock" type="checkbox" checked /> Lembrar entrada e saída do ponto</label><label><input id="pushBreak" type="checkbox" checked /> Avisar 5 minutos antes de terminar o intervalo e na hora de voltar</label><label><input id="pushNotices" type="checkbox" checked /> Receber novos avisos e respostas a solicitações</label></div>
+              <p class="push-note">O intervalo conta a partir da sua marcação, usando a duração da sua jornada. Os avisos não registram ponto por você.</p>
+              <div class="toolbar-actions"><button id="pushEnable" type="button" class="btn btn-primary">Ativar neste celular</button><button id="pushTest" type="button" class="btn btn-secondary" disabled>Enviar teste</button><button id="pushDisable" type="button" class="btn btn-ghost" disabled>Desativar</button></div>
+            </section>
+            <div class="notice-toolbar"><button id="noticeUnread" class="btn btn-secondary" type="button" aria-pressed="true">Somente não lidos</button><button id="noticeAllRead" class="btn btn-ghost" type="button">Marcar todos como lidos</button></div>
             <div id="notificationsList" class="activity-list panel"></div>
           </section>
 
@@ -2004,10 +2014,11 @@
           </section>
 
           <section id="view-advanced-reports" class="view advanced-view">
+            <div class="home-shortcuts"><button class="btn btn-secondary" data-view-target="timeclock">Conferir registros de ponto</button><button class="btn btn-secondary permission-admin" data-view-target="hour-balances">Consultar banco de horas</button><button class="btn btn-secondary" data-view-target="monthly-closing">Fechar o mês</button></div>
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">INTELIGÊNCIA</span>
-                <h2>Gestão avançada</h2>
+                <h2>Jornada e desempenho</h2>
                 <p>Assiduidade, banco de horas e exportação AFD.</p>
               </div>
             </div>
@@ -2068,10 +2079,11 @@
           </section>
 
           <section id="view-governance" class="view advanced-view">
+            <div class="home-shortcuts"><button class="btn btn-secondary" data-view-target="access">Gerenciar acessos</button><button class="btn btn-secondary" data-view-target="audit">Histórico de alterações</button></div>
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">SEGURANÇA</span>
-                <h2>Governança</h2>
+                <h2>Permissões e delegações</h2>
                 <p>Delegações temporárias de perfil e ações administrativas.</p>
               </div>
             </div>
@@ -2124,7 +2136,7 @@
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">ANÁLISE</span>
-                <h2>Relatórios</h2>
+                <h2>Resultados do mês</h2>
               </div>
               <div class="toolbar-actions">
                 <button id="exportCsvBtn" class="btn btn-secondary">
