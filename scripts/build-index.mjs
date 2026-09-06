@@ -18,10 +18,12 @@ const [template, styles, dialogs, scripts] = await Promise.all([
   readLegacy("Scripts.html"),
 ]);
 
+const redesign = await readFile(path.join(projectDir, "src", "redesign.css"), "utf8");
+
 let html = template
   .replace(
     /<meta\s+name="app-version"\s+content="[\s\S]*?"\s*\/>/,
-    '<meta name="app-version" content="6.3.12-firebase-github" />',
+    '<meta name="app-version" content="6.4.0-firebase-github" />',
   )
   .replace(
     /<title>[\s\S]*?<\/title>/,
@@ -29,7 +31,7 @@ let html = template
   )
   // Use callbacks so JavaScript replacement tokens such as "$$" are copied
   // verbatim instead of being collapsed to a single "$".
-  .replace("<?!= include_('Styles'); ?>", () => styles)
+  .replace("<?!= include_('Styles'); ?>", () => styles + `<style>${redesign}</style>`)
   .replace("<?!= include_('Dialogs'); ?>", () => dialogs)
   .replace(
     "<?!= include_('Scripts'); ?>",
@@ -47,7 +49,7 @@ let html = template
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.3.12"></script>
+<script type="module" src="./src/main.js?v=6.4.0"></script>
 ` + scripts,
   )
   .replace(/<base\s+target="_top"\s*\/>/, '<base target="_self" />');

@@ -23,3 +23,23 @@ jobs:
         run: npm ci
       - name: Testar e compilar
         run: npm run check
+  notifications:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: notifications-worker
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: notifications-worker/package-lock.json
+      - name: Instalar serviço de lembretes
+        run: npm ci
+      - name: Testar agendamento, segurança e envio
+        run: npm test
+      - name: Validar pacote sem publicar
+        run: npm run check

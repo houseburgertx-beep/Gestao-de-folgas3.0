@@ -1,6 +1,8 @@
-const SERVICE_WORKER_VERSION = "6.3.12";
+const SERVICE_WORKER_VERSION = "6.4.0";
 
-const registerServiceWorker = async () => {
+let registrationPromise;
+const registerServiceWorker = () => registrationPromise ||= registerOnce();
+const registerOnce = async () => {
   if (!("serviceWorker" in navigator)) return null;
   try {
     const hadController = Boolean(navigator.serviceWorker.controller);

@@ -2158,7 +2158,13 @@ export const calculateLivePresence = (
     const sched = scheduleFor(schedules, empId, currentDay);
 
     let status = "ausente";
-    let statusLabel = "Não iniciou";
+    let statusLabel = "Sem jornada cadastrada";
+    if (sched) {
+      const expectedEntry = clockMinutes(sched.HoraEntrada);
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      statusLabel = expectedEntry !== null && currentMinutes < expectedEntry
+        ? "Aguardando entrada" : "Sem registro de entrada";
+    }
     let entryTime = "";
     let lastPunchType = "";
     let lastPunchTime = "";
@@ -2261,6 +2267,8 @@ export const calculateLivePresence = (
       alertLevel,
       alertMessage,
       horarioEscala: formatScheduleTime(sched),
+      breakReturnTime: status === "intervalo" && Number(sched?.DuracaoIntervaloMinutos) > 0 && Number.isFinite(new Date(rows[rows.length - 1].DataHora).getTime())
+        ? timeValue(new Date(new Date(rows[rows.length - 1].DataHora).getTime() + Number(sched.DuracaoIntervaloMinutos) * 60000).toISOString()) : "",
     });
   });
 
