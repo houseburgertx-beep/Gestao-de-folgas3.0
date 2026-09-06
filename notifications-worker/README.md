@@ -1,6 +1,6 @@
 # Lembretes de ponto — House 190
 
-Implementação preparada; o serviço só fica ativo após conexão da conta Cloudflare, configuração dos segredos, banco D1 e publicação. A interface informa essa situação e não simula uma ativação bem-sucedida.
+Serviço configurado em https://house-folgas-notifications.house-folgas-notifications.workers.dev, com D1, segredos protegidos e verificação a cada minuto. A ativação é individual em cada aparelho. A entrega em um celular real ainda precisa ser confirmada pelo botão Enviar teste.
 
 ## O que envia
 
@@ -30,7 +30,7 @@ A verificação roda a cada minuto. Entrega pode atrasar por rede, sistema opera
 
 ## Custo e dados
 
-Web Push não cobra por mensagem. Workers, D1 e Firebase têm cotas próprias. Não é uma promessa de uso ilimitado: consultar o consumo antes e depois da ativação. O Worker lê cadastro/jornadas/folgas, acessos e registros dos últimos dois dias a cada minuto enquanto houver dispositivos. Selfies antigas embutidas ou um histórico muito grande podem elevar o tráfego; respostas maiores que 8 MiB são recusadas. Não ativar cobrança automática para contornar cota: se necessário, reduzir tráfego e refinar o modelo de dados. Tokens push e chaves de inscrição ficam apenas no D1, sem endpoint público de listagem.
+Web Push não cobra por mensagem. Workers, D1 e Firebase têm cotas próprias. Não é uma promessa de uso ilimitado: consultar o consumo antes e depois da ativação. O Worker só consulta jornadas e ponto quando existem lembretes habilitados; lê avisos apenas para aparelhos que optaram por recebê-los. Consulta funcionários e folgas apenas quando identifica um lembrete de ponto potencial e confere os dados atuais antes do envio. Após 18h no fuso da Bahia, consulta apenas o dia corrente; antes disso, inclui o anterior para jornadas noturnas. Sem dispositivos, não consulta o Firebase. Selfies antigas embutidas ou um histórico muito grande podem elevar o tráfego; respostas maiores que 8 MiB são recusadas. Não ativar cobrança automática para contornar cota: se necessário, reduzir tráfego e refinar o modelo de dados. Tokens push e chaves de inscrição ficam apenas no D1, sem endpoint público de listagem.
 
 ## Verificação antes de liberar à equipe
 

@@ -281,22 +281,58 @@ export async function tick(env, now = Date.now()) {
   if (!devices.length) return;
   const token = await googleToken(env),
     day = bahiaDay(now);
-  const [employees, schedules, timeOff, records, access, notices] =
-    await Promise.all([
-      database(env, token, "tables/Funcionarios"),
-      database(env, token, "tables/JornadasPonto"),
-      database(env, token, "tables/Folgas"),
-      database(env, token, "tables/RegistrosPonto", {
-        orderBy: "Data",
-        startAt: shiftDate(day, -1),
-        endAt: day,
-      }),
-      database(env, token, "access"),
-      database(env, token, "tables/Notificacoes", {
-        orderBy: "DataCriacao",
-        startAt: new Date(now - 5 * 60000).toISOString(),
-      }),
-    ]);
+  const needsClock = devices.some((device) => {
+    const prefs = JSON.parse(device.preferences);
+    return prefs.clock || prefs.interval;
+  });
+  const [schedules, records, access, notices] = await Promise.all([
+    needsClock ? database(env, token, "tables/JornadasPonto") : {},
+    needsClock
+      ? database(env, token, "tables/RegistrosPonto", {
+          orderBy: "Data",
+          // The existing operational-day policy allows up to 18h into yesterday's shift.
+          startAt:
+            new Date(now - 3 * 3600000).getUTCHours() < 18
+              ? shiftDate(day, -1)
+              : day,
+          endAt: day,
+        })
+      : {},
+    database(env, token, "access"),
+    devices.some((device) => JSON.parse(device.preferences).notices)
+      ? database(env, token, "tables/Notificacoes", {
+          orderBy: "DataCriacao",
+          startAt: new Date(now - 5 * 60000).toISOString(),
+        })
+      : {},
+  ]);
+  // First identify a potential clock event using current schedules and punches.
+  // Only then fetch employee/leave data. No cache can hide a new leave or deactivation.
+  const hasClockCandidate =
+    needsClock &&
+    devices.some((device) => {
+      const profile = access[device.uid];
+      if (!profile || !active(profile.Ativo) || !profile.FuncionarioID)
+        return false;
+      return (
+        remindersFor({
+          employee: { FuncionarioID: profile.FuncionarioID, Ativo: true },
+          schedules: Object.values(schedules).map((schedule) => ({
+            ...schedule,
+            DiasTrabalho: "0,1,2,3,4,5,6",
+          })),
+          records: Object.values(records),
+          now,
+          preferences: JSON.parse(device.preferences),
+        }).length > 0
+      );
+    });
+  const [employees, timeOff] = hasClockCandidate
+    ? await Promise.all([
+        database(env, token, "tables/Funcionarios"),
+        database(env, token, "tables/Folgas"),
+      ])
+    : [{}, {}];
   let sent = 0;
   for (const device of devices) {
     const profile = access[device.uid];

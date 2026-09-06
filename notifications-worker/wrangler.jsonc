@@ -18,7 +18,7 @@
     {
       "binding": "DB",
       "database_name": "house-folgas-notifications",
-      "database_id": "REPLACE_AFTER_D1_CREATE",
+      "database_id": "5ccbf2a3-06be-4f77-bcbf-fbd6ae00efeb",
       "migrations_dir": "migrations",
     },
   ],
