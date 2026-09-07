@@ -136,7 +136,7 @@ export function validSubscription(sub) {
     /^[A-Za-z0-9_-]{22}={0,2}$/.test(sub.keys?.auth || "")
   );
 }
-async function send(env, sub, message, ttl = 120) {
+export async function deliver(env, sub, message, ttl = 120) {
   if (!validSubscription(sub)) return 410;
   const details = webpush.generateRequestDetails(sub, JSON.stringify(message), {
     TTL: Math.max(1, ttl),
@@ -153,6 +153,14 @@ async function send(env, sub, message, ttl = 120) {
     body: details.body,
     redirect: "error",
     signal: AbortSignal.timeout(10000),
+  });
+  await response.body?.cancel();
+  return response.status;
+}
+async function send(env, sub, message, ttl = 120) {
+  if (!env.DELIVERY) return deliver(env, sub, message, ttl);
+  const response = await env.DELIVERY.fetch("https://internal/send", {
+    method: "POST", body: JSON.stringify({sub, message, ttl}),
   });
   await response.body?.cancel();
   return response.status;
