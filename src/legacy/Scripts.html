@@ -989,9 +989,10 @@
     $$(".nav-item[data-view]").forEach(
       (b) => (b.onclick = () => switchView(b.dataset.view)),
     );
-    $$("[data-view-target]").forEach(
-      (b) => (b.onclick = () => switchView(b.dataset.viewTarget)),
-    );
+    document.addEventListener("click", event => {
+      const target = event.target.closest("[data-view-target]");
+      if (target && !target.disabled) switchView(target.dataset.viewTarget);
+    });
     $("#sidebarToggle").onclick = () =>
       window.innerWidth <= 900
         ? document.body.classList.remove("menu-open")
@@ -2377,6 +2378,7 @@
     panel.classList.remove("hidden");
     const data = state.livePresenceData;
     if (!data) return;
+    if (typeof publishJourney_ === "function") publishJourney_();
     const all = arr(data.presence);
     const store = $("#presenceStoreFilter");
     const selected = store.value;
@@ -2483,9 +2485,8 @@
     $("#userName").textContent = name;
     $("#userRole").textContent = profile(u) || "Perfil";
     applyAvatar($("#userAvatar"), name, u);
-    $("#greeting").textContent = employeeMode
-      ? `Olá, ${name.split(" ")[0]}! Estas são as suas folgas.`
-      : `Olá, ${name.split(" ")[0]}! Vamos organizar a escala?`;
+    const hour = Number(new Intl.DateTimeFormat("pt-BR", {hour: "numeric", timeZone: "America/Bahia"}).format(new Date()));
+    $("#greeting").textContent = `${hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"}, ${name.split(" ")[0]} 👋`;
 
     /*
      * Sempre restaura a navegação antes de aplicar o novo perfil. Sem isso, os
@@ -2648,6 +2649,7 @@
       view = "pending-center";
     }
     state.currentView = view;
+    publishJourney_();
     $$(".mobile-dock [data-view-target]").forEach(item => { item.classList.toggle("active", item.dataset.viewTarget === view); item.setAttribute("aria-current", item.dataset.viewTarget === view ? "page" : "false"); });
     $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
@@ -2722,7 +2724,9 @@
       renderDashboard();
       if (isEmployee()) renderEmployeeDashboardCards();
       if (isStoreManager()) renderWorkingToday();
-    } else if (view === "calendar") renderCalendar();
+    } else if (view === "live-team") { loadLivePresence_(); publishJourney_(); }
+    else if (view === "shift-plan") { loadClockSettings().then(publishJourney_).catch(error => toast(error.message, true)); publishJourney_(); }
+    else if (view === "calendar") renderCalendar();
     else if (view === "timeoff") renderTimeOff();
     else if (view === "pending-center") loadPendingCenter_();
     else if (view === "scheduler") renderSimulation();
@@ -2900,7 +2904,11 @@
     }
     return d.totalTexto || "+0h 00min";
   }
+  function publishJourney_() {
+    window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance, schedules: state.clockSettings?.schedules, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches}}));
+  }
   function renderDashboard() {
+    publishJourney_();
     const cards = Object.assign({}, state.dashboard.cards || computeCards(), {
         conferenciaPonto: state.incompletePunches ? state.incompletePunches.length : "—",
       }),
@@ -5034,6 +5042,7 @@
         state.timeClock = data;
         renderTimeClock();
         renderEmployeeDashboardCards();
+        if (state.currentView === "dashboard") loadTimeClock(false);
         saveTurboShellCache_();
         console.info("[performance] ponto imediato pronto", {
           elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
@@ -5057,6 +5066,7 @@
     return CLOCK_QUICK_PROMISE_;
   }
   function renderTimeClock() {
+    publishJourney_();
     const d = state.timeClock || {},
       summary = d.summary || {},
       accumulated = state.timeClockBalance || {},
@@ -5115,7 +5125,7 @@
       : d.offToday
         ? d.offTodayLabel || "De folga hoje"
         : d.nextAction
-          ? "Registrar " + (labels[d.nextAction] || d.nextAction)
+          ? ({ENTRADA:"Registrar entrada",SAIDA_INTERVALO:"Iniciar intervalo",RETORNO_INTERVALO:"Finalizar intervalo",SAIDA_FINAL:"Registrar saída"}[d.nextAction] || labels[d.nextAction])
           : arr(d.todayRecords).length
             ? "Jornada concluída"
             : "Atualize para consultar";
