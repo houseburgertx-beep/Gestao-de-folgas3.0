@@ -14,6 +14,7 @@
     "FIREBASE_ROOT": "gestao-folgas/v2",
     "VAPID_SUBJECT": "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0/",
   },
+  "services": [{"binding":"DELIVERY","service":"house-folgas-delivery"}],
   "d1_databases": [
     {
       "binding": "DB",

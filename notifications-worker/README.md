@@ -22,7 +22,7 @@ A verificação roda a cada minuto. Entrega pode atrasar por rede, sistema opera
 5. Criar/usar uma conta de serviço do projeto Firebase com acesso de leitura ao Realtime Database. Cadastrar `FIREBASE_CLIENT_EMAIL` e `FIREBASE_PRIVATE_KEY` com `wrangler secret put`. A chave deve ser inserida pelo terminal/console, nunca enviada por chat. O serviço só faz leituras no Firebase; os dispositivos e o controle de envio ficam no D1.
 6. Cadastrar `FIREBASE_WEB_API_KEY`, usando a chave pública do mesmo projeto já configurado em `src/firebase-config.js`. Ela é usada para verificar o login; não concede acesso por si só.
 7. Publicar `database.rules.json` pelo fluxo Firebase existente. A única alteração desta versão é acrescentar o índice `DataCriacao` (o índice `Data` já existe); as permissões são preservadas.
-8. Rodar `npm test` (Node 24) e `npm run check`, depois `npm run deploy`.
+8. Rodar `npm test` (Node 24) e `npm run check`. Publicar primeiro o remetente privado com `npx wrangler deploy -c wrangler-delivery.jsonc` e cadastrar nele as mesmas chaves VAPID usando `wrangler secret put NOME -c wrangler-delivery.jsonc`. Depois executar `npm run deploy`. O vínculo `DELIVERY` separa cada envio criptografado em uma invocação; o remetente não tem endereço público.
 9. Preencher `src/push-config.js` com o endereço HTTPS retornado pelo Worker e a chave **pública** VAPID. Não colocar segredos ali. Publicar o aplicativo pelo fluxo normal do GitHub Pages.
 10. No iPhone (iOS 16.4+), adicionar o aplicativo à Tela de Início, abrir pelo ícone e tocar em Ativar neste celular. Android: usar navegador compatível e permitir notificações. Escolher as preferências e usar Enviar teste.
 
