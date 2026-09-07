@@ -2382,7 +2382,7 @@
     const all = arr(data.presence);
     const store = $("#presenceStoreFilter");
     const selected = store.value;
-    store.innerHTML = '<option value="">Todas as lojas</option>' + arr(state.stores).map(s => `<option value="${esc(idOf(s,"Loja"))}">${esc(val(s,"Nome"))}</option>`).join("");
+    store.innerHTML = '<option value="">Todas as lojas</option>' + arr(state.stores).map(s => `<option value="${esc(idOf(s,"Loja"))}">${esc(val(s,"NomeLoja","nomeLoja","Nome","nome"))}</option>`).join("");
     store.value = selected;
     const query = ($("#presenceSearch").value || "").toLocaleLowerCase("pt-BR");
     const rows = all.filter(p => (!store.value || String(p.LojaID) === store.value) && (!query || `${p.Nome} ${p.Cargo}`.toLocaleLowerCase("pt-BR").includes(query)));
