@@ -4,6 +4,7 @@ import {
   bahiaDay,
   shiftDate,
   remindersFor,
+  scheduleForDay,
 } from "../../src/core/reminder-policy.js";
 const encoder = new TextEncoder();
 const b64 = (value) =>
@@ -192,7 +193,7 @@ async function handle(request, env) {
     return json({ error: "method_not_allowed" }, 405);
   if (!ready(env)) return json({ error: "not_configured" }, 503);
   try {
-    const { uid } = await authenticate(request, env);
+    const { uid, profile } = await authenticate(request, env);
     const body = await boundedJson(new Response(request.body), 8192);
     const route = new URL(request.url).pathname,
       now = Date.now();
@@ -239,7 +240,10 @@ async function handle(request, env) {
       )
         .bind(String(body.endpoint || ""), uid)
         .first();
+      const schedules = device ? await database(env, await googleToken(env), "tables/JornadasPonto") : {};
+      const schedule = profile.FuncionarioID && scheduleForDay(Object.values(schedules), profile.FuncionarioID, bahiaDay(now));
       return json({
+        clockReady: Boolean(schedule),
         enabled: Boolean(device),
         preferences: device ? JSON.parse(device.preferences) : null,
       });
@@ -269,10 +273,12 @@ async function handle(request, env) {
         view: "notifications",
         tag: "house-teste",
       });
-      return json(
-        { ok: code >= 200 && code < 300 },
-        code >= 200 && code < 300 ? 200 : 502,
-      );
+      if (code === 404 || code === 410) {
+        await env.DB.prepare("DELETE FROM devices WHERE endpoint=? AND uid=?").bind(device.endpoint, uid).run();
+        return json({error: "subscription_expired"}, 410);
+      }
+      if (code < 200 || code >= 300) console.warn(JSON.stringify({event:"push_test_failed", status:code}));
+      return json({ok: code >= 200 && code < 300, ...(code >= 200 && code < 300 ? {} : {error:"push_provider_rejected"})}, code >= 200 && code < 300 ? 200 : 502);
     }
     return json({ error: "not_found" }, 404);
   } catch {

@@ -38,9 +38,26 @@ async function request(path, body) {
       signal: AbortSignal.timeout(15000),
     },
   );
-  if (!response.ok)
-    throw new Error("Não foi possível salvar os lembretes. Tente novamente.");
-  return response.json();
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const messages = {
+      wait_one_minute: "Aguarde um minuto antes de enviar outro teste.",
+      subscription_expired: "A ativação deste aparelho expirou. Toque em Ativar neste celular para renovar.",
+      not_found: "Este aparelho ainda não está vinculado. Ative os lembretes primeiro.",
+      device_limit: "Esta conta já tem cinco aparelhos cadastrados. Desative um aparelho antigo.",
+      device_belongs_to_other_account: "Este navegador está vinculado a outra conta. Saia dela e desative os lembretes antes de trocar.",
+      push_provider_rejected: "O serviço do celular recusou o envio. Desative e ative os lembretes neste aparelho e tente novamente.",
+      not_configured: "O serviço de envio está indisponível. Tente novamente em alguns minutos.",
+      request_failed: "Não foi possível validar a conta ou acessar o serviço. Entre novamente e tente outra vez."
+    };
+    if (result.error === "subscription_expired") {
+      const sub = await subscription(); await sub?.unsubscribe();
+      $("pushEnable").textContent = "Ativar neste celular";
+      $("pushTest").disabled = true;
+    }
+    throw new Error(messages[result.error] || "O envio não foi concluído. Verifique a conexão e tente novamente.");
+  }
+  return result;
 }
 async function subscription() {
   const registration = await navigator.serviceWorker.getRegistration("./");
@@ -96,7 +113,7 @@ async function refresh() {
         $(id).checked = saved.preferences[key];
     status(
       saved.enabled
-        ? "Lembretes ativos neste celular. Você pode atualizar suas preferências abaixo."
+        ? saved.clockReady === false ? "Aparelho ativado. Sua conta não tem jornada vigente: avisos e testes podem chegar, mas os lembretes de ponto precisam de uma jornada cadastrada." : "Lembretes ativos neste celular. Envie um teste para confirmar a entrega."
         : "Salve as preferências para vincular os lembretes à sua conta.",
     );
   } else
@@ -127,9 +144,6 @@ async function enable() {
     preferences: prefs(),
   });
   await refresh();
-  status(
-    "Lembretes ativados e preferências salvas neste celular. Use Enviar teste para conferir a entrega.",
-  );
 }
 async function disable() {
   const sub = await subscription();
@@ -160,7 +174,7 @@ function bind() {
         const sub = await subscription();
         if (!sub) return;
         await request("/test", { endpoint: sub.endpoint });
-        status("Teste enviado. Confira a central de notificações do celular.");
+        status("O serviço do celular aceitou o teste. Confira a central de notificações; se não aparecer, verifique a permissão do aplicativo e o modo Não Perturbe/Foco.");
       },
     ],
   ]) {
@@ -171,7 +185,8 @@ function bind() {
       } catch (error) {
         status(error.message);
       } finally {
-        $(id).disabled = false;
+        if (id !== "pushTest") $(id).disabled = false;
+        else $(id).disabled = !(await subscription().catch(() => null));
       }
     });
   }

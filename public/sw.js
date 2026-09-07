@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.5.0";
+const CACHE_NAME = "house-folgas-v6.5.1";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.5.0",
+  "./manifest.webmanifest?v=6.5.1",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",

@@ -33,3 +33,10 @@ test('escala semanal respeita folgas aprovadas e jornadas vigentes',()=>{
  h.events.click({target:{closest(s){return s==='[data-j-mode]'?{dataset:{jMode:'semana'}}:null}}});
  assert.match(h.nodes.get('#journeySchedule').innerHTML,/<strong>Ana/);
 });
+test('unidades usam NomeLoja real e removem repetição pelo ID, preservando homônimos',()=>{
+ const h=harness();h.send({manager:true,stores:[{LojaID:'1',NomeLoja:'House TX'},{LojaID:'1',Nome:'Duplicado'},{LojaID:'2',nomeLoja:'Food Park TX'}],presence:{presence:[{FuncionarioID:'a',Nome:'Ana',LojaID:'1',status:'trabalhando'},{FuncionarioID:'a',Nome:'Ana',LojaID:'1',status:'trabalhando'},{FuncionarioID:'b',Nome:'Ana',LojaID:'1',status:'trabalhando'}]}});
+ const html=h.nodes.get('#journeyTeam').innerHTML;
+ assert.match(html,/>House TX<\/option>/);assert.match(html,/>Food Park TX<\/option>/);assert.doesNotMatch(html,/Duplicado/);
+ assert.equal((html.match(/<strong>Ana<\/strong>/g)||[]).length,2);
+ assert.match(html,/House TX<\/small>/);
+});

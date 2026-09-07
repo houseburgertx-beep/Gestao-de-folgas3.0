@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.5.0" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.5.1" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,7 +25,7 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
-    <meta name="app-version" content="6.5.0-firebase-github" />
+    <meta name="app-version" content="6.5.1-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -9606,6 +9606,12 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
 /* The replacement home owns the presence overview; keep the legacy target for integrations. */
 #view-dashboard>#liveStorePresencePanel{display:none!important}
 #view-dashboard.j-unit-filtered>#cards,#view-dashboard.j-unit-filtered>.dashboard-grid,#view-dashboard.j-unit-filtered>#proxima-folga,#view-dashboard.j-unit-filtered>#incompletePunchesAlert{display:none}
+/* Readability and duplication fixes. */
+.j-unit{flex-direction:column;align-items:flex-start;gap:5px;min-width:0;max-width:100%}.j-unit select{width:100%;min-width:200px;max-width:min(360px,100%);color:var(--text);background-color:var(--surface);line-height:1.4;height:auto;min-height:46px}.j-unit option{color:var(--text);background:var(--surface)}
+.j-person{display:grid;grid-template-columns:38px minmax(0,1fr);align-items:start}.j-person>div{min-width:0}.j-person strong,.j-person small,.j-person div>span{overflow-wrap:anywhere}.j-person strong{text-transform:none;line-height:1.4}.j-person .j-status{grid-column:2;justify-self:start;white-space:normal;font-size:11px}.j-person small,.j-person div>span{font-size:12px;line-height:1.5}.j-stat>span:last-child{line-height:1.4}.j-card-top{flex-wrap:wrap}.j-donut-wrap{flex-wrap:wrap}.j-legend{min-width:125px}.j-shift>div{min-width:0;overflow-wrap:anywhere}.j-shift time{flex-shrink:0}.j-clock-bottom{flex-wrap:wrap}.j-live{line-height:1.5}
+#employeeClockDashboard{display:none} /* Replaced by the personal journey card; recording stays on Ponto. */
+@media(max-width:759px){.j-unit{width:100%}.j-unit select{max-width:100%;min-width:0}.j-toolbar{width:100%}.mobile-dock{display:flex}.mobile-dock button{flex:1;min-width:0}.j-totals{flex-wrap:wrap;gap:14px}.j-digital{font-size:clamp(36px,12vw,72px)}}
+[data-theme=dark] .j-stat{background:var(--surface-2)}[data-theme=dark] .j-person .j-status{background:var(--surface-2);color:var(--text)}
 </style>
   </head>
   <body>
@@ -9805,7 +9811,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
             <span>✦</span><b>Geração automática</b>
           </button>
           <div class="nav-label">Gestão</div>
-          <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button><button class="nav-item" data-view="shift-plan"><span>▦</span><b>Minha escala</b></button><button class="nav-item permission-manager" data-view="employees">
+          <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button><button class="nav-item" data-view="shift-plan"><span>▦</span><b>Escala de jornada</b></button><button class="nav-item permission-manager" data-view="employees">
             <span>♙</span><b>Funcionários</b>
           </button>
           <button class="nav-item permission-admin" data-view="hour-balances">
@@ -10001,7 +10007,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
               <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
             </div>
             <div id="cards" class="metric-grid"></div>
-            <div class="home-shortcuts"><button class="btn btn-primary" data-view-target="timeclock">◉ Registrar ponto</button><button class="btn btn-secondary" data-view-target="pending-center">Conferir pendências</button><button class="btn btn-secondary" data-view-target="notifications">Ativar lembretes no celular</button></div><div id="proxima-folga"></div>
+            <div class="home-shortcuts"><button class="btn btn-secondary" data-view-target="pending-center">Conferir pendências</button><button class="btn btn-secondary" data-view-target="notifications">Ativar lembretes no celular</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
               <div class="panel-head" style="margin-bottom: 12px;">
                 <div>
@@ -12937,7 +12943,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.5.0"></script>
+<script type="module" src="./src/main.js?v=6.5.1"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -15322,7 +15328,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
     const all = arr(data.presence);
     const store = $("#presenceStoreFilter");
     const selected = store.value;
-    store.innerHTML = '<option value="">Todas as lojas</option>' + arr(state.stores).map(s => `<option value="${esc(idOf(s,"Loja"))}">${esc(val(s,"Nome"))}</option>`).join("");
+    store.innerHTML = '<option value="">Todas as lojas</option>' + arr(state.stores).map(s => `<option value="${esc(idOf(s,"Loja"))}">${esc(val(s,"NomeLoja","nomeLoja","Nome","nome"))}</option>`).join("");
     store.value = selected;
     const query = ($("#presenceSearch").value || "").toLocaleLowerCase("pt-BR");
     const rows = all.filter(p => (!store.value || String(p.LojaID) === store.value) && (!query || `${p.Nome} ${p.Cargo}`.toLocaleLowerCase("pt-BR").includes(query)));
