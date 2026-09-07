@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.4.0" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.5.0" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -232,7 +232,7 @@
             <span>✦</span><b>Geração automática</b>
           </button>
           <div class="nav-label">Gestão</div>
-          <button class="nav-item permission-manager" data-view="employees">
+          <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button><button class="nav-item" data-view="shift-plan"><span>▦</span><b>Minha escala</b></button><button class="nav-item permission-manager" data-view="employees">
             <span>♙</span><b>Funcionários</b>
           </button>
           <button class="nav-item permission-admin" data-view="hour-balances">
@@ -396,14 +396,16 @@
           </div>
         </header>
 
-        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard">⌂<span>Início</span></button><button type="button" data-view-target="timeoff">▦<span>Folgas</span></button><button type="button" data-view-target="timeclock">◉<span>Ponto</span></button><button type="button" data-view-target="notifications">♧<span>Avisos</span></button><button type="button" id="dockMore">☰<span>Mais</span></button></nav><main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard">⌂<span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point">◉<span>Ponto</span></button><button type="button" data-view-target="live-team" class="permission-manager">♧<span>Equipe</span></button><button type="button" data-view-target="shift-plan">▦<span>Escala</span></button><button type="button" id="dockMore">☰<span>Mais</span></button></nav><main class="content">
+          <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
+          <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
           <section id="view-dashboard" class="view active">
             <div class="hero-row">
               <div>
                 <span class="eyebrow">VISÃO GERAL</span>
                 <h2 id="greeting">Olá! Vamos organizar a escala?</h2>
                 <p>
-                  Acompanhe folgas, pedidos e capacidade das lojas num só lugar.
+                  Seu dia, sua equipe, tudo no ritmo certo.
                 </p>
               </div>
               <div class="hero-actions">
@@ -414,6 +416,7 @@
                 </button>
               </div>
             </div>
+            <div id="journeyHome" class="journey-bento"></div>
             <div id="incompletePunchesAlert" class="incomplete-punches-alert hidden">
               <div class="incomplete-alert-content">
                 <span class="incomplete-alert-icon">⚠️</span>

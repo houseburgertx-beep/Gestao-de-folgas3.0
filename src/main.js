@@ -1,3 +1,4 @@
+import "./journey.js";
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
 import "./pwa.js";
@@ -41,7 +42,7 @@ const arenaBundle = () => {
         houseLinkClient,
         arenaMobileRuntime,
       ]) => ({
-        version: "6.4.0-firebase-github",
+        version: "6.5.0-firebase-github",
         css: [
           unwrap(arenaStyles, "style"),
           unwrap(arenaMobileStyles, "style"),

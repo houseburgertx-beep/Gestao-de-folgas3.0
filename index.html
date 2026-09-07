@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.4.0" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.5.0" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,7 +25,7 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
-    <meta name="app-version" content="6.4.0-firebase-github" />
+    <meta name="app-version" content="6.5.0-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -9577,6 +9577,35 @@ a:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+/* Jornada 2026 — calm, tactile, mobile-first. */
+:root{--bg:#f7f7fb;--primary:#7756ce;--primary-dark:#5d3eb0;--line:#ebe9f2;--muted:#767487;--text:#292638;--shadow:0 5px 24px #37304e04}
+body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
+.sidebar{background:var(--surface);border-right:1px solid var(--line);color:var(--text)}
+.sidebar .nav-item,.sidebar .nav-label,.sidebar .sidebar-head{color:var(--muted)}
+.sidebar .nav-item.active{color:var(--primary);background:var(--primary-soft)}
+.sidebar .brand-name,.sidebar .brand-title{color:var(--text)}
+.hero-row{background:transparent;border:0;padding:8px 0 20px;box-shadow:none}.hero-row h2{font-weight:700;font-size:28px}.hero-row .eyebrow{display:none}.hero-actions{display:none}
+.journey-bento{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-bottom:24px}.j-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;grid-column:1/-1}.j-toolbar>span{font-size:12px;color:var(--muted)}
+.j-unit{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}.j-unit select{font-size:14px;font-weight:650;max-width:210px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.j-card{padding:22px;border:1px solid var(--line);border-radius:24px;background:var(--surface);min-width:0;box-shadow:var(--shadow)}.j-card h3{font-size:17px;letter-spacing:-.025em;margin:0 0 6px}.j-card small,.j-caption{color:var(--muted);font-size:12px}.j-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.j-card-top>span:first-child{font-size:10px;font-weight:750;letter-spacing:.15em}
+.j-clock{background:#eee8fb;border:0;position:relative;overflow:hidden;padding:24px}.j-clock .j-card-top{margin-bottom:14px}.j-live{font-size:10px;letter-spacing:.08em;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.j-live i{width:6px;height:6px;display:inline-block;border-radius:50%;background:#24856b;box-shadow:0 0 0 4px #24856b12;animation:j-pulse 2.5s ease-in-out infinite}.j-digital{display:block;font-size:clamp(44px,12.5vw,76px);font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.065em;line-height:1.25;color:#3e2d63}.j-date{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:600;margin:8px 0 22px;color:#75638f}.j-clock-bottom{border-top:1px solid #d9ceeb;display:flex;align-items:center;justify-content:space-between;padding-top:18px;gap:16px}.j-clock-bottom>span{font-size:12px;max-width:140px;color:#75638f}.j-clock-bottom .btn{border-radius:14px;min-height:46px}
+.j-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.j-stat{border-radius:22px;background:var(--tint);padding:18px;display:grid;grid-template-columns:1fr auto;min-height:118px}.j-stat strong{grid-row:1;font-size:34px;font-weight:650;letter-spacing:-.04em;line-height:1.2}.j-stat-icon{grid-column:2}.j-stat>span:last-child{font-size:12px;grid-column:1/-1;align-self:end;color:#565365}
+.j-donut-wrap{display:flex;align-items:center;gap:24px;margin:20px 0}.j-donut{width:146px;height:146px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;animation:j-appear .6s ease}.j-donut>div{width:105px;height:105px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center}.j-donut strong{font-size:31px;line-height:1.2;letter-spacing:-.04em}.j-legend{display:grid;gap:10px;flex:1;font-size:11px}.j-legend span{display:flex;align-items:center;gap:6px}.j-legend i{width:7px;height:7px;border-radius:50%;flex-shrink:0}.j-legend b{margin-left:auto}
+.j-person{display:flex;gap:10px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}.j-person:last-child{border-bottom:0}.j-avatar{height:38px;width:38px;border-radius:50%;background:color-mix(in srgb,var(--avatar) 28%,white);display:inline-flex;align-items:center;justify-content:center;color:#514365;font-weight:650;font-size:12px;flex-shrink:0}.j-person>div{flex:1;min-width:110px}.j-person strong{font-size:13px;text-transform:capitalize}.j-person small,.j-person div>span{display:block;font-size:10px;color:var(--muted);margin-top:3px}.j-status{font-size:10px;border-radius:20px;padding:5px 8px;background:color-mix(in srgb,var(--status,#c7b4eb) 25%,white);color:#494355;white-space:nowrap}.j-avatar-stack{display:flex;padding-left:10px}.j-avatar-stack .j-avatar{margin-left:-10px;border:3px solid white;width:31px;height:31px;font-size:9px}
+.j-activity>div{display:flex;gap:13px;position:relative;min-height:57px}.j-activity time{font-size:11px;color:var(--muted);width:34px;padding-top:3px}.j-activity i{width:8px;height:8px;border-radius:50%;background:#b4a0e2;margin-top:6px;position:relative}.j-activity>div:not(:last-child) i:after{content:'';position:absolute;top:14px;left:3px;height:33px;width:1px;background:var(--line)}.j-activity strong{font-size:12px;font-weight:600}.j-activity small{display:block;font-size:11px}.j-caption{margin:-10px 0 22px}.j-empty{color:var(--muted);padding:20px 0;font-size:13px}.j-attention{background:#fff8e8}.j-attention p{font-size:13px;border-bottom:1px solid #efe5cd;padding:10px 0}.j-insight{background:#eaf1fc}.j-insight h3{font-size:22px;margin-top:15px;line-height:1.3}.j-insight p{font-size:13px;color:var(--muted)}
+.j-journey-line{display:grid;grid-template-columns:repeat(4,1fr);margin:28px 0}.j-journey-line>div{position:relative;border-top:4px solid #ece9f3;padding-top:15px}.j-journey-line>div.done{border-color:#ae97de}.j-journey-line>div:nth-child(2).done{border-color:#ead07d}.j-journey-line i{position:absolute;width:10px;height:10px;top:-7px;left:0;background:#d9d3e8;border:2px solid white;border-radius:50%}.j-journey-line .done i{background:#9574d5}.j-journey-line strong,.j-journey-line small{display:block;font-size:12px}.j-journey-line small{font-size:10px;margin-top:6px}.j-totals{display:flex;gap:22px;margin:20px 0;justify-content:space-between}.j-totals>span{font-size:11px;color:var(--muted)}.j-totals b{display:block;font-size:17px;color:var(--text);margin-top:4px}.j-wide{width:100%;min-height:52px;border-radius:16px}.j-bars{display:flex;gap:10px;height:175px;align-items:stretch;margin-top:24px}.j-bars>div{flex:1;text-align:center;display:flex;flex-direction:column;gap:8px;min-width:0}.j-bars>div>div{flex:1;display:flex;align-items:flex-end;background:var(--surface-2);border-radius:8px;overflow:hidden}.j-bars i{display:block;background:#bba5e6;width:100%;border-radius:8px;min-height:0;transition:height .4s ease}.j-bars small{font-size:9px}.j-bars span{font-size:9px;color:var(--muted)}
+.j-page-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px;flex-wrap:wrap}.j-page-head h2{font-size:30px;margin:8px 0}.j-page-head p{font-size:13px;color:var(--muted)}.j-search{display:block;font-size:12px;color:var(--muted)}.j-search input{display:block;width:100%;margin-top:8px;min-height:48px;border:1px solid var(--line);border-radius:16px;padding:12px 16px;background:var(--surface)}.j-chips{display:flex;gap:8px;overflow:auto;padding:18px 0}.j-chips button{white-space:nowrap;min-height:42px;padding:10px 16px;background:var(--surface);border:1px solid var(--line);border-radius:24px;color:var(--muted);cursor:pointer;text-transform:capitalize}.j-chips button[aria-pressed=true]{background:var(--primary-soft);color:var(--primary);border-color:#cbbbea}.j-team-list{display:grid;gap:12px}.j-team-list .j-person{background:var(--surface);border:1px solid var(--line);padding:18px;border-radius:20px}.j-shift{display:flex;align-items:center;gap:14px;padding:20px 0;border-bottom:1px solid var(--line)}.j-shift time{font-size:12px;max-width:100px;color:var(--primary);font-weight:650}.j-shift strong{font-size:13px}.j-shift small{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+#clockLiveTime{font-variant-numeric:tabular-nums;font-size:clamp(44px,11vw,72px);letter-spacing:-.05em}#clockPunchBtn{min-height:62px;border-radius:18px;font-size:16px}.panel{border-radius:22px}.btn{transition:background .18s,transform .18s}.btn:active{transform:scale(.98)}.view.active{animation:j-appear .2s ease}.toast{border-radius:18px}dialog{border-radius:24px}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #ae95e4;outline-offset:3px}
+@keyframes j-pulse{50%{box-shadow:0 0 0 6px #24856b05;opacity:.65}}@keyframes j-appear{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:760px){.journey-bento{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.j-clock{padding:30px}.j-team-list{grid-template-columns:repeat(2,minmax(0,1fr))}.j-digital{font-size:64px}}
+@media(min-width:1200px){.journey-bento{grid-template-columns:repeat(3,minmax(0,1fr))}.j-clock{grid-column:span 2}.j-stats{grid-column:3}.j-people{grid-column:span 2}.j-journey,.j-week{grid-column:span 1}.j-digital{font-size:84px}.j-team-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:759px){.content{padding:18px 16px 100px}.hero-row h2{font-size:25px}.hero-row p{font-size:12px}.j-card{padding:20px}.j-toolbar>span{display:none}.mobile-dock{background:var(--surface);box-shadow:0 -4px 24px #38304b06;border-top:1px solid var(--line);padding-bottom:max(8px,env(safe-area-inset-bottom))}.mobile-dock button{min-height:52px;color:var(--muted)}.mobile-dock .dock-point{background:#7756ce;color:white;border-radius:18px;margin:0 4px}.mobile-dock .dock-point.active{background:#6343b5;color:white}.mobile-dock button.hidden{display:none}dialog{margin:auto 0 0;max-width:100%;width:100%;border-radius:24px 24px 0 0}.j-donut-wrap{gap:18px}.j-donut{width:130px;height:130px}.j-donut>div{width:92px;height:92px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+[data-theme=dark] .j-clock,[data-theme=dark] .j-attention,[data-theme=dark] .j-insight{background:var(--surface-2)}[data-theme=dark] .j-digital{color:var(--text)}
+.j-schedule-grid{display:grid;gap:14px;margin-bottom:24px}.j-is-today{border-color:#b59adc;background:#faf7ff}@media(min-width:760px){.j-schedule-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(min-width:1200px){.j-schedule-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* The replacement home owns the presence overview; keep the legacy target for integrations. */
+#view-dashboard>#liveStorePresencePanel{display:none!important}
+#view-dashboard.j-unit-filtered>#cards,#view-dashboard.j-unit-filtered>.dashboard-grid,#view-dashboard.j-unit-filtered>#proxima-folga,#view-dashboard.j-unit-filtered>#incompletePunchesAlert{display:none}
 </style>
   </head>
   <body>
@@ -9776,7 +9805,7 @@ a:focus-visible {
             <span>✦</span><b>Geração automática</b>
           </button>
           <div class="nav-label">Gestão</div>
-          <button class="nav-item permission-manager" data-view="employees">
+          <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button><button class="nav-item" data-view="shift-plan"><span>▦</span><b>Minha escala</b></button><button class="nav-item permission-manager" data-view="employees">
             <span>♙</span><b>Funcionários</b>
           </button>
           <button class="nav-item permission-admin" data-view="hour-balances">
@@ -9940,14 +9969,16 @@ a:focus-visible {
           </div>
         </header>
 
-        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard">⌂<span>Início</span></button><button type="button" data-view-target="timeoff">▦<span>Folgas</span></button><button type="button" data-view-target="timeclock">◉<span>Ponto</span></button><button type="button" data-view-target="notifications">♧<span>Avisos</span></button><button type="button" id="dockMore">☰<span>Mais</span></button></nav><main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard">⌂<span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point">◉<span>Ponto</span></button><button type="button" data-view-target="live-team" class="permission-manager">♧<span>Equipe</span></button><button type="button" data-view-target="shift-plan">▦<span>Escala</span></button><button type="button" id="dockMore">☰<span>Mais</span></button></nav><main class="content">
+          <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
+          <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
           <section id="view-dashboard" class="view active">
             <div class="hero-row">
               <div>
                 <span class="eyebrow">VISÃO GERAL</span>
                 <h2 id="greeting">Olá! Vamos organizar a escala?</h2>
                 <p>
-                  Acompanhe folgas, pedidos e capacidade das lojas num só lugar.
+                  Seu dia, sua equipe, tudo no ritmo certo.
                 </p>
               </div>
               <div class="hero-actions">
@@ -9958,6 +9989,7 @@ a:focus-visible {
                 </button>
               </div>
             </div>
+            <div id="journeyHome" class="journey-bento"></div>
             <div id="incompletePunchesAlert" class="incomplete-punches-alert hidden">
               <div class="incomplete-alert-content">
                 <span class="incomplete-alert-icon">⚠️</span>
@@ -12905,7 +12937,7 @@ a:focus-visible {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.4.0"></script>
+<script type="module" src="./src/main.js?v=6.5.0"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -13897,9 +13929,10 @@ a:focus-visible {
     $$(".nav-item[data-view]").forEach(
       (b) => (b.onclick = () => switchView(b.dataset.view)),
     );
-    $$("[data-view-target]").forEach(
-      (b) => (b.onclick = () => switchView(b.dataset.viewTarget)),
-    );
+    document.addEventListener("click", event => {
+      const target = event.target.closest("[data-view-target]");
+      if (target && !target.disabled) switchView(target.dataset.viewTarget);
+    });
     $("#sidebarToggle").onclick = () =>
       window.innerWidth <= 900
         ? document.body.classList.remove("menu-open")
@@ -15285,6 +15318,7 @@ a:focus-visible {
     panel.classList.remove("hidden");
     const data = state.livePresenceData;
     if (!data) return;
+    if (typeof publishJourney_ === "function") publishJourney_();
     const all = arr(data.presence);
     const store = $("#presenceStoreFilter");
     const selected = store.value;
@@ -15391,9 +15425,8 @@ a:focus-visible {
     $("#userName").textContent = name;
     $("#userRole").textContent = profile(u) || "Perfil";
     applyAvatar($("#userAvatar"), name, u);
-    $("#greeting").textContent = employeeMode
-      ? `Olá, ${name.split(" ")[0]}! Estas são as suas folgas.`
-      : `Olá, ${name.split(" ")[0]}! Vamos organizar a escala?`;
+    const hour = Number(new Intl.DateTimeFormat("pt-BR", {hour: "numeric", timeZone: "America/Bahia"}).format(new Date()));
+    $("#greeting").textContent = `${hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"}, ${name.split(" ")[0]} 👋`;
 
     /*
      * Sempre restaura a navegação antes de aplicar o novo perfil. Sem isso, os
@@ -15556,6 +15589,7 @@ a:focus-visible {
       view = "pending-center";
     }
     state.currentView = view;
+    publishJourney_();
     $$(".mobile-dock [data-view-target]").forEach(item => { item.classList.toggle("active", item.dataset.viewTarget === view); item.setAttribute("aria-current", item.dataset.viewTarget === view ? "page" : "false"); });
     $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
@@ -15630,7 +15664,9 @@ a:focus-visible {
       renderDashboard();
       if (isEmployee()) renderEmployeeDashboardCards();
       if (isStoreManager()) renderWorkingToday();
-    } else if (view === "calendar") renderCalendar();
+    } else if (view === "live-team") { loadLivePresence_(); publishJourney_(); }
+    else if (view === "shift-plan") { loadClockSettings().then(publishJourney_).catch(error => toast(error.message, true)); publishJourney_(); }
+    else if (view === "calendar") renderCalendar();
     else if (view === "timeoff") renderTimeOff();
     else if (view === "pending-center") loadPendingCenter_();
     else if (view === "scheduler") renderSimulation();
@@ -15808,7 +15844,11 @@ a:focus-visible {
     }
     return d.totalTexto || "+0h 00min";
   }
+  function publishJourney_() {
+    window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance, schedules: state.clockSettings?.schedules, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches}}));
+  }
   function renderDashboard() {
+    publishJourney_();
     const cards = Object.assign({}, state.dashboard.cards || computeCards(), {
         conferenciaPonto: state.incompletePunches ? state.incompletePunches.length : "—",
       }),
@@ -17942,6 +17982,7 @@ a:focus-visible {
         state.timeClock = data;
         renderTimeClock();
         renderEmployeeDashboardCards();
+        if (state.currentView === "dashboard") loadTimeClock(false);
         saveTurboShellCache_();
         console.info("[performance] ponto imediato pronto", {
           elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
@@ -17965,6 +18006,7 @@ a:focus-visible {
     return CLOCK_QUICK_PROMISE_;
   }
   function renderTimeClock() {
+    publishJourney_();
     const d = state.timeClock || {},
       summary = d.summary || {},
       accumulated = state.timeClockBalance || {},
@@ -18023,7 +18065,7 @@ a:focus-visible {
       : d.offToday
         ? d.offTodayLabel || "De folga hoje"
         : d.nextAction
-          ? "Registrar " + (labels[d.nextAction] || d.nextAction)
+          ? ({ENTRADA:"Registrar entrada",SAIDA_INTERVALO:"Iniciar intervalo",RETORNO_INTERVALO:"Finalizar intervalo",SAIDA_FINAL:"Registrar saída"}[d.nextAction] || labels[d.nextAction])
           : arr(d.todayRecords).length
             ? "Jornada concluída"
             : "Atualize para consultar";
