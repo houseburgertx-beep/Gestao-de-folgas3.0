@@ -832,3 +832,198 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
     grid-template-columns: 1fr;
   }
 }
+
+/* Manager home: decisions first, personal clock removed from the admin view. */
+.j-manager-home > .hero-row,
+.j-manager-home > .home-shortcuts {
+  display: none !important;
+}
+.j-command {
+  grid-column: 1 / -1;
+  padding: 24px;
+  border-radius: 24px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 92% 0%, #9b7de955 0, transparent 34%),
+    linear-gradient(135deg, #211b36 0%, #35255f 100%);
+  box-shadow: 0 14px 40px #241a4530;
+}
+.j-command-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.j-command .eyebrow {
+  color: #cfc4ed;
+}
+.j-command h2 {
+  margin: 7px 0 3px;
+  font-size: clamp(25px, 3vw, 36px);
+  line-height: 1.08;
+  letter-spacing: -.045em;
+}
+.j-command-head p {
+  margin: 0;
+  color: #cfc9dc;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.j-command .j-unit {
+  color: #d8d1e7;
+  min-width: 230px;
+}
+.j-command .j-unit select {
+  color: #fff;
+  background: #ffffff12;
+  border-color: #ffffff30;
+}
+.j-command .j-unit option {
+  color: #292638;
+  background: #fff;
+}
+.j-priority-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.j-priority-list > button {
+  min-height: 116px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  gap: 4px 10px;
+  border: 1px solid #ffffff18;
+  border-radius: 16px;
+  color: #fff;
+  background: #ffffff0d;
+  text-align: left;
+  cursor: pointer;
+}
+.j-priority-list > button:hover {
+  background: #ffffff18;
+  border-color: #ffffff35;
+}
+.j-priority-list > button strong {
+  grid-row: 1 / span 2;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+.j-priority-list > button span {
+  color: #ddd7e9;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.j-priority-list > button small {
+  grid-column: 2;
+  color: #aaa1bc;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.j-priority-list > button b {
+  grid-column: 2;
+  align-self: end;
+  color: #fff;
+  font-size: 12px;
+}
+.j-all-clear {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #7ce2b852;
+  border-radius: 16px;
+  background: #36a77a22;
+}
+.j-all-clear > span {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #48bd8b;
+  font-weight: 800;
+}
+.j-all-clear strong,
+.j-all-clear small {
+  display: block;
+}
+.j-all-clear small {
+  margin-top: 3px;
+  color: #d6eee4;
+  font-size: 12px;
+}
+.j-command-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.j-command-actions .btn-secondary {
+  color: #fff;
+  border-color: #ffffff35;
+  background: transparent;
+}
+.j-command-actions .btn-primary {
+  color: #2d2444;
+  background: #fff;
+}
+.j-manager-home .j-stats {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.j-manager-home .j-stat {
+  min-height: 106px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.j-manager-home .j-people {
+  grid-column: span 2;
+}
+.j-manager-home .j-activity-card {
+  grid-column: span 1;
+}
+
+@media (max-width: 980px) {
+  .j-priority-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .j-manager-home .j-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .j-manager-home .j-people,
+  .j-manager-home .j-activity-card {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 759px) {
+  .j-command {
+    padding: 20px;
+    border-radius: 22px;
+  }
+  .j-command-head {
+    display: grid;
+    gap: 18px;
+  }
+  .j-command .j-unit {
+    min-width: 0;
+  }
+  .j-priority-list {
+    grid-template-columns: 1fr;
+  }
+  .j-priority-list > button {
+    min-height: 88px;
+  }
+  .j-command-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .j-manager-home .j-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

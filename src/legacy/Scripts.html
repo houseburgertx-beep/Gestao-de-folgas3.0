@@ -2845,7 +2845,7 @@
     return d.totalTexto || "+0h 00min";
   }
   function publishJourney_() {
-    window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance, schedules: state.clockSettings?.schedules, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches}}));
+    window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance, schedules: state.clockSettings?.schedules, employees: state.employees, timeOff: state.timeOff, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches}}));
   }
   function renderDashboard() {
     publishJourney_();

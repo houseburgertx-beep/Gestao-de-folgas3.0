@@ -40,3 +40,14 @@ test('unidades usam NomeLoja real e removem repetição pelo ID, preservando hom
  assert.equal((html.match(/<strong>Ana<\/strong>/g)||[]).length,2);
  assert.match(html,/House TX<\/small>/);
 });
+
+test('gestor recebe central de decisão com pendências reais em vez do relógio pessoal',()=>{
+ const h=harness();h.send({manager:true,pendingCounts:{total:4},incompletePunches:[{id:'1'},{id:'2'}],presence:{presence:[{Nome:'Ana',status:'ausente',LojaID:'1'},{Nome:'Bia',status:'trabalhando',LojaID:'1',horarioEscala:'17:00',entryTime:'17:12'}]}});
+ const html=h.nodes.get('#journeyHome').innerHTML;
+ assert.match(html,/O que precisa da sua decisão/);
+ assert.match(html,/4<\/strong><span>solicitações aguardando decisão/);
+ assert.match(html,/2<\/strong><span>saídas esquecidas/);
+ assert.match(html,/1<\/strong><span>entrada atrasada/);
+ assert.match(html,/1<\/strong><span>pessoa ainda sem entrada/);
+ assert.doesNotMatch(html,/data-live-clock/);
+});
