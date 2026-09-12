@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="House Folgas" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.7.0" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.7.1" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,7 +25,7 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
-    <meta name="app-version" content="6.7.0-firebase-github" />
+    <meta name="app-version" content="6.7.1-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -12966,7 +12966,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.7.0"></script>
+<script type="module" src="./src/main.js?v=6.7.1"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -13960,7 +13960,12 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
     );
     document.addEventListener("click", event => {
       const target = event.target.closest("[data-view-target]");
-      if (target && !target.disabled) switchView(target.dataset.viewTarget);
+      if (target && !target.disabled) {
+        const pendingFilter = target.dataset.pendingFilterTarget;
+        if (["all", "timeoff", "clock", "swaps"].includes(pendingFilter))
+          state.pendingCenter.filter = pendingFilter;
+        switchView(target.dataset.viewTarget);
+      }
     });
     $("#sidebarToggle").onclick = () =>
       window.innerWidth <= 900

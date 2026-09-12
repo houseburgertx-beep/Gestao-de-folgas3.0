@@ -49,5 +49,8 @@ test('gestor recebe central de decisão com pendências reais em vez do relógio
  assert.match(html,/2<\/strong><span>saídas esquecidas/);
  assert.match(html,/1<\/strong><span>entrada atrasada/);
  assert.match(html,/1<\/strong><span>pessoa ainda sem entrada/);
+ assert.match(html,/data-pending-filter-target="clock"/);
+ assert.match(html,/data-jump-team="atrasados"/);
+ assert.match(html,/data-jump-team="ausente"/);
  assert.doesNotMatch(html,/data-live-clock/);
 });

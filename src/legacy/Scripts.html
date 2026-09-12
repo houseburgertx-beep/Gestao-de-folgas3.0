@@ -991,7 +991,12 @@
     );
     document.addEventListener("click", event => {
       const target = event.target.closest("[data-view-target]");
-      if (target && !target.disabled) switchView(target.dataset.viewTarget);
+      if (target && !target.disabled) {
+        const pendingFilter = target.dataset.pendingFilterTarget;
+        if (["all", "timeoff", "clock", "swaps"].includes(pendingFilter))
+          state.pendingCenter.filter = pendingFilter;
+        switchView(target.dataset.viewTarget);
+      }
     });
     $("#sidebarToggle").onclick = () =>
       window.innerWidth <= 900
