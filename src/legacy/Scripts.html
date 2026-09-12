@@ -1281,8 +1281,6 @@
       state.usersLoaded = false;
       state.usersLoading = false;
       state.secondaryStarted = false;
-      if (typeof resetHouseArenaState_ === "function")
-        resetHouseArenaState_();
       CORE_BOOTSTRAP_PROMISE_ = null;
       USERS_LOAD_PROMISE_ = null;
       document.body.classList.remove("app-core-loading");
@@ -1629,8 +1627,6 @@
       state.adminHourBalances = null;
       state.notifications = [];
       state.swaps = [];
-      if (typeof resetHouseArenaState_ === "function")
-        resetHouseArenaState_();
       state.shellCached = false;
       state.secondaryStarted = false;
       localStorage.removeItem(TURBO_CACHE_KEY_);
@@ -2503,8 +2499,6 @@
     $$(".permission-admin").forEach((item) =>
       item.classList.toggle("hidden", !admin),
     );
-    if (typeof showHouseArenaWelcomeOnce_ === "function")
-      showHouseArenaWelcomeOnce_();
 
     const timeoffLabel = $('.nav-item[data-view="timeoff"] b');
     if (timeoffLabel)
@@ -2580,7 +2574,6 @@
         "timeclock",
         "pending-center",
         "notifications",
-        "house-arena",
         "communication",
       ];
       navItems.forEach((item) => {
@@ -2597,7 +2590,6 @@
         "timeoff",
         "timeclock",
         "notifications",
-        "house-arena",
         "communication",
       ];
       navItems.forEach((item) => {
@@ -2679,46 +2671,6 @@
     if (isEmployee()) renderEmployeeDashboardCards();
     if (isStoreManager()) renderWorkingToday();
   }
-  function ensureHouseArenaModule_() {
-    if (
-      typeof bindHouseArena === "function" &&
-      typeof loadHouseArena === "function"
-    ) {
-      return Promise.resolve(true);
-    }
-    if (HOUSE_ARENA_MODULE_PROMISE_) return HOUSE_ARENA_MODULE_PROMISE_;
-    HOUSE_ARENA_MODULE_PROMISE_ = (async () => {
-      const bundle = await call(FN.clientModule, "house-arena");
-      if (!bundle || !Array.isArray(bundle.css) || !Array.isArray(bundle.scripts))
-        throw new Error("O módulo Arena/House Link veio incompleto.");
-      if (!document.getElementById("houseArenaLazyStyles")) {
-        const style = document.createElement("style");
-        style.id = "houseArenaLazyStyles";
-        style.textContent = bundle.css.join("\n");
-        document.head.appendChild(style);
-      }
-      bundle.scripts.forEach((source, index) => {
-        const id = "houseArenaLazyScript" + index;
-        if (document.getElementById(id)) return;
-        const script = document.createElement("script");
-        script.id = id;
-        script.textContent = String(source || "");
-        document.body.appendChild(script);
-      });
-      if (
-        typeof bindHouseArena !== "function" ||
-        typeof loadHouseArena !== "function"
-      ) {
-        throw new Error("Não foi possível inicializar a Arena/House Link.");
-      }
-      bindHouseArena();
-      return true;
-    })().catch((error) => {
-      HOUSE_ARENA_MODULE_PROMISE_ = null;
-      throw error;
-    });
-    return HOUSE_ARENA_MODULE_PROMISE_;
-  }
   function renderCurrentView(view) {
     if (view === "dashboard") {
       renderDashboard();
@@ -2740,20 +2692,6 @@
     else if (view === "audit") loadAudit();
     else if (view === "operations") loadOperationalRules();
     else if (view === "notifications") { loadNotifications(); window.dispatchEvent(new Event("gestao-notifications-open")); }
-    else if (view === "house-arena") {
-      ensureHouseArenaModule_()
-        .then(() => {
-          if (state.currentView === "house-arena") loadHouseArena();
-        })
-        .catch((error) => {
-          console.error("Falha ao carregar Arena/House Link:", error);
-          toast(
-            error?.message ||
-              "Não foi possível carregar a Arena e o House Link.",
-            true,
-          );
-        });
-    }
     else if (view === "timeclock") loadTimeClock();
     else if (view === "hour-balances") loadAdminHourBalances_();
     else if (

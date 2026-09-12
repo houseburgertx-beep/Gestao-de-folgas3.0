@@ -1809,6 +1809,10 @@ export function createBaseHandlers(getArenaBundle) {
         ...payload,
         FeriadoID: id,
       });
+      if (saved.Ativo !== false) {
+        const employees = await runtime.list("Funcionarios", { profile });
+        await ensureHolidayLeaveCredits(profile, saved, employees);
+      }
       return success(saved, "Feriado atualizado.");
     },
 

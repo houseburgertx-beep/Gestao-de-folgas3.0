@@ -713,7 +713,8 @@ test("o index preserva a interface sem marcação de template do Apps Script", a
   assert.match(html, /src\/main\.js/);
   assert.doesNotMatch(html, /<\?(?:=|!=)/);
   assert.match(html, /id="view-timeclock"/);
-  assert.match(html, /id="view-house-arena"/);
+  assert.doesNotMatch(html, /id="view-house-arena"/);
+  assert.doesNotMatch(html, /data-view="house-arena"/);
 });
 
 test("utilitários de data, duração e geolocalização", () => {
