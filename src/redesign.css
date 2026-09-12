@@ -586,3 +586,249 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
 #employeeClockDashboard{display:none} /* Replaced by the personal journey card; recording stays on Ponto. */
 @media(max-width:759px){.j-unit{width:100%}.j-unit select{max-width:100%;min-width:0}.j-toolbar{width:100%}.mobile-dock{display:flex}.mobile-dock button{flex:1;min-width:0}.j-totals{flex-wrap:wrap;gap:14px}.j-digital{font-size:clamp(36px,12vw,72px)}}
 [data-theme=dark] .j-stat{background:var(--surface-2)}[data-theme=dark] .j-person .j-status{background:var(--surface-2);color:var(--text)}
+
+/* 6.6 — calmer navigation, action-first dashboard and a true mobile agenda. */
+:root {
+  --muted: #625f72;
+}
+.sidebar {
+  background: linear-gradient(180deg, #211b36 0%, #171426 100%);
+  border-right: 0;
+}
+.sidebar .brand-name,
+.sidebar .brand-title,
+.sidebar .brand-copy strong {
+  color: #fff;
+}
+.sidebar .brand-copy span,
+.sidebar .sidebar-head,
+.sidebar .nav-item {
+  color: #c9c2dc;
+}
+.sidebar .nav-item:hover {
+  color: #fff;
+  background: #ffffff0d;
+}
+.sidebar .nav-item.active {
+  color: #fff;
+  background: #7756ce;
+}
+.sidebar .nav-item.active::before {
+  display: none;
+}
+.sidebar-foot {
+  border-top-color: #ffffff16;
+  background: transparent;
+}
+.nav-group {
+  margin: 5px 0;
+}
+.nav-group > summary {
+  min-height: 44px;
+  padding: 9px 12px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  color: #c9c2dc;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+}
+.nav-group > summary::-webkit-details-marker {
+  display: none;
+}
+.nav-group > summary:hover,
+.nav-group:has(.nav-item.active) > summary {
+  color: #fff;
+  background: #ffffff0d;
+}
+.nav-group > summary span {
+  font-size: 17px;
+  text-align: center;
+}
+.nav-group > summary i {
+  font-style: normal;
+  transition: transform .18s ease;
+}
+.nav-group[open] > summary i {
+  transform: rotate(180deg);
+}
+.nav-group > .nav-item {
+  margin-left: 14px;
+  width: calc(100% - 14px);
+}
+.sidebar-collapsed .nav-group > summary b,
+.sidebar-collapsed .nav-group > summary i,
+.sidebar-collapsed .nav-group > .nav-item {
+  display: none;
+}
+.sidebar-collapsed .nav-group > summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 9px;
+}
+.j-manager-home > #cards,
+.j-manager-home > .dashboard-grid,
+.j-manager-home > #proxima-folga {
+  display: none !important;
+}
+.j-manager-home .home-shortcuts {
+  margin-top: 4px;
+}
+.section-description {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+#view-reports #reportCards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.report-card {
+  min-height: 145px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-top: 0;
+}
+.report-card[data-tone="attention"] {
+  background: #fff7f5;
+  border-color: #f3c3bb;
+}
+[data-theme="dark"] .report-card[data-tone="attention"] {
+  background: #352323;
+  border-color: #74413b;
+}
+.calendar-agenda {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  .sidebar {
+    background: linear-gradient(180deg, #211b36 0%, #171426 100%);
+  }
+  .calendar-main {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  .calendar-weekdays,
+  #calendarGrid {
+    display: none;
+  }
+  .calendar-agenda {
+    display: grid;
+    gap: 12px;
+  }
+  .calendar-agenda-day {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+  .calendar-agenda-day.today {
+    border-color: #9d82df;
+    box-shadow: 0 0 0 3px #7756ce14;
+  }
+  .calendar-agenda-day > header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+  }
+  .calendar-agenda-day > header strong {
+    color: var(--text);
+    font-size: 15px;
+    text-transform: capitalize;
+  }
+  .calendar-agenda-day > header span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .calendar-agenda-day > div {
+    display: grid;
+    gap: 8px;
+  }
+  .calendar-agenda-event {
+    width: 100%;
+    min-height: 52px;
+    padding: 9px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    border: 1px solid #d8cef1;
+    border-left: 4px solid #7756ce;
+    border-radius: 12px;
+    background: #f5f1ff;
+    color: var(--text);
+    text-align: left;
+  }
+  .calendar-agenda-event.pending {
+    border-color: #eed8a2;
+    border-left-color: #d39b24;
+    background: #fff9e9;
+  }
+  .calendar-agenda-event.fixed {
+    border-color: #c9dcf4;
+    border-left-color: #4d86ca;
+    background: #f0f6fd;
+    opacity: 1;
+  }
+  .calendar-agenda-event span {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .calendar-agenda-event small {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .calendar-agenda-empty {
+    padding: 32px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 18px;
+    color: var(--muted);
+    text-align: center;
+  }
+  #view-calendar .section-toolbar {
+    align-items: stretch;
+  }
+  #view-calendar .section-toolbar > h2 {
+    width: 100%;
+    order: 2;
+  }
+  #view-calendar .section-toolbar .toolbar-actions {
+    order: 3;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  #view-calendar .section-toolbar select {
+    min-width: 0;
+    width: 100%;
+  }
+  #calendarNewBtn {
+    grid-column: 1 / -1;
+  }
+  .calendar-side {
+    margin-top: 14px;
+  }
+  #view-reports #reportCards {
+    grid-template-columns: 1fr 1fr;
+  }
+  .report-card {
+    min-height: 132px;
+  }
+}
+
+@media (max-width: 420px) {
+  #view-reports #reportCards {
+    grid-template-columns: 1fr;
+  }
+}

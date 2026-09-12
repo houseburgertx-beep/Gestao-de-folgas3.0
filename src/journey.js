@@ -73,8 +73,9 @@ function renderSchedule() {
 
 function render() {
  if(!$('#journeyHome'))return;
- $('#journeyHome').innerHTML=`<div class="j-toolbar">${unitSelect()}<span>O seu dia, em tempo real</span></div>${clock()}${data.manager?operation():personal()}`;
+ $('#journeyHome').innerHTML=`<div class="j-toolbar">${unitSelect()}</div>${clock()}${data.manager?operation():personal()}`;
  $('#view-dashboard').classList.toggle('j-unit-filtered',!!unit);
+ $('#view-dashboard').classList.toggle('j-manager-home',!!data.manager);
  renderTeam();renderSchedule();tick();
 }
 function tick(){const now=new Date();document.querySelectorAll('[data-live-clock]').forEach(e=>e.textContent=now.toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}));document.querySelectorAll('[data-live-date]').forEach(e=>e.textContent=now.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'long',day:'2-digit',month:'short',year:'numeric'}));}

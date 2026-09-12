@@ -9649,6 +9649,252 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
 #employeeClockDashboard{display:none} /* Replaced by the personal journey card; recording stays on Ponto. */
 @media(max-width:759px){.j-unit{width:100%}.j-unit select{max-width:100%;min-width:0}.j-toolbar{width:100%}.mobile-dock{display:flex}.mobile-dock button{flex:1;min-width:0}.j-totals{flex-wrap:wrap;gap:14px}.j-digital{font-size:clamp(36px,12vw,72px)}}
 [data-theme=dark] .j-stat{background:var(--surface-2)}[data-theme=dark] .j-person .j-status{background:var(--surface-2);color:var(--text)}
+
+/* 6.6 — calmer navigation, action-first dashboard and a true mobile agenda. */
+:root {
+  --muted: #625f72;
+}
+.sidebar {
+  background: linear-gradient(180deg, #211b36 0%, #171426 100%);
+  border-right: 0;
+}
+.sidebar .brand-name,
+.sidebar .brand-title,
+.sidebar .brand-copy strong {
+  color: #fff;
+}
+.sidebar .brand-copy span,
+.sidebar .sidebar-head,
+.sidebar .nav-item {
+  color: #c9c2dc;
+}
+.sidebar .nav-item:hover {
+  color: #fff;
+  background: #ffffff0d;
+}
+.sidebar .nav-item.active {
+  color: #fff;
+  background: #7756ce;
+}
+.sidebar .nav-item.active::before {
+  display: none;
+}
+.sidebar-foot {
+  border-top-color: #ffffff16;
+  background: transparent;
+}
+.nav-group {
+  margin: 5px 0;
+}
+.nav-group > summary {
+  min-height: 44px;
+  padding: 9px 12px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  color: #c9c2dc;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+}
+.nav-group > summary::-webkit-details-marker {
+  display: none;
+}
+.nav-group > summary:hover,
+.nav-group:has(.nav-item.active) > summary {
+  color: #fff;
+  background: #ffffff0d;
+}
+.nav-group > summary span {
+  font-size: 17px;
+  text-align: center;
+}
+.nav-group > summary i {
+  font-style: normal;
+  transition: transform .18s ease;
+}
+.nav-group[open] > summary i {
+  transform: rotate(180deg);
+}
+.nav-group > .nav-item {
+  margin-left: 14px;
+  width: calc(100% - 14px);
+}
+.sidebar-collapsed .nav-group > summary b,
+.sidebar-collapsed .nav-group > summary i,
+.sidebar-collapsed .nav-group > .nav-item {
+  display: none;
+}
+.sidebar-collapsed .nav-group > summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 9px;
+}
+.j-manager-home > #cards,
+.j-manager-home > .dashboard-grid,
+.j-manager-home > #proxima-folga {
+  display: none !important;
+}
+.j-manager-home .home-shortcuts {
+  margin-top: 4px;
+}
+.section-description {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+#view-reports #reportCards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.report-card {
+  min-height: 145px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-top: 0;
+}
+.report-card[data-tone="attention"] {
+  background: #fff7f5;
+  border-color: #f3c3bb;
+}
+[data-theme="dark"] .report-card[data-tone="attention"] {
+  background: #352323;
+  border-color: #74413b;
+}
+.calendar-agenda {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  .sidebar {
+    background: linear-gradient(180deg, #211b36 0%, #171426 100%);
+  }
+  .calendar-main {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  .calendar-weekdays,
+  #calendarGrid {
+    display: none;
+  }
+  .calendar-agenda {
+    display: grid;
+    gap: 12px;
+  }
+  .calendar-agenda-day {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+  .calendar-agenda-day.today {
+    border-color: #9d82df;
+    box-shadow: 0 0 0 3px #7756ce14;
+  }
+  .calendar-agenda-day > header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+  }
+  .calendar-agenda-day > header strong {
+    color: var(--text);
+    font-size: 15px;
+    text-transform: capitalize;
+  }
+  .calendar-agenda-day > header span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .calendar-agenda-day > div {
+    display: grid;
+    gap: 8px;
+  }
+  .calendar-agenda-event {
+    width: 100%;
+    min-height: 52px;
+    padding: 9px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    border: 1px solid #d8cef1;
+    border-left: 4px solid #7756ce;
+    border-radius: 12px;
+    background: #f5f1ff;
+    color: var(--text);
+    text-align: left;
+  }
+  .calendar-agenda-event.pending {
+    border-color: #eed8a2;
+    border-left-color: #d39b24;
+    background: #fff9e9;
+  }
+  .calendar-agenda-event.fixed {
+    border-color: #c9dcf4;
+    border-left-color: #4d86ca;
+    background: #f0f6fd;
+    opacity: 1;
+  }
+  .calendar-agenda-event span {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .calendar-agenda-event small {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .calendar-agenda-empty {
+    padding: 32px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 18px;
+    color: var(--muted);
+    text-align: center;
+  }
+  #view-calendar .section-toolbar {
+    align-items: stretch;
+  }
+  #view-calendar .section-toolbar > h2 {
+    width: 100%;
+    order: 2;
+  }
+  #view-calendar .section-toolbar .toolbar-actions {
+    order: 3;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  #view-calendar .section-toolbar select {
+    min-width: 0;
+    width: 100%;
+  }
+  #calendarNewBtn {
+    grid-column: 1 / -1;
+  }
+  .calendar-side {
+    margin-top: 14px;
+  }
+  #view-reports #reportCards {
+    grid-template-columns: 1fr 1fr;
+  }
+  .report-card {
+    min-height: 132px;
+  }
+}
+
+@media (max-width: 420px) {
+  #view-reports #reportCards {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
   </head>
   <body>
@@ -9844,66 +10090,63 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
             <span>▣</span><b>Caixa de pendências</b
             ><em id="pendingCenterBadge" class="nav-badge">0</em>
           </button>
-          <button class="nav-item permission-manager" data-view="scheduler">
-            <span>✦</span><b>Geração automática</b>
-          </button>
-          <div class="nav-label">Gestão</div>
-          <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button><button class="nav-item" data-view="shift-plan"><span>▦</span><b>Escala de jornada</b></button><button class="nav-item permission-manager" data-view="employees">
-            <span>♙</span><b>Funcionários</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="hour-balances">
-            <span>◷</span><b>Banco de horas</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="stores">
-            <span>⌂</span><b>Lojas</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="holidays">
-            <span>☆</span><b>Feriados</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="access">
-            <span>♢</span><b>Controle de acesso</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="operations">
-            <span>⚙</span><b>Regras operacionais</b>
-          </button>
-          <button class="nav-item" data-view="notifications">
-            <span class="notification-nav-icon"
-              ><svg
-                class="notification-icon"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
-                ></path>
-                <path d="M10 21h4"></path></svg></span
-            ><b>Avisos e lembretes</b
-            ><em id="notificationBadge" class="nav-badge">0</em>
-          </button>
-          <button class="nav-item" data-view="communication">
-            <span>◈</span><b>Comunicação</b>
-          </button>
-          <button
-            class="nav-item permission-manager"
-            data-view="monthly-closing"
-          >
-            <span>▣</span><b>Fechamento mensal</b>
-          </button>
-          <button
-            class="nav-item permission-manager"
-            data-view="advanced-reports"
-          >
-            <span>▤</span><b>Jornada e desempenho</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="governance">
-            <span>♢</span><b>Permissões e delegações</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="reports">
-            <span>▥</span><b>Resultados do mês</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="audit">
-            <span>≡</span><b>Auditoria</b>
-          </button>
+          <details class="nav-group permission-manager">
+            <summary><span>▦</span><b>Planejamento</b><i>⌄</i></summary>
+            <button class="nav-item permission-manager" data-view="scheduler">
+              <span>✦</span><b>Distribuição automática</b>
+            </button>
+            <button class="nav-item" data-view="shift-plan"><span>▦</span><b>Escala de jornada</b></button>
+            <button class="nav-item permission-manager" data-view="holidays">
+              <span>☆</span><b>Feriados</b>
+            </button>
+          </details>
+          <details class="nav-group permission-manager">
+            <summary><span>♧</span><b>Equipe e operação</b><i>⌄</i></summary>
+            <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button>
+            <button class="nav-item permission-manager" data-view="employees">
+              <span>♙</span><b>Funcionários</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="hour-balances">
+              <span>◷</span><b>Banco de horas</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="stores">
+              <span>⌂</span><b>Lojas</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="operations">
+              <span>⚙</span><b>Regras operacionais</b>
+            </button>
+          </details>
+          <details class="nav-group">
+            <summary><span>◈</span><b>Comunicação e gestão</b><i>⌄</i></summary>
+            <button class="nav-item" data-view="notifications">
+              <span class="notification-nav-icon"
+                ><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                  <path d="M10 21h4"></path></svg></span
+              ><b>Lembretes</b><em id="notificationBadge" class="nav-badge">0</em>
+            </button>
+            <button class="nav-item" data-view="communication">
+              <span>◈</span><b>Comunicação</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="monthly-closing">
+              <span>▣</span><b>Fechamento mensal</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="advanced-reports">
+              <span>▤</span><b>Jornada e desempenho</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="reports">
+              <span>▥</span><b>Relatórios</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="access">
+              <span>♢</span><b>Acessos</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="governance">
+              <span>♢</span><b>Permissões</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="audit">
+              <span>≡</span><b>Auditoria</b>
+            </button>
+          </details>
         </nav>
         <div class="sidebar-foot">
           <button id="themeToggle" class="nav-item">
@@ -10142,6 +10385,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
                   ><span>Sáb</span>
                 </div>
                 <div id="calendarGrid" class="calendar-grid"></div>
+                <div id="calendarAgenda" class="calendar-agenda" aria-label="Agenda de folgas do mês"></div>
               </div>
               <aside class="calendar-side panel">
                 <h3>Legenda</h3>
@@ -10766,7 +11010,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
                     id="aiSimulateBtn"
                     class="btn btn-secondary"
                   >
-                    ✨ Simular com IA
+                    ✨ Otimizar distribuição
                   </button>
                 </div>
               </form>
@@ -11301,7 +11545,8 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">ANÁLISE</span>
-                <h2>Resultados do mês</h2>
+                <h2>Relatórios</h2>
+                <p class="section-description">Indicadores do período atual e pontos que precisam de conferência.</p>
               </div>
               <div class="toolbar-actions">
                 <button id="exportCsvBtn" class="btn btn-secondary">
@@ -15178,7 +15423,9 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
     $$(".nav-item[data-view]").forEach((v) =>
       v.classList.toggle("active", v.dataset.view === view),
     );
-    const active = $(`.nav-item[data-view="${view}"] b`);
+    const activeNavItem = $(`.nav-item[data-view="${view}"]`);
+    if (activeNavItem) activeNavItem.closest("details.nav-group")?.setAttribute("open", "");
+    const active = activeNavItem?.querySelector("b");
     $("#pageTitle").textContent = active?.textContent || "Gestão de Folgas";
     $("#breadcrumb").textContent = "House 190 / " + $("#pageTitle").textContent;
     document.body.classList.remove("menu-open");
@@ -15925,10 +16172,30 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
   }
   function renderReports() {
     const c = computeCards();
+    const labels = {
+      totalFuncionariosAtivos: "Funcionários ativos",
+      totalLojasAtivas: "Lojas ativas",
+      folgasHoje: "Folgas hoje",
+      folgasProximos7Dias: "Folgas nos próximos 7 dias",
+      pedidosPendentes: "Pedidos aguardando decisão",
+      saldoHoras: "Saldo total da equipe",
+      meuSaldoHoras: "Meu saldo de horas",
+    };
+    const descriptions = {
+      totalFuncionariosAtivos: "Cadastros ativos agora",
+      totalLojasAtivas: "Unidades em operação",
+      folgasHoje: "Aprovadas para hoje",
+      folgasProximos7Dias: "Aprovadas e pendentes",
+      pedidosPendentes: "Clique em Pendências para revisar",
+      saldoHoras: hourBalanceSubtitle(),
+      meuSaldoHoras: meuSaldoHorasSubtitle(),
+    };
     $("#reportCards").innerHTML = Object.entries(c)
       .map(
-        ([k, v], i) =>
-          `<article class="metric-card"><span>${esc(k.replace(/([A-Z])/g, " $1"))}</span><strong>${v}</strong></article>`,
+        ([k, v]) => {
+          const attention = (k === "saldoHoras" || k === "meuSaldoHoras") && String(v).trim().startsWith("-");
+          return `<article class="metric-card report-card" data-tone="${attention ? "attention" : "neutral"}"><span>${esc(labels[k] || k)}</span><strong${attention ? ' style="color:#b42318"' : ""}>${esc(v)}</strong><small>${esc(descriptions[k] || "Período atual")}</small></article>`;
+        },
       )
       .join("");
     const months = Array.from(
@@ -16027,6 +16294,25 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
         )}${events.length > 4 ? `<span style="font-size:9px;color:var(--muted)">+${events.length - 4} mais</span>` : ""}</div>`;
     }
     $("#calendarGrid").innerHTML = h;
+    let agenda = "";
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(y, m, day), ds = iso(d);
+      let events = (eventsByDate[ds] || []).slice();
+      events = events.concat(fixedEventsForDate(ds, store, employee, events));
+      if (!events.length) continue;
+      const eventButtons = events.map((x) => {
+        const readOnly = x._virtualFixed || isKitchenChief();
+        const attributes = readOnly
+          ? `disabled title="${x._virtualFixed ? "Folga fixa recorrente" : "Visualização somente de leitura"}`
+          : `data-action="edit-timeoff" data-id="${esc(idOf(x, "Folga"))}"`;
+        const status = x._virtualFixed ? "Folga fixa" : val(x, "Status", "status") || "Sem status";
+        const storeNameText = val(x, "NomeLoja", "nomeLoja") || storeName(val(x, "LojaID", "lojaId")) || "";
+        return `<button class="calendar-agenda-event ${x._virtualFixed ? "fixed" : statusClass(status)}" ${attributes}><span>${esc(val(x, "NomeFuncionario", "nomeFuncionario"))}</span><small>${esc([status, storeNameText].filter(Boolean).join(" · "))}</small></button>`;
+      }).join("");
+      agenda += `<article class="calendar-agenda-day ${ds === iso(new Date()) ? "today" : ""}" data-date="${ds}"><header><strong>${d.toLocaleDateString("pt-BR", {weekday:"short", day:"2-digit"})}</strong><span>${events.length} ${events.length === 1 ? "folga" : "folgas"}</span></header><div>${eventButtons}</div></article>`;
+    }
+    $("#calendarAgenda").innerHTML = agenda || '<div class="calendar-agenda-empty">Nenhuma folga encontrada neste mês.</div>';
     $("#calendarSummary").innerHTML =
       `<span><b>${registeredCount}</b> folgas registradas</span><span><b>${fixedCount}</b> folgas fixas</span><span><b>${pendingCount}</b> pendentes</span>`;
   }
@@ -17043,7 +17329,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
       toast(err.message, true);
     } finally {
       btn.disabled = false;
-      btn.textContent = "✨ Simular com IA";
+      btn.textContent = "✨ Otimizar distribuição";
       setLoading(false);
     }
   }

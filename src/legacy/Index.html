@@ -228,66 +228,63 @@
             <span>▣</span><b>Caixa de pendências</b
             ><em id="pendingCenterBadge" class="nav-badge">0</em>
           </button>
-          <button class="nav-item permission-manager" data-view="scheduler">
-            <span>✦</span><b>Geração automática</b>
-          </button>
-          <div class="nav-label">Gestão</div>
-          <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button><button class="nav-item" data-view="shift-plan"><span>▦</span><b>Escala de jornada</b></button><button class="nav-item permission-manager" data-view="employees">
-            <span>♙</span><b>Funcionários</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="hour-balances">
-            <span>◷</span><b>Banco de horas</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="stores">
-            <span>⌂</span><b>Lojas</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="holidays">
-            <span>☆</span><b>Feriados</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="access">
-            <span>♢</span><b>Controle de acesso</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="operations">
-            <span>⚙</span><b>Regras operacionais</b>
-          </button>
-          <button class="nav-item" data-view="notifications">
-            <span class="notification-nav-icon"
-              ><svg
-                class="notification-icon"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
-                ></path>
-                <path d="M10 21h4"></path></svg></span
-            ><b>Avisos e lembretes</b
-            ><em id="notificationBadge" class="nav-badge">0</em>
-          </button>
-          <button class="nav-item" data-view="communication">
-            <span>◈</span><b>Comunicação</b>
-          </button>
-          <button
-            class="nav-item permission-manager"
-            data-view="monthly-closing"
-          >
-            <span>▣</span><b>Fechamento mensal</b>
-          </button>
-          <button
-            class="nav-item permission-manager"
-            data-view="advanced-reports"
-          >
-            <span>▤</span><b>Jornada e desempenho</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="governance">
-            <span>♢</span><b>Permissões e delegações</b>
-          </button>
-          <button class="nav-item permission-manager" data-view="reports">
-            <span>▥</span><b>Resultados do mês</b>
-          </button>
-          <button class="nav-item permission-admin" data-view="audit">
-            <span>≡</span><b>Auditoria</b>
-          </button>
+          <details class="nav-group permission-manager">
+            <summary><span>▦</span><b>Planejamento</b><i>⌄</i></summary>
+            <button class="nav-item permission-manager" data-view="scheduler">
+              <span>✦</span><b>Distribuição automática</b>
+            </button>
+            <button class="nav-item" data-view="shift-plan"><span>▦</span><b>Escala de jornada</b></button>
+            <button class="nav-item permission-manager" data-view="holidays">
+              <span>☆</span><b>Feriados</b>
+            </button>
+          </details>
+          <details class="nav-group permission-manager">
+            <summary><span>♧</span><b>Equipe e operação</b><i>⌄</i></summary>
+            <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button>
+            <button class="nav-item permission-manager" data-view="employees">
+              <span>♙</span><b>Funcionários</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="hour-balances">
+              <span>◷</span><b>Banco de horas</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="stores">
+              <span>⌂</span><b>Lojas</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="operations">
+              <span>⚙</span><b>Regras operacionais</b>
+            </button>
+          </details>
+          <details class="nav-group">
+            <summary><span>◈</span><b>Comunicação e gestão</b><i>⌄</i></summary>
+            <button class="nav-item" data-view="notifications">
+              <span class="notification-nav-icon"
+                ><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                  <path d="M10 21h4"></path></svg></span
+              ><b>Lembretes</b><em id="notificationBadge" class="nav-badge">0</em>
+            </button>
+            <button class="nav-item" data-view="communication">
+              <span>◈</span><b>Comunicação</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="monthly-closing">
+              <span>▣</span><b>Fechamento mensal</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="advanced-reports">
+              <span>▤</span><b>Jornada e desempenho</b>
+            </button>
+            <button class="nav-item permission-manager" data-view="reports">
+              <span>▥</span><b>Relatórios</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="access">
+              <span>♢</span><b>Acessos</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="governance">
+              <span>♢</span><b>Permissões</b>
+            </button>
+            <button class="nav-item permission-admin" data-view="audit">
+              <span>≡</span><b>Auditoria</b>
+            </button>
+          </details>
         </nav>
         <div class="sidebar-foot">
           <button id="themeToggle" class="nav-item">
@@ -526,6 +523,7 @@
                   ><span>Sáb</span>
                 </div>
                 <div id="calendarGrid" class="calendar-grid"></div>
+                <div id="calendarAgenda" class="calendar-agenda" aria-label="Agenda de folgas do mês"></div>
               </div>
               <aside class="calendar-side panel">
                 <h3>Legenda</h3>
@@ -1150,7 +1148,7 @@
                     id="aiSimulateBtn"
                     class="btn btn-secondary"
                   >
-                    ✨ Simular com IA
+                    ✨ Otimizar distribuição
                   </button>
                 </div>
               </form>
@@ -1685,7 +1683,8 @@
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">ANÁLISE</span>
-                <h2>Resultados do mês</h2>
+                <h2>Relatórios</h2>
+                <p class="section-description">Indicadores do período atual e pontos que precisam de conferência.</p>
               </div>
               <div class="toolbar-actions">
                 <button id="exportCsvBtn" class="btn btn-secondary">

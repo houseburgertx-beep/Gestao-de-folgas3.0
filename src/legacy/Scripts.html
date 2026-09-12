@@ -2649,7 +2649,9 @@
     $$(".nav-item[data-view]").forEach((v) =>
       v.classList.toggle("active", v.dataset.view === view),
     );
-    const active = $(`.nav-item[data-view="${view}"] b`);
+    const activeNavItem = $(`.nav-item[data-view="${view}"]`);
+    if (activeNavItem) activeNavItem.closest("details.nav-group")?.setAttribute("open", "");
+    const active = activeNavItem?.querySelector("b");
     $("#pageTitle").textContent = active?.textContent || "Gestão de Folgas";
     $("#breadcrumb").textContent = "House 190 / " + $("#pageTitle").textContent;
     document.body.classList.remove("menu-open");
@@ -3396,10 +3398,30 @@
   }
   function renderReports() {
     const c = computeCards();
+    const labels = {
+      totalFuncionariosAtivos: "Funcionários ativos",
+      totalLojasAtivas: "Lojas ativas",
+      folgasHoje: "Folgas hoje",
+      folgasProximos7Dias: "Folgas nos próximos 7 dias",
+      pedidosPendentes: "Pedidos aguardando decisão",
+      saldoHoras: "Saldo total da equipe",
+      meuSaldoHoras: "Meu saldo de horas",
+    };
+    const descriptions = {
+      totalFuncionariosAtivos: "Cadastros ativos agora",
+      totalLojasAtivas: "Unidades em operação",
+      folgasHoje: "Aprovadas para hoje",
+      folgasProximos7Dias: "Aprovadas e pendentes",
+      pedidosPendentes: "Clique em Pendências para revisar",
+      saldoHoras: hourBalanceSubtitle(),
+      meuSaldoHoras: meuSaldoHorasSubtitle(),
+    };
     $("#reportCards").innerHTML = Object.entries(c)
       .map(
-        ([k, v], i) =>
-          `<article class="metric-card"><span>${esc(k.replace(/([A-Z])/g, " $1"))}</span><strong>${v}</strong></article>`,
+        ([k, v]) => {
+          const attention = (k === "saldoHoras" || k === "meuSaldoHoras") && String(v).trim().startsWith("-");
+          return `<article class="metric-card report-card" data-tone="${attention ? "attention" : "neutral"}"><span>${esc(labels[k] || k)}</span><strong${attention ? ' style="color:#b42318"' : ""}>${esc(v)}</strong><small>${esc(descriptions[k] || "Período atual")}</small></article>`;
+        },
       )
       .join("");
     const months = Array.from(
@@ -3498,6 +3520,25 @@
         )}${events.length > 4 ? `<span style="font-size:9px;color:var(--muted)">+${events.length - 4} mais</span>` : ""}</div>`;
     }
     $("#calendarGrid").innerHTML = h;
+    let agenda = "";
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(y, m, day), ds = iso(d);
+      let events = (eventsByDate[ds] || []).slice();
+      events = events.concat(fixedEventsForDate(ds, store, employee, events));
+      if (!events.length) continue;
+      const eventButtons = events.map((x) => {
+        const readOnly = x._virtualFixed || isKitchenChief();
+        const attributes = readOnly
+          ? `disabled title="${x._virtualFixed ? "Folga fixa recorrente" : "Visualização somente de leitura"}`
+          : `data-action="edit-timeoff" data-id="${esc(idOf(x, "Folga"))}"`;
+        const status = x._virtualFixed ? "Folga fixa" : val(x, "Status", "status") || "Sem status";
+        const storeNameText = val(x, "NomeLoja", "nomeLoja") || storeName(val(x, "LojaID", "lojaId")) || "";
+        return `<button class="calendar-agenda-event ${x._virtualFixed ? "fixed" : statusClass(status)}" ${attributes}><span>${esc(val(x, "NomeFuncionario", "nomeFuncionario"))}</span><small>${esc([status, storeNameText].filter(Boolean).join(" · "))}</small></button>`;
+      }).join("");
+      agenda += `<article class="calendar-agenda-day ${ds === iso(new Date()) ? "today" : ""}" data-date="${ds}"><header><strong>${d.toLocaleDateString("pt-BR", {weekday:"short", day:"2-digit"})}</strong><span>${events.length} ${events.length === 1 ? "folga" : "folgas"}</span></header><div>${eventButtons}</div></article>`;
+    }
+    $("#calendarAgenda").innerHTML = agenda || '<div class="calendar-agenda-empty">Nenhuma folga encontrada neste mês.</div>';
     $("#calendarSummary").innerHTML =
       `<span><b>${registeredCount}</b> folgas registradas</span><span><b>${fixedCount}</b> folgas fixas</span><span><b>${pendingCount}</b> pendentes</span>`;
   }
@@ -4514,7 +4555,7 @@
       toast(err.message, true);
     } finally {
       btn.disabled = false;
-      btn.textContent = "✨ Simular com IA";
+      btn.textContent = "✨ Otimizar distribuição";
       setLoading(false);
     }
   }
