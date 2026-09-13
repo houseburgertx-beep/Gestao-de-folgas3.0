@@ -21,6 +21,10 @@
     audit: [],
     dashboard: {},
     calendarDate: new Date(),
+    calendarMode: window.matchMedia("(max-width: 759px)").matches
+      ? "list"
+      : "month",
+    calendarFocusDate: "",
     simulation: [],
     simulationAI: null,
     currentView: "dashboard",
@@ -32,70 +36,10 @@
     vacations: [],
     pendingCenter: { filter: "all", loaded: false, loading: false },
     notifications: [],
-    arena: {
-      gameId: "corrida_pedidos",
-      rankingGameId: "corrida_pedidos",
-      period: "mes",
-      scope: "loja",
-      ranking: null,
-      rankingRequest: 0,
-      products: [],
-      ingredients: [],
-      productMap: {},
-      ingredientMap: {},
-      run: null,
-      events: [],
-      input: [],
-      round: 0,
-      score: 0,
-      combo: 0,
-      bestCombo: 0,
-      hits: 0,
-      errors: 0,
-      startedAt: 0,
-      roundStartedAt: 0,
-      durationMs: 45000,
-      timerFrame: 0,
-      roundFrame: 0,
-      renderToken: 0,
-      generation: 0,
-      sound: true,
-      haptics: true,
-      reducedMotion: false,
-      highContrast: false,
-      lowPower: false,
-      filter: "todos",
-      paused: false,
-      pauseStartedAt: 0,
-      pauseTotal: 0,
-      lastLocalSave: 0,
-      cashTotal: 0,
-      cashStack: [],
-      deliveryLane: 1,
-      playing: false,
-      finishing: false,
-    },
-    houseLink: {
-      roomId: "",
-      code: "",
-      snapshot: null,
-      revision: 0,
-      serverOffset: 0,
-      viewActive: false,
-      busy: false,
-      polling: false,
-      pollTimer: 0,
-      tickTimer: 0,
-      heartbeatAt: 0,
-      lastEventId: "",
-      selected: {},
-      selectedOrderId: "",
-      connection: "idle",
-      renderKey: "",
-    },
     hourBalance: null,
     timeClockBalance: null,
     adminHourBalances: null,
+    adminHourBalanceNegativeOnly: false,
     hourBalanceAdjustmentRequestId: "",
     coreReady: false,
     coreLoading: false,
@@ -109,7 +53,6 @@
     logout: "logoutUser",
     resetPassword: "requestPasswordReset",
     confirmPasswordReset: "confirmPasswordReset",
-    clientModule: "getClientModuleBundle",
     updateProfile: "updateOwnProfile",
     sessionBootstrap: "getBootstrapDataWithSession",
     acknowledgeMonthlyLeaveReward: "acknowledgeMonthlyLeaveReward",
@@ -166,15 +109,6 @@
     acknowledge: "acknowledgeTimeOff",
     notifications: "getMyNotifications",
     markNotificationRead: "markNotificationRead",
-    arenaStart: "startHouseArenaGame",
-    arenaFinish: "finishHouseArenaGame",
-    arenaRankings: "getHouseArenaRankings",
-    houseLinkCreate: "createHouseLinkRoom",
-    houseLinkJoin: "joinHouseLinkRoom",
-    houseLinkState: "getHouseLinkState",
-    houseLinkAction: "sendHouseLinkAction",
-    houseLinkHeartbeat: "heartbeatHouseLink",
-    houseLinkLeave: "leaveHouseLinkRoom",
     hourBalance: "getHourBalanceOverviewWithSession",
     adjustHourBalance: "adjustHourBalanceWithSession",
     incompletePunches: "getIncompletePunchesWithSession",
@@ -199,7 +133,6 @@
   const APP_BOOT_STARTED_AT_ = Date.now();
   let CORE_BOOTSTRAP_PROMISE_ = null;
   let USERS_LOAD_PROMISE_ = null;
-  let HOUSE_ARENA_MODULE_PROMISE_ = null;
   let APPROVAL_SUBMISSION_PENDING_ = false;
   let MONTHLY_LEAVE_REWARD_TIMER_ = null;
   let MONTHLY_LEAVE_REWARD_FOCUS_ = null;
@@ -212,6 +145,10 @@
       window.matchMedia("(display-mode: standalone)").matches ||
       navigator.standalone === true;
     const INSTALL_NOTICE_KEY = "house-pwa-install-notice-seen-v1";
+    const INSTALLED_KEY = "jornada-installed";
+    const wasInstalled = () => { try { return localStorage.getItem(INSTALLED_KEY) === "1"; } catch { return false; } };
+    const markInstalled = () => { try { localStorage.setItem(INSTALLED_KEY, "1"); } catch {} };
+    if (isStandalone) markInstalled();
     let installPrompt = null;
     let installButton = null;
 
@@ -234,10 +171,12 @@
     window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
       installPrompt = event;
+      try { localStorage.removeItem(INSTALLED_KEY); } catch {}
       if (installButton) installButton.classList.remove("hidden");
     });
 
     window.addEventListener("appinstalled", () => {
+      markInstalled();
       installPrompt = null;
       rememberInstallNotice();
       if (installButton) installButton.classList.add("hidden");
@@ -266,7 +205,7 @@
         '<button class="app-download-close" type="button" aria-label="Fechar">×</button>' +
         '<div class="app-download-hero"><img src="./icons/app-icon-192.png" alt="" /></div>' +
         '<span class="eyebrow">APLICATIVO INSTALÁVEL</span>' +
-        `<h3 id="appDownloadTitle">${isIOS ? "No iPhone, instale pelo Safari" : "Instale a Gestão de Folgas"}</h3>` +
+        `<h3 id="appDownloadTitle">${isIOS ? "No iPhone, instale pelo Safari" : "Instale a Jornada"}</h3>` +
         `<p class="app-download-subtitle">${isIOS ? "Abra este mesmo endereço no Safari para o ícone aparecer corretamente na tela inicial." : "Funcionários e gerentes podem abrir o sistema em tela cheia, diretamente pelo ícone do celular."}</p>` +
         warn +
         '<ol class="app-download-steps">' +
@@ -301,9 +240,9 @@
     document.addEventListener("DOMContentLoaded", () => {
       installButton = $("#appDownloadBtn");
       if (!installButton) return;
-      installButton.classList.toggle("hidden", isStandalone);
+      installButton.classList.toggle("hidden", isStandalone || wasInstalled());
       installButton.onclick = installApplication;
-      if (!isStandalone && !hasSeenInstallNotice()) {
+      if (!isStandalone && !wasInstalled() && !hasSeenInstallNotice()) {
         rememberInstallNotice();
         window.setTimeout(() => {
           if (
@@ -802,7 +741,7 @@
             ? "rejected"
             : s.includes("cancel")
               ? "cancelled"
-              : s.includes("ativ")
+              : /^(ativo|ativa|active)$/.test(s)
                 ? "active"
                 : "inactive";
   };
@@ -993,9 +932,30 @@
       const target = event.target.closest("[data-view-target]");
       if (target && !target.disabled) {
         const pendingFilter = target.dataset.pendingFilterTarget;
-        if (["all", "timeoff", "clock", "swaps"].includes(pendingFilter))
-          state.pendingCenter.filter = pendingFilter;
+        if (["all", "timeoff", "clock", "swaps"].includes(pendingFilter)) state.pendingCenter.filter = pendingFilter;
         switchView(target.dataset.viewTarget);
+      }
+    });
+    window.addEventListener("jornada-team-open", () => switchView("live-team"));
+    document.addEventListener("click", async event => {
+      const clock = event.target.closest("[data-j-clock]");
+      const refresh = event.target.closest("[data-j-refresh]");
+      if (event.target.closest("[data-j-request-leave]")) editTimeOff();
+      if (refresh && isManager()) {
+        refresh.disabled = true;
+        await Promise.allSettled([loadLivePresence_(true), checkIncompletePunches_()]);
+        publishJourney_();
+      }
+      if (clock && canViewTeam()) {
+        const employee = state.employees.find(x => String(x.FuncionarioID) === clock.dataset.jClock);
+        if (!employee) return toast("Funcionário indisponível nesta seleção.", true);
+        const select = $("#clockEmployeeFilter");
+        if (![...select.options].some(x => x.value === employee.FuncionarioID)) select.add(new Option(employee.Nome, employee.FuncionarioID));
+        select.value = employee.FuncionarioID;
+        const day = clock.dataset.jDay || iso(new Date());
+        $("#clockMonth").value = day.slice(0, 7);
+        $("#clockDayFilter").value = day.slice(0, 10);
+        switchView("timeclock");
       }
     });
     $("#sidebarToggle").onclick = () =>
@@ -1083,6 +1043,16 @@
     $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
     $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
     $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
+    $("#adminHourBalanceTotalCard") &&
+      ($("#adminHourBalanceTotalCard").onclick = () => {
+        state.adminHourBalanceNegativeOnly =
+          !state.adminHourBalanceNegativeOnly;
+        renderAdminHourBalances_();
+        $(".admin-hour-balance-panel")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
     $("#adminHourBalanceSettleBtn") &&
       ($("#adminHourBalanceSettleBtn").onclick = openSettleHourBalanceDialog_);
     $("#adminResetStoreBalancesBtn") &&
@@ -1122,12 +1092,13 @@
     $("#timeOffForm").onsubmit = saveTimeOff;
     $("#timeOffType").onchange = updateTimeOffDateFields;
     $("#employeeForm").onsubmit = saveEmployee;
-    ["employeeClockIn", "employeeClockOut", "employeeBreakMinutes"].forEach(
+    ["employeeClockIn", "employeeBreakOut", "employeeBreakIn", "employeeClockOut", "employeeBreakMinutes"].forEach(
       (id) => {
         $("#" + id).addEventListener("input", syncEmployeeDailyHours_);
         $("#" + id).addEventListener("change", syncEmployeeDailyHours_);
       },
     );
+    $("#employeeFlexibleTwoShifts").onchange = syncFlexibleTwoShiftFields_;
     $("#storeForm").onsubmit = saveStore;
     $("#holidayForm").onsubmit = saveHoliday;
     $("#approvalForm").onsubmit = saveApproval;
@@ -1157,11 +1128,20 @@
     $("#calendarPrev").onclick = () => moveCalendar(-1);
     $("#calendarNext").onclick = () => moveCalendar(1);
     $("#calendarToday").onclick = () => {
+      state.calendarFocusDate = "";
       state.calendarDate = new Date();
       renderCalendar();
+      $("#calendarGrid .today")?.scrollIntoView({ behavior: "smooth", block: "center" });
     };
     $("#calendarStoreFilter").onchange = renderCalendar;
     $("#calendarEmployeeFilter").onchange = renderCalendar;
+    $$('[data-calendar-mode]').forEach((button) => {
+      button.onclick = () => {
+        state.calendarMode = button.dataset.calendarMode;
+        state.calendarFocusDate = "";
+        renderCalendar();
+      };
+    });
     $("#timeOffSearch").oninput = renderTimeOff;
     $("#timeOffStatusFilter").onchange = renderTimeOff;
     $("#employeeSearch").oninput = renderEmployees;
@@ -1205,14 +1185,51 @@
     $("#confirmSimulationBtn").onclick = confirmSimulation;
     $("#calendarPdfBtn").onclick = () => exportCalendar(false);
     $("#simulationPdfBtn").onclick = () => exportCalendar(true);
+    $("#reportPeriod").onchange = renderReports;
     $("#exportCsvBtn").onclick = () => exportReport("csv");
     $("#exportPdfBtn").onclick = () => exportReport("pdf");
     $("#refreshAuditBtn").onclick = loadAudit;
     $("#calendarGrid").onclick = (e) => {
+      const modeButton = e.target.closest("[data-calendar-mode]");
+      if (modeButton) {
+        state.calendarMode = modeButton.dataset.calendarMode;
+        state.calendarFocusDate = "";
+        renderCalendar();
+        return;
+      }
+      const add = e.target.closest("[data-calendar-add]");
+      if (add) {
+        editTimeOff(null, add.dataset.calendarAdd);
+        return;
+      }
+      const more = e.target.closest("[data-calendar-more]");
+      if (more) {
+        state.calendarMode = "list";
+        state.calendarFocusDate = more.dataset.calendarMore;
+        state.calendarDate = new Date(state.calendarFocusDate + "T12:00:00");
+        renderCalendar();
+        return;
+      }
       const day = e.target.closest(".calendar-day");
-      if (day && !e.target.closest(".calendar-event"))
-        editTimeOff(null, day.dataset.date);
+      if (day && !e.target.closest(".calendar-event")) {
+        if (day.dataset.hasEvents === "true") {
+          state.calendarMode = "list";
+          state.calendarFocusDate = day.dataset.date;
+          state.calendarDate = new Date(day.dataset.date + "T12:00:00");
+          renderCalendar();
+        } else editTimeOff(null, day.dataset.date);
+      }
     };
+    $$('[data-open-vacations]').forEach((button) => {
+      button.addEventListener("click", () =>
+        setTimeout(() => {
+          const tool = $("#vacationTool");
+          if (!tool) return;
+          tool.open = true;
+          tool.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80),
+      );
+    });
     document.addEventListener("click", handleActions);
     initAdvancedUI();
   }
@@ -1761,6 +1778,7 @@
     hydrateUser();
     populateAllSelects();
     renderDashboard();
+    loadClockSettings().then(publishJourney_).catch(() => {});
     if (isEmployee()) renderEmployeeDashboardCards();
     if (isStoreManager()) renderWorkingToday();
     scheduleMonthlyLeaveReward_();
@@ -2012,15 +2030,34 @@
       query = String($("#adminHourBalanceSearch").value || "")
         .trim()
         .toLowerCase(),
-      rows = all.filter((item) =>
-        `${item.Nome || ""} ${item.NomeLoja || ""}`
-          .toLowerCase()
-          .includes(query),
+      rows = all.filter(
+        (item) =>
+          (!state.adminHourBalanceNegativeOnly ||
+            Number(item.saldoMinutos || 0) < 0) &&
+          `${item.Nome || ""} ${item.NomeLoja || ""}`
+            .toLowerCase()
+            .includes(query),
       );
     $("#adminHourBalanceCount").textContent = all.length;
     $("#adminHourBalanceTotal").textContent = data.totalTexto || "+0h 00min";
     $("#adminHourBalanceTotal").style.color =
       Number(data.totalMinutos || 0) < 0 ? "var(--danger)" : "var(--success)";
+    const totalCard = $("#adminHourBalanceTotalCard");
+    if (totalCard) {
+      totalCard.setAttribute(
+        "aria-pressed",
+        String(state.adminHourBalanceNegativeOnly),
+      );
+      totalCard.classList.toggle(
+        "active",
+        state.adminHourBalanceNegativeOnly,
+      );
+      const hint = totalCard.querySelector("small");
+      if (hint)
+        hint.textContent = state.adminHourBalanceNegativeOnly
+          ? "Mostrando apenas funcionários com saldo negativo"
+          : "Clique para detalhar os saldos negativos";
+    }
     $("#adminHourBalancePending").textContent = all.reduce(
       (sum, item) => sum + Number(item.pendencias || 0),
       0,
@@ -2109,6 +2146,7 @@
       const res = await call(FN.incompletePunches, sessionToken());
       const list = arr(res?.incompletos);
       state.incompletePunches = list;
+      publishJourney_();
       const metric = $('[data-metric="conferenciaPonto"] strong');
       if (metric) metric.textContent = list.length;
       if (list.length > 0) {
@@ -2365,9 +2403,13 @@
         storeId: state.selectedStoreId || "",
       });
       state.livePresenceData = data;
+      state.livePresenceUpdatedAt = Date.now();
+      state.livePresenceError = false;
       renderLivePresence_();
       return data;
     } catch (e) {
+      state.livePresenceError = true;
+      publishJourney_();
       console.warn("Presença na loja:", e.message);
       return null;
     }
@@ -2512,7 +2554,7 @@
     if (pendingLabel)
       pendingLabel.textContent = employeeMode
         ? "Minhas solicitações"
-        : "Caixa de pendências";
+        : "Pendências";
     $("#dashboardNewTimeOff").textContent = employeeMode
       ? "＋ Pedir folga"
       : "＋ Criar folga";
@@ -2530,7 +2572,7 @@
       : "CENTRAL OPERACIONAL";
     $("#pendingCenterTitle").textContent = employeeMode
       ? "Minhas solicitações"
-      : "Caixa de pendências";
+      : "Pendências";
     $("#pendingCenterSubtitle").textContent = employeeMode
       ? "Peça, acompanhe e consulte tudo em um só lugar."
       : "Tudo que precisa da sua atenção em um só lugar.";
@@ -2570,7 +2612,7 @@
     if (timeClockNavLabel)
       timeClockNavLabel.textContent = kitchenChief
         ? "Pontos da equipe"
-        : "Meu ponto";
+        : manager ? "Ponto da equipe" : "Meu ponto";
 
     if (employeeMode) {
       const employeeViews = [
@@ -2579,6 +2621,7 @@
         "timeclock",
         "pending-center",
         "notifications",
+        "shift-plan",
         "communication",
       ];
       navItems.forEach((item) => {
@@ -2595,6 +2638,7 @@
         "timeoff",
         "timeclock",
         "notifications",
+        "shift-plan",
         "communication",
       ];
       navItems.forEach((item) => {
@@ -2604,6 +2648,12 @@
         );
       });
     }
+    $$(".nav-group").forEach(group => {
+      const hasVisible = [...group.querySelectorAll("button")].some(button => !button.classList.contains("hidden"));
+      group.classList.toggle("hidden", !hasVisible || (group.classList.contains("permission-manager") && !manager) || (group.classList.contains("permission-admin") && !admin));
+    });
+    document.body.classList.toggle("employee-workspace", !manager);
+    $("#managementGroupLabel").textContent = manager ? "Gestão" : "Comunicação";
     renderPendingCenterSummary_();
   }
   function isAdmin() {
@@ -2645,6 +2695,12 @@
       state.pendingCenter.filter = legacyPendingViews[view];
       view = "pending-center";
     }
+    const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports"];
+    const adminViews = ["access", "governance", "audit", "hour-balances"];
+    if ((managerViews.includes(view) && !isManager()) || (adminViews.includes(view) && !isAdmin())) {
+      toast("Esta área está disponível apenas para o perfil autorizado.", true);
+      return;
+    }
     state.currentView = view;
     publishJourney_();
     $$(".mobile-dock [data-view-target]").forEach(item => { item.classList.toggle("active", item.dataset.viewTarget === view); item.setAttribute("aria-current", item.dataset.viewTarget === view ? "page" : "false"); });
@@ -2654,11 +2710,16 @@
     $$(".nav-item[data-view]").forEach((v) =>
       v.classList.toggle("active", v.dataset.view === view),
     );
-    const activeNavItem = $(`.nav-item[data-view="${view}"]`);
-    if (activeNavItem) activeNavItem.closest("details.nav-group")?.setAttribute("open", "");
-    const active = activeNavItem?.querySelector("b");
-    $("#pageTitle").textContent = active?.textContent || "Gestão de Folgas";
-    $("#breadcrumb").textContent = "House 190 / " + $("#pageTitle").textContent;
+    const activeNav = $(`.nav-item[data-view="${view}"]`);
+    const group = activeNav?.closest("details");
+    if (group) group.open = true;
+    $$(".nav-item[data-view]").forEach(item => {
+      if (item.dataset.view === view) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
+    const active = activeNav?.querySelector("b");
+    $("#pageTitle").textContent = active?.textContent || ({notifications:"Avisos e lembretes",governance:"Delegações"}[view]) || "Jornada";
+    $("#breadcrumb").textContent = "Grupo House 190 / " + $("#pageTitle").textContent;
     document.body.classList.remove("menu-open");
     renderCurrentView(view);
     if (!state.coreReady)
@@ -2727,7 +2788,7 @@
           `<article class="metric-card" data-metric="${esc(k)}" style="--accent:${["#7b68ee", "#3788e5", "#20a06b", "#f0a020", "#e5484d", "#14b8a6"][i]}"><span>${labels[k]}</span><strong${k === "saldoHoras" ? cardValueStyle(v) : ""}>${esc(v)}</strong><small>${k === "saldoHoras" ? esc(hourBalanceSubtitle()) : "Somente seus dados"}</small></article>`,
       )
       .join("");
-    $("#storeChart").closest(".panel")?.classList.add("hidden");
+    $("#storeChart")?.closest(".panel")?.classList.add("hidden");
     renderEmployeeClockDashboard();
   }
   function hourBalanceSubtitle() {
@@ -2850,7 +2911,7 @@
     return d.totalTexto || "+0h 00min";
   }
   function publishJourney_() {
-    window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance, schedules: state.clockSettings?.schedules, employees: state.employees, timeOff: state.timeOff, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches}}));
+    window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches}}));
   }
   function renderDashboard() {
     publishJourney_();
@@ -3018,6 +3079,7 @@
    * cancelados ou rejeitados. O histórico continua disponível na aba Folgas.
    */
   function renderMiniCalendar() {
+    if (!$("#dashboardMiniCalendar")) return;
     const d = new Date(
       state.calendarDate.getFullYear(),
       state.calendarDate.getMonth(),
@@ -3092,6 +3154,7 @@
       '<p class="empty-working">Nenhum funcionário previsto para trabalhar hoje.</p>';
   }
   function renderStoreChart() {
+    if (!$("#storeChart")) return;
     const map = {};
     state.timeOff.forEach((x) => {
       const n = val(x, "NomeLoja", "nomeLoja") || "Sem loja";
@@ -3299,7 +3362,7 @@
             fixed =
               val(x, "DiaFolgaPreferencial", "diaFolgaPreferencial") || "—";
           const active = bool(val(x, "Ativo", "ativo"));
-          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}</td><td>${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td>${esc(val(x, "Cargo", "cargo"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td>${esc(fixed)}</td><td>${badge(active ? "Ativo" : "Inativo")}</td><td><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -3402,53 +3465,61 @@
         .join("") || empty(6);
   }
   function renderReports() {
-    const c = computeCards();
-    const labels = {
-      totalFuncionariosAtivos: "Funcionários ativos",
-      totalLojasAtivas: "Lojas ativas",
-      folgasHoje: "Folgas hoje",
-      folgasProximos7Dias: "Folgas nos próximos 7 dias",
-      pedidosPendentes: "Pedidos aguardando decisão",
-      saldoHoras: "Saldo total da equipe",
-      meuSaldoHoras: "Meu saldo de horas",
-    };
-    const descriptions = {
-      totalFuncionariosAtivos: "Cadastros ativos agora",
-      totalLojasAtivas: "Unidades em operação",
-      folgasHoje: "Aprovadas para hoje",
-      folgasProximos7Dias: "Aprovadas e pendentes",
-      pedidosPendentes: "Clique em Pendências para revisar",
-      saldoHoras: hourBalanceSubtitle(),
-      meuSaldoHoras: meuSaldoHorasSubtitle(),
-    };
-    $("#reportCards").innerHTML = Object.entries(c)
-      .map(
-        ([k, v]) => {
-          const attention = (k === "saldoHoras" || k === "meuSaldoHoras") && String(v).trim().startsWith("-");
-          return `<article class="metric-card report-card" data-tone="${attention ? "attention" : "neutral"}"><span>${esc(labels[k] || k)}</span><strong${attention ? ' style="color:#b42318"' : ""}>${esc(v)}</strong><small>${esc(descriptions[k] || "Período atual")}</small></article>`;
-        },
-      )
-      .join("");
-    const months = Array.from(
-        { length: 12 },
-        (_, i) =>
-          state.timeOff.filter(
-            (x) =>
-              new Date(val(x, "DataInicio", "dataInicio")).getMonth() === i,
-          ).length,
-      ),
-      max = Math.max(1, ...months);
-    $("#reportChart").innerHTML = months
-      .map(
-        (v, i) =>
-          `<div class="large-bar" style="height:${Math.max(3, (v / max) * 100)}%"><span>${v}</span><small>${["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][i]}</small></div>`,
-      )
-      .join("");
+    const period = $("#reportPeriod");
+    if (!period.value) period.value = iso(new Date()).slice(0,7);
+    const month = period.value, year = Number(month.slice(0,4));
+    $("#reportPendingDetails").classList.add("hidden");
+    const first = month + "-01", last = iso(new Date(year, Number(month.slice(5,7)), 0));
+    const records = state.timeOff.filter(x => isTimeOffVisibleOnCalendar(x));
+    const inMonth = records.filter(x => iso(val(x,"DataInicio")) <= last && iso(val(x,"DataFim") || val(x,"DataInicio")) >= first);
+    const pending = inMonth.filter(x => timeOffStatus(x) === "pending");
+    const items = [
+      ["Funcionários ativos", state.employees.filter(x => bool(val(x,"Ativo"))).length, "Cadastro atual", "employees"],
+      ["Lojas ativas", state.stores.filter(x => bool(val(x,"Ativa","Ativo"))).length, "Cadastro atual", "stores"],
+      ["Folgas no período", inMonth.length, "Pedidos que abrangem o mês selecionado", "calendar"],
+      ["Aguardando decisão", pending.length, "Solicitações pendentes no período", "pending-center"],
+    ];
+    $("#reportCards").innerHTML = items.map(([label,value,hint,target]) => `<button type="button" class="metric-card critical-metric" data-report-target="${target}"><span>${label}</span><strong>${state.coreReady?value:'—'}</strong><small>${hint} ↗</small></button>`).join("");
+    const months = Array.from({length:12},(_,i) => records.filter(x => {
+      const start = iso(val(x,"DataInicio"));
+      return start.slice(0,7) === `${year}-${String(i+1).padStart(2,'0')}`;
+    }).length);
+    const max = Math.max(1,...months);
+    $("#reportYearLabel").textContent = `Início das folgas por mês · ${year}`;
+    $("#reportChart").innerHTML = months.map((count,i) => `<button type="button" class="large-bar" data-report-month="${year}-${String(i+1).padStart(2,'0')}" aria-label="${['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][i]}: ${count} folgas" style="height:${Math.max(6,count/max*100)}%"><span>${count}</span><small>${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][i]}</small></button>`).join("");
+    $("#reportStoreBreakdown").innerHTML = state.stores.map(store => {
+      const id = String(store.LojaID), rows = inMonth.filter(x => String(x.LojaID) === id);
+      return `<div class="w-store-report"><div><strong>${esc(store.NomeLoja || store.Nome || 'Unidade')}</strong><small>${rows.length} folgas · ${rows.filter(x=>timeOffStatus(x)==='pending').length} pendentes</small></div><button class="btn btn-secondary" data-report-store="${esc(id)}">Ver calendário ↗</button></div>`;
+    }).join("") || '<p class="empty-state">Nenhuma loja cadastrada.</p>';
+    $$("[data-report-target], [data-report-month], [data-report-store]").forEach(button => button.onclick = () => {
+      if (button.dataset.reportMonth) { period.value=button.dataset.reportMonth; renderReports(); return; }
+      const target=button.dataset.reportTarget || "calendar";
+      if (target === "pending-center") {
+        const details = $("#reportPendingDetails");
+        details.classList.remove("hidden");
+        details.innerHTML = `<div class="panel-head"><h3>Pedidos pendentes · ${esc(month)}</h3></div>${pending.map(item => `<div class="w-task"><div><strong>${esc(val(item,"NomeFuncionario"))}</strong><small>${dateBR(val(item,"DataInicio"))} · ${esc(val(item,"NomeLoja"))}</small></div><button class="btn btn-secondary" data-action="approve" data-id="${esc(idOf(item,"Folga"))}">Analisar</button></div>`).join("") || '<p class="empty-state">Nenhum pedido pendente neste período.</p>'}`;
+        details.scrollIntoView({behavior:"smooth",block:"start"});
+        return;
+      }
+      if (target === "calendar") {
+        state.calendarDate = new Date(month+'-01T12:00:00');
+        state.calendarFocusDate = "";
+        $("#calendarStoreFilter").value=button.dataset.reportStore || "";
+      }
+      switchView(target);
+    });
   }
 
   function renderCalendar() {
     const y = state.calendarDate.getFullYear(),
-      m = state.calendarDate.getMonth();
+      m = state.calendarDate.getMonth(),
+      mode = state.calendarMode || "month";
+    $$('[data-calendar-mode]').forEach((button) =>
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.calendarMode === mode),
+      ),
+    );
     $("#calendarTitle").textContent = state.calendarDate.toLocaleDateString(
       "pt-BR",
       { month: "long", year: "numeric" },
@@ -3494,65 +3565,92 @@
       }
     });
 
+    const eventsForDate = (date) => {
+      const events = (eventsByDate[date] || []).slice();
+      return events.concat(fixedEventsForDate(date, store, employee, events));
+    };
+    const eventMarkup = (x) => {
+      const readOnly = x._virtualFixed || isKitchenChief(),
+        status = x._virtualFixed
+          ? "fixed"
+          : statusClass(val(x, "Status", "status")),
+        attributes = readOnly
+          ? `disabled title="${x._virtualFixed ? "Folga fixa recorrente" : "Visualização somente de leitura"}"`
+          : `data-action="edit-timeoff" data-id="${esc(idOf(x, "Folga"))}"`,
+        label = `${val(x, "NomeFuncionario", "nomeFuncionario") || "Funcionário"}${x._virtualFixed ? " • Fixa" : ""}`;
+      return `<button class="calendar-event ${status}" ${attributes}><strong>${esc(label)}</strong><span>${esc(x._virtualFixed ? "Folga fixa" : val(x, "Status", "status") || "Aprovada")}</span></button>`;
+    };
     let h = "",
       registeredCount = 0,
       fixedCount = 0,
       pendingCount = 0;
-    for (let i = 0; i < 42; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const ds = iso(d);
-      let events = (eventsByDate[ds] || []).slice();
-      events = events.concat(fixedEventsForDate(ds, store, employee, events));
+    const countEvents = (events) => {
       registeredCount += events.filter((x) => !x._virtualFixed).length;
       fixedCount += events.filter((x) => x._virtualFixed).length;
       pendingCount += events.filter(
         (x) => statusClass(val(x, "Status", "status")) === "pending",
       ).length;
-      h += `<div class="calendar-day ${d.getMonth() !== m ? "other" : ""} ${ds === iso(new Date()) ? "today" : ""}" data-date="${ds}"><div class="day-number">${d.getDate()}</div>${events
-        .slice(0, 4)
-        .map(
-          (x) => {
-            const readOnly = x._virtualFixed || isKitchenChief(),
-              attributes = readOnly
-                ? `disabled title="${x._virtualFixed ? "Folga fixa recorrente" : "Visualização somente de leitura"}"`
-                : `data-action="edit-timeoff" data-id="${esc(idOf(x, "Folga"))}"`;
-            return `<button class="calendar-event ${x._virtualFixed ? "fixed" : statusClass(val(x, "Status", "status"))}" ${attributes}>${esc(val(x, "NomeFuncionario", "nomeFuncionario"))}${x._virtualFixed ? " • Fixa" : ""}</button>`;
-          },
-        )
-        .join(
-          "",
-        )}${events.length > 4 ? `<span style="font-size:9px;color:var(--muted)">+${events.length - 4} mais</span>` : ""}</div>`;
+    };
+
+    if (mode === "month") {
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const ds = iso(d),
+          events = eventsForDate(ds);
+        countEvents(events);
+        h += `<div class="calendar-day ${d.getMonth() !== m ? "other" : ""} ${ds === iso(new Date()) ? "today" : ""}" data-date="${ds}" data-has-events="${events.length > 0}"><button type="button" class="day-number" data-calendar-more="${ds}" aria-label="Ver folgas de ${ds}">${d.getDate()}</button>${events
+          .slice(0, 4)
+          .map(eventMarkup)
+          .join("")}${events.length > 4 ? `<button type="button" class="calendar-more" data-calendar-more="${ds}">+${events.length - 4} mais</button>` : ""}</div>`;
+      }
+    } else {
+      let dates = [];
+      if (mode === "week") {
+        const anchor = new Date(state.calendarDate);
+        const weekStart = new Date(anchor);
+        weekStart.setDate(anchor.getDate() - anchor.getDay());
+        dates = Array.from({ length: 7 }, (_, index) => {
+          const day = new Date(weekStart);
+          day.setDate(weekStart.getDate() + index);
+          return day;
+        });
+      } else if (state.calendarFocusDate) {
+        dates = [new Date(state.calendarFocusDate + "T12:00:00")];
+      } else {
+        dates = Array.from(
+          { length: new Date(y, m + 1, 0).getDate() },
+          (_, index) => new Date(y, m, index + 1),
+        );
+      }
+      h = `<div class="calendar-agenda ${mode === "week" ? "calendar-week-agenda" : ""}">${state.calendarFocusDate ? '<button type="button" class="calendar-agenda-back" data-calendar-mode="list">← Ver o mês inteiro</button>' : ""}${dates
+        .map((d) => {
+          const ds = iso(d),
+            events = eventsForDate(ds);
+          countEvents(events);
+          return `<section class="calendar-agenda-day ${ds === iso(new Date()) ? "today" : ""}"><div class="calendar-agenda-date"><strong>${d.toLocaleDateString("pt-BR", { day: "2-digit" })}</strong><span>${d.toLocaleDateString("pt-BR", { weekday: "long", month: "short" })}</span><button type="button" class="btn btn-ghost" data-calendar-add="${ds}" aria-label="Criar folga em ${ds}">＋</button></div><div class="calendar-agenda-events">${events.map(eventMarkup).join("") || '<span class="calendar-agenda-empty">Nenhuma folga</span>'}</div></section>`;
+        })
+        .join("")}</div>`;
     }
     $("#calendarGrid").innerHTML = h;
-    let agenda = "";
-    const daysInMonth = new Date(y, m + 1, 0).getDate();
-    for (let day = 1; day <= daysInMonth; day++) {
-      const d = new Date(y, m, day), ds = iso(d);
-      let events = (eventsByDate[ds] || []).slice();
-      events = events.concat(fixedEventsForDate(ds, store, employee, events));
-      if (!events.length) continue;
-      const eventButtons = events.map((x) => {
-        const readOnly = x._virtualFixed || isKitchenChief();
-        const attributes = readOnly
-          ? `disabled title="${x._virtualFixed ? "Folga fixa recorrente" : "Visualização somente de leitura"}`
-          : `data-action="edit-timeoff" data-id="${esc(idOf(x, "Folga"))}"`;
-        const status = x._virtualFixed ? "Folga fixa" : val(x, "Status", "status") || "Sem status";
-        const storeNameText = val(x, "NomeLoja", "nomeLoja") || storeName(val(x, "LojaID", "lojaId")) || "";
-        return `<button class="calendar-agenda-event ${x._virtualFixed ? "fixed" : statusClass(status)}" ${attributes}><span>${esc(val(x, "NomeFuncionario", "nomeFuncionario"))}</span><small>${esc([status, storeNameText].filter(Boolean).join(" · "))}</small></button>`;
-      }).join("");
-      agenda += `<article class="calendar-agenda-day ${ds === iso(new Date()) ? "today" : ""}" data-date="${ds}"><header><strong>${d.toLocaleDateString("pt-BR", {weekday:"short", day:"2-digit"})}</strong><span>${events.length} ${events.length === 1 ? "folga" : "folgas"}</span></header><div>${eventButtons}</div></article>`;
-    }
-    $("#calendarAgenda").innerHTML = agenda || '<div class="calendar-agenda-empty">Nenhuma folga encontrada neste mês.</div>';
+    $("#calendarGrid").classList.toggle("agenda-mode", mode !== "month");
+    $(".calendar-main")?.classList.toggle("agenda-mode", mode !== "month");
     $("#calendarSummary").innerHTML =
       `<span><b>${registeredCount}</b> folgas registradas</span><span><b>${fixedCount}</b> folgas fixas</span><span><b>${pendingCount}</b> pendentes</span>`;
   }
   function moveCalendar(n) {
-    state.calendarDate = new Date(
-      state.calendarDate.getFullYear(),
-      state.calendarDate.getMonth() + n,
-      1,
-    );
+    if (state.calendarMode === "week") {
+      const next = new Date(state.calendarDate);
+      next.setDate(next.getDate() + n * 7);
+      state.calendarDate = next;
+    } else {
+      state.calendarDate = new Date(
+        state.calendarDate.getFullYear(),
+        state.calendarDate.getMonth() + n,
+        1,
+      );
+    }
+    state.calendarFocusDate = "";
     renderCalendar();
   }
 
@@ -3923,6 +4021,9 @@
         );
         if (!s) return;
         $("#employeeJourneyType").value = s.TipoJornada || "Integral";
+        $("#employeeFlexibleTwoShifts").checked = bool(
+          s.HorarioFlexivelDoisTurnos,
+        );
         $("#employeeClockIn").value = timeInput(s.HoraEntrada) || "08:00";
         $("#employeeBreakOut").value =
           timeInput(s.HoraSaidaIntervalo) || "12:00";
@@ -3935,7 +4036,7 @@
         $("#employeeWorkDays").value = s.DiasTrabalho || "1,2,3,4,5";
         $("#employeeTolerance").value = Number(s.ToleranciaMinutos || 0);
         $("#employeeHourBank").checked = bool(s.BancoHorasAtivo);
-        syncEmployeeDailyHours_();
+        syncFlexibleTwoShiftFields_();
       })
       .catch((error) =>
         toast(error.message || "Não foi possível carregar a jornada.", true),
@@ -3957,7 +4058,7 @@
     if (exit <= entry) exit += 1440;
     if (exit - entry > 16 * 60)
       throw new Error("A jornada não pode ultrapassar 16 horas.");
-    const breakMinutes = Number(schedule.duracaoIntervaloMinutos || 0);
+    let breakMinutes = Number(schedule.duracaoIntervaloMinutos || 0);
     if (!Number.isFinite(breakMinutes) || breakMinutes < 0) {
       throw new Error("Informe uma duração de intervalo válida.");
     }
@@ -3966,7 +4067,7 @@
         "A permanência da jornada deve ser maior que a duração do intervalo.",
       );
     }
-    if (breakMinutes > 0) {
+    if (breakMinutes > 0 || schedule.horarioFlexivelDoisTurnos) {
       let breakOut = minutes(schedule.horaSaidaIntervalo);
       let breakReturn = minutes(schedule.horaRetornoIntervalo);
       if (!Number.isFinite(breakOut) || !Number.isFinite(breakReturn)) {
@@ -3981,8 +4082,36 @@
           "Os horários devem seguir a ordem: entrada, intervalo, retorno e saída.",
         );
       }
+      if (schedule.horarioFlexivelDoisTurnos) {
+        return (breakOut - entry) + (exit - breakReturn);
+      }
     }
     return exit - entry - breakMinutes;
+  }
+
+  function syncFlexibleTwoShiftFields_() {
+    const flexible = $("#employeeFlexibleTwoShifts").checked;
+    $("#employeeClockInLabel").textContent = flexible ? "Entrada do 1º turno" : "Entrada";
+    $("#employeeBreakOutLabel").textContent = flexible ? "Saída do 1º turno" : "Saída para intervalo";
+    $("#employeeBreakInLabel").textContent = flexible ? "Entrada do 2º turno" : "Retorno do intervalo";
+    $("#employeeClockOutLabel").textContent = flexible ? "Saída do 2º turno" : "Saída final";
+    $("#employeeBreakMinutesLabel").textContent = flexible
+      ? "Intervalo entre turnos (automático)"
+      : "Duração do intervalo (minutos)";
+    if (flexible) {
+      const toMinutes = (value) => {
+        const match = String(value || "").match(/^(\d{2}):(\d{2})$/);
+        return match ? Number(match[1]) * 60 + Number(match[2]) : NaN;
+      };
+      let firstExit = toMinutes($("#employeeBreakOut").value);
+      let secondEntry = toMinutes($("#employeeBreakIn").value);
+      if (secondEntry <= firstExit) secondEntry += 1440;
+      if (Number.isFinite(firstExit) && Number.isFinite(secondEntry)) {
+        $("#employeeBreakMinutes").value = secondEntry - firstExit;
+      }
+    }
+    $("#employeeBreakMinutes").readOnly = flexible;
+    syncEmployeeDailyHours_();
   }
 
   function employeeWorkdayCount_() {
@@ -4003,6 +4132,7 @@
         duracaoIntervaloMinutos: Number(
           $("#employeeBreakMinutes").value || 0,
         ),
+        horarioFlexivelDoisTurnos: $("#employeeFlexibleTwoShifts").checked,
       });
       $("#employeeDailyHours").value = (minutes / 60)
         .toFixed(2)
@@ -4039,6 +4169,7 @@
       funcionarioId: id,
       email: p.Email,
       tipoJornada: $("#employeeJourneyType").value,
+      horarioFlexivelDoisTurnos: $("#employeeFlexibleTwoShifts").checked,
       cargaDiariaMinutos: 0,
       cargaSemanalMinutos: 0,
       horaEntrada: $("#employeeClockIn").value,
@@ -4891,13 +5022,14 @@
     return remainder ? `${hours}h ${remainder}min` : `${hours}h`;
   }
   function clockActionLabels_() {
+    const flexible = !!(state.timeClock || {}).flexibleTwoShifts;
     return {
-      ENTRADA: "Entrada",
-      SAIDA_INTERVALO: "Saída para intervalo",
-      RETORNO_INTERVALO: "Retorno do intervalo",
+      ENTRADA: flexible ? "Entrada do 1º turno" : "Entrada",
+      SAIDA_INTERVALO: flexible ? "Saída do 1º turno" : "Saída para intervalo",
+      RETORNO_INTERVALO: flexible ? "Entrada do 2º turno" : "Retorno do intervalo",
       SEM_DESCANSO:
         "Descanso não realizado (+" + clockBreakDurationText_() + ")",
-      SAIDA_FINAL: "Saída final",
+      SAIDA_FINAL: flexible ? "Saída do 2º turno" : "Saída final",
     };
   }
   function renderEmployeeClockDashboard() {
@@ -4923,7 +5055,7 @@
       return;
     }
     const skipBreakButton =
-      d.nextAction === "SAIDA_INTERVALO"
+      d.nextAction === "SAIDA_INTERVALO" && !d.flexibleTwoShifts
         ? '<button id="dashboardSkipBreak" class="btn btn-secondary clock-skip-break-btn" type="button">Não tirar descanso (+' +
           esc(clockBreakDurationText_()) +
           " extra)</button>"
@@ -5109,7 +5241,7 @@
       : d.offToday
         ? d.offTodayLabel || "De folga hoje"
         : d.nextAction
-          ? ({ENTRADA:"Registrar entrada",SAIDA_INTERVALO:"Iniciar intervalo",RETORNO_INTERVALO:"Finalizar intervalo",SAIDA_FINAL:"Registrar saída"}[d.nextAction] || labels[d.nextAction])
+          ? (d.flexibleTwoShifts ? "Registrar " + (labels[d.nextAction] || d.nextAction) : ({ENTRADA:"Registrar entrada",SAIDA_INTERVALO:"Iniciar intervalo",RETORNO_INTERVALO:"Finalizar intervalo",SAIDA_FINAL:"Registrar saída"}[d.nextAction] || labels[d.nextAction]))
           : arr(d.todayRecords).length
             ? "Jornada concluída"
             : "Atualize para consultar";
@@ -5117,7 +5249,8 @@
       canSkipBreak =
         personalClock &&
         !d.offToday &&
-        d.nextAction === "SAIDA_INTERVALO";
+        d.nextAction === "SAIDA_INTERVALO" &&
+        !d.flexibleTwoShifts;
     skipBreakBtn.textContent =
       "Não tirar descanso (+" + clockBreakDurationText_() + " extra)";
     skipBreakBtn.classList.toggle("hidden", !canSkipBreak);

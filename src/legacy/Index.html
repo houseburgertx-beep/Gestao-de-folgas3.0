@@ -5,15 +5,15 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#7138e8" />
+    <meta name="theme-color" content="#365cf5" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="House Folgas" />
+    <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.7.1" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.10.0" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -31,7 +31,7 @@
     />
     <title>
       <?= (typeof appName !== 'undefined' ? String(appName).replace(/[<>]/g, '')
-      : 'Gestão de Folgas') ?>
+      : 'Jornada') ?>
     </title>
     <?!= include_('Styles'); ?>
   </head>
@@ -58,10 +58,9 @@
             ></div>
             <strong class="login-group-name">Grupo House 190</strong
             ><span class="eyebrow">PORTAL INTERNO DE EQUIPES</span>
-            <h1>Nossas equipes.<br />Todas conectadas.</h1>
+            <h1>Bora fazer<br />um bom dia.</h1>
             <p>
-              Um só lugar para organizar folgas, escalas e aprovações das marcas
-              do Grupo House 190.
+              Ponto, escalas e folgas da Grupo House 190. Entre para acompanhar sua jornada e cuidar de cada turno.
             </p>
             <div class="login-feature">
               <i>✓</i><span>Gestão integrada de todas as unidades</span>
@@ -83,7 +82,7 @@
                 ><span>Portal interno de equipes</span>
               </div>
             </div>
-            <span class="eyebrow">BEM-VINDO AO GRUPO HOUSE 190</span>
+            <span class="eyebrow">BEM-VINDO À GRUPO HOUSE 190</span>
             <h2>Acesse sua área</h2>
             <p>
               Consulte sua escala, suas folgas e as informações da sua unidade.
@@ -93,7 +92,7 @@
                 id="loginEmail"
                 type="email"
                 autocomplete="username"
-                placeholder="seuemail@grupohouse190.com"
+                placeholder="seuemail@exemplo.com"
                 required /></label
             ><label
               >Senha
@@ -205,85 +204,48 @@
         <div class="sidebar-head">
           <div class="brand-logo" aria-label="Grupo House 190"></div>
           <div class="brand-copy">
-            <strong>Gestão de Folgas</strong><span>Grupo House 190</span>
+            <strong>Folgas 3.0</strong><span>Grupo House 190</span>
           </div>
           <button id="sidebarToggle" class="icon-btn" aria-label="Fechar menu">
             ✕
           </button>
         </div>
         <nav class="nav-list" aria-label="Navegação principal">
-          <button class="nav-item active" data-view="dashboard">
-            <span>⌂</span><b>Início</b>
-          </button>
-          <button class="nav-item" data-view="calendar">
-            <span>▦</span><b>Calendário</b>
-          </button>
-          <button class="nav-item" data-view="timeoff">
-            <span>✓</span><b>Folgas</b>
-          </button>
-          <button class="nav-item" data-view="timeclock">
-            <span>◉</span><b>Meu ponto</b>
-          </button>
-          <button class="nav-item" data-view="pending-center" type="button">
-            <span>▣</span><b>Caixa de pendências</b
-            ><em id="pendingCenterBadge" class="nav-badge">0</em>
-          </button>
-          <details class="nav-group permission-manager">
-            <summary><span>▦</span><b>Planejamento</b><i>⌄</i></summary>
-            <button class="nav-item permission-manager" data-view="scheduler">
-              <span>✦</span><b>Distribuição automática</b>
-            </button>
-            <button class="nav-item" data-view="shift-plan"><span>▦</span><b>Escala de jornada</b></button>
-            <button class="nav-item permission-manager" data-view="holidays">
-              <span>☆</span><b>Feriados</b>
-            </button>
+          <details class="nav-group" open>
+            <summary><span>●</span>Operação</summary>
+            <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b>Início</b></button>
+            <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
+            <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
+            <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg></span><b>Pendências</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
           </details>
-          <details class="nav-group permission-manager">
-            <summary><span>♧</span><b>Equipe e operação</b><i>⌄</i></summary>
-            <button class="nav-item permission-manager" data-view="live-team"><span>♧</span><b>Equipe agora</b></button>
-            <button class="nav-item permission-manager" data-view="employees">
-              <span>♙</span><b>Funcionários</b>
-            </button>
-            <button class="nav-item permission-admin" data-view="hour-balances">
-              <span>◷</span><b>Banco de horas</b>
-            </button>
-            <button class="nav-item permission-manager" data-view="stores">
-              <span>⌂</span><b>Lojas</b>
-            </button>
-            <button class="nav-item permission-manager" data-view="operations">
-              <span>⚙</span><b>Regras operacionais</b>
-            </button>
+          <details class="nav-group" open>
+            <summary><span>▦</span>Escalas</summary>
+            <button class="nav-item" data-view="calendar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg></span><b>Calendário</b></button>
+            <button class="nav-item" data-view="timeoff"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/></svg></span><b>Folgas</b></button>
+            <button class="nav-item" data-view="shift-plan"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M10 10v11M3 16h18"/></svg></span><b>Escala</b></button>
+            <button class="nav-item permission-manager" data-view="scheduler"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2 6 7 3-7 2-2 7-3-7-6-2 6-3Z"/></svg></span><b>Geração automática</b></button>
+          </details>
+          <details class="nav-group permission-manager" open>
+            <summary><span>♙</span>Pessoas</summary>
+            <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
+            <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
+            <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
           </details>
           <details class="nav-group">
-            <summary><span>◈</span><b>Comunicação e gestão</b><i>⌄</i></summary>
-            <button class="nav-item" data-view="notifications">
-              <span class="notification-nav-icon"
-                ><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
-                  <path d="M10 21h4"></path></svg></span
-              ><b>Lembretes</b><em id="notificationBadge" class="nav-badge">0</em>
-            </button>
-            <button class="nav-item" data-view="communication">
-              <span>◈</span><b>Comunicação</b>
-            </button>
-            <button class="nav-item permission-manager" data-view="monthly-closing">
-              <span>▣</span><b>Fechamento mensal</b>
-            </button>
-            <button class="nav-item permission-manager" data-view="advanced-reports">
-              <span>▤</span><b>Jornada e desempenho</b>
-            </button>
-            <button class="nav-item permission-manager" data-view="reports">
-              <span>▥</span><b>Relatórios</b>
-            </button>
-            <button class="nav-item permission-admin" data-view="access">
-              <span>♢</span><b>Acessos</b>
-            </button>
-            <button class="nav-item permission-admin" data-view="governance">
-              <span>♢</span><b>Permissões</b>
-            </button>
-            <button class="nav-item permission-admin" data-view="audit">
-              <span>≡</span><b>Auditoria</b>
-            </button>
+            <summary><span>⚙</span><b id="managementGroupLabel">Gestão</b></summary>
+            <button class="nav-item permission-manager" data-view="stores"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 2-6h14l2 6M3 9v3h18V9M5 12v9h14v-9M9 21v-6h6v6"/></svg></span><b>Lojas</b></button>
+            <button class="nav-item permission-manager" data-view="holidays"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1Z"/></svg></span><b>Feriados</b></button>
+            <button class="nav-item permission-manager" data-view="operations"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg></span><b>Regras</b></button>
+            <button class="nav-item" data-view="communication"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H9l-5 4Z"/><path d="M8 8h8m-8 5h5"/></svg></span><b>Comunicação</b><em id="notificationBadge" class="nav-badge">0</em></button>
+            <button class="nav-item permission-manager" data-view="monthly-closing"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8m-8 5h4m-4 4 2 2 6-6"/></svg></span><b>Fechamento mensal</b></button>
+            <button class="nav-item permission-manager" data-view="advanced-reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/></svg></span><b>Jornada e desempenho</b></button>
+            <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/></svg></span><b>Relatórios</b></button>
+          </details>
+          <details class="nav-group permission-admin">
+            <summary><span>◇</span>Administração</summary>
+            <button class="nav-item permission-admin" data-view="access"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg></span><b>Acessos e permissões</b></button>
+            <button class="nav-item permission-admin" data-view="governance"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h17l-4-4M21 17H4l4 4"/></svg></span><b>Delegações</b></button>
+            <button class="nav-item permission-admin" data-view="audit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l4 4v14H5Z"/><path d="M9 11h7m-7 4h7"/></svg></span><b>Auditoria</b></button>
           </details>
         </nav>
         <div class="sidebar-foot">
@@ -300,7 +262,7 @@
           <div class="topbar-left">
             <button id="mobileMenu" class="icon-btn mobile-only">☰</button>
             <div>
-              <p id="breadcrumb">House 190 / Início</p>
+              <p id="breadcrumb">Grupo House 190 / Início</p>
               <h1 id="pageTitle">Início</h1>
             </div>
           </div>
@@ -379,7 +341,7 @@
           </div>
         </header>
 
-        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard">⌂<span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point">◉<span>Ponto</span></button><button type="button" data-view-target="live-team" class="permission-manager">♧<span>Equipe</span></button><button type="button" data-view-target="shift-plan">▦<span>Escala</span></button><button type="button" id="dockMore">☰<span>Mais</span></button></nav><main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" id="dockMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Mais</span></button></nav><main class="content">
           <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
           <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
           <section id="view-dashboard" class="view active">
@@ -387,9 +349,7 @@
               <div>
                 <span class="eyebrow">VISÃO GERAL</span>
                 <h2 id="greeting">Olá! Vamos organizar a escala?</h2>
-                <p>
-                  Seu dia, sua equipe, tudo no ritmo certo.
-                </p>
+                <p>O que precisa da sua atenção agora.</p>
               </div>
               <div class="hero-actions">
                 <button class="btn btn-secondary" data-view-target="calendar">
@@ -411,7 +371,7 @@
               <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
             </div>
             <div id="cards" class="metric-grid"></div>
-            <div class="home-shortcuts"><button class="btn btn-secondary" data-view-target="pending-center">Conferir pendências</button><button class="btn btn-secondary" data-view-target="notifications">Ativar lembretes no celular</button></div><div id="proxima-folga"></div>
+            <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
               <div class="panel-head" style="margin-bottom: 12px;">
                 <div>
@@ -431,18 +391,6 @@
             <button id="presenceMore" type="button" class="btn btn-secondary presence-more">Ver equipe completa</button>
             </article>
             <div class="dashboard-grid">
-              <article class="panel span-2">
-                <div class="panel-head">
-                  <div>
-                    <span class="eyebrow">PLANEAMENTO</span>
-                    <h3>Calendário do mês</h3>
-                  </div>
-                  <button class="btn btn-ghost" data-view-target="calendar">
-                    Abrir calendário →
-                  </button>
-                </div>
-                <div id="dashboardMiniCalendar" class="mini-calendar"></div>
-              </article>
               <article class="panel">
                 <div class="panel-head">
                   <div>
@@ -483,15 +431,6 @@
                   </table>
                 </div>
               </article>
-              <article class="panel">
-                <div class="panel-head">
-                  <div>
-                    <span class="eyebrow">DISTRIBUIÇÃO</span>
-                    <h3>Folgas por loja</h3>
-                  </div>
-                </div>
-                <div id="storeChart" class="bar-chart"></div>
-              </article>
             </div>
           </section>
 
@@ -504,6 +443,11 @@
               </div>
               <h2 id="calendarTitle"></h2>
               <div class="toolbar-actions">
+                <div class="segmented calendar-view-switch" aria-label="Visualização do calendário">
+                  <button type="button" data-calendar-mode="month" aria-pressed="true">Mês</button>
+                  <button type="button" data-calendar-mode="week" aria-pressed="false">Semana</button>
+                  <button type="button" data-calendar-mode="list" aria-pressed="false">Lista</button>
+                </div>
                 <select id="calendarStoreFilter">
                   <option value="">Todas as lojas</option></select
                 ><select id="calendarEmployeeFilter">
@@ -523,7 +467,6 @@
                   ><span>Sáb</span>
                 </div>
                 <div id="calendarGrid" class="calendar-grid"></div>
-                <div id="calendarAgenda" class="calendar-agenda" aria-label="Agenda de folgas do mês"></div>
               </div>
               <aside class="calendar-side panel">
                 <h3>Legenda</h3>
@@ -534,7 +477,7 @@
                   ><span><i class="dot red"></i>Conflito</span>
                 </div>
                 <hr />
-                <h3>Resumo do mês</h3>
+                <h3>Resumo da visualização</h3>
                 <div id="calendarSummary" class="summary-list"></div>
               </aside>
             </div>
@@ -590,7 +533,7 @@
                 <span class="eyebrow" id="pendingCenterEyebrow"
                   >CENTRAL OPERACIONAL</span
                 >
-                <h2 id="pendingCenterTitle">Caixa de pendências</h2>
+                <h2 id="pendingCenterTitle">Pendências</h2>
                 <p id="pendingCenterSubtitle">
                   Tudo que precisa da sua atenção em um só lugar.
                 </p>
@@ -910,8 +853,7 @@
                 <span class="eyebrow">JORNADA</span>
                 <h2>Controle de ponto</h2>
                 <p>
-                  Registre sua jornada com selfie obrigatória no Google Drive e
-                  localização validada na loja.
+                  Registre sua jornada, acompanhe as marcações e peça uma correção quando precisar.
                 </p>
               </div>
               <div class="toolbar-actions permission-team-read">
@@ -947,8 +889,7 @@
                   <span class="eyebrow">AGORA</span>
                   <div id="clockLiveTime" class="clock-live-time">--:--</div>
                   <p id="clockLocationHint">
-                    Sua selfie e localização serão validadas no momento do
-                    registro. A foto ficará somente no Google Drive.
+                    Confirme sua foto e localização para registrar o ponto na unidade.
                   </p>
                 </div>
                 <div class="clock-punch-actions">
@@ -1053,9 +994,9 @@
               <div class="metric-card">
                 <span>Funcionários</span><strong id="adminHourBalanceCount">0</strong>
               </div>
-              <div class="metric-card">
-                <span>Saldo total</span><strong id="adminHourBalanceTotal">0h 00min</strong>
-              </div>
+              <button id="adminHourBalanceTotalCard" class="metric-card critical-metric" type="button" aria-pressed="false">
+                <span>Saldo total até o mês selecionado</span><strong id="adminHourBalanceTotal">0h 00min</strong><small>Clique para detalhar os saldos negativos</small>
+              </button>
               <div class="metric-card">
                 <span>Pendências</span><strong id="adminHourBalancePending">0</strong>
               </div>
@@ -1226,7 +1167,7 @@
           <section id="view-employees" class="view">
             <div class="section-toolbar">
               <div>
-                <span class="eyebrow">EQUIPA</span>
+                <span class="eyebrow">NOSSA EQUIPE</span>
                 <h2>Funcionários</h2>
               </div>
               <div class="toolbar-actions">
@@ -1305,7 +1246,7 @@
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">SEGURANÇA</span>
-                <h2>Controle de acesso</h2>
+                <h2>Acessos e permissões</h2>
                 <p>Gerencie perfis, vínculos e estado de acesso.</p>
               </div>
               <button id="newAccessBtn" class="btn btn-primary">
@@ -1409,6 +1350,7 @@
               <button id="communicationRefreshBtn" class="btn btn-secondary">
                 ↻ Atualizar
               </button>
+              <button class="btn btn-secondary" data-view-target="notifications">🔔 Meus avisos</button>
             </div>
             <div class="advanced-grid">
               <form
@@ -1630,7 +1572,7 @@
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">SEGURANÇA</span>
-                <h2>Permissões e delegações</h2>
+                <h2>Delegações</h2>
                 <p>Delegações temporárias de perfil e ações administrativas.</p>
               </div>
             </div>
@@ -1683,21 +1625,22 @@
             <div class="section-toolbar">
               <div>
                 <span class="eyebrow">ANÁLISE</span>
-                <h2>Relatórios</h2>
-                <p class="section-description">Indicadores do período atual e pontos que precisam de conferência.</p>
+                <h2>Relatórios</h2><p>Escolha um período e abra os registros que compõem cada indicador.</p>
               </div>
               <div class="toolbar-actions">
-                <button id="exportCsvBtn" class="btn btn-secondary">
-                  ⇩ CSV</button
+                <label>Período da análise<input id="reportPeriod" type="month" /></label><button id="exportCsvBtn" class="btn btn-secondary">
+                  ⇩ CSV completo</button
                 ><button id="exportPdfBtn" class="btn btn-primary">
-                  ⇩ PDF
+                  ⇩ PDF completo
                 </button>
               </div>
             </div>
-            <div id="reportCards" class="metric-grid"></div>
+            <div id="reportCards" class="metric-grid"></div><div id="reportPendingDetails" class="panel hidden"></div>
             <div class="panel">
-              <div class="panel-head"><h3>Distribuição mensal</h3></div>
-              <div id="reportChart" class="large-chart"></div>
+              <div class="panel-head"><h3 id="reportYearLabel">Início das folgas por mês</h3></div>
+              <div id="reportChart" class="large-chart"></div><p class="w-footnote">Aprovadas, pendentes e concluídas por data de início. Toque em um mês para detalhar.</p>
+            </div><div class="panel"><div class="panel-head"><h3>Distribuição por unidade</h3></div><div id="reportStoreBreakdown"></div>
+            </div><div class="panel"><div class="panel-head"><h3>Conferência de horas</h3></div><p>O banco acumula desde a primeira entrada válida de cada funcionário. Confira jornada cadastrada, dias sem ponto e ajustes antes do fechamento.</p><div class="w-actions"><button class="btn btn-primary permission-admin" data-view-target="hour-balances">Detalhar banco de horas</button><button class="btn btn-secondary" data-view-target="advanced-reports">Jornada e desempenho</button><button class="btn btn-secondary" data-view-target="monthly-closing">Fechar mês</button></div>
             </div>
           </section>
           <section id="view-audit" class="view">

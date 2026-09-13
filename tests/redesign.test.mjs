@@ -115,15 +115,12 @@ test("navegação mantém destinos existentes e não duplica identificadores", (
     assert.ok(ids.includes(`view-${match[1]}`), match[1]);
 });
 
-test("menu agrupa recursos secundários e calendário oferece agenda móvel", () => {
-  assert.match(html, /class="nav-group/);
-  assert.match(html, />Planejamento</);
-  assert.match(html, />Equipe e operação</);
-  assert.match(html, />Comunicação e gestão</);
-  assert.match(html, /id="calendarAgenda"/);
-});
-
-test("interface descreve a otimização sem prometer IA externa", () => {
-  assert.match(html, /Otimizar distribuição/);
-  assert.doesNotMatch(html, /Simular com IA/);
+test('cadastros inativos nunca recebem a identificação visual de ativos', () => {
+  const start = source.indexOf('  const statusClass = (s) => {');
+  const end = source.indexOf('\n  };', start) + 5;
+  const classify = new Function(source.slice(start, end) + ';return statusClass;')();
+  for (const status of ['Ativo', 'Ativa', ' ACTIVE ']) assert.equal(classify(status), 'active');
+  for (const status of ['Inativo', 'Inativa', 'inactive']) assert.equal(classify(status), 'inactive');
+  assert.equal(classify('Aprovada'), 'approved');
+  assert.equal(classify('Pendente'), 'pending');
 });

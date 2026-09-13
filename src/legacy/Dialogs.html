@@ -279,28 +279,30 @@
             step="0.01"
             readonly
             value="8" /></label
+        ><label class="switch-label"
+          ><input id="employeeFlexibleTwoShifts" type="checkbox" /> Jornada flexível em dois turnos</label
         ><label
-          >Entrada<input
+          ><span id="employeeClockInLabel">Entrada</span><input
             id="employeeClockIn"
             type="time"
             value="08:00" /></label
         ><label
-          >Saída para intervalo<input
+          ><span id="employeeBreakOutLabel">Saída para intervalo</span><input
             id="employeeBreakOut"
             type="time"
             value="12:00" /></label
         ><label
-          >Retorno do intervalo<input
+          ><span id="employeeBreakInLabel">Retorno do intervalo</span><input
             id="employeeBreakIn"
             type="time"
             value="13:00" /></label
         ><label
-          >Saída final<input
+          ><span id="employeeClockOutLabel">Saída final</span><input
             id="employeeClockOut"
             type="time"
             value="17:00" /></label
         ><label
-          >Duração do intervalo (minutos)<input
+          ><span id="employeeBreakMinutesLabel">Duração do intervalo (minutos)</span><input
             id="employeeBreakMinutes"
             type="number"
             min="0"
@@ -1158,5 +1160,4 @@
     </div>
   </form>
 </dialog>
-
 

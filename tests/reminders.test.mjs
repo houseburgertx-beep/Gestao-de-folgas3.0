@@ -61,6 +61,29 @@ test("retorno antecipado, saída final e intervalo sem duração cancelam avisos
     0,
   );
 });
+test("dois turnos avisam cinco minutos antes da segunda entrada programada", () => {
+  const schedules = [{
+    ...schedule,
+    HorarioFlexivelDoisTurnos: true,
+    HoraEntrada: "08:00",
+    HoraSaidaIntervalo: "12:00",
+    HoraRetornoIntervalo: "18:00",
+    HoraSaida: "22:00",
+    DuracaoIntervaloMinutos: 360,
+  }];
+  const records = [
+    record("ENTRADA", "08:00"),
+    record("SAIDA_INTERVALO", "12:00", "turno-1"),
+  ];
+  assert.match(
+    run("17:55", { records, schedules })[0].body,
+    /Faltam 5 minutos para começar seu 2º turno/,
+  );
+  assert.match(
+    run("18:00", { records, schedules })[0].body,
+    /2º turno começou/,
+  );
+});
 test("respeita folga aprovada, folga fixa, dias de trabalho e desativação", () => {
   assert.equal(
     run("16:00", {

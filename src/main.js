@@ -1,3 +1,4 @@
+import "./brand.js";
 import "./journey.js";
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
@@ -8,58 +9,7 @@ import {
   runtime,
 } from "./core/runtime.js";
 
-const unwrap = (source, tag) =>
-  String(source || "")
-    .replace(new RegExp(`^\\s*<${tag}[^>]*>\\s*`, "i"), "")
-    .replace(new RegExp(`\\s*</${tag}>\\s*$`, "i"), "");
-
-const legacyText = async (url) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(
-      `Não foi possível carregar o módulo ${url.pathname || url}.`,
-    );
-  }
-  return response.text();
-};
-
-let arenaBundlePromise = null;
-const arenaBundle = () => {
-  if (!arenaBundlePromise) {
-    arenaBundlePromise = Promise.all([
-      legacyText(new URL("./legacy/ArenaStyles.html", import.meta.url)),
-      legacyText(new URL("./legacy/ArenaMobileStyles.html", import.meta.url)),
-      legacyText(new URL("./legacy/HouseLinkStyles.html", import.meta.url)),
-      legacyText(new URL("./legacy/ArenaClient.html", import.meta.url)),
-      legacyText(new URL("./legacy/HouseLinkClient.html", import.meta.url)),
-      legacyText(new URL("./legacy/ArenaMobileRuntime.html", import.meta.url)),
-    ]).then(
-      ([
-        arenaStyles,
-        arenaMobileStyles,
-        houseLinkStyles,
-        arenaClient,
-        houseLinkClient,
-        arenaMobileRuntime,
-      ]) => ({
-        version: "6.7.1-firebase-github",
-        css: [
-          unwrap(arenaStyles, "style"),
-          unwrap(arenaMobileStyles, "style"),
-          unwrap(houseLinkStyles, "style"),
-        ],
-        scripts: [
-          unwrap(arenaClient, "script"),
-          unwrap(houseLinkClient, "script"),
-          unwrap(arenaMobileRuntime, "script"),
-        ],
-      }),
-    );
-  }
-  return arenaBundlePromise;
-};
-
-const api = createApi(arenaBundle);
+const api = createApi();
 window.__GESTAO_FIREBASE__ = { runtime, api };
 
 const signalApiReady = () => {

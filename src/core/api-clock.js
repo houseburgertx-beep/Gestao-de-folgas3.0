@@ -370,7 +370,20 @@ const clockMinutes = (value) => {
 
 const scheduleExpectedMinutes = (schedule) => {
   const start = clockMinutes(schedule?.HoraEntrada);
+  const firstExit = clockMinutes(schedule?.HoraSaidaIntervalo);
+  const secondEntry = clockMinutes(schedule?.HoraRetornoIntervalo);
   const end = clockMinutes(schedule?.HoraSaida);
+  if (
+    asBoolean(schedule?.HorarioFlexivelDoisTurnos) &&
+    start !== null &&
+    firstExit !== null &&
+    secondEntry !== null &&
+    end !== null
+  ) {
+    const firstPeriod = (firstExit - start + 24 * 60) % (24 * 60);
+    const secondPeriod = (end - secondEntry + 24 * 60) % (24 * 60);
+    if (firstPeriod > 0 && secondPeriod > 0) return firstPeriod + secondPeriod;
+  }
   if (start !== null && end !== null) {
     const gross = (end - start + 24 * 60) % (24 * 60);
     const net = gross - Number(schedule?.DuracaoIntervaloMinutos || 0);
@@ -456,6 +469,11 @@ const dayMetrics = (records, schedule, options = {}) => {
   const noBreak = displayRecords.find(
     (item) => item.TipoMarcacao === "SEM_DESCANSO",
   );
+  const requiresMiddlePunches =
+    Number(schedule?.DuracaoIntervaloMinutos || 0) > 0 ||
+    asBoolean(schedule?.HorarioFlexivelDoisTurnos);
+  const middlePunchesComplete =
+    !requiresMiddlePunches || Boolean(noBreak) || Boolean(breakOut && breakIn);
   const reviewRequired = rawWorked > MAX_DAILY_WORK_MINUTES;
   const worked = Math.min(rawWorked, MAX_DAILY_WORK_MINUTES);
   const expected =
@@ -477,7 +495,11 @@ const dayMetrics = (records, schedule, options = {}) => {
     tolerance,
     balance,
     hasPunches: ordered.length > 0,
-    complete: shifts.length > 0 && !openShift && !unmatchedEntry,
+    complete:
+      shifts.length > 0 &&
+      !openShift &&
+      !unmatchedEntry &&
+      middlePunchesComplete,
     reviewRequired,
   };
 };
@@ -946,6 +968,7 @@ async function clockContext(filters = {}) {
         ? nextClockAction(todayRecords, ownSchedule)
         : "",
     breakDurationMinutes: Number(ownSchedule?.DuracaoIntervaloMinutos || 0),
+    flexibleTwoShifts: asBoolean(ownSchedule?.HorarioFlexivelDoisTurnos),
     offToday: !!todayTimeOff || fixedOff,
     offTodayLabel: todayTimeOff
       ? "De folga hoje"
@@ -983,6 +1006,7 @@ async function quickClockContext() {
       offToday: false,
       offTodayLabel: "",
       breakDurationMinutes: 0,
+      flexibleTwoShifts: false,
       summary: {},
     };
   }
@@ -1049,6 +1073,7 @@ async function quickClockContext() {
         ? nextClockAction(todayRecords, schedule)
         : "",
     breakDurationMinutes: Number(schedule?.DuracaoIntervaloMinutos || 0),
+    flexibleTwoShifts: asBoolean(schedule?.HorarioFlexivelDoisTurnos),
     offToday: !!approvedOff || fixedOff,
     offTodayLabel: approvedOff
       ? "De folga hoje"
@@ -1113,6 +1138,8 @@ export function createClockHandlers() {
         EmailFuncionario: payload.email || employee.Email,
         LojaID: employee.LojaID,
         TipoJornada: payload.tipoJornada || "Completa",
+        HorarioFlexivelDoisTurnos:
+          payload.horarioFlexivelDoisTurnos === true,
         CargaDiariaMinutos: Number(payload.cargaDiariaMinutos || 0),
         CargaSemanalMinutos: Number(payload.cargaSemanalMinutos || 0),
         HoraEntrada: payload.horaEntrada || "",
@@ -2332,12 +2359,26 @@ export const findIncompletePunches = (
     const emp = employeeMap.get(empId);
     if (!emp || !asBoolean(emp.Ativo)) continue;
     const sorted = rows.sort(compareRecordsByDateTime);
+    const sched = scheduleFor(schedules, empId, date);
     const hasEntry = sorted.some((r) => r.TipoMarcacao === "ENTRADA");
     const hasExit = sorted.some((r) => r.TipoMarcacao === "SAIDA_FINAL");
-    if (hasEntry && !hasExit) {
+    const hasBreakOut = sorted.some(
+      (r) => r.TipoMarcacao === "SAIDA_INTERVALO",
+    );
+    const hasBreakIn = sorted.some(
+      (r) => r.TipoMarcacao === "RETORNO_INTERVALO",
+    );
+    const noBreak = sorted.some((r) => r.TipoMarcacao === "SEM_DESCANSO");
+    const middleRequired =
+      Number(sched?.DuracaoIntervaloMinutos || 0) > 0 ||
+      asBoolean(sched?.HorarioFlexivelDoisTurnos);
+    const complete =
+      hasEntry &&
+      hasExit &&
+      (!middleRequired || noBreak || (hasBreakOut && hasBreakIn));
+    if (!complete) {
       const entry = sorted.find((r) => r.TipoMarcacao === "ENTRADA");
       const last = sorted[sorted.length - 1];
-      const sched = scheduleFor(schedules, empId, date);
       let suggestedExit = "23:00";
       if (sched?.HoraSaida) {
         suggestedExit = String(sched.HoraSaida).slice(0, 5);
@@ -2378,8 +2419,8 @@ export const findIncompletePunches = (
         NomeLoja: storeName,
         Data: date,
         DataBR: date.split("-").reverse().join("/"),
-        EntradaDataHora: entry.DataHora,
-        EntradaTexto: timeValue(entry.DataHora),
+        EntradaDataHora: entry?.DataHora || "",
+        EntradaTexto: entry ? timeValue(entry.DataHora) : "Não registrada",
         UltimaMarcacao: last.TipoMarcacao,
         UltimaMarcacaoTexto: timeValue(last.DataHora),
         HorarioSugeridoSaida: suggestedExit,
@@ -2402,4 +2443,3 @@ export {
   operationalDayFor,
   scheduleExpectedMinutes,
 };
-

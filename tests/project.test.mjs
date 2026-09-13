@@ -65,9 +65,11 @@ test("o JavaScript legado possui sintaxe válida", async () => {
 });
 
 test("as regras do Realtime Database são JSON válido e começam bloqueadas", async () => {
-  const rules = JSON.parse(
-    await readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
-  );
+  const [rulesSource, runtime] = await Promise.all([
+    readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/runtime.js", import.meta.url), "utf8"),
+  ]);
+  const rules = JSON.parse(rulesSource);
   assert.equal(rules.rules[".read"], false);
   assert.equal(rules.rules[".write"], false);
   const appRules = rules.rules["gestao-folgas"].v2;
@@ -75,6 +77,7 @@ test("as regras do Realtime Database são JSON válido e começam bloqueadas", a
   assert.ok(appRules.tables);
   assert.match(appRules.meta.initialized[".write"], /bootstrapOwner/);
   assert.match(appRules.access.$uid[".write"], /bootstrapOwner/);
+  assert.match(runtime, /await update\(this\.appRef\("meta"\)/);
   assert.doesNotMatch(
     appRules.tables.$table.$record[".write"],
     /\$table === 'BancoHorasMovimentos'/,
@@ -162,6 +165,16 @@ test("o aplicativo possui manifesto, ícones e service worker seguros", async ()
   );
 });
 
+test("House 190 continua conectado aos próprios serviços", async () => {
+  const config = await readFile(new URL("../src/firebase-config.js", import.meta.url), "utf8");
+  assert.match(config, /github-737ec/);
+  assert.match(config, /gestao-folgas\/v2/);
+  for (const name of ["src/firebase-config.js", "src/push-config.js", "src/selfie-drive-config.js", "google-apps-script/Code.gs", "notifications-worker/wrangler.jsonc"]) {
+    const value = await readFile(new URL("../" + name, import.meta.url), "utf8");
+    assert.doesNotMatch(value, /conveniencia5jc|jornada-conveniencia-5jc|jornada-app-notifications/);
+  }
+});
+
 test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () => {
   const [client, main, builder, api, packageData] = await Promise.all([
     readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
@@ -180,13 +193,8 @@ test("o login aguarda o Firebase e nunca orienta abrir o Apps Script", async () 
     new RegExp(`main\\.js\\?v=${packageData.version.replaceAll(".", "\\.")}`),
   );
   assert.doesNotMatch(main, /\.html\?raw/);
-  assert.match(main, /const legacyText = async \(url\)/);
-  assert.match(main, /const response = await fetch\(url\)/);
-  assert.match(
-    main,
-    /legacyText\(new URL\("\.\/legacy\/HouseLinkStyles\.html", import\.meta\.url\)\)/,
-  );
-  assert.match(api, /success\(await getArenaBundle\(\)/);
+  assert.doesNotMatch(main, /Arena|HouseLink|house-arena/);
+  assert.doesNotMatch(api, /Arena|house-arena/);
   const runtimeSource = await readFile(
     new URL("../src/core/runtime.js", import.meta.url),
     "utf8",
@@ -421,21 +429,6 @@ test("funcionários podem solicitar folgas aos fins de semana em todas as lojas"
   assert.doesNotMatch(
     source,
     /Pedidos de folga aos fins de semana não estão permitidos/,
-  );
-});
-
-test("ícone da House Arena usa a cor do menu desde o carregamento inicial", async () => {
-  const styles = await readFile(
-    new URL("../src/legacy/Styles.html", import.meta.url),
-    "utf8",
-  );
-  assert.match(
-    styles,
-    /\.sidebar \.nav-item > \.arena-nav-icon svg \{[\s\S]*?fill: none;[\s\S]*?stroke: currentColor;/,
-  );
-  assert.match(
-    styles,
-    /\.sidebar \.nav-item > \.arena-nav-icon circle \{[\s\S]*?fill: currentColor;/,
   );
 });
 
@@ -709,12 +702,11 @@ test("decisão de folga localiza cadastros antigos e bloqueia aprovação sem v�
 
 test("o index preserva a interface sem marcação de template do Apps Script", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /Gestão de Folgas/);
+  assert.match(html, /Jornada/);
   assert.match(html, /src\/main\.js/);
   assert.doesNotMatch(html, /<\?(?:=|!=)/);
   assert.match(html, /id="view-timeclock"/);
-  assert.doesNotMatch(html, /id="view-house-arena"/);
-  assert.doesNotMatch(html, /data-view="house-arena"/);
+  assert.doesNotMatch(html, /house-arena|House Arena|Arena Remix/);
 });
 
 test("utilitários de data, duração e geolocalização", () => {
@@ -1071,7 +1063,12 @@ test("retorno de intervalo ausente desconta o intervalo previsto", () => {
 
   assert.equal(metrics.worked, 420);
   assert.equal(metrics.balance, 0);
-  assert.equal(metrics.complete, true);
+  assert.equal(metrics.complete, false);
+  assert.deepEqual(dayBalanceState("2026-08-08", metrics, "2026-08-09"), {
+    pending: true,
+    minutes: 0,
+    text: "—",
+  });
 });
 
 test("dois turnos somam apenas os períodos trabalhados", () => {
@@ -1088,6 +1085,62 @@ test("dois turnos somam apenas os períodos trabalhados", () => {
   assert.equal(metrics.worked, 480);
   assert.equal(metrics.balance, 0);
   assert.equal(metrics.complete, true);
+});
+
+test("jornada flexível calcula os dois turnos previstos sem contar o intervalo", () => {
+  const schedule = {
+    HorarioFlexivelDoisTurnos: true,
+    HoraEntrada: "08:00",
+    HoraSaidaIntervalo: "12:00",
+    HoraRetornoIntervalo: "18:00",
+    HoraSaida: "22:00",
+    DuracaoIntervaloMinutos: 360,
+  };
+  assert.equal(scheduleExpectedMinutes(schedule), 480);
+  const metrics = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T08:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_INTERVALO", DataHora: "2026-08-08T12:00:00-03:00" },
+      { TipoMarcacao: "RETORNO_INTERVALO", DataHora: "2026-08-08T18:00:00-03:00" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T22:00:00-03:00" },
+    ],
+    schedule,
+  );
+  assert.equal(metrics.worked, 480);
+  assert.equal(metrics.expected, 480);
+  assert.equal(metrics.balance, 0);
+  assert.equal(metrics.complete, true);
+});
+
+test("marcação intermediária esquecida bloqueia hora extra e avisa o gestor", () => {
+  const schedule = {
+    FuncionarioID: "func-1",
+    Ativa: true,
+    VigenteDe: "2026-08-01",
+    HorarioFlexivelDoisTurnos: true,
+    HoraEntrada: "08:00",
+    HoraSaidaIntervalo: "12:00",
+    HoraRetornoIntervalo: "18:00",
+    HoraSaida: "22:00",
+    DuracaoIntervaloMinutos: 360,
+  };
+  const records = [
+    { FuncionarioID: "func-1", Data: "2026-08-08", TipoMarcacao: "ENTRADA", DataHora: "2026-08-08T08:00:00-03:00" },
+    { FuncionarioID: "func-1", Data: "2026-08-08", TipoMarcacao: "SAIDA_INTERVALO", DataHora: "2026-08-08T12:00:00-03:00" },
+    { FuncionarioID: "func-1", Data: "2026-08-08", TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-08-08T22:00:00-03:00" },
+  ];
+  const metrics = dayMetrics(records, schedule);
+  assert.equal(metrics.complete, false);
+  assert.equal(dayBalanceState("2026-08-08", metrics, "2026-08-09").minutes, 0);
+  assert.equal(
+    findIncompletePunches(
+      records,
+      [schedule],
+      [{ FuncionarioID: "func-1", Nome: "Ana", Ativo: true }],
+      "2026-08-09",
+    ).length,
+    1,
+  );
 });
 
 test("jornada acima de 12 horas é limitada e fica pendente de revisão", () => {
@@ -1492,51 +1545,6 @@ test("administrador consegue salvar a justificativa de ausência", async () => {
   assert.doesNotMatch(saveHandler, /\baction\(/);
 });
 
-test("House Link oferece sala e código a usuários autenticados", async () => {
-  const [client, styles, api, runtime, rules] = await Promise.all([
-    readFile(
-      new URL("../src/legacy/HouseLinkClient.html", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL("../src/legacy/HouseLinkStyles.html", import.meta.url),
-      "utf8",
-    ),
-    readFile(new URL("../src/core/api-arena.js", import.meta.url), "utf8"),
-    readFile(new URL("../src/core/runtime.js", import.meta.url), "utf8"),
-    readFile(new URL("../database.rules.json", import.meta.url), "utf8"),
-  ]);
-  assert.match(client, /Solicitar sala/);
-  assert.match(client, /OU ENTRE COM O CÓDIGO DA SALA/);
-  assert.match(client, /houseLinkErrorMessage_/);
-  assert.match(client, /Operação <em>Rush<\/em>/);
-  assert.match(client, /snapshot\.targetOrders \|\| 6/);
-  assert.match(client, /Aguardando as 4 pistas/);
-  assert.match(client, /await houseLinkPoll_\(true, true\)/);
-  assert.match(client, /if \(!silentExpiredRoom\) toast\(error\.message, true\)/);
-  assert.match(styles, /\.house-link-round-track/);
-  assert.match(api, /ownerUid:\s*profile\.UsuarioID/);
-  assert.match(api, /removePath\(`arenaLink\/rooms\/\$\{id\}`\)/);
-  assert.match(
-    api,
-    /room\.signals = Array\.isArray\(room\.signals\) \? room\.signals : \[\]/,
-  );
-  assert.match(api, /HOUSE_LINK_TARGET_ORDERS = 6/);
-  assert.match(api, /room\.orderIndex \|\| 0\) % 2 === 0/);
-  assert.match(api, /current\.signals\.length >= HOUSE_LINK_SIGNAL_GROUPS\.length/);
-  assert.match(api, /runtime\.transactPath/);
-  assert.match(runtime, /async transactPath\(relativePath, updateValue\)/);
-  assert.match(rules, /"arenaLink"/);
-  const parsedRules = JSON.parse(rules).rules["gestao-folgas"].v2.arenaLink;
-  assert.equal(parsedRules.codes.$code[".read"], "auth != null");
-  assert.match(parsedRules.codes.$code[".write"], /ownerUid/);
-  assert.equal(parsedRules.rooms.$room[".read"], "auth != null");
-  assert.match(parsedRules.rooms.$room[".write"], /players/);
-  assert.match(parsedRules.rooms.$room[".write"], /usuarioId/);
-  assert.equal(parsedRules[".read"], undefined);
-  assert.equal(parsedRules[".write"], undefined);
-});
-
 test("dia atual só entra no saldo depois da saída final", () => {
   const schedule = { CargaDiariaMinutos: 240 };
   const notStarted = dayBalanceState(
@@ -1929,6 +1937,7 @@ test("o administrador possui opcao de zerar saldos de loja e trocar/redefinir se
 });
 
 
-
-
-
+test("House mantém o crédito de folga extra ao salvar um feriado ativo", async () => {
+  const api = await readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8");
+  assert.match(api, /if \(saved.Ativo !== false\) \{[\s\S]*?await ensureHolidayLeaveCredits\(profile, saved, employees\)/);
+});

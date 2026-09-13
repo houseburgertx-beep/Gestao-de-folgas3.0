@@ -1,15 +1,13 @@
 import { createAdvancedHandlers } from "./api-advanced.js";
-import { createArenaHandlers } from "./api-arena.js";
 import { createBaseHandlers } from "./api-base.js";
 import { createClockHandlers } from "./api-clock.js";
 import { runtime } from "./runtime.js";
 
-export function createApi(getArenaBundle) {
+export function createApi() {
   const handlers = {
-    ...createBaseHandlers(getArenaBundle),
+    ...createBaseHandlers(),
     ...createClockHandlers(),
     ...createAdvancedHandlers(),
-    ...createArenaHandlers(),
   };
 
   return {

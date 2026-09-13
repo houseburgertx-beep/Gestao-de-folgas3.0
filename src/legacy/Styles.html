@@ -269,18 +269,14 @@
     overflow: hidden;
     flex: 0 0 auto;
   }
-  .avatar.has-hero-avatar,
-  .arena-rank-avatar.has-hero-avatar,
-  .house-link-avatar.has-hero-avatar {
+  .avatar.has-hero-avatar {
     padding: 0;
     color: transparent;
     background: var(--surface-2);
     border: 2px solid rgba(255, 255, 255, 0.72);
     box-shadow: 0 3px 12px rgba(20, 25, 45, 0.18);
   }
-  .avatar.has-hero-avatar img,
-  .arena-rank-avatar.has-hero-avatar img,
-  .house-link-avatar.has-hero-avatar img {
+  .avatar.has-hero-avatar img {
     width: 100%;
     height: 100%;
     display: block;
@@ -3254,20 +3250,6 @@
   .sidebar .nav-item:hover > span {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
-  }
-  .sidebar .nav-item > .arena-nav-icon svg {
-    width: 17px;
-    height: 17px;
-    display: block;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.9;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .sidebar .nav-item > .arena-nav-icon circle {
-    fill: currentColor;
-    stroke: none;
   }
   .sidebar .nav-item.active {
     box-shadow: none;
@@ -8991,44 +8973,6 @@
     color: #c92a2a;
     border: 1px solid rgba(229, 72, 77, 0.3);
   }
-
-  /* Mobile Responsiveness, Viewport Boundaries & Auto-Zoom Prevention */
-  html, body {
-    overflow-x: hidden;
-    max-width: 100vw;
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  @media (max-width: 768px) {
-    /* 16px font-size prevents iOS Safari from automatically zooming into inputs */
-    input, select, textarea, .form-control, .input-field {
-      font-size: 16px !important;
-    }
-
-    dialog, .dialog, .modal {
-      max-width: 95vw !important;
-      width: 95vw !important;
-      margin: auto !important;
-      overflow-x: hidden !important;
-    }
-
-    .toolbar-actions, .panel-head, .filter-row {
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .table-panel {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      max-width: 100%;
-    }
-  }
 </style>
-
 
 

@@ -403,7 +403,7 @@ export class FirebaseRuntime {
         AtualizadoPor: profile.Email,
       });
     }
-    await set(this.appRef("meta"), {
+    await update(this.appRef("meta"), {
       initialized: true,
       version: APP.version,
       createdAt,

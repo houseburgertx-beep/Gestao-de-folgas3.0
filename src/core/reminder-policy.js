@@ -101,7 +101,7 @@ export function remindersFor({
         key: `${employee.FuncionarioID}:${day}:${kind}:${event}`,
         due,
         expires,
-        title: "House 190 · Seu ponto",
+        title: "Grupo House 190 · Seu ponto",
         body,
         view: "timeclock",
         tag: `ponto-${kind}`,
@@ -127,15 +127,22 @@ export function remindersFor({
     // Break reminders follow the latest actual break, including shifts past midnight.
     if (preferences.interval && last?.TipoMarcacao === "SAIDA_INTERVALO") {
       const duration = Number(schedule.DuracaoIntervaloMinutos);
-      if (!(duration > 0 && duration <= 240)) continue;
-      const returnedAt = Date.parse(last.DataHora) + duration * minute;
+      const flexible = active(schedule.HorarioFlexivelDoisTurnos);
+      if (!flexible && !(duration > 0 && duration <= 240)) continue;
+      let returnedAt = flexible
+        ? at(day, schedule.HoraRetornoIntervalo)
+        : Date.parse(last.DataHora) + duration * minute;
+      while (returnedAt <= Date.parse(last.DataHora)) returnedAt += dayMs;
+      if (!Number.isFinite(returnedAt)) continue;
       const id = last.RegistroPontoID || last.DataHora;
       if (duration >= 5) {
         const remaining = Math.max(1, Math.ceil((returnedAt - now) / minute));
         add(
           "intervalo-5",
           returnedAt - 5 * minute,
-          `Falta${remaining === 1 ? "" : "m"} ${remaining} minuto${remaining === 1 ? "" : "s"} para encerrar seu intervalo. Prepare-se para registrar o retorno.`,
+          flexible
+            ? `Falta${remaining === 1 ? "" : "m"} ${remaining} minuto${remaining === 1 ? "" : "s"} para começar seu 2º turno. Prepare-se para registrar a entrada.`
+            : `Falta${remaining === 1 ? "" : "m"} ${remaining} minuto${remaining === 1 ? "" : "s"} para encerrar seu intervalo. Prepare-se para registrar o retorno.`,
           id,
           returnedAt,
         );
@@ -143,7 +150,9 @@ export function remindersFor({
       add(
         "intervalo-fim",
         returnedAt,
-        "Seu intervalo terminou. Lembre-se de registrar o retorno ao trabalho.",
+        flexible
+          ? "Seu 2º turno começou. Lembre-se de registrar a entrada."
+          : "Seu intervalo terminou. Lembre-se de registrar o retorno ao trabalho.",
         id,
       );
     }

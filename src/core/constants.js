@@ -1,6 +1,6 @@
 export const APP = Object.freeze({
   name: "Gestão de Folgas",
-  version: "6.3.12-firebase-github",
+  version: "6.10.0-firebase-github",
   profiles: {
     admin: "Administrador",
     manager: "Responsável de loja",
@@ -74,7 +74,6 @@ export const ID_FIELDS = Object.freeze({
   CienciasFolga: "CienciaID",
   TrocasFolga: "TrocaID",
   DiretorioTrocasFolga: "FuncionarioID",
-  ArenaRanking: "RankingID",
   RegistrosPonto: "RegistroPontoID",
   AjustesPonto: "AjustePontoID",
   JustificativasPonto: "JustificativaPontoID",
@@ -99,7 +98,6 @@ export const PUBLIC_AUTH_TABLES = new Set([
   "Configuracoes",
   "Feriados",
   "RegrasFolga",
-  "ArenaRanking",
 ]);
 
 export const STORE_SCOPED_FIELDS = Object.freeze({
@@ -201,45 +199,4 @@ export const DEFAULT_CONFIG = [
     Valor: "America/Fortaleza",
     Descricao: "Fuso usado pelo sistema",
   },
-];
-
-export const ARENA_GAMES = Object.freeze({
-  corrida_pedidos: { name: "Rush de Pedidos", durationMs: 45000 },
-  bandeja_perfeita: { name: "Bandeja Neon", durationMs: 45000 },
-  caixa_turbo: { name: "Caixa Turbo", durationMs: 45000 },
-  molho_no_ponto: { name: "Molho no Ponto 2", durationMs: 45000 },
-  monte_lanche: { name: "Burger Stack", durationMs: 45000 },
-  caca_erro: { name: "Intruso na Chapa", durationMs: 45000 },
-  delivery_relampago: { name: "Delivery Relâmpago", durationMs: 45000 },
-  cozinha_panico: { name: "Cozinha em Pânico", durationMs: 45000 },
-  pega_ladrao_batata: { name: "Operação Batata", durationMs: 45000 },
-  rota_motoboy: { name: "Central de Rotas", durationMs: 45000 },
-  garcom_equilibrista: { name: "Bandeja em Jogo", durationMs: 45000 },
-  house_link: { name: "House Link", durationMs: 90000 },
-});
-
-export const ARENA_PRODUCTS = [
-  { id: "burger", nome: "Burger", emoji: "🍔", cor: "#ef4444" },
-  { id: "frango_crocante", nome: "Frango crocante", emoji: "🍗", cor: "#f97316" },
-  { id: "batata", nome: "Batata frita", emoji: "🍟", cor: "#eab308" },
-  { id: "milkshake", nome: "Milk-shake", emoji: "🥤", cor: "#ec4899" },
-  { id: "hot_dog", nome: "Hot dog", emoji: "🌭", cor: "#dc2626" },
-  { id: "onion_rings", nome: "Onion rings", emoji: "🧅", cor: "#a855f7" },
-  { id: "combo", nome: "Combo da casa", emoji: "🍱", cor: "#8b5cf6" },
-  { id: "refrigerante", nome: "Refrigerante", emoji: "🧊", cor: "#06b6d4" },
-  { id: "sobremesa", nome: "Sobremesa", emoji: "🍨", cor: "#f472b6" },
-  { id: "molho", nome: "Molho especial", emoji: "🌶️", cor: "#e11d48" },
-  { id: "salada", nome: "Salada", emoji: "🥗", cor: "#22c55e" },
-];
-
-export const ARENA_INGREDIENTS = [
-  { id: "pao_base", nome: "Pão de baixo", emoji: "🟤" },
-  { id: "carne", nome: "Carne", emoji: "🥩" },
-  { id: "queijo", nome: "Queijo", emoji: "🧀" },
-  { id: "alface", nome: "Alface", emoji: "🥬" },
-  { id: "tomate", nome: "Tomate", emoji: "🍅" },
-  { id: "cebola", nome: "Cebola", emoji: "🧅" },
-  { id: "molho", nome: "Molho", emoji: "🌶️" },
-  { id: "bacon", nome: "Bacon", emoji: "🥓" },
-  { id: "pao_topo", nome: "Pão de cima", emoji: "🟠" },
 ];

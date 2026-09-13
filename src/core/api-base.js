@@ -1291,7 +1291,7 @@ async function simulateSchedule(payload) {
   });
 }
 
-export function createBaseHandlers(getArenaBundle) {
+export function createBaseHandlers() {
   return {
     async loginUser(args) {
       const payload = args[0] || {};
@@ -1339,11 +1339,6 @@ export function createBaseHandlers(getArenaBundle) {
 
     async getBootstrapDataWithSession() {
       return success(await bootstrap(), "Aplicação carregada.");
-    },
-
-    async getClientModuleBundle(args) {
-      assert(args[0] === "house-arena", "Módulo de interface inválido.");
-      return success(await getArenaBundle(), "Módulo carregado.");
     },
 
     async getDashboardData() {
