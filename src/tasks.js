@@ -44,11 +44,12 @@ function getApi() {
 }
 
 function isUserAdminOrManager() {
-  if (state.isManager) return true;
-  const profile = window.__GESTAO_FIREBASE__?.runtime?.getProfile?.() || state.user;
-  if (!profile) return true;
-  const role = String(profile.Perfil || profile.perfil || profile.Cargo || '').toLowerCase();
-  return role.includes('admin') || role.includes('gerente') || role.includes('respons');
+  const profile = state.user || window.state?.user || window.__GESTAO_FIREBASE__?.runtime?.getProfile?.();
+  if (!profile) return false;
+  const p = String(profile.Perfil || profile.perfil || profile.Cargo || profile.cargo || profile.profile || '').toLowerCase();
+  const perms = Array.isArray(window.state?.permissions) ? window.state.permissions : [];
+  if (perms.includes('*')) return true;
+  return p.includes('admin') || p.includes('gerente') || p.includes('respons');
 }
 
 function openDialog(id) {
@@ -277,44 +278,49 @@ function renderTasksApp() {
       <header class="tasks-hub">
         <div class="tasks-hub-top">
           <div class="tasks-hub-identity">
-            <span class="tasks-brand-tag">OPERAÇÃO DE TURNO · HOUSE BURGER</span>
-            <div class="tasks-title-wrap">
-              <h2 class="tasks-hub-title">Quadro do Turno &amp; Rotinas</h2>
-
-              <!-- Seletores de Loja e Data Integrados -->
-              <div class="tasks-context-bar">
-                ${state.stores.length > 1 ? `
-                  <div class="tasks-select-box">
-                    <select id="tasksStoreSelect">
-                      ${state.stores.map(s => {
-                        const id = String(s.LojaID || s.lojaId || '');
-                        const name = s.NomeLoja || s.Nome || id;
-                        return `<option value="${esc(id)}" ${id === state.selectedStore ? 'selected' : ''}>${esc(name)}</option>`;
-                      }).join('')}
-                    </select>
-                  </div>
-                ` : `
-                  <div class="tasks-select-box">
-                    <strong>${esc(storeName)}</strong>
-                  </div>
-                `}
-
+            <div class="tasks-context-bar">
+              <span class="tasks-brand-tag">HOUSE BURGER</span>
+              ${state.stores.length > 1 && isManager ? `
                 <div class="tasks-select-box">
+                  <select id="tasksStoreSelect">
+                    ${state.stores.map(s => {
+                      const id = String(s.LojaID || s.lojaId || '');
+                      const name = s.NomeLoja || s.Nome || id;
+                      return `<option value="${esc(id)}" ${id === state.selectedStore ? 'selected' : ''}>${esc(name)}</option>`;
+                    }).join('')}
+                  </select>
+                </div>
+              ` : `
+                <div class="tasks-select-box static">
+                  <strong>${esc(storeName)}</strong>
+                </div>
+              `}
+
+              ${isManager ? `
+                <div class="tasks-select-box date-box">
                   <input type="date" id="tasksDateInput" value="${esc(state.selectedDate)}">
                 </div>
-              </div>
+              ` : `
+                <div class="tasks-select-box static date-box">
+                  <span>${esc(new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Bahia', day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
+                </div>
+              `}
             </div>
+
+            <h2 class="tasks-hub-title">Rotinas &amp; Checklists</h2>
           </div>
 
           <div class="tasks-hub-actions">
-            <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas operacionais padrão (Caixa, Abertura ou Fechamento)">
-              Rotinas do Turno
-            </button>
-            <button class="btn btn-new-task" id="openNewTaskBtn">
-              + Nova Tarefa
-            </button>
-            <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn">
-              Reparos ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
+            ${isManager ? `
+              <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas operacionais padrão (Caixa, Abertura ou Fechamento)">
+                Rotinas do Turno
+              </button>
+              <button class="btn btn-new-task" id="openNewTaskBtn">
+                + Nova Tarefa
+              </button>
+            ` : ''}
+            <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn" title="Relatar defeito em equipamento">
+              ${isManager ? 'Reparos' : 'Relatar Reparo'} ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
             </button>
             ${isManager && totalTasks > 0 ? `
               <button class="btn btn-icon-tool" id="tasksDeduplicateBtn" title="Remover tarefas duplicadas">
@@ -375,36 +381,49 @@ function renderTasksApp() {
         </div>
       ` : totalTasks === 0 ? `
         <!-- Empty State Inicial -->
-        <div class="tasks-empty-starter">
-          <h3>Nenhuma rotina gerada para hoje ainda.</h3>
-          <p>Carregue os checklists padrão do turno em um clique ou adicione uma tarefa manual:</p>
+        ${isManager ? `
+          <div class="tasks-empty-starter">
+            <h3>Nenhuma rotina gerada para hoje ainda.</h3>
+            <p>Carregue os checklists padrão do turno em um clique ou adicione uma tarefa manual:</p>
 
-          <div class="starter-actions starter-actions-3">
-            <button class="starter-card-btn caixa" data-trigger-routine="caixa">
-              <span class="starter-tag">CAIXA</span>
-              <div>
-                <strong>Rotina Operacional do Caixa</strong>
-                <small>Abertura do PDV, conferência de sistemas, notas, Drive, grupo VIP e WhatsApp.</small>
-              </div>
-            </button>
+            <div class="starter-actions starter-actions-3">
+              <button class="starter-card-btn caixa" data-trigger-routine="caixa">
+                <span class="starter-tag">CAIXA</span>
+                <div>
+                  <strong>Rotina Operacional do Caixa</strong>
+                  <small>Abertura do PDV, conferência de sistemas, notas, Drive, grupo VIP e WhatsApp.</small>
+                </div>
+              </button>
 
-            <button class="starter-card-btn abertura" data-trigger-routine="abertura">
-              <span class="starter-tag">ABERTURA</span>
-              <div>
-                <strong>Abertura de Turno</strong>
-                <small>Freezers, estoque crítico, chapa, fritadeira e gaveta de caixa.</small>
-              </div>
-            </button>
+              <button class="starter-card-btn abertura" data-trigger-routine="abertura">
+                <span class="starter-tag">ABERTURA</span>
+                <div>
+                  <strong>Abertura de Turno</strong>
+                  <small>Freezers, estoque crítico, chapa, fritadeira e gaveta de caixa.</small>
+                </div>
+              </button>
 
-            <button class="starter-card-btn fechamento" data-trigger-routine="fechamento">
-              <span class="starter-tag">FECHAMENTO</span>
-              <div>
-                <strong>Fechamento de Turno</strong>
-                <small>Limpeza de coifa/chapa, gás, descarte de óleo, caixa e lixo.</small>
-              </div>
+              <button class="starter-card-btn fechamento" data-trigger-routine="fechamento">
+                <span class="starter-tag">FECHAMENTO</span>
+                <div>
+                  <strong>Fechamento de Turno</strong>
+                  <small>Limpeza de coifa/chapa, gás, descarte de óleo, caixa e lixo.</small>
+                </div>
+              </button>
+            </div>
+          </div>
+        ` : `
+          <div class="tasks-empty-starter employee-empty">
+            <span class="starter-tag" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;">TURNO DE HOJE</span>
+            <h3 style="margin-top:14px;font-size:17px;font-weight:700;color:#0f172a;">Nenhum checklist disponível no momento</h3>
+            <p style="max-width:440px;margin:8px auto 18px;color:#64748b;font-size:13.5px;line-height:1.45;">
+              As rotinas e checklists deste turno serão liberados pela gerência da loja. Assim que publicados, aparecerão aqui automaticamente para conferência.
+            </p>
+            <button type="button" class="btn btn-secondary" id="tasksEmployeeRefreshBtn" style="font-size:13px;font-weight:600;padding:8px 20px;">
+              Atualizar agora
             </button>
           </div>
-        </div>
+        `}
       ` : state.viewMode === 'checklist' ? renderDailyChecklist(filtered) : renderKanban(filtered)}
     </div>
   `;
@@ -460,9 +479,11 @@ function renderDailyChecklist(tasks) {
                 <span class="daily-progress-pill ${isAllDone ? 'done' : ''}">
                   ${chTotal > 0 ? `${chDone}/${chTotal} concluídos · ${chPercent}%` : (isAllDone ? 'Concluído' : 'Pendente')}
                 </span>
-                <button type="button" class="btn-ghost-sm" data-edit-task="${esc(task.TarefaID)}" title="Editar checklist">
-                  Editar
-                </button>
+                ${isManager ? `
+                  <button type="button" class="btn-ghost-sm" data-edit-task="${esc(task.TarefaID)}" title="Editar checklist">
+                    Editar
+                  </button>
+                ` : ''}
               </div>
             </header>
 
@@ -605,7 +626,9 @@ function renderCard(task) {
         </div>
 
         <div class="trello-card-actions">
-          <button type="button" class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa e checklist">Editar</button>
+          ${isManager ? `
+            <button type="button" class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa e checklist">Editar</button>
+          ` : ''}
           ${task.Coluna === 'visto' && isManager ? `
             <button type="button" class="trello-btn-approve" data-approve-task="${esc(task.TarefaID)}">
               Visto
@@ -742,8 +765,10 @@ function openTaskDetailDialog(taskId) {
   const storeDate = $('#taskDetailStoreDate');
   if (storeDate) storeDate.textContent = `${currentStore?.Nome || currentStore?.NomeLoja || 'Loja'} · ${task.DataTurno ? task.DataTurno.split('-').reverse().join('/') : ''}`;
 
+  const isMgr = isUserAdminOrManager();
   const editBtn = $('#taskDetailEditBtn');
   if (editBtn) {
+    editBtn.style.display = isMgr ? 'inline-block' : 'none';
     editBtn.onclick = () => {
       closeDialog('taskDetailDialog');
       openEditTaskDialog(task.TarefaID);
@@ -752,6 +777,7 @@ function openTaskDetailDialog(taskId) {
 
   const delBtn = $('#taskDetailDeleteBtn');
   if (delBtn) {
+    delBtn.style.display = isMgr ? 'inline-block' : 'none';
     delBtn.onclick = () => {
       closeDialog('taskDetailDialog');
       deleteTask(task.TarefaID);
@@ -803,6 +829,10 @@ function bindDomEvents() {
 
   $('#openMaintenanceBtn', container)?.addEventListener('click', () => {
     openDialog('taskMaintenanceDialog');
+  });
+
+  $('#tasksEmployeeRefreshBtn', container)?.addEventListener('click', () => {
+    loadTasks();
   });
 
   // Mudança de Loja e Data

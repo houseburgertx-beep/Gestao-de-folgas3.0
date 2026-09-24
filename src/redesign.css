@@ -1136,8 +1136,16 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 
 .tasks-hub-identity {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.tasks-context-bar {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .tasks-brand-tag {
@@ -1160,13 +1168,6 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   letter-spacing: -0.3px;
 }
 
-.tasks-context-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .tasks-select-box {
   display: inline-flex;
   align-items: center;
@@ -1177,6 +1178,17 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   padding: 4px 10px;
   height: 36px;
   box-sizing: border-box;
+}
+
+.tasks-select-box.static {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #334155;
+  font-size: 12.5px;
+}
+
+.tasks-select-box.date-box {
+  background: #ffffff;
 }
 
 .tasks-select-box select,
@@ -2362,37 +2374,251 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 @media (max-width: 768px) {
-  .tasks-hub {
-    padding: 12px;
-  }
-  .tasks-hub-top {
-    flex-direction: column;
-    align-items: stretch;
+  .tasks-page {
+    padding: 0 0 24px;
     gap: 12px;
   }
-  .tasks-hub-actions {
-    width: 100%;
+
+  .tasks-hub {
+    padding: 12px 14px;
+    border-radius: 12px;
+    gap: 12px;
   }
-  .tasks-hub-actions .btn {
-    flex: 1;
-    text-align: center;
-    justify-content: center;
-  }
-  .tasks-hub-bottom {
+
+  .tasks-hub-top {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
-  .tasks-sectors-track {
-    overflow-x: auto;
-    padding-bottom: 4px;
+
+  .tasks-hub-identity {
+    width: 100%;
+    gap: 6px;
   }
-  .tasks-hub-status-wrap {
-    justify-content: space-between;
+
+  .tasks-context-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .tasks-brand-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .tasks-select-box {
+    height: 30px;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
+  .tasks-select-box select,
+  .tasks-select-box input[type="date"] {
+    font-size: 12px;
+  }
+
+  .tasks-hub-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 2px 0 0;
+  }
+
+  .tasks-hub-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
     width: 100%;
   }
-  .starter-actions {
-    grid-template-columns: 1fr;
+
+  .tasks-hub-actions .btn {
+    height: 36px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 10px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .tasks-hub-bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .tasks-sectors-track {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px 0 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tasks-sectors-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sector-chip {
+    padding: 5px 11px;
+    font-size: 11.5px;
+    flex-shrink: 0;
+  }
+
+  .tasks-hub-status-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .tasks-stats-chip {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: space-between;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .segmented-deck {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    padding: 3px;
+    background: #f1f5f9;
+    border-radius: 8px;
+  }
+
+  .seg-btn {
+    flex: 1;
+    text-align: center;
+    height: 34px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+  }
+
+  /* Empty state em celular */
+  .tasks-empty-starter {
+    padding: 24px 16px;
+    border-radius: 14px;
+    margin: 12px 0;
+  }
+
+  .starter-actions,
+  .starter-actions-3 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .starter-card-btn {
+    padding: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Checklist Diário em Celular */
+  .daily-checklist-container {
+    gap: 12px;
+  }
+
+  .daily-section-card {
+    border-radius: 12px;
+  }
+
+  .daily-section-header {
+    padding: 12px 14px;
+    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .daily-section-meta-right {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .daily-checklist-items {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .daily-item-row {
+    min-height: 48px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    gap: 12px;
+    box-sizing: border-box;
+  }
+
+  .daily-chk {
+    width: 20px !important;
+    min-width: 20px !important;
+    height: 20px !important;
+  }
+
+  .daily-item-label {
+    font-size: 13.5px !important;
+    line-height: 1.4 !important;
+  }
+
+  .daily-section-footer {
+    padding: 10px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .daily-footer-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .btn-ghost-sm {
+    padding: 7px 12px;
+    font-size: 12px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Kanban em Celular */
+  .trello-board {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 12px;
+    padding-bottom: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .trello-column {
+    min-width: 82vw;
+    max-width: 85vw;
+    flex: 0 0 82vw;
+    scroll-snap-align: center;
+    max-height: calc(100vh - 250px);
+  }
+
+  /* Modal de Detalhes no Mobile */
+  .task-detail-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: auto 0 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 88vh;
   }
 }
 
