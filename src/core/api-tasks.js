@@ -7,11 +7,11 @@ export function createTasksHandlers() {
     async tasksList(args) {
       const [lojaId, dataTurno] = args || [];
       const profile = await runtime.requireProfile();
-      const targetStore = String(lojaId || profile.LojaID || "").trim();
+      const targetStore = String(lojaId || (!isAdmin(profile) ? (profile.LojaID || "") : "")).trim();
       const rows = await runtime.list("Tarefas", { profile });
       const filtered = rows.filter((task) => {
         if (targetStore && String(task.LojaID || "") !== targetStore) {
-          if (!isAdmin(profile)) return false;
+          return false;
         }
         if (dataTurno && task.DataTurno && task.DataTurno !== dataTurno) {
           return false;

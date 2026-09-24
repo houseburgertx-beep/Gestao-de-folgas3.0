@@ -939,12 +939,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Inicializador da Aba
-export function initTasksModule(ctx = {}) {
-  state.user = ctx.user || null;
+// Auto-sincronização com o estado global da aplicação
+function ensureTasksInitialized(customCtx = {}) {
+  const runtime = window.__GESTAO_FIREBASE__?.runtime;
+  const currentProfile = runtime?.getProfile?.() || customCtx.user || state.user || window.state?.user;
+  const stores = (customCtx.stores && customCtx.stores.length > 0) ? customCtx.stores : (window.state?.stores || state.stores);
+  const employees = (customCtx.employees && customCtx.employees.length > 0) ? customCtx.employees : (window.state?.employees || state.employees);
+
+  state.user = currentProfile || null;
   state.isManager = isUserAdminOrManager();
-  state.stores = Array.isArray(ctx.stores) ? ctx.stores : [];
-  state.employees = Array.isArray(ctx.employees) ? ctx.employees : [];
+  state.stores = Array.isArray(stores) ? stores : [];
+  state.employees = Array.isArray(employees) ? employees : [];
 
   if (!state.selectedStore && state.stores.length > 0) {
     const userStore = state.user?.LojaID || state.user?.lojaId;
@@ -956,7 +961,62 @@ export function initTasksModule(ctx = {}) {
   loadTasks();
 }
 
+// Inicializador da Aba
+export function initTasksModule(ctx = {}) {
+  ensureTasksInitialized(ctx);
+}
+
 // Export global para compatibilidade com SPA e roteador
 if (typeof window !== 'undefined') {
   window.initTasksModule = initTasksModule;
+
+  // Ouvir abertura da aba
+  window.addEventListener('gestao-tasks-open', (e) => {
+    ensureTasksInitialized(e.detail || {});
+  });
+
+  // Ouvir dados globais da jornada
+  window.addEventListener('house-journey', (e) => {
+    const detail = e.detail || {};
+    if (detail.user) state.user = detail.user;
+    if (Array.isArray(detail.stores) && detail.stores.length > 0) state.stores = detail.stores;
+    if (Array.isArray(detail.employees) && detail.employees.length > 0) state.employees = detail.employees;
+    state.isManager = isUserAdminOrManager();
+
+    if (!state.selectedStore && state.stores.length > 0) {
+      const userStore = state.user?.LojaID || state.user?.lojaId;
+      const match = state.stores.find(s => String(s.LojaID || s.lojaId) === String(userStore));
+      state.selectedStore = match ? String(match.LojaID || match.lojaId) : String(state.stores[0].LojaID || state.stores[0].lojaId);
+    }
+
+    const container = $('#tasksApp');
+    if (container && (!container.innerHTML.trim() || $('#view-tasks')?.classList.contains('active'))) {
+      renderTasksApp();
+      loadTasks();
+    }
+  });
+
+  // Ouvir prontidão da API e DOM
+  window.addEventListener('gestao-api-ready', () => {
+    const container = $('#tasksApp');
+    if (container && !container.innerHTML.trim()) {
+      ensureTasksInitialized();
+    }
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = $('#tasksApp');
+      if (container && !container.innerHTML.trim()) {
+        ensureTasksInitialized();
+      }
+    });
+  } else {
+    setTimeout(() => {
+      const container = $('#tasksApp');
+      if (container && !container.innerHTML.trim()) {
+        ensureTasksInitialized();
+      }
+    }, 100);
+  }
 }

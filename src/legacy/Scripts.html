@@ -2623,6 +2623,7 @@
         "notifications",
         "shift-plan",
         "communication",
+        "tasks",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -2640,6 +2641,7 @@
         "notifications",
         "shift-plan",
         "communication",
+        "tasks",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -2762,7 +2764,12 @@
     else if (view === "notifications") { loadNotifications(); window.dispatchEvent(new Event("gestao-notifications-open")); }
     else if (view === "timeclock") loadTimeClock();
     else if (view === "hour-balances") loadAdminHourBalances_();
-    else if (view === "tasks") window.dispatchEvent(new CustomEvent("gestao-tasks-open"));
+    else if (view === "tasks") {
+      if (typeof window.initTasksModule === "function") {
+        window.initTasksModule({ user: state.user, stores: state.stores, employees: state.employees });
+      }
+      window.dispatchEvent(new CustomEvent("gestao-tasks-open"));
+    }
     else if (
       [
         "communication",
