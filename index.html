@@ -10113,57 +10113,132 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 .tasks-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding-bottom: 40px;
+  padding-bottom: 24px;
 }
 
-/* Painel de Resumo Superior */
-.tasks-summary-panel {
+/* Barra Superior Operacional Compacta */
+.tasks-top-bar {
   background: var(--surface, #ffffff);
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 16px;
-  padding: 20px 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-}
-
-.tasks-summary-header {
+  border-radius: 12px;
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 14px;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
-.tasks-summary-header h2 {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 2px 0 4px;
-  color: var(--text, #1e293b);
-  letter-spacing: -0.02em;
+.tasks-top-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.tasks-summary-subhead {
-  color: var(--muted, #64748b);
-  font-size: 13px;
-  margin: 0;
-}
-
-.tasks-header-btn-row {
+.tasks-title-line {
   display: flex;
   align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
-  gap: 10px;
 }
 
-.tasks-header-btn-row .btn {
+.tasks-main-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.tasks-store-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tasks-store-chip {
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+/* Chips Rápidos de Status */
+.tasks-kpi-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tasks-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.tasks-chip strong {
+  font-weight: 700;
+}
+
+.tasks-chip.total {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.tasks-chip.done {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.tasks-chip.waiting {
+  background: #f5f3ff;
+  color: #5b21b6;
+  border-color: #ddd6fe;
+}
+
+.tasks-chip.maintenance {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.tasks-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tasks-top-actions .btn {
   font-size: 13px;
   font-weight: 600;
-  padding: 9px 16px;
-  border-radius: 10px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tasks-top-actions .btn.is-alert-btn {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
 }
 
 .badge-count-red {
@@ -10173,72 +10248,6 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   padding: 1px 6px;
   border-radius: 99px;
   margin-left: 4px;
-}
-
-/* Grade de 4 KPIs */
-.tasks-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-}
-
-.tasks-kpi-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--bg, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 12px;
-  padding: 14px 16px;
-  transition: transform 0.15s ease, border-color 0.15s ease;
-}
-
-.tasks-kpi-card:hover {
-  transform: translateY(-1px);
-  border-color: #cbd5e1;
-}
-
-.tasks-kpi-card.highlight-purple {
-  border-color: #c4b5fd;
-  background: #faf5ff;
-}
-
-.tasks-kpi-card.highlight-red {
-  border-color: #fca5a5;
-  background: #fef2f2;
-}
-
-.kpi-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.kpi-icon.blue { background: #eff6ff; color: #2563eb; }
-.kpi-icon.green { background: #f0fdf4; color: #16a34a; }
-.kpi-icon.purple { background: #faf5ff; color: #9333ea; }
-.kpi-icon.red { background: #fef2f2; color: #dc2626; }
-
-.kpi-info {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.25;
-}
-
-.kpi-info strong {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text, #0f172a);
-}
-
-.kpi-info span {
-  font-size: 12px;
-  color: var(--muted, #64748b);
-  margin-top: 2px;
 }
 
 /* Barra de Filtros e Setores */
@@ -10429,8 +10438,8 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 /* Quadro Trello / Kanban */
 .trello-board {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(270px, 1fr));
+  gap: 14px;
   align-items: start;
   overflow-x: auto;
   padding-bottom: 20px;
@@ -10439,18 +10448,22 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 .trello-column {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 280px);
+  min-width: 0;
+  max-height: calc(100vh - 200px);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .trello-column-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
+  padding: 11px 14px;
   border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 .trello-col-title {
@@ -10461,7 +10474,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 
 .trello-col-title h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   color: #1e293b;
 }
@@ -10481,7 +10494,9 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 120px;
+  box-sizing: border-box;
 }
 
 .trello-cards-area.drag-over {
@@ -10498,7 +10513,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   font-weight: 600;
   color: #64748b;
   cursor: pointer;
-  border-radius: 0 0 14px 14px;
+  border-radius: 0 0 12px 12px;
   border-top: 1px solid #e2e8f0;
   transition: background 0.15s ease;
 }
@@ -10514,17 +10529,23 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   cursor: grab;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  word-break: break-word !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .trello-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
 }
 
 .trello-card.dragging {
@@ -10566,9 +10587,11 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 .trello-card-title {
   margin: 0;
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 700;
   color: #0f172a;
   line-height: 1.35;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 .trello-card-desc {
@@ -10576,12 +10599,15 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   font-size: 12px;
   color: #64748b;
   line-height: 1.35;
+  word-break: break-word;
 }
 
 .trello-card-checklist {
   margin-top: 4px;
   padding-top: 6px;
   border-top: 1px solid #f1f5f9;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .trello-checklist-meta {
@@ -10608,28 +10634,66 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 .trello-subtasks {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-top: 4px;
 }
 
 .trello-subtask-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 11.5px;
-  color: #334155;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 2px 0 !important;
   cursor: pointer;
 }
 
-.trello-subtask-item input {
-  margin-top: 2px;
-  accent-color: #10b981;
+#tasksApp .trello-chk,
+#tasksApp .trello-subtask-item input[type="checkbox"],
+#tasksApp .op-check-row input[type="checkbox"],
+.trello-chk {
+  appearance: auto !important;
+  -webkit-appearance: checkbox !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  flex: 0 0 16px !important;
+  margin: 2px 0 0 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  accent-color: #10b981 !important;
+  cursor: pointer !important;
 }
 
-.trello-subtask-item span.is-done {
-  text-decoration: line-through;
-  color: #94a3b8;
+.trello-chk-label,
+.trello-subtask-item label {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: calc(100% - 24px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  color: #334155 !important;
+  cursor: pointer !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+}
+
+.trello-chk-label.is-done {
+  text-decoration: line-through !important;
+  color: #94a3b8 !important;
 }
 
 .trello-card-foot {
@@ -10786,21 +10850,22 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 .op-check-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  min-height: 40px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 8px 12px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  min-height: 40px !important;
 }
 
-.op-check-row input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: #10b981;
+.op-check-row .trello-chk-label {
+  font-size: 13px !important;
 }
 
 .op-check-row span.is-done {
@@ -10893,29 +10958,50 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   padding: 50px 20px;
 }
 
-/* Responsividade Mobile */
-@media (max-width: 900px) {
-  .tasks-kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* Responsividade Mobile & Tablet */
+@media (max-width: 1100px) {
   .trello-board {
-    grid-template-columns: repeat(4, 270px);
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 14px;
+    padding-bottom: 20px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .trello-column {
+    min-width: 280px;
+    max-width: 320px;
+    flex: 0 0 280px;
+    scroll-snap-align: start;
   }
 }
 
-@media (max-width: 600px) {
-  .tasks-kpi-grid {
-    grid-template-columns: 1fr;
-  }
-  .tasks-summary-header {
+@media (max-width: 768px) {
+  .tasks-top-bar {
     flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
-  .tasks-header-btn-row {
+  .tasks-top-actions {
     width: 100%;
   }
-  .tasks-header-btn-row .btn {
+  .tasks-top-actions .btn {
     flex: 1;
     text-align: center;
+    justify-content: center;
+  }
+  .tasks-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .tasks-sector-tabs {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .tasks-filter-right {
+    display: flex;
+    justify-content: center;
   }
   .starter-actions {
     grid-template-columns: 1fr;

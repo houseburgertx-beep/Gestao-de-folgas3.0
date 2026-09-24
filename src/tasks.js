@@ -194,86 +194,68 @@ function renderTasksApp() {
 
   container.innerHTML = `
     <div class="tasks-page">
-      <!-- Painel de Resumo Operacional -->
-      <section class="panel tasks-summary-panel">
-        <div class="tasks-summary-header">
-          <div>
-            <span class="eyebrow">OPERAÇÃO DE TURNO · HOUSE BURGER</span>
-            <h2>Rotinas, Tarefas &amp; Checklists</h2>
-            <p class="tasks-summary-subhead">Acompanhamento em tempo real para abertura, chapa, fechamento e chamados.</p>
+      <!-- Barra Superior Operacional Compacta -->
+      <header class="tasks-top-bar">
+        <div class="tasks-top-left">
+          <div class="tasks-title-line">
+            <h2 class="tasks-main-title">Operação &amp; Rotinas</h2>
+            <div class="tasks-store-cluster">
+              ${state.stores.length > 1 ? `
+                <select class="tasks-compact-select" id="tasksStoreSelect">
+                  ${state.stores.map(s => {
+                    const id = String(s.LojaID || s.lojaId || '');
+                    const name = s.NomeLoja || s.Nome || id;
+                    return `<option value="${esc(id)}" ${id === state.selectedStore ? 'selected' : ''}>${esc(name)}</option>`;
+                  }).join('')}
+                </select>
+              ` : `
+                <span class="tasks-store-chip">📍 ${esc(storeName)}</span>
+              `}
+              <input type="date" class="tasks-compact-date" id="tasksDateInput" value="${esc(state.selectedDate)}">
+            </div>
           </div>
 
-          <div class="tasks-header-btn-row">
-            <button class="btn btn-primary" id="openNewTaskBtn">
-              + Nova Tarefa
-            </button>
-            <button class="btn btn-secondary" id="openRoutineBtn">
-              ⚡ Rotina do Turno
-            </button>
-            <button class="btn btn-secondary" id="openMaintenanceBtn" style="${maintenanceTasks > 0 ? 'border-color:#ef4444;color:#ef4444;' : ''}">
-              🛠️ Reparos ${maintenanceTasks > 0 ? `<span class="badge-count-red">${maintenanceTasks}</span>` : ''}
-            </button>
+          <div class="tasks-kpi-chips">
+            <span class="tasks-chip total" title="Total de tarefas programadas">
+              <strong>${totalTasks}</strong> tarefas
+            </span>
+            <span class="tasks-chip done" title="Tarefas concluídas">
+              ✓ <strong>${completedTasks}</strong> concluídas (${progressPercent}%)
+            </span>
+            ${waitingApprovalTasks > 0 ? `
+              <span class="tasks-chip waiting" title="Aguardando visto do gerente">
+                👀 <strong>${waitingApprovalTasks}</strong> para visto
+              </span>
+            ` : ''}
+            ${maintenanceTasks > 0 ? `
+              <span class="tasks-chip maintenance" title="Reparos ou manutenção em aberto">
+                🛠️ <strong>${maintenanceTasks}</strong> reparos
+              </span>
+            ` : ''}
           </div>
         </div>
 
-        <!-- 4 Indicadores Rápidos -->
-        <div class="tasks-kpi-grid">
-          <div class="tasks-kpi-card">
-            <div class="kpi-icon blue">📋</div>
-            <div class="kpi-info">
-              <strong>${totalTasks}</strong>
-              <span>Tarefas no turno</span>
-            </div>
-          </div>
-          <div class="tasks-kpi-card">
-            <div class="kpi-icon green">✅</div>
-            <div class="kpi-info">
-              <strong>${completedTasks} / ${totalTasks}</strong>
-              <span>Concluídas (${progressPercent}%)</span>
-            </div>
-          </div>
-          <div class="tasks-kpi-card ${waitingApprovalTasks > 0 ? 'highlight-purple' : ''}">
-            <div class="kpi-icon purple">👀</div>
-            <div class="kpi-info">
-              <strong>${waitingApprovalTasks}</strong>
-              <span>Aguardando visto</span>
-            </div>
-          </div>
-          <div class="tasks-kpi-card ${maintenanceTasks > 0 ? 'highlight-red' : ''}">
-            <div class="kpi-icon red">🛠️</div>
-            <div class="kpi-info">
-              <strong>${maintenanceTasks}</strong>
-              <span>Chamados em aberto</span>
-            </div>
-          </div>
+        <div class="tasks-top-actions">
+          <button class="btn btn-primary" id="openNewTaskBtn">
+            + Nova Tarefa
+          </button>
+          <button class="btn btn-secondary" id="openRoutineBtn" title="Disparar rotinas automáticas de abertura ou fechamento">
+            ⚡ Rotina do Turno
+          </button>
+          <button class="btn btn-secondary ${maintenanceTasks > 0 ? 'is-alert-btn' : ''}" id="openMaintenanceBtn">
+            🛠️ Reparos ${maintenanceTasks > 0 ? `<span class="badge-count-red">${maintenanceTasks}</span>` : ''}
+          </button>
         </div>
-      </section>
+      </header>
 
-      <!-- Barra de Ferramentas / Filtros de Setor -->
+      <!-- Barra de Filtros de Setor e Visualização -->
       <div class="tasks-filter-bar">
-        <div class="tasks-filter-left">
-          ${state.stores.length > 1 ? `
-            <select class="tasks-compact-select" id="tasksStoreSelect">
-              ${state.stores.map(s => {
-                const id = String(s.LojaID || s.lojaId || '');
-                const name = s.NomeLoja || s.Nome || id;
-                return `<option value="${esc(id)}" ${id === state.selectedStore ? 'selected' : ''}>${esc(name)}</option>`;
-              }).join('')}
-            </select>
-          ` : `
-            <span class="tasks-store-badge">📍 ${esc(storeName)}</span>
-          `}
-
-          <input type="date" class="tasks-compact-date" id="tasksDateInput" value="${esc(state.selectedDate)}">
-
-          <!-- Abas de Setor -->
-          <div class="tasks-sector-tabs">
-            ${SECTOR_GROUPS.map(grp => `
-              <button class="tasks-sector-tab ${state.selectedSector === grp.id ? 'active' : ''}" data-sector-filter="${grp.id}">
-                ${grp.label}
-              </button>
-            `).join('')}
-          </div>
+        <div class="tasks-sector-tabs">
+          ${SECTOR_GROUPS.map(grp => `
+            <button class="tasks-sector-tab ${state.selectedSector === grp.id ? 'active' : ''}" data-sector-filter="${grp.id}">
+              ${grp.label}
+            </button>
+          `).join('')}
         </div>
 
         <div class="tasks-filter-right">
@@ -389,10 +371,10 @@ function renderCard(task) {
 
           <div class="trello-subtasks">
             ${checklist.map(item => `
-              <label class="trello-subtask-item">
-                <input type="checkbox" ${item.concluido ? 'checked' : ''} data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
-                <span class="${item.concluido ? 'is-done' : ''}">${esc(item.texto)}</span>
-              </label>
+              <div class="trello-subtask-item">
+                <input type="checkbox" id="chk_${esc(task.TarefaID)}_${esc(item.id)}" class="trello-chk" ${item.concluido ? 'checked' : ''} data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
+                <label for="chk_${esc(task.TarefaID)}_${esc(item.id)}" class="trello-chk-label ${item.concluido ? 'is-done' : ''}">${esc(item.texto)}</label>
+              </div>
             `).join('')}
           </div>
         </div>
@@ -468,10 +450,10 @@ function renderOperationList(tasks) {
                   ${checklist.length > 0 ? `
                     <div class="op-checklist-list">
                       ${checklist.map(item => `
-                        <label class="op-check-row">
-                          <input type="checkbox" ${item.concluido ? 'checked' : ''} data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(t.TarefaID)}">
-                          <span class="${item.concluido ? 'is-done' : ''}">${esc(item.texto)}</span>
-                        </label>
+                        <div class="op-check-row">
+                          <input type="checkbox" id="op_chk_${esc(t.TarefaID)}_${esc(item.id)}" class="trello-chk" ${item.concluido ? 'checked' : ''} data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(t.TarefaID)}">
+                          <label for="op_chk_${esc(t.TarefaID)}_${esc(item.id)}" class="trello-chk-label ${item.concluido ? 'is-done' : ''}">${esc(item.texto)}</label>
+                        </div>
                       `).join('')}
                     </div>
                   ` : `
