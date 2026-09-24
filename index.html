@@ -10167,6 +10167,62 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   border-radius: 6px;
 }
 
+.tasks-store-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tasks-context-sep {
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.tasks-date-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.tasks-hub-progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.tasks-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tasks-progress-pct {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.tasks-progress-bar-global {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.tasks-progress-fill-global {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tasks-progress-fill-global.done {
+  background: #10b981;
+}
+
 .tasks-hub-title {
   font-size: 19px;
   font-weight: 800;
@@ -11048,19 +11104,29 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 .daily-item-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: #f8fafc;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  width: 100%;
+  text-align: left;
+  box-sizing: border-box;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .daily-item-row:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
   border-color: #cbd5e1;
+}
+
+.daily-item-row:active {
+  transform: scale(0.99);
+  background: #f1f5f9;
 }
 
 .daily-item-row.is-done {
@@ -11068,28 +11134,53 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   border-color: #bbf7d0;
 }
 
-.daily-chk {
-  width: 18px !important;
-  min-width: 18px !important;
-  max-width: 18px !important;
-  height: 18px !important;
-  accent-color: #10b981 !important;
-  cursor: pointer;
-  margin: 0 !important;
+.daily-chk-box {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  color: transparent;
   flex-shrink: 0;
 }
 
+.daily-chk-box svg {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  transition: stroke-dashoffset 0.2s ease 0.05s;
+}
+
+.daily-item-row.is-done .daily-chk-box,
+.daily-chk-box.checked {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.daily-item-row.is-done .daily-chk-box svg,
+.daily-chk-box.checked svg {
+  stroke-dashoffset: 0;
+}
+
 .daily-item-label {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
-  color: #1e293b;
-  line-height: 1.35;
-  cursor: pointer;
+  color: #0f172a;
+  line-height: 1.4;
   flex: 1;
+  transition: color 0.15s ease;
 }
 
 .daily-item-row.is-done .daily-item-label {
   text-decoration: line-through;
+  text-decoration-color: #94a3b8;
   color: #94a3b8;
 }
 
@@ -11104,6 +11195,31 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   font-size: 12px;
   color: #64748b;
   flex-wrap: wrap;
+}
+
+.daily-footer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.daily-visto-badge {
+  font-size: 11px;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.daily-need-visto {
+  font-size: 11px;
+  color: #854d0e;
+  background: #fef9c3;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
 }
 
 .daily-footer-actions {
@@ -11562,21 +11678,22 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   }
 
   .daily-item-row {
-    min-height: 48px;
-    padding: 10px 12px;
-    border-radius: 8px;
+    min-height: 52px;
+    padding: 12px 14px;
+    border-radius: 10px;
     gap: 12px;
     box-sizing: border-box;
   }
 
-  .daily-chk {
-    width: 20px !important;
-    min-width: 20px !important;
-    height: 20px !important;
+  .daily-chk-box {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
   }
 
   .daily-item-label {
-    font-size: 13.5px !important;
+    font-size: 14px !important;
     line-height: 1.4 !important;
   }
 
@@ -17444,10 +17561,12 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
     else if (view === "timeclock") loadTimeClock();
     else if (view === "hour-balances") loadAdminHourBalances_();
     else if (view === "tasks") {
+      window.__GESTAO_USER__ = state.user;
+      window.__GESTAO_IS_MANAGER__ = isManager();
       if (typeof window.initTasksModule === "function") {
-        window.initTasksModule({ user: state.user, stores: state.stores, employees: state.employees });
+        window.initTasksModule({ user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() });
       }
-      window.dispatchEvent(new CustomEvent("gestao-tasks-open"));
+      window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
     }
     else if (
       [

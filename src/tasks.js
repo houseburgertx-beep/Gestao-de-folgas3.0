@@ -27,8 +27,6 @@ const SECTOR_GROUPS = [
   { id: 'abertura', label: 'Abertura' },
   { id: 'fechamento', label: 'Fechamento' },
   { id: 'cozinha', label: 'Cozinha' },
-  { id: 'chapa', label: 'Chapa' },
-  { id: 'salao', label: 'Salão' },
   { id: 'manutencao', label: 'Reparos' },
 ];
 
@@ -44,11 +42,11 @@ function getApi() {
 }
 
 function isUserAdminOrManager() {
-  const profile = state.user || window.state?.user || window.__GESTAO_FIREBASE__?.runtime?.getProfile?.();
+  if (typeof state.isManager === 'boolean' && state.user) return state.isManager;
+  if (typeof window.__GESTAO_IS_MANAGER__ === 'boolean') return window.__GESTAO_IS_MANAGER__;
+  const profile = state.user || window.__GESTAO_USER__ || window.__GESTAO_FIREBASE__?.runtime?.profile;
   if (!profile) return false;
   const p = String(profile.Perfil || profile.perfil || profile.Cargo || profile.cargo || profile.profile || '').toLowerCase();
-  const perms = Array.isArray(window.state?.permissions) ? window.state.permissions : [];
-  if (perms.includes('*')) return true;
   return p.includes('admin') || p.includes('gerente') || p.includes('respons');
 }
 
@@ -60,6 +58,61 @@ function openDialog(id) {
 function closeDialog(id) {
   const d = document.getElementById(id);
   if (d?.open) d.close();
+}
+
+function updateCardProgressDom(taskId) {
+  const card = $(`[data-task-id="${taskId}"]`);
+  if (!card) return;
+  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
+  if (!task) return;
+
+  const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
+  const chTotal = checklist.length;
+  const chDone = checklist.filter(c => c.concluido).length;
+  const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : (task.Coluna === 'concluido' ? 100 : 0);
+  const isAllDone = (chTotal > 0 && chDone === chTotal) || (chTotal === 0 && task.Coluna === 'concluido');
+
+  card.classList.toggle('all-complete', isAllDone);
+
+  const numEl = card.querySelector('.daily-step-num');
+  if (numEl) numEl.classList.toggle('done', isAllDone);
+
+  const pill = card.querySelector('.daily-progress-pill');
+  if (pill) {
+    pill.classList.toggle('done', isAllDone);
+    pill.textContent = chTotal > 0 ? `${chDone}/${chTotal}` : (isAllDone ? 'Concluído' : 'Pendente');
+  }
+
+  const bar = card.querySelector('.daily-progress-bar');
+  if (bar) {
+    bar.classList.toggle('done', isAllDone);
+    bar.style.width = `${chPercent}%`;
+  }
+
+  const markBtn = card.querySelector('[data-mark-section-all]');
+  if (markBtn) {
+    markBtn.dataset.action = isAllDone ? 'uncheck' : 'check';
+    markBtn.textContent = isAllDone ? 'Desmarcar todos' : 'Concluir todos da etapa';
+  }
+}
+
+function updateGlobalStatsDom() {
+  const allDayTasks = state.tasks;
+  const totalTasks = allDayTasks.length;
+  const completedTasks = allDayTasks.filter(t => t.Coluna === 'concluido').length;
+  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const txt = $('.tasks-progress-text');
+  if (txt) txt.innerHTML = `<strong>${completedTasks}/${totalTasks}</strong> rotinas concluídas`;
+
+  const pct = $('.tasks-progress-pct');
+  if (pct) pct.textContent = `${progressPercent}%`;
+
+  const fill = $('.tasks-progress-fill-global');
+  if (fill) {
+    fill.style.width = `${progressPercent}%`;
+    fill.classList.toggle('done', progressPercent === 100);
+  }
 }
 
 async function loadTasks() {
@@ -106,15 +159,38 @@ async function toggleChecklistItem(taskId, itemId, checked) {
   if (task && Array.isArray(task.Checklist)) {
     const item = task.Checklist.find(i => String(i.id) === String(itemId));
     if (item) item.concluido = checked;
+
+    const allDone = task.Checklist.length > 0 && task.Checklist.every(i => i.concluido);
+    if (allDone && task.Coluna === 'pendente') {
+      task.Coluna = task.ExigeVistoGerente ? 'visto' : 'concluido';
+    } else if (!allDone && task.Coluna === 'concluido') {
+      task.Coluna = 'andamento';
+    }
   }
-  renderTasksApp();
+
+  // Feedback instantâneo direto no elemento clicado
+  const row = document.querySelector(`[data-toggle-subtask="${itemId}"][data-task-id="${taskId}"]`);
+  if (row) {
+    row.classList.toggle('is-done', checked);
+    row.setAttribute('aria-checked', checked ? 'true' : 'false');
+    const box = row.querySelector('.daily-chk-box');
+    if (box) box.classList.toggle('checked', checked);
+  }
+
+  updateCardProgressDom(taskId);
+  updateGlobalStatsDom();
 
   try {
-    await api.invoke('tasksToggleChecklistItem', [taskId, itemId, checked]);
-    await loadTasks();
+    const res = await api.invoke('tasksToggleChecklistItem', [taskId, itemId, checked]);
+    if (!res?.success) throw new Error(res?.message || 'Falha ao atualizar');
   } catch (err) {
-    console.error('Falha ao atualizar checklist:', err);
-    await loadTasks();
+    console.error('Falha ao atualizar checklist no servidor:', err);
+    // Reverte optimistic update em caso de erro
+    if (task && Array.isArray(task.Checklist)) {
+      const item = task.Checklist.find(i => String(i.id) === String(itemId));
+      if (item) item.concluido = !checked;
+    }
+    renderTasksApp();
   }
 }
 
@@ -272,9 +348,24 @@ function renderTasksApp() {
 
   const filtered = getFilteredTasks();
 
+  const relevantSectors = SECTOR_GROUPS.filter(grp => {
+    if (grp.id === 'todos') return true;
+    const count = allDayTasks.filter(t => {
+      if (grp.id === 'caixa') return t.Setor === 'Caixa' || t.Tipo === 'rotina_caixa';
+      if (grp.id === 'abertura') return t.Tipo === 'rotina_abertura';
+      if (grp.id === 'fechamento') return t.Tipo === 'rotina_fechamento';
+      if (grp.id === 'manutencao') return t.Tipo === 'manutencao';
+      if (grp.id === 'cozinha') return t.Setor === 'Cozinha';
+      return false;
+    }).length;
+    return count > 0 || ['caixa', 'abertura', 'fechamento'].includes(grp.id);
+  });
+
+  const todayLabel = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Bahia', day: '2-digit', month: 'short' });
+
   container.innerHTML = `
     <div class="tasks-page">
-      <!-- Hub Operacional Unificado -->
+      <!-- Hub Operacional Moderno -->
       <header class="tasks-hub">
         <div class="tasks-hub-top">
           <div class="tasks-hub-identity">
@@ -291,49 +382,63 @@ function renderTasksApp() {
                   </select>
                 </div>
               ` : `
-                <div class="tasks-select-box static">
-                  <strong>${esc(storeName)}</strong>
-                </div>
+                <span class="tasks-store-label">${esc(storeName)}</span>
               `}
-
+              <span class="tasks-context-sep">·</span>
               ${isManager ? `
                 <div class="tasks-select-box date-box">
                   <input type="date" id="tasksDateInput" value="${esc(state.selectedDate)}">
                 </div>
               ` : `
-                <div class="tasks-select-box static date-box">
-                  <span>${esc(new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Bahia', day: '2-digit', month: '2-digit', year: 'numeric' }))}</span>
-                </div>
+                <span class="tasks-date-label">${esc(todayLabel)}</span>
               `}
             </div>
 
-            <h2 class="tasks-hub-title">Rotinas &amp; Checklists</h2>
+            <h2 class="tasks-hub-title">${isManager ? 'Gestão do Turno' : 'Rotinas do Turno'}</h2>
           </div>
 
           <div class="tasks-hub-actions">
             ${isManager ? `
-              <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas operacionais padrão (Caixa, Abertura ou Fechamento)">
-                Rotinas do Turno
+              <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas padrão (Caixa, Abertura ou Fechamento)">
+                Rotinas ⚡
               </button>
               <button class="btn btn-new-task" id="openNewTaskBtn">
-                + Nova Tarefa
+                + Nova
               </button>
-            ` : ''}
-            <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn" title="Relatar defeito em equipamento">
-              ${isManager ? 'Reparos' : 'Relatar Reparo'} ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
-            </button>
-            ${isManager && totalTasks > 0 ? `
-              <button class="btn btn-icon-tool" id="tasksDeduplicateBtn" title="Remover tarefas duplicadas">
+              <button class="btn btn-icon-tool" id="tasksDeduplicateBtn" title="Limpar tarefas duplicadas ou de teste">
                 Organizar
               </button>
             ` : ''}
+            <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn" title="Relatar defeito em equipamento">
+              Relatar Reparo ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
+            </button>
           </div>
         </div>
 
-        <!-- Linha Inferior do Hub: Filtros de Setor + Métricas + Modo -->
+        <!-- Barra de Progresso Global Integrada -->
+        <div class="tasks-hub-progress-section">
+          <div class="tasks-progress-info">
+            <span class="tasks-progress-text"><strong>${completedTasks}/${totalTasks}</strong> rotinas concluídas</span>
+            <span class="tasks-progress-pct">${progressPercent}%</span>
+          </div>
+          <div class="tasks-progress-bar-global">
+            <div class="tasks-progress-fill-global ${progressPercent === 100 ? 'done' : ''}" style="width: ${progressPercent}%;"></div>
+          </div>
+        </div>
+
+        <!-- Linha Inferior do Hub: Segmented View + Filtros de Setor -->
         <div class="tasks-hub-bottom">
+          <div class="segmented-deck" aria-label="Visualização">
+            <button class="seg-btn ${state.viewMode === 'checklist' ? 'active' : ''}" data-view-mode="checklist">
+              Checklists Diários
+            </button>
+            <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
+              Quadro Kanban
+            </button>
+          </div>
+
           <div class="tasks-sectors-track">
-            ${SECTOR_GROUPS.map(grp => {
+            ${relevantSectors.map(grp => {
               const count = allDayTasks.filter(t => {
                 if (grp.id === 'todos') return true;
                 if (grp.id === 'caixa') return t.Setor === 'Caixa' || t.Tipo === 'rotina_caixa';
@@ -341,8 +446,6 @@ function renderTasksApp() {
                 if (grp.id === 'fechamento') return t.Tipo === 'rotina_fechamento';
                 if (grp.id === 'manutencao') return t.Tipo === 'manutencao';
                 if (grp.id === 'cozinha') return t.Setor === 'Cozinha';
-                if (grp.id === 'chapa') return t.Setor === 'Chapa';
-                if (grp.id === 'salao') return t.Setor === 'Salão';
                 return true;
               }).length;
 
@@ -354,22 +457,6 @@ function renderTasksApp() {
               `;
             }).join('')}
           </div>
-
-          <div class="tasks-hub-status-wrap">
-            <div class="tasks-stats-chip">
-              <span class="stats-dot ${progressPercent === 100 ? 'done' : ''}"></span>
-              <span><strong>${completedTasks}/${totalTasks}</strong> concluídas (${progressPercent}%)</span>
-            </div>
-
-            <div class="segmented-deck" aria-label="Visualização">
-              <button class="seg-btn ${state.viewMode === 'checklist' ? 'active' : ''}" data-view-mode="checklist">
-                Checklist do Turno
-              </button>
-              <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
-                Quadro Kanban
-              </button>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -380,7 +467,6 @@ function renderTasksApp() {
           <p>Sincronizando tarefas da loja...</p>
         </div>
       ` : totalTasks === 0 ? `
-        <!-- Empty State Inicial -->
         ${isManager ? `
           <div class="tasks-empty-starter">
             <h3>Nenhuma rotina gerada para hoje ainda.</h3>
@@ -415,9 +501,9 @@ function renderTasksApp() {
         ` : `
           <div class="tasks-empty-starter employee-empty">
             <span class="starter-tag" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;">TURNO DE HOJE</span>
-            <h3 style="margin-top:14px;font-size:17px;font-weight:700;color:#0f172a;">Nenhum checklist disponível no momento</h3>
+            <h3 style="margin-top:14px;font-size:17px;font-weight:700;color:#0f172a;">Tudo em ordem por aqui!</h3>
             <p style="max-width:440px;margin:8px auto 18px;color:#64748b;font-size:13.5px;line-height:1.45;">
-              As rotinas e checklists deste turno serão liberados pela gerência da loja. Assim que publicados, aparecerão aqui automaticamente para conferência.
+              Nenhum checklist pendente para o seu turno neste momento. As rotinas operacionais serão liberadas pela gerência.
             </p>
             <button type="button" class="btn btn-secondary" id="tasksEmployeeRefreshBtn" style="font-size:13px;font-weight:600;padding:8px 20px;">
               Atualizar agora
@@ -461,9 +547,9 @@ function renderDailyChecklist(tasks) {
           <article class="daily-section-card ${isAllDone ? 'all-complete' : ''}" data-task-id="${esc(task.TarefaID)}">
             <header class="daily-section-header">
               <div class="daily-section-title-wrap">
-                <span class="daily-step-num">${esc(stepNum)}</span>
-                <div style="min-width: 0;">
-                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px;">
+                <span class="daily-step-num ${isAllDone ? 'done' : ''}">${esc(stepNum)}</span>
+                <div class="daily-title-meta">
+                  <div class="daily-tags-row">
                     <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
                       ${esc(task.Setor || 'Geral')}
                     </span>
@@ -477,7 +563,7 @@ function renderDailyChecklist(tasks) {
 
               <div class="daily-section-meta-right">
                 <span class="daily-progress-pill ${isAllDone ? 'done' : ''}">
-                  ${chTotal > 0 ? `${chDone}/${chTotal} concluídos · ${chPercent}%` : (isAllDone ? 'Concluído' : 'Pendente')}
+                  ${chTotal > 0 ? `${chDone}/${chTotal}` : (isAllDone ? 'Concluído' : 'Pendente')}
                 </span>
                 ${isManager ? `
                   <button type="button" class="btn-ghost-sm" data-edit-task="${esc(task.TarefaID)}" title="Editar checklist">
@@ -494,10 +580,14 @@ function renderDailyChecklist(tasks) {
             ${chTotal > 0 ? `
               <div class="daily-checklist-items">
                 ${checklist.map(item => `
-                  <div class="daily-item-row ${item.concluido ? 'is-done' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
-                    <input type="checkbox" class="daily-chk" ${item.concluido ? 'checked' : ''} tabindex="-1">
+                  <button type="button" class="daily-item-row ${item.concluido ? 'is-done' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}" role="checkbox" aria-checked="${item.concluido ? 'true' : 'false'}">
+                    <span class="daily-chk-box ${item.concluido ? 'checked' : ''}">
+                      <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
                     <span class="daily-item-label">${esc(item.texto)}</span>
-                  </div>
+                  </button>
                 `).join('')}
               </div>
             ` : `
@@ -509,8 +599,8 @@ function renderDailyChecklist(tasks) {
             `}
 
             <footer class="daily-section-footer">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span>Responsável: <strong>${esc(task.NomeFuncionario || 'Equipe da Praça')}</strong></span>
+              <div class="daily-footer-info">
+                <span>Resp: <strong>${esc(task.NomeFuncionario || 'Equipe da Praça')}</strong></span>
                 ${task.VistoPor ? `
                   <span class="trello-visto-approved" style="margin-top:0;">Visto: ${esc(task.VistoPor)}</span>
                 ` : task.ExigeVistoGerente ? `
@@ -664,17 +754,9 @@ async function markAllSectionItems(taskId, markDone) {
   renderTasksApp();
 
   try {
-    await api.invoke('tasksSave', [{
-      TarefaID: task.TarefaID,
-      LojaID: task.LojaID || state.selectedStore,
-      DataTurno: task.DataTurno || state.selectedDate,
-      Titulo: task.Titulo,
-      Coluna: task.Coluna,
-      Checklist: task.Checklist,
-    }]);
-    await loadTasks();
+    await api.invoke('tasksBulkToggleChecklist', [taskId, markDone]);
   } catch (err) {
-    console.error('Falha ao atualizar itens da seção:', err);
+    console.error('Falha ao atualizar itens em lote:', err);
     await loadTasks();
   }
 }
@@ -742,10 +824,14 @@ function openTaskDetailDialog(taskId) {
       container.innerHTML = '<div style="font-size:12.5px;color:#94a3b8;font-style:italic;padding:8px 0;">Nenhum subitem de checklist cadastrado.</div>';
     } else {
       container.innerHTML = chList.map(item => `
-        <div class="task-detail-item ${item.concluido ? 'done' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
-          <input type="checkbox" class="daily-chk" ${item.concluido ? 'checked' : ''} tabindex="-1">
-          <span>${esc(item.texto)}</span>
-        </div>
+        <button type="button" class="daily-item-row ${item.concluido ? 'is-done' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}" role="checkbox" aria-checked="${item.concluido ? 'true' : 'false'}" style="margin-bottom:6px;">
+          <span class="daily-chk-box ${item.concluido ? 'checked' : ''}">
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+          <span class="daily-item-label">${esc(item.texto)}</span>
+        </button>
       `).join('');
     }
   }
@@ -1004,7 +1090,7 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  // Toggle de item do checklist (clique na linha inteira ou no texto)
+  // Toggle de item do checklist
   const subtaskRow = e.target.closest('[data-toggle-subtask]');
   if (subtaskRow) {
     const itemId = subtaskRow.dataset.toggleSubtask;
@@ -1013,9 +1099,7 @@ document.addEventListener('click', (e) => {
     if (task && Array.isArray(task.Checklist)) {
       const item = task.Checklist.find(i => String(i.id) === String(itemId));
       if (item) {
-        const isInput = e.target.tagName === 'INPUT';
-        const newChecked = isInput ? e.target.checked : !item.concluido;
-        toggleChecklistItem(taskId, itemId, newChecked);
+        toggleChecklistItem(taskId, itemId, !item.concluido);
       }
     }
     return;
@@ -1167,10 +1251,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Auto-sincronização com o estado global da aplicação
 function ensureTasksInitialized(customCtx = {}) {
   const runtime = window.__GESTAO_FIREBASE__?.runtime;
-  const currentProfile = runtime?.getProfile?.() || customCtx.user || state.user || window.state?.user;
+  const currentProfile = customCtx.user || window.__GESTAO_USER__ || runtime?.profile || state.user;
   const stores = (customCtx.stores && customCtx.stores.length > 0) ? customCtx.stores : (window.state?.stores || state.stores);
   const employees = (customCtx.employees && customCtx.employees.length > 0) ? customCtx.employees : (window.state?.employees || state.employees);
 
+  if (typeof customCtx.isManager === 'boolean') {
+    state.isManager = customCtx.isManager;
+  }
   state.user = currentProfile || null;
   state.isManager = isUserAdminOrManager();
   state.stores = Array.isArray(stores) ? stores : [];

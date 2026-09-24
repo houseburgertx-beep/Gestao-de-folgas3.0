@@ -249,6 +249,7 @@ export class FirebaseRuntime {
         );
         const employee = snapshotList(employeeSnapshot)[0];
         if (employee) {
+          const syncLoja = !snapshot.val()?.LojaID && employee.LojaID;
           profile = {
             ...profile,
             Nome: profile.Nome || employee.Nome || "",
@@ -259,6 +260,12 @@ export class FirebaseRuntime {
             Ativo:
               asBoolean(profile.Ativo) && employee.Ativo !== false,
           };
+          if (syncLoja) {
+            update(this.appRef(`access/${pathKey(user.uid)}`), {
+              LojaID: profile.LojaID,
+              NomeLoja: profile.NomeLoja,
+            }).catch(() => {});
+          }
         }
       } catch (error) {
         if (!isPermissionDenied(error)) throw error;
@@ -591,6 +598,21 @@ export class FirebaseRuntime {
         table,
         await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
       );
+    }
+
+    if (table === "Tarefas" || table === "TarefasTemplates") {
+      if (storeId) {
+        try {
+          return this.recordsFromSnapshot(
+            table,
+            await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
+          );
+        } catch (error) {
+          if (isPermissionDenied(error)) return [];
+          throw error;
+        }
+      }
+      return this.recordsFromSnapshot(table, await get(tableRef));
     }
 
     const storeField = STORE_SCOPED_FIELDS[table];

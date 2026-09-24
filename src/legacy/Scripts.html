@@ -2765,10 +2765,12 @@
     else if (view === "timeclock") loadTimeClock();
     else if (view === "hour-balances") loadAdminHourBalances_();
     else if (view === "tasks") {
+      window.__GESTAO_USER__ = state.user;
+      window.__GESTAO_IS_MANAGER__ = isManager();
       if (typeof window.initTasksModule === "function") {
-        window.initTasksModule({ user: state.user, stores: state.stores, employees: state.employees });
+        window.initTasksModule({ user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() });
       }
-      window.dispatchEvent(new CustomEvent("gestao-tasks-open"));
+      window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
     }
     else if (
       [

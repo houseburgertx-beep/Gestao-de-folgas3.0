@@ -16,6 +16,9 @@ export function createTasksHandlers() {
         if (dataTurno && task.DataTurno && task.DataTurno !== dataTurno) {
           return false;
         }
+        if (!isAdmin(profile) && /\b(teste|test|dummy)\b/i.test(task.Titulo || '')) {
+          return false;
+        }
         return true;
       });
 
@@ -72,11 +75,16 @@ export function createTasksHandlers() {
       assert(taskId, "Identificador da tarefa é obrigatório.");
       assert(newColumn, "Nova coluna é obrigatória.");
 
-      const task = await runtime.getById("Tarefas", taskId);
+      const profile = await runtime.requireProfile();
+      let task = await runtime.getById("Tarefas", taskId);
+      if (!task) {
+        const rows = await runtime.list("Tarefas", { profile });
+        task = rows.find((t) => String(t.TarefaID) === String(taskId));
+      }
       assert(task, "Tarefa não encontrada.");
 
-      const profile = await runtime.requireProfile();
       const changes = {
+        LojaID: task.LojaID || profile.LojaID || "",
         Coluna: newColumn,
         AtualizadoEm: nowIso(),
       };
@@ -96,10 +104,14 @@ export function createTasksHandlers() {
       const [taskId, itemId, checked] = args || [];
       assert(taskId, "Identificador da tarefa é obrigatório.");
 
-      const task = await runtime.getById("Tarefas", taskId);
+      const profile = await runtime.requireProfile();
+      let task = await runtime.getById("Tarefas", taskId);
+      if (!task) {
+        const rows = await runtime.list("Tarefas", { profile });
+        task = rows.find((t) => String(t.TarefaID) === String(taskId));
+      }
       assert(task, "Tarefa não encontrada.");
 
-      const profile = await runtime.requireProfile();
       const checklist = Array.isArray(task.Checklist) ? [...task.Checklist] : [];
       const item = checklist.find((it) => String(it.id) === String(itemId));
       if (item) {
@@ -110,6 +122,7 @@ export function createTasksHandlers() {
 
       const allDone = checklist.length > 0 && checklist.every((it) => it.concluido);
       const changes = {
+        LojaID: task.LojaID || profile.LojaID || "",
         Checklist: checklist,
         AtualizadoEm: nowIso(),
       };
@@ -123,6 +136,45 @@ export function createTasksHandlers() {
 
       const updated = await runtime.patch("Tarefas", taskId, changes);
       return success(updated, "Item atualizado.");
+    },
+
+    async tasksBulkToggleChecklist(args) {
+      const [taskId, markDone] = args || [];
+      assert(taskId, "Identificador da tarefa é obrigatório.");
+
+      const profile = await runtime.requireProfile();
+      let task = await runtime.getById("Tarefas", taskId);
+      if (!task) {
+        const rows = await runtime.list("Tarefas", { profile });
+        task = rows.find((t) => String(t.TarefaID) === String(taskId));
+      }
+      assert(task, "Tarefa não encontrada.");
+
+      const done = Boolean(markDone);
+      const checklist = Array.isArray(task.Checklist)
+        ? task.Checklist.map((it) => ({
+            ...it,
+            concluido: done,
+            concluidoPor: done ? (profile.Nome || profile.UsuarioID) : null,
+            dataConclusao: done ? nowIso() : null,
+          }))
+        : [];
+
+      const changes = {
+        LojaID: task.LojaID || profile.LojaID || "",
+        Checklist: checklist,
+        AtualizadoEm: nowIso(),
+      };
+      if (done) {
+        changes.Coluna = task.ExigeVistoGerente ? "visto" : "concluido";
+        if (changes.Coluna === "concluido") changes.DataConclusao = nowIso();
+      } else {
+        changes.Coluna = "pendente";
+        changes.DataConclusao = null;
+      }
+
+      const updated = await runtime.patch("Tarefas", taskId, changes);
+      return success(updated, done ? "Todos os itens marcados." : "Itens desmarcados.");
     },
 
     async tasksApprove(args) {
@@ -516,6 +568,12 @@ export function createTasksHandlers() {
       for (const t of rows) {
         if (targetStore && String(t.LojaID || "") !== targetStore) continue;
         if (turnoDate && t.DataTurno && t.DataTurno !== turnoDate) continue;
+        const isTestTask = /\b(teste|test|mock|dummy)\b/i.test(t.Titulo || '') || /\b(teste|test)\b/i.test(t.Descricao || '');
+        if (isTestTask) {
+          await runtime.remove("Tarefas", t.TarefaID);
+          removed++;
+          continue;
+        }
         const normTitle = (t.Titulo || '').replace(/^(\d+\.\s*)?(Abertura|Fechamento|Caixa)\s*(Turno|Rotina)?:\s*/i, '').trim().toLowerCase();
         const key = `${normTitle}|${t.Setor}|${t.Coluna}`;
         if (seen.has(key)) {
@@ -525,7 +583,21 @@ export function createTasksHandlers() {
           seen.add(key);
         }
       }
-      return success({ removed }, removed > 0 ? `${removed} tarefas duplicadas foram removidas.` : "Nenhuma tarefa duplicada encontrada.");
+      return success({ removed }, removed > 0 ? `${removed} tarefas duplicadas ou de teste foram removidas.` : "Nenhuma tarefa duplicada encontrada.");
+    },
+
+    async tasksCleanupTest(args) {
+      const profile = await runtime.requireProfile();
+      assert(isManager(profile), "Apenas gestores podem limpar tarefas de teste.");
+      const rows = await runtime.list("Tarefas", { profile });
+      let removed = 0;
+      for (const t of rows) {
+        if (/\b(teste|test|mock|dummy)\b/i.test(t.Titulo || '') || /\b(teste|test)\b/i.test(t.Descricao || '')) {
+          await runtime.remove("Tarefas", t.TarefaID);
+          removed++;
+        }
+      }
+      return success({ removed }, removed > 0 ? `${removed} tarefas de teste removidas com sucesso.` : "Nenhuma tarefa de teste encontrada.");
     },
   };
 }
