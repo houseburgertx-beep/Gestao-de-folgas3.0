@@ -1324,3 +1324,65 @@
   </form>
 </dialog>
 
+<!-- DIALOG: Detalhes da Tarefa e Checklist Completo -->
+<dialog id="taskDetailDialog" class="task-detail-dialog">
+  <div class="dialog-head">
+    <div>
+      <span class="eyebrow" id="taskDetailEyebrow">DETALHES DA TAREFA</span>
+      <h3 id="taskDetailTitle">Título da Tarefa</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="taskDetailDialog">✕</button>
+  </div>
+  <div class="dialog-body">
+    <div class="task-detail-meta-row">
+      <span class="badge" id="taskDetailSectorBadge">Caixa</span>
+      <span class="badge" id="taskDetailPriorityBadge">Média</span>
+      <span class="badge" id="taskDetailColumnBadge">Pendente</span>
+      <span id="taskDetailDeadlineBadge" class="task-detail-time"></span>
+    </div>
+
+    <div id="taskDetailDescWrap" class="task-detail-section" style="margin-top: 12px;">
+      <p id="taskDetailDesc" class="task-detail-desc"></p>
+    </div>
+
+    <div class="task-detail-section" style="margin-top: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <strong style="font-size: 13px; color: var(--text, #0f172a);">Checklist Operacional</strong>
+        <span id="taskDetailChecklistProgress" style="font-size: 12px; font-weight: 700; color: var(--muted, #64748b);">0/0 (0%)</span>
+      </div>
+      <div class="task-detail-progress-track">
+        <div id="taskDetailProgressBar" class="task-detail-progress-bar" style="width: 0%;"></div>
+      </div>
+      <div id="taskDetailChecklistContainer" class="task-detail-checklist-list"></div>
+    </div>
+
+    <div id="taskDetailVistoSection" class="task-detail-visto-box" style="display: none; margin-top: 14px;">
+      <div style="font-size: 12px; color: #047857; font-weight: 600;">Visto do Gerente concedido</div>
+      <div id="taskDetailVistoInfo" style="font-size: 11.5px; color: #065f46; margin-top: 2px;"></div>
+    </div>
+
+    <div class="task-detail-info-grid" style="margin-top: 16px;">
+      <div>
+        <small style="color: var(--muted, #64748b); display: block;">Responsável</small>
+        <strong id="taskDetailAssignee" style="font-size: 13px; color: var(--text, #1e293b);">Equipe da Praça</strong>
+      </div>
+      <div>
+        <small style="color: var(--muted, #64748b); display: block;">Loja &amp; Data</small>
+        <strong id="taskDetailStoreDate" style="font-size: 13px; color: var(--text, #1e293b);">—</strong>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-actions task-detail-actions">
+    <div style="display: flex; gap: 8px; flex: 1;">
+      <button type="button" class="btn btn-secondary" id="taskDetailEditBtn">Editar</button>
+      <button type="button" class="btn btn-danger-ghost" id="taskDetailDeleteBtn">Excluir</button>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button type="button" class="btn btn-secondary" id="taskDetailMoveBtn">Mover Etapa</button>
+      <button type="button" class="btn btn-primary" id="taskDetailApproveBtn" style="display: none;">Conceder Visto</button>
+      <button type="button" class="btn btn-secondary" data-close="taskDetailDialog">Fechar</button>
+    </div>
+  </div>
+</dialog>
+
+

@@ -8,7 +8,7 @@ const dateKey = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone:
 
 let state = {
   tasks: [],
-  viewMode: 'kanban', // 'kanban' | 'operacao'
+  viewMode: 'checklist', // 'checklist' | 'kanban'
   selectedStore: '',
   selectedDate: dateKey(),
   selectedSector: 'todos',
@@ -356,11 +356,11 @@ function renderTasksApp() {
             </div>
 
             <div class="segmented-deck" aria-label="Visualização">
-              <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
-                Kanban
+              <button class="seg-btn ${state.viewMode === 'checklist' ? 'active' : ''}" data-view-mode="checklist">
+                Checklist do Turno
               </button>
-              <button class="seg-btn ${state.viewMode === 'operacao' ? 'active' : ''}" data-view-mode="operacao">
-                Lista
+              <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
+                Quadro Kanban
               </button>
             </div>
           </div>
@@ -374,7 +374,7 @@ function renderTasksApp() {
           <p>Sincronizando tarefas da loja...</p>
         </div>
       ` : totalTasks === 0 ? `
-        <!-- Empty State Inteligente e Útil -->
+        <!-- Empty State Inicial -->
         <div class="tasks-empty-starter">
           <h3>Nenhuma rotina gerada para hoje ainda.</h3>
           <p>Carregue os checklists padrão do turno em um clique ou adicione uma tarefa manual:</p>
@@ -405,11 +405,114 @@ function renderTasksApp() {
             </button>
           </div>
         </div>
-      ` : state.viewMode === 'kanban' ? renderKanban(filtered) : renderOperationList(filtered)}
+      ` : state.viewMode === 'checklist' ? renderDailyChecklist(filtered) : renderKanban(filtered)}
     </div>
   `;
 
   bindDomEvents();
+}
+
+function renderDailyChecklist(tasks) {
+  if (tasks.length === 0) {
+    return `
+      <div class="tasks-empty-starter" style="margin-top: 14px;">
+        <h3>Nenhum checklist encontrado para este filtro</h3>
+        <p>Selecione outro setor acima ou adicione uma nova rotina para o turno de hoje.</p>
+      </div>
+    `;
+  }
+
+  const isManager = isUserAdminOrManager();
+
+  return `
+    <div class="daily-checklist-container">
+      ${tasks.map((task, idx) => {
+        const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
+        const chTotal = checklist.length;
+        const chDone = checklist.filter(c => c.concluido).length;
+        const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : (task.Coluna === 'concluido' ? 100 : 0);
+        const isAllDone = (chTotal > 0 && chDone === chTotal) || (chTotal === 0 && task.Coluna === 'concluido');
+        const theme = getSectorTheme(task.Setor, task.Tipo);
+
+        const stepMatch = (task.Titulo || '').match(/^(\d+)\.\s*(.*)$/);
+        const stepNum = stepMatch ? stepMatch[1] : (idx + 1);
+        const stepTitle = stepMatch ? stepMatch[2] : task.Titulo;
+
+        return `
+          <article class="daily-section-card ${isAllDone ? 'all-complete' : ''}" data-task-id="${esc(task.TarefaID)}">
+            <header class="daily-section-header">
+              <div class="daily-section-title-wrap">
+                <span class="daily-step-num">${esc(stepNum)}</span>
+                <div style="min-width: 0;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px;">
+                    <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
+                      ${esc(task.Setor || 'Geral')}
+                    </span>
+                    ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
+                    ${task.HoraLimite ? `<span class="trello-tag-time">Limite: ${esc(task.HoraLimite)}</span>` : ''}
+                  </div>
+                  <h3 class="daily-section-title">${esc(stepTitle)}</h3>
+                  ${task.Descricao ? `<p class="daily-section-desc">${esc(task.Descricao)}</p>` : ''}
+                </div>
+              </div>
+
+              <div class="daily-section-meta-right">
+                <span class="daily-progress-pill ${isAllDone ? 'done' : ''}">
+                  ${chTotal > 0 ? `${chDone}/${chTotal} concluídos · ${chPercent}%` : (isAllDone ? 'Concluído' : 'Pendente')}
+                </span>
+                <button type="button" class="btn-ghost-sm" data-edit-task="${esc(task.TarefaID)}" title="Editar checklist">
+                  Editar
+                </button>
+              </div>
+            </header>
+
+            <div class="daily-progress-track">
+              <div class="daily-progress-bar ${isAllDone ? 'done' : ''}" style="width: ${chPercent}%;"></div>
+            </div>
+
+            ${chTotal > 0 ? `
+              <div class="daily-checklist-items">
+                ${checklist.map(item => `
+                  <div class="daily-item-row ${item.concluido ? 'is-done' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
+                    <input type="checkbox" class="daily-chk" ${item.concluido ? 'checked' : ''} tabindex="-1">
+                    <span class="daily-item-label">${esc(item.texto)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div style="padding: 14px 18px;">
+                <button type="button" class="btn ${isAllDone ? 'btn-secondary' : 'btn-primary'}" data-toggle-card-complete="${esc(task.TarefaID)}" style="font-size: 13px;">
+                  ${isAllDone ? 'Reabrir Tarefa' : 'Marcar como Concluída'}
+                </button>
+              </div>
+            `}
+
+            <footer class="daily-section-footer">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Responsável: <strong>${esc(task.NomeFuncionario || 'Equipe da Praça')}</strong></span>
+                ${task.VistoPor ? `
+                  <span class="trello-visto-approved" style="margin-top:0;">Visto: ${esc(task.VistoPor)}</span>
+                ` : task.ExigeVistoGerente ? `
+                  <span style="font-size: 11px; color: #854d0e; background: #fef9c3; padding: 2px 7px; border-radius: 4px;">Exige visto</span>
+                ` : ''}
+              </div>
+
+              <div class="daily-footer-actions">
+                ${chTotal > 0 ? `
+                  <button type="button" class="btn-ghost-sm" data-mark-section-all="${esc(task.TarefaID)}" data-action="${isAllDone ? 'uncheck' : 'check'}">
+                    ${isAllDone ? 'Desmarcar todos' : 'Concluir todos da etapa'}
+                  </button>
+                ` : ''}
+                ${isManager ? `
+                  <button type="button" class="trello-btn-del" data-delete-task="${esc(task.TarefaID)}" title="Excluir rotina">✕</button>
+                ` : ''}
+              </div>
+            </footer>
+          </article>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 function renderKanban(tasks) {
@@ -452,14 +555,10 @@ function renderCard(task) {
   const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : 0;
   const theme = getSectorTheme(task.Setor, task.Tipo);
 
-  // Limpa prefixos redundantes no título para visual muito mais limpo
   const cleanTitle = (task.Titulo || '')
     .replace(/^(\d+\.\s*)?(Abertura|Fechamento|Caixa)\s*(Turno|Rotina)?:\s*/i, '$1')
     .trim();
 
-  const isExpanded = state.expandedCards.has(task.TarefaID);
-  const itemsToShow = isExpanded ? checklist : checklist.slice(0, 3);
-  const hasMore = checklist.length > 3;
   const isManager = isUserAdminOrManager();
 
   const categoryLabel = task.Tipo === 'rotina_caixa' ? 'Caixa'
@@ -469,55 +568,32 @@ function renderCard(task) {
     : (task.Setor || 'Geral');
 
   return `
-    <div class="trello-card" draggable="true" data-task-id="${esc(task.TarefaID)}">
+    <div class="trello-card" draggable="true" data-task-id="${esc(task.TarefaID)}" data-card-detail="${esc(task.TarefaID)}">
       <!-- Topo: Tags de Categoria e Prioridade -->
       <div class="trello-card-tags">
         <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
           ${esc(categoryLabel)}
         </span>
         ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
-        ${task.HoraLimite ? `<span class="trello-tag-time">Limite: ${esc(task.HoraLimite)}</span>` : ''}
+        ${task.HoraLimite ? `<span class="trello-tag-time">${esc(task.HoraLimite)}</span>` : ''}
       </div>
 
       <!-- Título e Descrição Concisa -->
       <h4 class="trello-card-title">${esc(cleanTitle)}</h4>
       ${task.Descricao ? `<p class="trello-card-desc">${esc(task.Descricao)}</p>` : ''}
 
-      <!-- Checklist Inteligente -->
+      <!-- Indicador Compacto de Checklist -->
       ${chTotal > 0 ? `
-        <div class="trello-card-checklist">
-          <div class="trello-checklist-meta">
-            <span class="chk-label">Checklist</span>
-            <span class="chk-count ${chDone === chTotal ? 'all-done' : ''}">
-              <strong>${chDone}</strong>/${chTotal} ${chDone === chTotal ? '✓' : ''}
-            </span>
+        <div class="trello-card-ch-pill ${chDone === chTotal ? 'all-done' : ''}">
+          <span class="trello-card-ch-text">${chDone}/${chTotal} itens</span>
+          <div class="trello-card-ch-track">
+            <div class="trello-card-ch-bar ${chDone === chTotal ? 'is-complete' : ''}" style="width: ${chPercent}%;"></div>
           </div>
-          <div class="trello-checklist-track">
-            <div class="trello-checklist-bar ${chDone === chTotal ? 'is-complete' : ''}" style="width: ${chPercent}%;"></div>
-          </div>
-
-          <!-- Subitens do Checklist -->
-          <div class="trello-subtasks">
-            ${itemsToShow.map(item => `
-              <div class="trello-subtask-item">
-                <input type="checkbox" id="chk_${esc(task.TarefaID)}_${esc(item.id)}" class="trello-chk" ${item.concluido ? 'checked' : ''} data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
-                <label for="chk_${esc(task.TarefaID)}_${esc(item.id)}" class="trello-chk-label ${item.concluido ? 'is-done' : ''}">
-                  ${esc(item.texto)}
-                </label>
-              </div>
-            `).join('')}
-          </div>
-
-          ${hasMore ? `
-            <button type="button" class="trello-expand-subtasks-btn" data-toggle-expand-card="${esc(task.TarefaID)}">
-              ${isExpanded ? 'Mostrar menos' : `+${checklist.length - 3} itens`}
-            </button>
-          ` : ''}
         </div>
       ` : ''}
 
       <!-- Rodapé do Cartão -->
-      <div class="trello-card-foot">
+      <div class="trello-card-foot" onclick="event.stopPropagation();">
         <div class="trello-assignee" title="${task.NomeFuncionario || 'Equipe da Praça'}">
           ${task.NomeFuncionario ? `
             <span class="trello-avatar">${esc(task.NomeFuncionario.split(' ').map(n=>n[0]).slice(0,2).join(''))}</span>
@@ -529,90 +605,187 @@ function renderCard(task) {
         </div>
 
         <div class="trello-card-actions">
-          <button class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa e checklist">Editar</button>
+          <button type="button" class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa e checklist">Editar</button>
           ${task.Coluna === 'visto' && isManager ? `
-            <button class="trello-btn-approve" data-approve-task="${esc(task.TarefaID)}">
+            <button type="button" class="trello-btn-approve" data-approve-task="${esc(task.TarefaID)}">
               Visto
             </button>
           ` : ''}
-          <button class="trello-btn-step" data-step-dir="prev" data-task-id="${esc(task.TarefaID)}" title="Voltar etapa">‹</button>
-          <button class="trello-btn-step" data-step-dir="next" data-task-id="${esc(task.TarefaID)}" title="Avançar etapa">›</button>
-          ${isManager ? `
-            <button class="trello-btn-del" data-delete-task="${esc(task.TarefaID)}" title="Excluir">✕</button>
-          ` : ''}
+          <button type="button" class="trello-btn-step" data-step-dir="prev" data-task-id="${esc(task.TarefaID)}" title="Voltar etapa">‹</button>
+          <button type="button" class="trello-btn-step" data-step-dir="next" data-task-id="${esc(task.TarefaID)}" title="Avançar etapa">›</button>
         </div>
       </div>
 
       ${task.VistoPor ? `
         <div class="trello-visto-approved">
-          Visto do Gerente: <strong>${esc(task.VistoPor)}</strong>
+          Visto: <strong>${esc(task.VistoPor)}</strong>
         </div>
       ` : ''}
     </div>
   `;
 }
 
-function renderOperationList(tasks) {
-  const grouped = {};
-  for (const t of tasks) {
-    const key = t.Tipo === 'rotina_caixa' ? 'Rotina do Caixa'
-      : t.Tipo === 'rotina_abertura' ? 'Abertura de Turno'
-      : t.Tipo === 'rotina_fechamento' ? 'Fechamento de Turno'
-      : (t.Setor || 'Geral');
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(t);
+async function markAllSectionItems(taskId, markDone) {
+  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
+  if (!task || !Array.isArray(task.Checklist)) return;
+
+  const api = getApi();
+  if (!api) return;
+
+  task.Checklist.forEach(i => { i.concluido = markDone; });
+  if (markDone) {
+    task.Coluna = task.ExigeVistoGerente ? 'visto' : 'concluido';
+  } else {
+    task.Coluna = 'pendente';
+  }
+  renderTasksApp();
+
+  try {
+    await api.invoke('tasksSave', [{
+      TarefaID: task.TarefaID,
+      LojaID: task.LojaID || state.selectedStore,
+      DataTurno: task.DataTurno || state.selectedDate,
+      Titulo: task.Titulo,
+      Coluna: task.Coluna,
+      Checklist: task.Checklist,
+    }]);
+    await loadTasks();
+  } catch (err) {
+    console.error('Falha ao atualizar itens da seção:', err);
+    await loadTasks();
+  }
+}
+
+function openTaskDetailDialog(taskId) {
+  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
+  if (!task) return;
+
+  const dlg = document.getElementById('taskDetailDialog');
+  if (!dlg) return;
+
+  const eyebrow = $('#taskDetailEyebrow');
+  if (eyebrow) eyebrow.textContent = task.Tipo === 'manutencao' ? 'MANUTENÇÃO & REPARO' : 'DETALHES DA TAREFA';
+  const title = $('#taskDetailTitle');
+  if (title) title.textContent = task.Titulo || 'Tarefa';
+
+  const theme = getSectorTheme(task.Setor, task.Tipo);
+  const sectorBadge = $('#taskDetailSectorBadge');
+  if (sectorBadge) {
+    sectorBadge.textContent = task.Setor || 'Geral';
+    sectorBadge.style.background = theme.bg;
+    sectorBadge.style.color = theme.text;
+    sectorBadge.style.borderColor = theme.border;
   }
 
-  return `
-    <div class="op-list-wrap">
-      ${Object.entries(grouped).map(([groupTitle, groupTasks]) => `
-        <div class="panel op-group-panel">
-          <div class="panel-head">
-            <h3>${esc(groupTitle)}</h3>
-            <span class="trello-col-count">${groupTasks.length} rotinas</span>
-          </div>
+  const priorityBadge = $('#taskDetailPriorityBadge');
+  if (priorityBadge) {
+    priorityBadge.textContent = task.Prioridade || 'Média';
+    priorityBadge.className = `badge ${task.Prioridade === 'Urgente' ? 'trello-tag-urgent' : task.Prioridade === 'Alta' ? 'trello-tag-high' : ''}`;
+  }
 
-          <div class="op-group-content">
-            ${groupTasks.map(t => {
-              const checklist = Array.isArray(t.Checklist) ? t.Checklist : [];
-              const isDone = t.Coluna === 'concluido';
-              return `
-                <div class="op-card ${isDone ? 'is-complete' : ''}">
-                  <div class="op-card-top">
-                    <div>
-                      <strong>${esc(t.Titulo)}</strong>
-                      ${t.HoraLimite ? `<span class="trello-tag-time" style="margin-left:6px;">Limite: ${esc(t.HoraLimite)}</span>` : ''}
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px;">
-                      <button class="trello-btn-edit" data-edit-task="${esc(t.TarefaID)}">Editar</button>
-                      <span class="op-badge ${t.Coluna}">
-                        ${t.Coluna === 'concluido' ? 'Concluído' : t.Coluna === 'visto' ? 'Aguardando Visto' : t.Coluna === 'andamento' ? 'Em Andamento' : 'Pendente'}
-                      </span>
-                    </div>
-                  </div>
+  const colBadge = $('#taskDetailColumnBadge');
+  if (colBadge) {
+    const colName = task.Coluna === 'concluido' ? 'Concluído' : task.Coluna === 'visto' ? 'Aguardando Visto' : task.Coluna === 'andamento' ? 'Em Andamento' : 'Pendente';
+    colBadge.textContent = colName;
+    colBadge.className = `op-badge ${task.Coluna || 'pendente'}`;
+  }
 
-                  ${checklist.length > 0 ? `
-                    <div class="op-checklist-list">
-                      ${checklist.map(item => `
-                        <div class="op-check-row">
-                          <input type="checkbox" id="op_chk_${esc(t.TarefaID)}_${esc(item.id)}" class="trello-chk" ${item.concluido ? 'checked' : ''} data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(t.TarefaID)}">
-                          <label for="op_chk_${esc(t.TarefaID)}_${esc(item.id)}" class="trello-chk-label ${item.concluido ? 'is-done' : ''}">${esc(item.texto)}</label>
-                        </div>
-                      `).join('')}
-                    </div>
-                  ` : `
-                    <button class="btn btn-secondary" style="margin-top:8px;" data-toggle-card-complete="${esc(t.TarefaID)}">
-                      ${isDone ? 'Concluído' : 'Marcar como Feito'}
-                    </button>
-                  `}
-                </div>
-              `;
-            }).join('')}
-          </div>
+  const timeBadge = $('#taskDetailDeadlineBadge');
+  if (timeBadge) {
+    timeBadge.textContent = task.HoraLimite ? `Limite: ${task.HoraLimite}` : '';
+  }
+
+  const descWrap = $('#taskDetailDescWrap');
+  const descEl = $('#taskDetailDesc');
+  if (task.Descricao && descWrap && descEl) {
+    descWrap.style.display = 'block';
+    descEl.textContent = task.Descricao;
+  } else if (descWrap) {
+    descWrap.style.display = 'none';
+  }
+
+  const chList = Array.isArray(task.Checklist) ? task.Checklist : [];
+  const chDone = chList.filter(c => c.concluido).length;
+  const chPercent = chList.length > 0 ? Math.round((chDone / chList.length) * 100) : 0;
+
+  const progressText = $('#taskDetailChecklistProgress');
+  if (progressText) progressText.textContent = `${chDone}/${chList.length} (${chPercent}%)`;
+  const progressBar = $('#taskDetailProgressBar');
+  if (progressBar) progressBar.style.width = `${chPercent}%`;
+
+  const container = $('#taskDetailChecklistContainer');
+  if (container) {
+    if (chList.length === 0) {
+      container.innerHTML = '<div style="font-size:12.5px;color:#94a3b8;font-style:italic;padding:8px 0;">Nenhum subitem de checklist cadastrado.</div>';
+    } else {
+      container.innerHTML = chList.map(item => `
+        <div class="task-detail-item ${item.concluido ? 'done' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
+          <input type="checkbox" class="daily-chk" ${item.concluido ? 'checked' : ''} tabindex="-1">
+          <span>${esc(item.texto)}</span>
         </div>
-      `).join('')}
-    </div>
-  `;
+      `).join('');
+    }
+  }
+
+  const vistoSection = $('#taskDetailVistoSection');
+  const vistoInfo = $('#taskDetailVistoInfo');
+  if (task.VistoPor && vistoSection && vistoInfo) {
+    vistoSection.style.display = 'block';
+    vistoInfo.textContent = `Validado por ${task.VistoPor} em ${task.DataVisto ? new Date(task.DataVisto).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : 'Turno atual'}`;
+  } else if (vistoSection) {
+    vistoSection.style.display = 'none';
+  }
+
+  const assignee = $('#taskDetailAssignee');
+  if (assignee) assignee.textContent = task.NomeFuncionario || 'Equipe da Praça (Geral)';
+  const currentStore = state.stores.find(s => String(s.LojaID || s.lojaId) === String(task.LojaID));
+  const storeDate = $('#taskDetailStoreDate');
+  if (storeDate) storeDate.textContent = `${currentStore?.Nome || currentStore?.NomeLoja || 'Loja'} · ${task.DataTurno ? task.DataTurno.split('-').reverse().join('/') : ''}`;
+
+  const editBtn = $('#taskDetailEditBtn');
+  if (editBtn) {
+    editBtn.onclick = () => {
+      closeDialog('taskDetailDialog');
+      openEditTaskDialog(task.TarefaID);
+    };
+  }
+
+  const delBtn = $('#taskDetailDeleteBtn');
+  if (delBtn) {
+    delBtn.onclick = () => {
+      closeDialog('taskDetailDialog');
+      deleteTask(task.TarefaID);
+    };
+  }
+
+  const moveBtn = $('#taskDetailMoveBtn');
+  if (moveBtn) {
+    const colSeq = ['pendente', 'andamento', 'visto', 'concluido'];
+    const curIdx = colSeq.indexOf(task.Coluna || 'pendente');
+    const nextCol = colSeq[(curIdx + 1) % colSeq.length];
+    const nextLabel = nextCol === 'andamento' ? 'Mover p/ Em Andamento' : nextCol === 'visto' ? 'Mover p/ Visto' : nextCol === 'concluido' ? 'Mover p/ Concluído' : 'Mover p/ Pendente';
+    moveBtn.textContent = nextLabel;
+    moveBtn.onclick = async () => {
+      await moveTaskColumn(task.TarefaID, nextCol);
+      openTaskDetailDialog(task.TarefaID);
+    };
+  }
+
+  const approveBtn = $('#taskDetailApproveBtn');
+  if (approveBtn) {
+    if (task.Coluna === 'visto' && isUserAdminOrManager()) {
+      approveBtn.style.display = 'inline-block';
+      approveBtn.onclick = async () => {
+        closeDialog('taskDetailDialog');
+        const notes = prompt('Anotação de validação (opcional):') || '';
+        await approveTask(task.TarefaID, notes);
+      };
+    } else {
+      approveBtn.style.display = 'none';
+    }
+  }
+
+  openDialog('taskDetailDialog');
 }
 
 function bindDomEvents() {
@@ -801,6 +974,39 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  // Toggle de item do checklist (clique na linha inteira ou no texto)
+  const subtaskRow = e.target.closest('[data-toggle-subtask]');
+  if (subtaskRow) {
+    const itemId = subtaskRow.dataset.toggleSubtask;
+    const taskId = subtaskRow.dataset.taskId;
+    const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
+    if (task && Array.isArray(task.Checklist)) {
+      const item = task.Checklist.find(i => String(i.id) === String(itemId));
+      if (item) {
+        const isInput = e.target.tagName === 'INPUT';
+        const newChecked = isInput ? e.target.checked : !item.concluido;
+        toggleChecklistItem(taskId, itemId, newChecked);
+      }
+    }
+    return;
+  }
+
+  // Ação de marcar todos ou desmarcar todos de uma etapa
+  const markSection = e.target.closest('[data-mark-section-all]');
+  if (markSection) {
+    const taskId = markSection.dataset.markSectionAll;
+    const action = markSection.dataset.action;
+    markAllSectionItems(taskId, action === 'check');
+    return;
+  }
+
+  // Abrir modal de detalhes ao clicar no cartão Kanban
+  const cardDetail = e.target.closest('[data-card-detail]');
+  if (cardDetail && !e.target.closest('.trello-card-actions') && !e.target.closest('button')) {
+    openTaskDetailDialog(cardDetail.dataset.cardDetail);
+    return;
+  }
+
   // Expandir / recolher subitens do checklist no cartão
   const expandBtn = e.target.closest('[data-toggle-expand-card]');
   if (expandBtn) {
@@ -844,17 +1050,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Toggle subtask checkbox
-document.addEventListener('change', (e) => {
-  if (e.target.matches('[data-toggle-subtask]')) {
-    const itemId = e.target.dataset.toggleSubtask;
-    const taskId = e.target.dataset.taskId;
-    const checked = e.target.checked;
-    if (taskId && itemId) {
-      toggleChecklistItem(taskId, itemId, checked);
-    }
-  }
-});
 
 // Envio do Form de Nova ou Edição de Tarefa
 document.addEventListener('DOMContentLoaded', () => {

@@ -1618,17 +1618,19 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   color: #0f172a;
 }
 
-/* Cartão Trello Modernizado */
+/* ==========================================================================
+   CARTÃO KANBAN COMPACTO E ELEGANTE (ESTILO TRELLO / LINEAR)
+   ========================================================================== */
 .trello-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 12px;
+  padding: 11px 13px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  cursor: grab;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   box-sizing: border-box !important;
   width: 100% !important;
   max-width: 100% !important;
@@ -1639,7 +1641,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 
 .trello-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
   border-color: #cbd5e1;
 }
 
@@ -1707,139 +1709,57 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   color: #64748b;
   line-height: 1.35;
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.trello-card-checklist {
-  margin-top: 4px;
-  padding-top: 6px;
-  border-top: 1px solid #f1f5f9;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.trello-checklist-meta {
+/* Barra Compacta de Checklist no Cartão Kanban */
+.trello-card-ch-pill {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 11px;
-  color: #64748b;
-  margin-bottom: 5px;
+  justify-content: space-between;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 8px;
 }
 
-.chk-label {
+.trello-card-ch-pill.all-done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.trello-card-ch-text {
+  font-size: 11px;
   font-weight: 600;
   color: #475569;
 }
 
-.chk-count {
-  font-weight: 700;
-  color: #64748b;
+.trello-card-ch-pill.all-done .trello-card-ch-text {
+  color: #166534;
 }
 
-.chk-count.all-done {
-  color: #059669;
-}
-
-.trello-checklist-track {
-  height: 4px;
+.trello-card-ch-track {
+  flex: 1;
+  max-width: 80px;
+  height: 5px;
   background: #e2e8f0;
   border-radius: 99px;
   overflow: hidden;
-  margin-bottom: 6px;
 }
 
-.trello-checklist-bar {
+.trello-card-ch-bar {
   height: 100%;
   background: #3b82f6;
   border-radius: 99px;
-  transition: width 0.25s ease;
+  transition: width 0.2s ease;
 }
 
-.trello-checklist-bar.is-complete {
+.trello-card-ch-bar.is-complete {
   background: #10b981;
-}
-
-.trello-subtasks {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 4px !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-  margin-top: 4px;
-}
-
-.trello-subtask-item {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: flex-start !important;
-  gap: 7px !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
-  padding: 2px 0 !important;
-  cursor: pointer;
-}
-
-#tasksApp .trello-chk,
-#tasksApp .trello-subtask-item input[type="checkbox"],
-#tasksApp .op-check-row input[type="checkbox"],
-.trello-chk {
-  appearance: auto !important;
-  -webkit-appearance: checkbox !important;
-  width: 16px !important;
-  min-width: 16px !important;
-  max-width: 16px !important;
-  height: 16px !important;
-  flex: 0 0 16px !important;
-  margin: 2px 0 0 0 !important;
-  padding: 0 !important;
-  box-shadow: none !important;
-  accent-color: #10b981 !important;
-  cursor: pointer !important;
-}
-
-.trello-chk-label,
-.trello-subtask-item label {
-  flex: 1 1 auto !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: calc(100% - 24px) !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  line-height: 1.35 !important;
-  color: #334155 !important;
-  cursor: pointer !important;
-  word-break: break-word !important;
-  overflow-wrap: break-word !important;
-  white-space: normal !important;
-}
-
-.trello-chk-label.is-done {
-  text-decoration: line-through !important;
-  color: #94a3b8 !important;
-}
-
-.trello-expand-subtasks-btn {
-  width: 100%;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  margin-top: 6px;
-  transition: all 0.15s ease;
-}
-
-.trello-expand-subtasks-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-  border-color: #94a3b8;
 }
 
 .trello-card-foot {
@@ -1847,7 +1767,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
   padding-top: 6px;
   border-top: 1px solid #f1f5f9;
 }
@@ -1982,85 +1902,322 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   margin-top: 4px;
 }
 
-/* Modo Lista Rápida (Operação) */
-.op-list-wrap {
+/* ==========================================================================
+   VISÃO CHECKLIST DIÁRIO OPERACIONAL (CADERNO DE ROTINAS DO TURNO)
+   ========================================================================== */
+.daily-checklist-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
 }
 
-.op-group-panel {
+.daily-section-card {
   background: #ffffff;
-}
-
-.op-group-content {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.op-card {
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px;
-  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
 }
 
-.op-card.is-complete {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  opacity: 0.8;
+.daily-section-card.all-complete {
+  border-color: #86efac;
+  background: #fcfdfc;
 }
 
-.op-card-top {
+.daily-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  padding: 14px 18px;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.op-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
+.daily-section-card.all-complete .daily-section-header {
+  background: #f0fdf4;
 }
 
-.op-badge.concluido { background: #d1fae5; color: #065f46; }
-.op-badge.visto { background: #ede9fe; color: #5b21b6; }
-.op-badge.andamento { background: #dbeafe; color: #1e40af; }
-.op-badge.pendente { background: #fef3c7; color: #92400e; }
-
-.op-checklist-list {
+.daily-section-title-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
 }
 
-.op-check-row {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 10px !important;
-  padding: 8px 12px !important;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 8px !important;
-  box-sizing: border-box !important;
-  width: 100% !important;
-  cursor: pointer !important;
-  min-height: 40px !important;
+.daily-step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 
-.op-check-row .trello-chk-label {
-  font-size: 13px !important;
+.daily-section-card.all-complete .daily-step-num {
+  background: #10b981;
+  color: #ffffff;
 }
 
-.op-check-row span.is-done {
+.daily-section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+.daily-section-desc {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.daily-section-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.daily-progress-pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.daily-progress-pill.done {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.daily-progress-track {
+  height: 4px;
+  background: #f1f5f9;
+  width: 100%;
+}
+
+.daily-progress-bar {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.25s ease;
+}
+
+.daily-progress-bar.done {
+  background: #10b981;
+}
+
+.daily-checklist-items {
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.daily-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.daily-item-row:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.daily-item-row.is-done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.daily-chk {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  accent-color: #10b981 !important;
+  cursor: pointer;
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+
+.daily-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.35;
+  cursor: pointer;
+  flex: 1;
+}
+
+.daily-item-row.is-done .daily-item-label {
   text-decoration: line-through;
   color: #94a3b8;
 }
+
+.daily-section-footer {
+  padding: 10px 18px;
+  background: #fafafa;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.daily-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-ghost-sm {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-ghost-sm:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* ==========================================================================
+   MODAL DE DETALHES DA TAREFA / CHECKLIST
+   ========================================================================== */
+.task-detail-dialog {
+  max-width: 580px !important;
+  width: 100%;
+  border-radius: 14px;
+}
+
+.task-detail-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.task-detail-desc {
+  font-size: 13px;
+  color: #475569;
+  background: #f8fafc;
+  border-left: 3px solid #3b82f6;
+  padding: 10px 12px;
+  border-radius: 0 6px 6px 0;
+  margin: 0;
+}
+
+.task-detail-progress-track {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.task-detail-progress-bar {
+  height: 100%;
+  background: #10b981;
+  transition: width 0.2s ease;
+}
+
+.task-detail-checklist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.task-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.task-detail-item:hover {
+  background: #f1f5f9;
+}
+
+.task-detail-item.done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.task-detail-item.done span {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.task-detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.task-detail-visto-box {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-danger-ghost:hover {
+  background: #fef2f2;
+}
+
 
 /* Modais Específicos */
 .routine-picker-cards {
