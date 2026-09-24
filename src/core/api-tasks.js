@@ -156,7 +156,7 @@ export function createTasksHandlers() {
       const templates = {
         abertura: [
           {
-            Titulo: "Abertura Turno: Conferência de Estoque Crítico",
+            Titulo: "Conferência de Estoque Crítico",
             Descricao: "Verificar insumos essenciais antes de iniciar a operação.",
             Setor: "Cozinha",
             Prioridade: "Alta",
@@ -171,7 +171,7 @@ export function createTasksHandlers() {
             ],
           },
           {
-            Titulo: "Abertura Turno: Temperatura dos Freezers e Câmaras",
+            Titulo: "Temperatura dos Freezers e Câmaras",
             Descricao: "Aferir termômetros de conservação de alimentos.",
             Setor: "Cozinha",
             Prioridade: "Alta",
@@ -186,7 +186,7 @@ export function createTasksHandlers() {
             ],
           },
           {
-            Titulo: "Abertura Turno: Pré-aquecimento de Chapas e Fritadeiras",
+            Titulo: "Pré-aquecimento de Chapas e Fritadeiras",
             Descricao: "Checar calibração térmica e segurança dos queimadores.",
             Setor: "Chapa",
             Prioridade: "Alta",
@@ -201,7 +201,7 @@ export function createTasksHandlers() {
             ],
           },
           {
-            Titulo: "Abertura Turno: Gaveta de Caixa e Frente de Loja",
+            Titulo: "Gaveta de Caixa e Frente de Loja",
             Descricao: "Preparar atendimento, sistema e troco inicial.",
             Setor: "Caixa",
             Prioridade: "Alta",
@@ -218,7 +218,7 @@ export function createTasksHandlers() {
         ],
         fechamento: [
           {
-            Titulo: "Fechamento Turno: Limpeza da Coifa, Chapas e Grelhas",
+            Titulo: "Limpeza da Coifa, Chapas e Grelhas",
             Descricao: "Desengordurar superfícies de cocção e exaustão.",
             Setor: "Chapa",
             Prioridade: "Alta",
@@ -233,7 +233,7 @@ export function createTasksHandlers() {
             ],
           },
           {
-            Titulo: "Fechamento Turno: Desligamento de Gás e Equipamentos",
+            Titulo: "Desligamento de Gás e Equipamentos",
             Descricao: "Procedimento obrigatório de segurança patrimonial e física.",
             Setor: "Cozinha",
             Prioridade: "Urgente",
@@ -248,7 +248,7 @@ export function createTasksHandlers() {
             ],
           },
           {
-            Titulo: "Fechamento Turno: Descarte e Filtragem de Óleo",
+            Titulo: "Descarte e Filtragem de Óleo",
             Descricao: "Gestão sustentável do óleo de fritura.",
             Setor: "Cozinha",
             Prioridade: "Media",
@@ -263,7 +263,7 @@ export function createTasksHandlers() {
             ],
           },
           {
-            Titulo: "Fechamento Turno: Fechamento de Caixa e Sangria",
+            Titulo: "Fechamento de Caixa e Sangria",
             Descricao: "Conferência financeira do dia.",
             Setor: "Caixa",
             Prioridade: "Alta",
@@ -278,7 +278,7 @@ export function createTasksHandlers() {
             ],
           },
           {
-            Titulo: "Fechamento Turno: Recolhimento de Lixo e Salão",
+            Titulo: "Recolhimento de Lixo e Salão",
             Descricao: "Sanitização e descarte final de resíduos.",
             Setor: "Salão",
             Prioridade: "Media",
@@ -297,6 +297,19 @@ export function createTasksHandlers() {
 
       const selected = templates[routineType] || [];
       assert(selected.length > 0, "Tipo de rotina inválido. Escolha 'abertura' ou 'fechamento'.");
+
+      const existingTasks = await runtime.list("Tarefas", { profile });
+      const alreadyGenerated = existingTasks.filter(
+        t => String(t.LojaID || '') === targetStore &&
+             t.DataTurno === turnoDate &&
+             t.Tipo === `rotina_${routineType}`
+      );
+      if (alreadyGenerated.length > 0) {
+        return success(
+          alreadyGenerated,
+          `Rotina de ${routineType === "abertura" ? "Abertura" : "Fechamento"} já está no quadro (${alreadyGenerated.length} tarefas).`,
+        );
+      }
 
       const createdList = [];
       for (const item of selected) {
@@ -328,6 +341,30 @@ export function createTasksHandlers() {
 
       await runtime.remove("Tarefas", taskId);
       return success(null, "Tarefa removida com sucesso.");
+    },
+
+    async tasksDeduplicate(args) {
+      const [lojaId, dataTurno] = args || [];
+      const profile = await runtime.requireProfile();
+      assert(isManager(profile), "Apenas gestores podem organizar tarefas.");
+      const targetStore = String(lojaId || profile.LojaID || "").trim();
+      const turnoDate = String(dataTurno || todayIso()).trim();
+      const rows = await runtime.list("Tarefas", { profile });
+      const seen = new Set();
+      let removed = 0;
+      for (const t of rows) {
+        if (targetStore && String(t.LojaID || "") !== targetStore) continue;
+        if (turnoDate && t.DataTurno && t.DataTurno !== turnoDate) continue;
+        const normTitle = (t.Titulo || '').replace(/^(Abertura|Fechamento)\s*Turno:\s*/i, '').trim().toLowerCase();
+        const key = `${normTitle}|${t.Setor}|${t.Coluna}`;
+        if (seen.has(key)) {
+          await runtime.remove("Tarefas", t.TarefaID);
+          removed++;
+        } else {
+          seen.add(key);
+        }
+      }
+      return success({ removed }, removed > 0 ? `${removed} tarefas duplicadas foram removidas.` : "Nenhuma tarefa duplicada encontrada.");
     },
   };
 }

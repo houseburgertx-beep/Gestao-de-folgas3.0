@@ -18,6 +18,7 @@ let state = {
   employees: [],
   loading: false,
   checklistDraft: [],
+  expandedCards: new Set(),
 };
 
 const SECTOR_GROUPS = [
@@ -30,14 +31,22 @@ const SECTOR_GROUPS = [
 ];
 
 const COLUMNS = [
-  { id: 'pendente', title: 'Pendente', icon: '⏳', color: '#64748b' },
-  { id: 'andamento', title: 'Em Andamento', icon: '⚡', color: '#2563eb' },
-  { id: 'visto', title: 'Aguardando Visto', icon: '👀', color: '#7c3aed' },
-  { id: 'concluido', title: 'Concluído', icon: '✅', color: '#059669' },
+  { id: 'pendente', title: 'A Fazer / Pendente', icon: '⏳', dotColor: '#f59e0b' },
+  { id: 'andamento', title: 'Em Andamento', icon: '⚡', dotColor: '#3b82f6' },
+  { id: 'visto', title: 'Aguardando Visto', icon: '👀', dotColor: '#8b5cf6' },
+  { id: 'concluido', title: 'Concluído', icon: '✅', dotColor: '#10b981' },
 ];
 
 function getApi() {
   return window.__GESTAO_FIREBASE__?.api;
+}
+
+function isUserAdminOrManager() {
+  if (state.isManager) return true;
+  const profile = window.__GESTAO_FIREBASE__?.runtime?.getProfile?.() || state.user;
+  if (!profile) return true;
+  const role = String(profile.Perfil || profile.perfil || profile.Cargo || '').toLowerCase();
+  return role.includes('admin') || role.includes('gerente') || role.includes('respons');
 }
 
 function openDialog(id) {
@@ -128,11 +137,33 @@ async function generateRoutine(routineType) {
 
   try {
     const res = await api.invoke('tasksGenerateRoutine', [state.selectedStore, routineType, state.selectedDate]);
-    if (res?.success) {
-      await loadTasks();
+    if (res?.message) {
+      // Notifica com mensagem amigável (se já existia ou quantas foram criadas)
+      console.log(res.message);
     }
+    await loadTasks();
   } catch (err) {
     alert(err.message || 'Falha ao disparar rotina.');
+    state.loading = false;
+    renderTasksApp();
+  }
+}
+
+async function deduplicateTasks() {
+  if (!confirm('Deseja organizar o quadro e remover tarefas idênticas duplicadas?')) return;
+  const api = getApi();
+  if (!api) return;
+
+  state.loading = true;
+  renderTasksApp();
+
+  try {
+    const res = await api.invoke('tasksDeduplicate', [state.selectedStore, state.selectedDate]);
+    if (res?.message) alert(res.message);
+    await loadTasks();
+  } catch (err) {
+    alert(err.message || 'Falha ao organizar tarefas.');
+  } finally {
     state.loading = false;
     renderTasksApp();
   }
@@ -189,86 +220,106 @@ function renderTasksApp() {
   const waitingApprovalTasks = allDayTasks.filter(t => t.Coluna === 'visto').length;
   const maintenanceTasks = allDayTasks.filter(t => t.Tipo === 'manutencao' && t.Coluna !== 'concluido').length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const isManager = isUserAdminOrManager();
 
   const filtered = getFilteredTasks();
 
   container.innerHTML = `
     <div class="tasks-page">
-      <!-- Barra Superior Operacional Compacta -->
-      <header class="tasks-top-bar">
-        <div class="tasks-top-left">
-          <div class="tasks-title-line">
-            <h2 class="tasks-main-title">Operação &amp; Rotinas</h2>
-            <div class="tasks-store-cluster">
-              ${state.stores.length > 1 ? `
-                <select class="tasks-compact-select" id="tasksStoreSelect">
-                  ${state.stores.map(s => {
-                    const id = String(s.LojaID || s.lojaId || '');
-                    const name = s.NomeLoja || s.Nome || id;
-                    return `<option value="${esc(id)}" ${id === state.selectedStore ? 'selected' : ''}>${esc(name)}</option>`;
-                  }).join('')}
-                </select>
-              ` : `
-                <span class="tasks-store-chip">📍 ${esc(storeName)}</span>
-              `}
-              <input type="date" class="tasks-compact-date" id="tasksDateInput" value="${esc(state.selectedDate)}">
+      <!-- Hub Operacional Unificado -->
+      <header class="tasks-hub">
+        <div class="tasks-hub-top">
+          <div class="tasks-hub-identity">
+            <span class="tasks-brand-tag">OPERAÇÃO DE TURNO · HOUSE BURGER</span>
+            <div class="tasks-title-wrap">
+              <h2 class="tasks-hub-title">Quadro do Turno &amp; Rotinas</h2>
+
+              <!-- Seletores de Loja e Data Integrados -->
+              <div class="tasks-context-bar">
+                ${state.stores.length > 1 ? `
+                  <div class="tasks-select-box">
+                    <span>📍</span>
+                    <select id="tasksStoreSelect">
+                      ${state.stores.map(s => {
+                        const id = String(s.LojaID || s.lojaId || '');
+                        const name = s.NomeLoja || s.Nome || id;
+                        return `<option value="${esc(id)}" ${id === state.selectedStore ? 'selected' : ''}>${esc(name)}</option>`;
+                      }).join('')}
+                    </select>
+                  </div>
+                ` : `
+                  <div class="tasks-select-box">
+                    <span>📍</span>
+                    <strong>${esc(storeName)}</strong>
+                  </div>
+                `}
+
+                <div class="tasks-select-box">
+                  <span>📅</span>
+                  <input type="date" id="tasksDateInput" value="${esc(state.selectedDate)}">
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="tasks-kpi-chips">
-            <span class="tasks-chip total" title="Total de tarefas programadas">
-              <strong>${totalTasks}</strong> tarefas
-            </span>
-            <span class="tasks-chip done" title="Tarefas concluídas">
-              ✓ <strong>${completedTasks}</strong> concluídas (${progressPercent}%)
-            </span>
-            ${waitingApprovalTasks > 0 ? `
-              <span class="tasks-chip waiting" title="Aguardando visto do gerente">
-                👀 <strong>${waitingApprovalTasks}</strong> para visto
-              </span>
-            ` : ''}
-            ${maintenanceTasks > 0 ? `
-              <span class="tasks-chip maintenance" title="Reparos ou manutenção em aberto">
-                🛠️ <strong>${maintenanceTasks}</strong> reparos
-              </span>
+          <div class="tasks-hub-actions">
+            <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas operacionais padrão (Abertura ou Fechamento)">
+              ⚡ Rotina do Turno
+            </button>
+            <button class="btn btn-new-task" id="openNewTaskBtn">
+              + Nova Tarefa
+            </button>
+            <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn">
+              🛠️ Reparos ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
+            </button>
+            ${isManager && totalTasks > 0 ? `
+              <button class="btn btn-icon-tool" id="tasksDeduplicateBtn" title="Remover tarefas duplicadas">
+                🧹 Organizar
+              </button>
             ` : ''}
           </div>
         </div>
 
-        <div class="tasks-top-actions">
-          <button class="btn btn-primary" id="openNewTaskBtn">
-            + Nova Tarefa
-          </button>
-          <button class="btn btn-secondary" id="openRoutineBtn" title="Disparar rotinas automáticas de abertura ou fechamento">
-            ⚡ Rotina do Turno
-          </button>
-          <button class="btn btn-secondary ${maintenanceTasks > 0 ? 'is-alert-btn' : ''}" id="openMaintenanceBtn">
-            🛠️ Reparos ${maintenanceTasks > 0 ? `<span class="badge-count-red">${maintenanceTasks}</span>` : ''}
-          </button>
+        <!-- Linha Inferior do Hub: Filtros de Setor + Métricas + Modo -->
+        <div class="tasks-hub-bottom">
+          <div class="tasks-sectors-track">
+            ${SECTOR_GROUPS.map(grp => {
+              const count = allDayTasks.filter(t => {
+                if (grp.id === 'todos') return true;
+                if (grp.id === 'abertura') return t.Tipo === 'rotina_abertura';
+                if (grp.id === 'fechamento') return t.Tipo === 'rotina_fechamento';
+                if (grp.id === 'manutencao') return t.Tipo === 'manutencao';
+                if (grp.id === 'cozinha_chapa') return t.Setor === 'Cozinha' || t.Setor === 'Chapa';
+                if (grp.id === 'caixa_salao') return t.Setor === 'Caixa' || t.Setor === 'Salão';
+                return true;
+              }).length;
+
+              return `
+                <button class="sector-chip ${state.selectedSector === grp.id ? 'active' : ''}" data-sector-filter="${grp.id}">
+                  <span>${grp.label}</span>
+                  <span class="chip-count">${count}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="tasks-hub-status-wrap">
+            <div class="tasks-stats-chip">
+              <span class="stats-dot ${progressPercent === 100 ? 'done' : ''}"></span>
+              <span><strong>${completedTasks}/${totalTasks}</strong> concluídas (${progressPercent}%)</span>
+            </div>
+
+            <div class="segmented-deck" aria-label="Visualização">
+              <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
+                ☷ Kanban
+              </button>
+              <button class="seg-btn ${state.viewMode === 'operacao' ? 'active' : ''}" data-view-mode="operacao">
+                ☰ Lista
+              </button>
+            </div>
+          </div>
         </div>
       </header>
-
-      <!-- Barra de Filtros de Setor e Visualização -->
-      <div class="tasks-filter-bar">
-        <div class="tasks-sector-tabs">
-          ${SECTOR_GROUPS.map(grp => `
-            <button class="tasks-sector-tab ${state.selectedSector === grp.id ? 'active' : ''}" data-sector-filter="${grp.id}">
-              ${grp.label}
-            </button>
-          `).join('')}
-        </div>
-
-        <div class="tasks-filter-right">
-          <div class="segmented" aria-label="Visualização">
-            <button class="segmented-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
-              ☷ Kanban
-            </button>
-            <button class="segmented-btn ${state.viewMode === 'operacao' ? 'active' : ''}" data-view-mode="operacao">
-              ☰ Lista Rápida
-            </button>
-          </div>
-        </div>
-      </div>
 
       <!-- Conteúdo Principal -->
       ${state.loading ? `
@@ -317,18 +368,23 @@ function renderKanban(tasks) {
           <div class="trello-column" data-col-id="${col.id}">
             <div class="trello-column-header">
               <div class="trello-col-title">
-                <span>${col.icon}</span>
+                <span class="col-status-dot" style="background: ${col.dotColor};"></span>
                 <h4>${col.title}</h4>
               </div>
               <span class="trello-col-count">${colTasks.length}</span>
             </div>
 
             <div class="trello-cards-area" data-col-target="${col.id}">
-              ${colTasks.map(t => renderCard(t)).join('')}
+              ${colTasks.length === 0 ? `
+                <div class="trello-empty-column">
+                  <span class="empty-icon">${col.icon}</span>
+                  <p>Nenhuma tarefa aqui</p>
+                </div>
+              ` : colTasks.map(t => renderCard(t)).join('')}
             </div>
 
             <button class="trello-add-card-btn" data-add-card-col="${col.id}">
-              + Adicionar cartão
+              + Adicionar tarefa
             </button>
           </div>
         `;
@@ -344,63 +400,86 @@ function renderCard(task) {
   const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : 0;
   const theme = getSectorTheme(task.Setor, task.Tipo);
 
+  // Limpa prefixos redundantes no título para visual muito mais limpo
+  const cleanTitle = (task.Titulo || '')
+    .replace(/^(Abertura|Fechamento)\s*Turno:\s*/i, '')
+    .trim();
+
+  const isExpanded = state.expandedCards.has(task.TarefaID);
+  const itemsToShow = isExpanded ? checklist : checklist.slice(0, 3);
+  const hasMore = checklist.length > 3;
+  const isManager = isUserAdminOrManager();
+
   return `
     <div class="trello-card" draggable="true" data-task-id="${esc(task.TarefaID)}">
-      <!-- Pílula de Setor / Tipo -->
+      <!-- Topo: Tags de Categoria e Prioridade -->
       <div class="trello-card-tags">
-        <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border:1px solid ${theme.border};">
+        <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
           ${esc(task.Tipo === 'rotina_abertura' ? '☀️ Abertura' : task.Tipo === 'rotina_fechamento' ? '🌙 Fechamento' : task.Tipo === 'manutencao' ? '🛠️ Manutenção' : task.Setor || 'Geral')}
         </span>
-        ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : ''}
+        ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">🔥 Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">⚠️ Alta</span>` : ''}
         ${task.HoraLimite ? `<span class="trello-tag-time">⏰ ${esc(task.HoraLimite)}</span>` : ''}
       </div>
 
-      <h5 class="trello-card-title">${esc(task.Titulo)}</h5>
+      <!-- Título e Descrição Concisa -->
+      <h4 class="trello-card-title">${esc(cleanTitle)}</h4>
       ${task.Descricao ? `<p class="trello-card-desc">${esc(task.Descricao)}</p>` : ''}
 
-      <!-- Barra e Subtarefas do Checklist -->
+      <!-- Checklist Inteligente -->
       ${chTotal > 0 ? `
         <div class="trello-card-checklist">
           <div class="trello-checklist-meta">
-            <span>Checklist</span>
-            <strong>${chDone}/${chTotal} (${chPercent}%)</strong>
+            <span class="chk-label">☑ Checklist</span>
+            <span class="chk-count ${chDone === chTotal ? 'all-done' : ''}">
+              <strong>${chDone}</strong>/${chTotal} ${chDone === chTotal ? '✓' : ''}
+            </span>
           </div>
           <div class="trello-checklist-track">
-            <div class="trello-checklist-bar" style="width: ${chPercent}%;"></div>
+            <div class="trello-checklist-bar ${chDone === chTotal ? 'is-complete' : ''}" style="width: ${chPercent}%;"></div>
           </div>
 
+          <!-- Subitens do Checklist -->
           <div class="trello-subtasks">
-            ${checklist.map(item => `
+            ${itemsToShow.map(item => `
               <div class="trello-subtask-item">
                 <input type="checkbox" id="chk_${esc(task.TarefaID)}_${esc(item.id)}" class="trello-chk" ${item.concluido ? 'checked' : ''} data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}">
-                <label for="chk_${esc(task.TarefaID)}_${esc(item.id)}" class="trello-chk-label ${item.concluido ? 'is-done' : ''}">${esc(item.texto)}</label>
+                <label for="chk_${esc(task.TarefaID)}_${esc(item.id)}" class="trello-chk-label ${item.concluido ? 'is-done' : ''}">
+                  ${esc(item.texto)}
+                </label>
               </div>
             `).join('')}
           </div>
+
+          ${hasMore ? `
+            <button type="button" class="trello-expand-subtasks-btn" data-toggle-expand-card="${esc(task.TarefaID)}">
+              ${isExpanded ? '▴ Mostrar menos' : `▾ +${checklist.length - 3} mais`}
+            </button>
+          ` : ''}
         </div>
       ` : ''}
 
       <!-- Rodapé do Cartão -->
       <div class="trello-card-foot">
-        <div class="trello-assignee">
+        <div class="trello-assignee" title="${task.NomeFuncionario || 'Equipe da Praça'}">
           ${task.NomeFuncionario ? `
             <span class="trello-avatar">${esc(task.NomeFuncionario.split(' ').map(n=>n[0]).slice(0,2).join(''))}</span>
             <span class="trello-assignee-name">${esc(task.NomeFuncionario)}</span>
           ` : `
-            <span class="trello-unassigned">Equipe da Praça</span>
+            <span class="trello-avatar unassigned">👥</span>
+            <span class="trello-unassigned">Equipe</span>
           `}
         </div>
 
         <div class="trello-card-actions">
-          ${task.Coluna === 'visto' && state.isManager ? `
+          ${task.Coluna === 'visto' && isManager ? `
             <button class="trello-btn-approve" data-approve-task="${esc(task.TarefaID)}">
-              ✓ Aprovar
+              ✓ Visto
             </button>
           ` : ''}
           <button class="trello-btn-step" data-step-dir="prev" data-task-id="${esc(task.TarefaID)}" title="Voltar etapa">‹</button>
           <button class="trello-btn-step" data-step-dir="next" data-task-id="${esc(task.TarefaID)}" title="Avançar etapa">›</button>
-          ${state.isManager ? `
-            <button class="trello-btn-del" data-delete-task="${esc(task.TarefaID)}" title="Remover">✕</button>
+          ${isManager ? `
+            <button class="trello-btn-del" data-delete-task="${esc(task.TarefaID)}" title="Excluir">✕</button>
           ` : ''}
         </div>
       </div>
@@ -649,6 +728,25 @@ document.addEventListener('click', (e) => {
     if (task) {
       moveTaskColumn(taskId, task.Coluna === 'concluido' ? 'andamento' : 'concluido');
     }
+    return;
+  }
+
+  // Expandir / recolher subitens do checklist no cartão
+  const expandBtn = e.target.closest('[data-toggle-expand-card]');
+  if (expandBtn) {
+    const taskId = expandBtn.dataset.toggleExpandCard;
+    if (state.expandedCards.has(taskId)) {
+      state.expandedCards.delete(taskId);
+    } else {
+      state.expandedCards.add(taskId);
+    }
+    renderTasksApp();
+    return;
+  }
+
+  // Deduplicar e organizar quadro
+  if (e.target.id === 'tasksDeduplicateBtn' || e.target.closest('#tasksDeduplicateBtn')) {
+    deduplicateTasks();
     return;
   }
 });
