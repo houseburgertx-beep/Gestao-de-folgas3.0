@@ -10106,6 +10106,805 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
  .j-command-actions {display:grid;grid-template-columns:1fr;}.j-command-actions .btn {width:100%;}.house-sync {justify-content:space-between;gap:10px;}.house-sync > span {font-size:11px;}
  .j-all-clear {padding:18px;align-items:flex-start;}.j-all-clear strong {font-size:15px;}
 }
+
+/* ==========================================================================
+   MÓDULO DE TAREFAS E CHECKLISTS (KANBAN & MODO OPERAÇÃO)
+   ========================================================================== */
+.tasks-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.tasks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.tasks-header-left h2 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 4px 0;
+  color: #fff;
+}
+
+.tasks-subhead {
+  color: #94a3b8;
+  font-size: 14px;
+  margin: 0;
+}
+
+.tasks-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tasks-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.tasks-toolbar-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.tasks-control-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #64748b);
+}
+
+.tasks-control-label .form-control {
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--input-bg, #f8fafc);
+  color: var(--text-color, #1e293b);
+  min-width: 140px;
+}
+
+.tasks-view-mode-switch {
+  display: inline-flex;
+  background: var(--input-bg, #f1f5f9);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.btn-segmented {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-muted, #64748b);
+  transition: all 0.15s ease;
+}
+
+.btn-segmented.active {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.tasks-progress-banner {
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tasks-progress-label {
+  font-size: 13px;
+  color: var(--text-color, #1e293b);
+  text-align: right;
+}
+
+.tasks-progress-track {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.tasks-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.tasks-chips-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tasks-chips-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tasks-chips-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  margin-right: 4px;
+}
+
+/* Kanban Board */
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+
+.kanban-column {
+  background: var(--card-bg, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.kanban-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  background: rgba(0, 0, 0, 0.02);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
+
+.kanban-column-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban-column-title h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-color, #1e293b);
+}
+
+.kanban-badge-count {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--border-color, #e2e8f0);
+  color: var(--text-muted, #475569);
+}
+
+.kanban-cards-container {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 150px;
+  transition: background 0.15s ease;
+}
+
+.kanban-cards-container.drag-over {
+  background: rgba(59, 130, 246, 0.08);
+  border: 2px dashed #3b82f6;
+  border-radius: 10px;
+}
+
+.kanban-empty-placeholder {
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Cartão Kanban */
+.kanban-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+.kanban-card.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.kanban-card.card-maintenance {
+  border-left: 4px solid #ef4444;
+}
+
+.kanban-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban-card-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pill-sector {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.pill-routine {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pill-priority {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.kanban-card-title {
+  font-size: 14px;
+  font-weight: 650;
+  margin: 0;
+  line-height: 1.4;
+  color: #0f172a;
+}
+
+.kanban-card-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.kanban-card-deadline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e11d48;
+}
+
+.kanban-card-checklist-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed #f1f5f9;
+}
+
+.kanban-checklist-gauge {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.kanban-checklist-bar {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.kanban-checklist-fill {
+  height: 100%;
+  background: #10b981;
+  border-radius: 99px;
+  transition: width 0.2s ease;
+}
+
+.kanban-checklist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.kanban-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.kanban-checklist-item input {
+  margin-top: 2px;
+  accent-color: #10b981;
+}
+
+.kanban-checklist-item span.checked {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.kanban-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.kanban-card-assignee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kanban-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #6366f1;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.kanban-assignee-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.kanban-assignee-unassigned {
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.kanban-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kanban-step-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.btn-card-step {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.btn-card-step:hover {
+  background: #e2e8f0;
+}
+
+.btn-card-action.approve {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-card-action.delete {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.btn-card-action.delete:hover {
+  color: #ef4444;
+}
+
+.kanban-visto-tag {
+  font-size: 11px;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+/* Modo Operação (Mobile-First) */
+.op-mode-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.op-mode-banner {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.op-mode-banner h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.op-mode-banner p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.op-sector-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.op-sector-header {
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.op-sector-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 650;
+  color: #334155;
+}
+
+.op-sector-badge {
+  background: #3b82f6;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.op-sector-tasks {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.op-task-block {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.op-task-block.is-done {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  opacity: 0.75;
+}
+
+.op-task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.op-task-title {
+  font-size: 15px;
+  color: #0f172a;
+  display: block;
+}
+
+.op-task-time {
+  font-size: 12px;
+  color: #e11d48;
+  font-weight: 600;
+}
+
+.op-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.op-status-badge.concluido { background: #d1fae5; color: #065f46; }
+.op-status-badge.visto { background: #ede9fe; color: #5b21b6; }
+.op-status-badge.andamento { background: #dbeafe; color: #1e40af; }
+.op-status-badge.pendente { background: #fef3c7; color: #92400e; }
+
+.op-task-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.op-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.op-item-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #10b981;
+}
+
+.op-item-text {
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.op-item-text.checked {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.op-mode-empty {
+  text-align: center;
+  padding: 50px 20px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.op-empty-icon {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: #d1fae5;
+  color: #059669;
+  font-size: 24px;
+  display: grid;
+  place-items: center;
+}
+
+/* Modais Específicos de Tarefas */
+.tasks-modal-card {
+  max-width: 600px;
+}
+
+.tasks-checklist-builder {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+  margin-top: 14px;
+}
+
+.tasks-checklist-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.draft-checklist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.draft-checklist-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.btn-remove-item {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.routine-picker-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.routine-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #fff;
+}
+
+.routine-card:hover {
+  border-color: #3b82f6;
+  background: #f0f7ff;
+  transform: translateY(-2px);
+}
+
+.routine-card-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.routine-card-info h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.routine-card-info p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.routine-badge-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Responsividade Mobile */
+@media (max-width: 900px) {
+  .kanban-board {
+    grid-template-columns: repeat(4, 280px);
+  }
+}
+
+@media (max-width: 768px) {
+  .tasks-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px;
+  }
+  .tasks-header-actions {
+    flex-direction: column;
+  }
+  .tasks-header-actions .btn {
+    width: 100%;
+  }
+  .tasks-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+  }
+  .tasks-toolbar-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tasks-control-label .form-control {
+    width: 100%;
+  }
+  .tasks-view-mode-switch {
+    width: 100%;
+    display: flex;
+  }
+  .btn-segmented {
+    flex: 1;
+    text-align: center;
+  }
+  .tasks-progress-banner {
+    width: 100%;
+  }
+  .tasks-progress-label {
+    text-align: left;
+  }
+}
 </style>
   </head>
   <body>
@@ -10289,6 +11088,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
             <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b>Início</b></button>
             <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
             <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
+            <button class="nav-item" data-view="tasks"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg></span><b>Tarefas &amp; Checklist</b></button>
             <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg></span><b>Pendências</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
           </details>
           <details class="nav-group" open>
@@ -10417,6 +11217,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
         <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" id="dockMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Mais</span></button></nav><main class="content">
           <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
           <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
+          <section id="view-tasks" class="view"><div id="tasksApp"></div></section>
           <section id="view-dashboard" class="view active">
             <div class="hero-row">
               <div>
@@ -10444,7 +11245,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
               <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
             </div>
             <div id="cards" class="metric-grid"></div>
-            <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button></div><div id="proxima-folga"></div>
+            <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="tasks">📋 Tarefas do turno</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
               <div class="panel-head" style="margin-bottom: 12px;">
                 <div>
@@ -15691,6 +16492,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
     else if (view === "notifications") { loadNotifications(); window.dispatchEvent(new Event("gestao-notifications-open")); }
     else if (view === "timeclock") loadTimeClock();
     else if (view === "hour-balances") loadAdminHourBalances_();
+    else if (view === "tasks") window.dispatchEvent(new CustomEvent("gestao-tasks-open"));
     else if (
       [
         "communication",

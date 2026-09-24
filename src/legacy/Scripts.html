@@ -2762,6 +2762,7 @@
     else if (view === "notifications") { loadNotifications(); window.dispatchEvent(new Event("gestao-notifications-open")); }
     else if (view === "timeclock") loadTimeClock();
     else if (view === "hour-balances") loadAdminHourBalances_();
+    else if (view === "tasks") window.dispatchEvent(new CustomEvent("gestao-tasks-open"));
     else if (
       [
         "communication",

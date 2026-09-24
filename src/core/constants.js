@@ -92,6 +92,8 @@ export const ID_FIELDS = Object.freeze({
   FechamentosMensais: "FechamentoID",
   FolhaLinhas: "LinhaID",
   BancoHorasMovimentos: "MovID",
+  Tarefas: "TarefaID",
+  TarefasTemplates: "TemplateID",
 });
 
 export const PUBLIC_AUTH_TABLES = new Set([
@@ -126,6 +128,8 @@ export const STORE_SCOPED_FIELDS = Object.freeze({
   BancoHorasMovimentos: "LojaID",
   Notificacoes: "LojaID",
   Delegacoes: "LojaID",
+  Tarefas: "LojaID",
+  TarefasTemplates: "LojaID",
 });
 
 export const EMPLOYEE_SCOPED_FIELDS = Object.freeze({
@@ -146,6 +150,7 @@ export const EMPLOYEE_SCOPED_FIELDS = Object.freeze({
   Substituicoes: "FuncionarioOrigem",
   BancoHorasMovimentos: "FuncionarioID",
   Notificacoes: "DestinatarioID",
+  Tarefas: "FuncionarioID",
 });
 
 export const DEFAULT_CONFIG = [
