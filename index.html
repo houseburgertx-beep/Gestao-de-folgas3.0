@@ -10397,21 +10397,10 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   background: var(--surface, #ffffff);
   border: 1px dashed var(--line, #cbd5e1);
   border-radius: 16px;
-  padding: 44px 24px;
+  padding: 36px 24px;
   text-align: center;
-  max-width: 680px;
-  margin: 30px auto;
-}
-
-.starter-icon {
-  width: 60px;
-  height: 60px;
-  background: #eff6ff;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 28px;
-  margin: 0 auto 16px;
+  max-width: 960px;
+  margin: 24px auto;
 }
 
 .tasks-empty-starter h3 {
@@ -10434,21 +10423,32 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   text-align: left;
 }
 
+.starter-actions-3 {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
 .starter-card-btn {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   padding: 16px;
   border-radius: 12px;
   border: 1px solid var(--line, #e2e8f0);
   background: #ffffff;
   cursor: pointer;
   transition: all 0.18s ease;
+  text-align: left;
 }
 
 .starter-card-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+}
+
+.starter-card-btn.caixa:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
 }
 
 .starter-card-btn.abertura:hover {
@@ -10461,9 +10461,30 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   background: #faf5ff;
 }
 
-.starter-card-icon {
-  font-size: 30px;
-  flex-shrink: 0;
+.starter-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.starter-card-btn.caixa .starter-tag {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.starter-card-btn.abertura .starter-tag {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.starter-card-btn.fechamento .starter-tag {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
 }
 
 .starter-card-btn strong {
@@ -10886,6 +10907,25 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   gap: 4px;
 }
 
+.trello-btn-edit {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  line-height: 1.2;
+}
+
+.trello-btn-edit:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
 .trello-btn-step {
   width: 22px;
   height: 22px;
@@ -11054,9 +11094,31 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   transform: translateY(-2px);
 }
 
-.routine-card-icon {
-  font-size: 30px;
+.routine-card-tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
   flex-shrink: 0;
+}
+
+.tag-caixa {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.tag-abertura {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.tag-fechamento {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
 }
 
 .routine-card-info h4 {
@@ -11086,19 +11148,35 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 140px;
+  max-height: 160px;
   overflow-y: auto;
 }
 
 .draft-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 4px 8px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   font-size: 12.5px;
+}
+
+.draft-item-input {
+  border: none;
+  background: transparent;
+  font-size: 12.5px;
+  color: #1e293b;
+  flex: 1;
+  outline: none;
+  padding: 3px 4px;
+}
+
+.draft-item-input:focus {
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 .btn-del-draft {
@@ -11107,6 +11185,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   color: #ef4444;
   cursor: pointer;
   font-size: 12px;
+  padding: 2px 6px;
 }
 
 .tasks-loading-state {
@@ -13978,10 +14057,11 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 <!-- DIALOG: Nova / Editar Tarefa -->
 <dialog id="taskDialog">
   <form id="taskForm">
+    <input type="hidden" id="taskIdInput" value="" />
     <div class="dialog-head">
       <div>
         <span class="eyebrow">OPERAÇÃO &amp; CHECKLIST</span>
-        <h3 id="taskDialogHeading">Nova Tarefa / Rotina</h3>
+        <h3 id="taskDialogHeading">Nova Tarefa / Checklist</h3>
       </div>
       <button type="button" class="icon-btn" data-close="taskDialog">✕</button>
     </div>
@@ -13992,9 +14072,9 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
         </label>
         <label>Setor
           <select id="taskSectorInput">
+            <option value="Caixa">Caixa</option>
             <option value="Cozinha">Cozinha</option>
             <option value="Chapa">Chapa</option>
-            <option value="Caixa">Caixa</option>
             <option value="Salão">Salão</option>
             <option value="Delivery">Delivery</option>
             <option value="Geral">Geral</option>
@@ -14025,7 +14105,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
         <div class="full" style="border-top: 1px solid var(--line, #e2e8f0); padding-top: 14px; margin-top: 6px;">
           <strong style="font-size: 13px; display: block; margin-bottom: 8px;">Subitens do Checklist (passo a passo)</strong>
           <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-            <input id="taskChecklistNewInput" type="text" placeholder="Ex: Conferir borracha e termostato" style="flex: 1;" />
+            <input id="taskChecklistNewInput" type="text" placeholder="Ex: Conferir bobina e troco" style="flex: 1;" />
             <button type="button" id="taskChecklistAddBtn" class="btn btn-secondary">+ Adicionar</button>
           </div>
           <div id="taskChecklistDraftContainer" class="draft-checklist-list"></div>
@@ -14053,8 +14133,16 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
       Escolha qual pacote de checklists operacionais você deseja gerar para o turno de hoje:
     </p>
     <div class="routine-picker-cards">
+      <div class="routine-card" data-trigger-routine="caixa">
+        <span class="routine-card-tag tag-caixa">CAIXA</span>
+        <div class="routine-card-info">
+          <h4>Rotina Operacional do Caixa</h4>
+          <p>Abertura do PDV, conferência de sistemas (Takeat, iFood, WhatsApp), lançamento de notas e Drive, grupo VIP, status e pendências.</p>
+          <span class="routine-badge-count">8 tarefas com checklists operacionais</span>
+        </div>
+      </div>
       <div class="routine-card" data-trigger-routine="abertura">
-        <div class="routine-card-icon">☀️</div>
+        <span class="routine-card-tag tag-abertura">ABERTURA</span>
         <div class="routine-card-info">
           <h4>Abertura de Turno</h4>
           <p>Conferência de estoque crítico, temperatura de freezers, pré-aquecimento de chapas/fritadeiras e gaveta de caixa.</p>
@@ -14062,7 +14150,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
         </div>
       </div>
       <div class="routine-card" data-trigger-routine="fechamento">
-        <div class="routine-card-icon">🌙</div>
+        <span class="routine-card-tag tag-fechamento">FECHAMENTO</span>
         <div class="routine-card-info">
           <h4>Fechamento de Turno</h4>
           <p>Limpeza de coifa/chapa, desligamento de gás, descarte ecológico de óleo, fechamento financeiro e lixo/salão.</p>

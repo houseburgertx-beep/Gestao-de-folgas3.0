@@ -293,10 +293,171 @@ export function createTasksHandlers() {
             ],
           },
         ],
+        caixa: [
+          {
+            Titulo: "1. Organização e Abertura do Caixa",
+            Descricao: "Preparar balcão, inicializar sistema, conferir conectividade e registrar fundo inicial.",
+            Setor: "Caixa",
+            Prioridade: "Alta",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: true,
+            Checklist: [
+              { id: 1, texto: "Limpar e organizar o balcão do caixa", concluido: false },
+              { id: 2, texto: "Ligar computador/PDV", concluido: false },
+              { id: 3, texto: "Acessar sistema de vendas", concluido: false },
+              { id: 4, texto: "Abrir o caixa no sistema", concluido: false },
+              { id: 5, texto: "Conferir internet", concluido: false },
+              { id: 6, texto: "Conferir impressora e bobina", concluido: false },
+              { id: 7, texto: "Conferir máquinas de cartão", concluido: false },
+              { id: 8, texto: "Conferir PIX", concluido: false },
+              { id: 9, texto: "Contar e conferir fundo de caixa", concluido: false },
+              { id: 10, texto: "Registrar corretamente o valor inicial", concluido: false },
+              { id: 11, texto: "Conferir se há troco suficiente", concluido: false },
+              { id: 12, texto: "Comunicar imediatamente qualquer diferença", concluido: false },
+            ],
+          },
+          {
+            Titulo: "2. Conferência dos Sistemas",
+            Descricao: "Checar canais de venda, integrações, cardápio e promoções ativas.",
+            Setor: "Caixa",
+            Prioridade: "Alta",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: false,
+            Checklist: [
+              { id: 1, texto: "Conferir Takeat", concluido: false },
+              { id: 2, texto: "Conferir iFood", concluido: false },
+              { id: 3, texto: "Conferir delivery próprio", concluido: false },
+              { id: 4, texto: "Conferir WhatsApp da loja", concluido: false },
+              { id: 5, texto: "Conferir produtos indisponíveis", concluido: false },
+              { id: 6, texto: "Conferir promoções do dia", concluido: false },
+              { id: 7, texto: "Conferir cupons ativos", concluido: false },
+              { id: 8, texto: "Conferir possíveis alterações de preço", concluido: false },
+            ],
+          },
+          {
+            Titulo: "3. Lançamento de Notas e Documentos",
+            Descricao: "Lançar compras, notas da Central, upload no Drive e auditoria de valores.",
+            Setor: "Caixa",
+            Prioridade: "Alta",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: true,
+            Checklist: [
+              { id: 1, texto: "Conferir todas as notas de compras recebidas", concluido: false },
+              { id: 2, texto: "Lançar notas de compras no sistema", concluido: false },
+              { id: 3, texto: "Conferir notas enviadas pela Central", concluido: false },
+              { id: 4, texto: "Acessar o Drive da Central", concluido: false },
+              { id: 5, texto: "Lançar as notas da Central corretamente", concluido: false },
+              { id: 6, texto: "Conferir fornecedor, valor e data de cada nota", concluido: false },
+              { id: 7, texto: "Conferir se nenhuma nota ficou sem lançamento", concluido: false },
+              { id: 8, texto: "Digitalizar/fotografar notas físicas quando necessário", concluido: false },
+              { id: 9, texto: "Salvar todas as notas no Drive", concluido: false },
+              { id: 10, texto: "Organizar as notas nas pastas corretas", concluido: false },
+              { id: 11, texto: "Conferir se os arquivos estão legíveis", concluido: false },
+              { id: 12, texto: "Evitar notas duplicadas no Drive", concluido: false },
+              { id: 13, texto: "Informar à gerência qualquer divergência de valor ou documento", concluido: false },
+            ],
+          },
+          {
+            Titulo: "4. iFood e Atendimento Digital",
+            Descricao: "Gestão de avaliações, suporte ao cliente e resolução de pendências.",
+            Setor: "Caixa",
+            Prioridade: "Media",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: false,
+            Checklist: [
+              { id: 1, texto: "Conferir avaliações novas no iFood", concluido: false },
+              { id: 2, texto: "Responder todas as avaliações pendentes", concluido: false },
+              { id: 3, texto: "Responder elogios de forma cordial e personalizada", concluido: false },
+              { id: 4, texto: "Responder reclamações com educação e atenção", concluido: false },
+              { id: 5, texto: "Encaminhar reclamações graves para a gerência", concluido: false },
+              { id: 6, texto: "Não discutir com clientes nas avaliações", concluido: false },
+              { id: 7, texto: "Conferir mensagens ou pendências relacionadas aos pedidos", concluido: false },
+            ],
+          },
+          {
+            Titulo: "5. Grupo VIP",
+            Descricao: "Comunicação e disparo de ofertas para a base de clientes exclusivos.",
+            Setor: "Caixa",
+            Prioridade: "Media",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: false,
+            Checklist: [
+              { id: 1, texto: "Conferir promoção ou comunicação definida para o dia", concluido: false },
+              { id: 2, texto: "Preparar a postagem do Grupo VIP", concluido: false },
+              { id: 3, texto: "Postar no Grupo VIP no horário definido", concluido: false },
+              { id: 4, texto: "Conferir se imagem, texto, preço e promoção estão corretos", concluido: false },
+              { id: 5, texto: "Inserir link de pedido quando necessário", concluido: false },
+              { id: 6, texto: "Inserir cupom quando houver", concluido: false },
+              { id: 7, texto: "Conferir a postagem após o envio", concluido: false },
+              { id: 8, texto: "Responder dúvidas dos clientes do grupo quando necessário", concluido: false },
+            ],
+          },
+          {
+            Titulo: "6. Status do WhatsApp",
+            Descricao: "Divulgação visual, novidades e chamada para compras no canal oficial.",
+            Setor: "Caixa",
+            Prioridade: "Media",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: false,
+            Checklist: [
+              { id: 1, texto: "Conferir conteúdo definido para o dia", concluido: false },
+              { id: 2, texto: "Postar promoção no Status do WhatsApp", concluido: false },
+              { id: 3, texto: "Postar produtos ou novidades da loja", concluido: false },
+              { id: 4, texto: "Inserir chamada para pedido", concluido: false },
+              { id: 5, texto: "Inserir link ou orientação para compra quando necessário", concluido: false },
+              { id: 6, texto: "Conferir se informações e preços estão corretos", concluido: false },
+              { id: 7, texto: "Evitar status desatualizados ou promoções encerradas", concluido: false },
+            ],
+          },
+          {
+            Titulo: "7. Conferência Final da Rotina",
+            Descricao: "Auditoria completa antes do encerramento ou passagem de turno do caixa.",
+            Setor: "Caixa",
+            Prioridade: "Alta",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: true,
+            Checklist: [
+              { id: 1, texto: "Caixa aberto e conferido", concluido: false },
+              { id: 2, texto: "Máquinas de cartão funcionando", concluido: false },
+              { id: 3, texto: "PIX funcionando", concluido: false },
+              { id: 4, texto: "Sistemas online", concluido: false },
+              { id: 5, texto: "Notas de compras lançadas", concluido: false },
+              { id: 6, texto: "Notas da Central lançadas", concluido: false },
+              { id: 7, texto: "Todas as notas salvas no Drive", concluido: false },
+              { id: 8, texto: "Avaliações do iFood respondidas", concluido: false },
+              { id: 9, texto: "Grupo VIP atualizado", concluido: false },
+              { id: 10, texto: "Status do WhatsApp atualizado", concluido: false },
+              { id: 11, texto: "Pendências comunicadas à gerência", concluido: false },
+            ],
+          },
+          {
+            Titulo: "8. Pendências do Caixa",
+            Descricao: "Registro de ocorrências, comprovantes a conciliar ou notas em aberto.",
+            Setor: "Caixa",
+            Prioridade: "Media",
+            Tipo: "rotina_caixa",
+            Coluna: "pendente",
+            ExigeVistoGerente: true,
+            Checklist: [
+              { id: 1, texto: "Identificar notas ou pedidos que ficaram pendentes", concluido: false },
+              { id: 2, texto: "Registrar motivo e detalhes da pendência", concluido: false },
+              { id: 3, texto: "Comunicar à gerência e repassar para o próximo operador", concluido: false },
+            ],
+          },
+        ],
       };
 
       const selected = templates[routineType] || [];
-      assert(selected.length > 0, "Tipo de rotina inválido. Escolha 'abertura' ou 'fechamento'.");
+      assert(selected.length > 0, "Tipo de rotina inválido. Escolha 'abertura', 'fechamento' ou 'caixa'.");
+
+      const routineLabel = routineType === "caixa" ? "Caixa" : routineType === "abertura" ? "Abertura" : "Fechamento";
 
       const existingTasks = await runtime.list("Tarefas", { profile });
       const alreadyGenerated = existingTasks.filter(
@@ -307,7 +468,7 @@ export function createTasksHandlers() {
       if (alreadyGenerated.length > 0) {
         return success(
           alreadyGenerated,
-          `Rotina de ${routineType === "abertura" ? "Abertura" : "Fechamento"} já está no quadro (${alreadyGenerated.length} tarefas).`,
+          `Rotina de ${routineLabel} já está no quadro (${alreadyGenerated.length} tarefas).`,
         );
       }
 
@@ -329,7 +490,7 @@ export function createTasksHandlers() {
 
       return success(
         createdList,
-        `Rotina de ${routineType === "abertura" ? "Abertura" : "Fechamento"} gerada com ${createdList.length} tarefas.`,
+        `Rotina de ${routineLabel} gerada com ${createdList.length} tarefas.`,
       );
     },
 
@@ -355,7 +516,7 @@ export function createTasksHandlers() {
       for (const t of rows) {
         if (targetStore && String(t.LojaID || "") !== targetStore) continue;
         if (turnoDate && t.DataTurno && t.DataTurno !== turnoDate) continue;
-        const normTitle = (t.Titulo || '').replace(/^(Abertura|Fechamento)\s*Turno:\s*/i, '').trim().toLowerCase();
+        const normTitle = (t.Titulo || '').replace(/^(\d+\.\s*)?(Abertura|Fechamento|Caixa)\s*(Turno|Rotina)?:\s*/i, '').trim().toLowerCase();
         const key = `${normTitle}|${t.Setor}|${t.Coluna}`;
         if (seen.has(key)) {
           await runtime.remove("Tarefas", t.TarefaID);

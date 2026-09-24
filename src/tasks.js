@@ -22,19 +22,21 @@ let state = {
 };
 
 const SECTOR_GROUPS = [
-  { id: 'todos', label: 'Todas as Tarefas' },
-  { id: 'abertura', label: '☀️ Abertura' },
-  { id: 'cozinha_chapa', label: '🍔 Cozinha & Chapa' },
-  { id: 'caixa_salao', label: '💳 Caixa & Salão' },
-  { id: 'fechamento', label: '🌙 Fechamento' },
-  { id: 'manutencao', label: '🛠️ Manutenções' },
+  { id: 'todos', label: 'Todos' },
+  { id: 'caixa', label: 'Caixa' },
+  { id: 'abertura', label: 'Abertura' },
+  { id: 'fechamento', label: 'Fechamento' },
+  { id: 'cozinha', label: 'Cozinha' },
+  { id: 'chapa', label: 'Chapa' },
+  { id: 'salao', label: 'Salão' },
+  { id: 'manutencao', label: 'Reparos' },
 ];
 
 const COLUMNS = [
-  { id: 'pendente', title: 'A Fazer / Pendente', icon: '⏳', dotColor: '#f59e0b' },
-  { id: 'andamento', title: 'Em Andamento', icon: '⚡', dotColor: '#3b82f6' },
-  { id: 'visto', title: 'Aguardando Visto', icon: '👀', dotColor: '#8b5cf6' },
-  { id: 'concluido', title: 'Concluído', icon: '✅', dotColor: '#10b981' },
+  { id: 'pendente', title: 'Pendente', dotColor: '#f59e0b' },
+  { id: 'andamento', title: 'Em Andamento', dotColor: '#3b82f6' },
+  { id: 'visto', title: 'Aguardando Visto', dotColor: '#8b5cf6' },
+  { id: 'concluido', title: 'Concluído', dotColor: '#10b981' },
 ];
 
 function getApi() {
@@ -138,12 +140,12 @@ async function generateRoutine(routineType) {
   try {
     const res = await api.invoke('tasksGenerateRoutine', [state.selectedStore, routineType, state.selectedDate]);
     if (res?.message) {
-      // Notifica com mensagem amigável (se já existia ou quantas foram criadas)
-      console.log(res.message);
+      alert(res.message);
     }
     await loadTasks();
   } catch (err) {
-    alert(err.message || 'Falha ao disparar rotina.');
+    alert(err.message || 'Falha ao gerar rotina.');
+  } finally {
     state.loading = false;
     renderTasksApp();
   }
@@ -182,13 +184,61 @@ async function deleteTask(taskId) {
   }
 }
 
+function openNewTaskDialog(defaultSector = 'Caixa') {
+  populateEmployeeSelect();
+  const idInput = $('#taskIdInput');
+  if (idInput) idInput.value = '';
+  const heading = $('#taskDialogHeading');
+  if (heading) heading.textContent = 'Nova Tarefa / Checklist';
+
+  if ($('#taskTitleInput')) $('#taskTitleInput').value = '';
+  if ($('#taskSectorInput')) $('#taskSectorInput').value = defaultSector || (state.selectedSector === 'caixa' ? 'Caixa' : 'Geral');
+  if ($('#taskPriorityInput')) $('#taskPriorityInput').value = 'Media';
+  if ($('#taskEmployeeInput')) $('#taskEmployeeInput').value = '';
+  if ($('#taskDeadlineInput')) $('#taskDeadlineInput').value = '';
+  if ($('#taskDescInput')) $('#taskDescInput').value = '';
+  if ($('#taskManagerSignInput')) $('#taskManagerSignInput').checked = false;
+
+  state.checklistDraft = [];
+  renderDraftChecklist();
+  openDialog('taskDialog');
+}
+
+function openEditTaskDialog(taskId) {
+  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
+  if (!task) return;
+  populateEmployeeSelect();
+
+  const idInput = $('#taskIdInput');
+  if (idInput) idInput.value = task.TarefaID;
+  const heading = $('#taskDialogHeading');
+  if (heading) heading.textContent = 'Editar Tarefa / Checklist';
+
+  if ($('#taskTitleInput')) $('#taskTitleInput').value = task.Titulo || '';
+  if ($('#taskSectorInput')) $('#taskSectorInput').value = task.Setor || 'Caixa';
+  if ($('#taskPriorityInput')) $('#taskPriorityInput').value = task.Prioridade || 'Media';
+  if ($('#taskEmployeeInput')) $('#taskEmployeeInput').value = task.FuncionarioID || '';
+  if ($('#taskDeadlineInput')) $('#taskDeadlineInput').value = task.HoraLimite || '';
+  if ($('#taskDescInput')) $('#taskDescInput').value = task.Descricao || '';
+  if ($('#taskManagerSignInput')) $('#taskManagerSignInput').checked = Boolean(task.ExigeVistoGerente);
+
+  state.checklistDraft = Array.isArray(task.Checklist)
+    ? task.Checklist.map(c => ({ id: c.id || (Date.now() + Math.random()), texto: c.texto || '', concluido: Boolean(c.concluido) }))
+    : [];
+  renderDraftChecklist();
+  openDialog('taskDialog');
+}
+
 function getFilteredTasks() {
   return state.tasks.filter(t => {
+    if (state.selectedSector === 'todos') return true;
+    if (state.selectedSector === 'caixa') return t.Setor === 'Caixa' || t.Tipo === 'rotina_caixa';
     if (state.selectedSector === 'abertura') return t.Tipo === 'rotina_abertura';
     if (state.selectedSector === 'fechamento') return t.Tipo === 'rotina_fechamento';
     if (state.selectedSector === 'manutencao') return t.Tipo === 'manutencao';
-    if (state.selectedSector === 'cozinha_chapa') return t.Setor === 'Cozinha' || t.Setor === 'Chapa';
-    if (state.selectedSector === 'caixa_salao') return t.Setor === 'Caixa' || t.Setor === 'Salão';
+    if (state.selectedSector === 'cozinha') return t.Setor === 'Cozinha';
+    if (state.selectedSector === 'chapa') return t.Setor === 'Chapa';
+    if (state.selectedSector === 'salao') return t.Setor === 'Salão';
     return true;
   });
 }
@@ -197,14 +247,12 @@ function getSectorTheme(sector, type) {
   if (type === 'manutencao') return { bg: '#fef2f2', text: '#b91c1c', border: '#fca5a5' };
   if (type === 'rotina_abertura') return { bg: '#fffbeb', text: '#b45309', border: '#fde68a' };
   if (type === 'rotina_fechamento') return { bg: '#faf5ff', text: '#7e22ce', border: '#e9d5ff' };
-  switch (sector) {
-    case 'Chapa': return { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' };
-    case 'Cozinha': return { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' };
-    case 'Caixa': return { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' };
-    case 'Salão': return { bg: '#fdf4ff', text: '#a21caf', border: '#f5d0fe' };
-    case 'Delivery': return { bg: '#fefce8', text: '#a16207', border: '#fef08a' };
-    default: return { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
-  }
+  if (type === 'rotina_caixa' || sector === 'Caixa') return { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' };
+  if (sector === 'Chapa') return { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' };
+  if (sector === 'Cozinha') return { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' };
+  if (sector === 'Salão') return { bg: '#fdf4ff', text: '#a21caf', border: '#f5d0fe' };
+  if (sector === 'Delivery') return { bg: '#fefce8', text: '#a16207', border: '#fef08a' };
+  return { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
 }
 
 function renderTasksApp() {
@@ -217,7 +265,6 @@ function renderTasksApp() {
   const allDayTasks = state.tasks;
   const totalTasks = allDayTasks.length;
   const completedTasks = allDayTasks.filter(t => t.Coluna === 'concluido').length;
-  const waitingApprovalTasks = allDayTasks.filter(t => t.Coluna === 'visto').length;
   const maintenanceTasks = allDayTasks.filter(t => t.Tipo === 'manutencao' && t.Coluna !== 'concluido').length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const isManager = isUserAdminOrManager();
@@ -238,7 +285,6 @@ function renderTasksApp() {
               <div class="tasks-context-bar">
                 ${state.stores.length > 1 ? `
                   <div class="tasks-select-box">
-                    <span>📍</span>
                     <select id="tasksStoreSelect">
                       ${state.stores.map(s => {
                         const id = String(s.LojaID || s.lojaId || '');
@@ -249,13 +295,11 @@ function renderTasksApp() {
                   </div>
                 ` : `
                   <div class="tasks-select-box">
-                    <span>📍</span>
                     <strong>${esc(storeName)}</strong>
                   </div>
                 `}
 
                 <div class="tasks-select-box">
-                  <span>📅</span>
                   <input type="date" id="tasksDateInput" value="${esc(state.selectedDate)}">
                 </div>
               </div>
@@ -263,18 +307,18 @@ function renderTasksApp() {
           </div>
 
           <div class="tasks-hub-actions">
-            <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas operacionais padrão (Abertura ou Fechamento)">
-              ⚡ Rotina do Turno
+            <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas operacionais padrão (Caixa, Abertura ou Fechamento)">
+              Rotinas do Turno
             </button>
             <button class="btn btn-new-task" id="openNewTaskBtn">
               + Nova Tarefa
             </button>
             <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn">
-              🛠️ Reparos ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
+              Reparos ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
             </button>
             ${isManager && totalTasks > 0 ? `
               <button class="btn btn-icon-tool" id="tasksDeduplicateBtn" title="Remover tarefas duplicadas">
-                🧹 Organizar
+                Organizar
               </button>
             ` : ''}
           </div>
@@ -286,11 +330,13 @@ function renderTasksApp() {
             ${SECTOR_GROUPS.map(grp => {
               const count = allDayTasks.filter(t => {
                 if (grp.id === 'todos') return true;
+                if (grp.id === 'caixa') return t.Setor === 'Caixa' || t.Tipo === 'rotina_caixa';
                 if (grp.id === 'abertura') return t.Tipo === 'rotina_abertura';
                 if (grp.id === 'fechamento') return t.Tipo === 'rotina_fechamento';
                 if (grp.id === 'manutencao') return t.Tipo === 'manutencao';
-                if (grp.id === 'cozinha_chapa') return t.Setor === 'Cozinha' || t.Setor === 'Chapa';
-                if (grp.id === 'caixa_salao') return t.Setor === 'Caixa' || t.Setor === 'Salão';
+                if (grp.id === 'cozinha') return t.Setor === 'Cozinha';
+                if (grp.id === 'chapa') return t.Setor === 'Chapa';
+                if (grp.id === 'salao') return t.Setor === 'Salão';
                 return true;
               }).length;
 
@@ -311,10 +357,10 @@ function renderTasksApp() {
 
             <div class="segmented-deck" aria-label="Visualização">
               <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
-                ☷ Kanban
+                Kanban
               </button>
               <button class="seg-btn ${state.viewMode === 'operacao' ? 'active' : ''}" data-view-mode="operacao">
-                ☰ Lista
+                Lista
               </button>
             </div>
           </div>
@@ -330,23 +376,30 @@ function renderTasksApp() {
       ` : totalTasks === 0 ? `
         <!-- Empty State Inteligente e Útil -->
         <div class="tasks-empty-starter">
-          <div class="starter-icon">📋</div>
           <h3>Nenhuma rotina gerada para hoje ainda.</h3>
-          <p>Dispare os checklists essenciais do turno em 1 clique ou adicione uma tarefa manual:</p>
+          <p>Carregue os checklists padrão do turno em um clique ou adicione uma tarefa manual:</p>
 
-          <div class="starter-actions">
-            <button class="starter-card-btn abertura" data-trigger-routine="abertura">
-              <span class="starter-card-icon">☀️</span>
+          <div class="starter-actions starter-actions-3">
+            <button class="starter-card-btn caixa" data-trigger-routine="caixa">
+              <span class="starter-tag">CAIXA</span>
               <div>
-                <strong>Carregar Abertura da Loja</strong>
+                <strong>Rotina Operacional do Caixa</strong>
+                <small>Abertura do PDV, conferência de sistemas, notas, Drive, grupo VIP e WhatsApp.</small>
+              </div>
+            </button>
+
+            <button class="starter-card-btn abertura" data-trigger-routine="abertura">
+              <span class="starter-tag">ABERTURA</span>
+              <div>
+                <strong>Abertura de Turno</strong>
                 <small>Freezers, estoque crítico, chapa, fritadeira e gaveta de caixa.</small>
               </div>
             </button>
 
             <button class="starter-card-btn fechamento" data-trigger-routine="fechamento">
-              <span class="starter-card-icon">🌙</span>
+              <span class="starter-tag">FECHAMENTO</span>
               <div>
-                <strong>Carregar Fechamento da Loja</strong>
+                <strong>Fechamento de Turno</strong>
                 <small>Limpeza de coifa/chapa, gás, descarte de óleo, caixa e lixo.</small>
               </div>
             </button>
@@ -377,8 +430,7 @@ function renderKanban(tasks) {
             <div class="trello-cards-area" data-col-target="${col.id}">
               ${colTasks.length === 0 ? `
                 <div class="trello-empty-column">
-                  <span class="empty-icon">${col.icon}</span>
-                  <p>Nenhuma tarefa aqui</p>
+                  <p>Nenhuma tarefa nesta etapa</p>
                 </div>
               ` : colTasks.map(t => renderCard(t)).join('')}
             </div>
@@ -402,7 +454,7 @@ function renderCard(task) {
 
   // Limpa prefixos redundantes no título para visual muito mais limpo
   const cleanTitle = (task.Titulo || '')
-    .replace(/^(Abertura|Fechamento)\s*Turno:\s*/i, '')
+    .replace(/^(\d+\.\s*)?(Abertura|Fechamento|Caixa)\s*(Turno|Rotina)?:\s*/i, '$1')
     .trim();
 
   const isExpanded = state.expandedCards.has(task.TarefaID);
@@ -410,15 +462,21 @@ function renderCard(task) {
   const hasMore = checklist.length > 3;
   const isManager = isUserAdminOrManager();
 
+  const categoryLabel = task.Tipo === 'rotina_caixa' ? 'Caixa'
+    : task.Tipo === 'rotina_abertura' ? 'Abertura'
+    : task.Tipo === 'rotina_fechamento' ? 'Fechamento'
+    : task.Tipo === 'manutencao' ? 'Manutenção'
+    : (task.Setor || 'Geral');
+
   return `
     <div class="trello-card" draggable="true" data-task-id="${esc(task.TarefaID)}">
       <!-- Topo: Tags de Categoria e Prioridade -->
       <div class="trello-card-tags">
         <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
-          ${esc(task.Tipo === 'rotina_abertura' ? '☀️ Abertura' : task.Tipo === 'rotina_fechamento' ? '🌙 Fechamento' : task.Tipo === 'manutencao' ? '🛠️ Manutenção' : task.Setor || 'Geral')}
+          ${esc(categoryLabel)}
         </span>
-        ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">🔥 Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">⚠️ Alta</span>` : ''}
-        ${task.HoraLimite ? `<span class="trello-tag-time">⏰ ${esc(task.HoraLimite)}</span>` : ''}
+        ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
+        ${task.HoraLimite ? `<span class="trello-tag-time">Limite: ${esc(task.HoraLimite)}</span>` : ''}
       </div>
 
       <!-- Título e Descrição Concisa -->
@@ -429,7 +487,7 @@ function renderCard(task) {
       ${chTotal > 0 ? `
         <div class="trello-card-checklist">
           <div class="trello-checklist-meta">
-            <span class="chk-label">☑ Checklist</span>
+            <span class="chk-label">Checklist</span>
             <span class="chk-count ${chDone === chTotal ? 'all-done' : ''}">
               <strong>${chDone}</strong>/${chTotal} ${chDone === chTotal ? '✓' : ''}
             </span>
@@ -452,7 +510,7 @@ function renderCard(task) {
 
           ${hasMore ? `
             <button type="button" class="trello-expand-subtasks-btn" data-toggle-expand-card="${esc(task.TarefaID)}">
-              ${isExpanded ? '▴ Mostrar menos' : `▾ +${checklist.length - 3} mais`}
+              ${isExpanded ? 'Mostrar menos' : `+${checklist.length - 3} itens`}
             </button>
           ` : ''}
         </div>
@@ -465,15 +523,16 @@ function renderCard(task) {
             <span class="trello-avatar">${esc(task.NomeFuncionario.split(' ').map(n=>n[0]).slice(0,2).join(''))}</span>
             <span class="trello-assignee-name">${esc(task.NomeFuncionario)}</span>
           ` : `
-            <span class="trello-avatar unassigned">👥</span>
+            <span class="trello-avatar unassigned">EQ</span>
             <span class="trello-unassigned">Equipe</span>
           `}
         </div>
 
         <div class="trello-card-actions">
+          <button class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa e checklist">Editar</button>
           ${task.Coluna === 'visto' && isManager ? `
             <button class="trello-btn-approve" data-approve-task="${esc(task.TarefaID)}">
-              ✓ Visto
+              Visto
             </button>
           ` : ''}
           <button class="trello-btn-step" data-step-dir="prev" data-task-id="${esc(task.TarefaID)}" title="Voltar etapa">‹</button>
@@ -486,7 +545,7 @@ function renderCard(task) {
 
       ${task.VistoPor ? `
         <div class="trello-visto-approved">
-          ✓ Visto do Gerente: <strong>${esc(task.VistoPor)}</strong>
+          Visto do Gerente: <strong>${esc(task.VistoPor)}</strong>
         </div>
       ` : ''}
     </div>
@@ -496,7 +555,10 @@ function renderCard(task) {
 function renderOperationList(tasks) {
   const grouped = {};
   for (const t of tasks) {
-    const key = t.Tipo === 'rotina_abertura' ? '☀️ Abertura de Turno' : t.Tipo === 'rotina_fechamento' ? '🌙 Fechamento de Turno' : t.Setor || 'Geral';
+    const key = t.Tipo === 'rotina_caixa' ? 'Rotina do Caixa'
+      : t.Tipo === 'rotina_abertura' ? 'Abertura de Turno'
+      : t.Tipo === 'rotina_fechamento' ? 'Fechamento de Turno'
+      : (t.Setor || 'Geral');
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(t);
   }
@@ -519,11 +581,14 @@ function renderOperationList(tasks) {
                   <div class="op-card-top">
                     <div>
                       <strong>${esc(t.Titulo)}</strong>
-                      ${t.HoraLimite ? `<span class="trello-tag-time" style="margin-left:6px;">⏰ ${esc(t.HoraLimite)}</span>` : ''}
+                      ${t.HoraLimite ? `<span class="trello-tag-time" style="margin-left:6px;">Limite: ${esc(t.HoraLimite)}</span>` : ''}
                     </div>
-                    <span class="op-badge ${t.Coluna}">
-                      ${t.Coluna === 'concluido' ? 'Concluído' : t.Coluna === 'visto' ? 'Aguardando Visto' : t.Coluna === 'andamento' ? 'Em Andamento' : 'Pendente'}
-                    </span>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <button class="trello-btn-edit" data-edit-task="${esc(t.TarefaID)}">Editar</button>
+                      <span class="op-badge ${t.Coluna}">
+                        ${t.Coluna === 'concluido' ? 'Concluído' : t.Coluna === 'visto' ? 'Aguardando Visto' : t.Coluna === 'andamento' ? 'Em Andamento' : 'Pendente'}
+                      </span>
+                    </div>
                   </div>
 
                   ${checklist.length > 0 ? `
@@ -537,7 +602,7 @@ function renderOperationList(tasks) {
                     </div>
                   ` : `
                     <button class="btn btn-secondary" style="margin-top:8px;" data-toggle-card-complete="${esc(t.TarefaID)}">
-                      ${isDone ? '✓ Concluído' : 'Marcar como Feito'}
+                      ${isDone ? 'Concluído' : 'Marcar como Feito'}
                     </button>
                   `}
                 </div>
@@ -556,10 +621,7 @@ function bindDomEvents() {
 
   // Botões do Topo
   $('#openNewTaskBtn', container)?.addEventListener('click', () => {
-    populateEmployeeSelect();
-    state.checklistDraft = [];
-    renderDraftChecklist();
-    openDialog('taskDialog');
+    openNewTaskDialog(state.selectedSector === 'caixa' ? 'Caixa' : 'Geral');
   });
 
   $('#openRoutineBtn', container)?.addEventListener('click', () => {
@@ -620,10 +682,14 @@ function populateEmployeeSelect() {
 function renderDraftChecklist() {
   const box = $('#taskChecklistDraftContainer');
   if (!box) return;
+  if (!state.checklistDraft || state.checklistDraft.length === 0) {
+    box.innerHTML = '<div style="font-size:12px;color:#94a3b8;font-style:italic;padding:6px 0;">Nenhum item adicionado ainda. Digite acima e clique em Adicionar ou tecle Enter.</div>';
+    return;
+  }
   box.innerHTML = state.checklistDraft.map((item, idx) => `
     <div class="draft-row">
-      <span>• ${esc(item.texto)}</span>
-      <button type="button" class="btn-del-draft" data-del-draft="${idx}">✕</button>
+      <input type="text" class="draft-item-input" data-draft-idx="${idx}" value="${esc(item.texto)}" placeholder="Descrição do item..." />
+      <button type="button" class="btn-del-draft" data-del-draft="${idx}" title="Remover item">✕</button>
     </div>
   `).join('');
 }
@@ -646,11 +712,18 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  // Disparar rotina (Abertura / Fechamento)
+  // Disparar rotina (Caixa / Abertura / Fechamento)
   const routineTrigger = e.target.closest('[data-trigger-routine]');
   if (routineTrigger) {
     const routine = routineTrigger.dataset.triggerRoutine;
     if (routine) generateRoutine(routine);
+    return;
+  }
+
+  // Editar tarefa e checklist
+  const editBtn = e.target.closest('[data-edit-task]');
+  if (editBtn) {
+    openEditTaskDialog(editBtn.dataset.editTask);
     return;
   }
 
@@ -674,10 +747,7 @@ document.addEventListener('click', (e) => {
   // Adicionar cartão direto da coluna
   const addCol = e.target.closest('[data-add-card-col]');
   if (addCol) {
-    populateEmployeeSelect();
-    state.checklistDraft = [];
-    renderDraftChecklist();
-    openDialog('taskDialog');
+    openNewTaskDialog(state.selectedSector === 'caixa' ? 'Caixa' : 'Geral');
     return;
   }
 
@@ -751,6 +821,29 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Atualizar texto do checklist draft inline
+document.addEventListener('input', (e) => {
+  if (e.target.matches('.draft-item-input')) {
+    const idx = Number(e.target.dataset.draftIdx);
+    if (!isNaN(idx) && state.checklistDraft[idx]) {
+      state.checklistDraft[idx].texto = e.target.value;
+    }
+  }
+});
+
+// Adicionar subitem de checklist ao teclar Enter no input
+document.addEventListener('keydown', (e) => {
+  if (e.target.id === 'taskChecklistNewInput' && e.key === 'Enter') {
+    e.preventDefault();
+    const text = (e.target.value || '').trim();
+    if (text) {
+      state.checklistDraft.push({ id: Date.now(), texto: text, concluido: false });
+      e.target.value = '';
+      renderDraftChecklist();
+    }
+  }
+});
+
 // Toggle subtask checkbox
 document.addEventListener('change', (e) => {
   if (e.target.matches('[data-toggle-subtask]')) {
@@ -763,7 +856,7 @@ document.addEventListener('change', (e) => {
   }
 });
 
-// Envio do Form de Nova Tarefa
+// Envio do Form de Nova ou Edição de Tarefa
 document.addEventListener('DOMContentLoaded', () => {
   const taskForm = document.getElementById('taskForm');
   if (taskForm) {
@@ -774,10 +867,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const funcId = $('#taskEmployeeInput')?.value || '';
       const employee = state.employees.find(emp => String(emp.FuncionarioID) === String(funcId));
+      const taskId = $('#taskIdInput')?.value?.trim();
 
       const payload = {
+        TarefaID: taskId || undefined,
         Titulo: title,
-        Setor: $('#taskSectorInput')?.value || 'Geral',
+        Setor: $('#taskSectorInput')?.value || 'Caixa',
         Prioridade: $('#taskPriorityInput')?.value || 'Media',
         FuncionarioID: funcId,
         NomeFuncionario: employee?.Nome || '',
@@ -796,6 +891,8 @@ document.addEventListener('DOMContentLoaded', () => {
         await api.invoke('tasksSave', [payload]);
         closeDialog('taskDialog');
         taskForm.reset();
+        const idInput = $('#taskIdInput');
+        if (idInput) idInput.value = '';
         state.checklistDraft = [];
         await loadTasks();
       } catch (err) {
@@ -836,35 +933,30 @@ document.addEventListener('DOMContentLoaded', () => {
         maintenanceForm.reset();
         await loadTasks();
       } catch (err) {
-        alert(err.message || 'Falha ao registrar chamado.');
+        alert(err.message || 'Falha ao abrir chamado de manutenção.');
       }
     };
   }
 });
 
-// Ouvintes de sistema
-window.addEventListener('house-journey', (e) => {
-  const detail = e.detail || {};
-  state.user = detail.user || null;
-  state.isManager = Boolean(detail.manager);
-  state.stores = Array.isArray(detail.stores) ? detail.stores : [];
-  state.employees = Array.isArray(detail.employees) ? detail.employees : [];
+// Inicializador da Aba
+export function initTasksModule(ctx = {}) {
+  state.user = ctx.user || null;
+  state.isManager = isUserAdminOrManager();
+  state.stores = Array.isArray(ctx.stores) ? ctx.stores : [];
+  state.employees = Array.isArray(ctx.employees) ? ctx.employees : [];
 
-  if (!state.selectedStore) {
-    state.selectedStore = state.user?.LojaID || state.user?.lojaId || state.stores[0]?.LojaID || '';
-  }
-
-  const tasksView = $('#view-tasks');
-  if (tasksView && tasksView.classList.contains('active')) {
-    loadTasks();
-  }
-});
-
-window.addEventListener('gestao-tasks-open', () => {
   if (!state.selectedStore && state.stores.length > 0) {
-    state.selectedStore = state.user?.LojaID || state.user?.lojaId || state.stores[0]?.LojaID || '';
+    const userStore = state.user?.LojaID || state.user?.lojaId;
+    const match = state.stores.find(s => String(s.LojaID || s.lojaId) === String(userStore));
+    state.selectedStore = match ? String(match.LojaID || match.lojaId) : String(state.stores[0].LojaID || state.stores[0].lojaId);
   }
-  loadTasks();
-});
 
-export { loadTasks, renderTasksApp };
+  renderTasksApp();
+  loadTasks();
+}
+
+// Export global para compatibilidade com SPA e roteador
+if (typeof window !== 'undefined') {
+  window.initTasksModule = initTasksModule;
+}

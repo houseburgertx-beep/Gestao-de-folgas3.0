@@ -1164,10 +1164,11 @@
 <!-- DIALOG: Nova / Editar Tarefa -->
 <dialog id="taskDialog">
   <form id="taskForm">
+    <input type="hidden" id="taskIdInput" value="" />
     <div class="dialog-head">
       <div>
         <span class="eyebrow">OPERAÇÃO &amp; CHECKLIST</span>
-        <h3 id="taskDialogHeading">Nova Tarefa / Rotina</h3>
+        <h3 id="taskDialogHeading">Nova Tarefa / Checklist</h3>
       </div>
       <button type="button" class="icon-btn" data-close="taskDialog">✕</button>
     </div>
@@ -1178,9 +1179,9 @@
         </label>
         <label>Setor
           <select id="taskSectorInput">
+            <option value="Caixa">Caixa</option>
             <option value="Cozinha">Cozinha</option>
             <option value="Chapa">Chapa</option>
-            <option value="Caixa">Caixa</option>
             <option value="Salão">Salão</option>
             <option value="Delivery">Delivery</option>
             <option value="Geral">Geral</option>
@@ -1211,7 +1212,7 @@
         <div class="full" style="border-top: 1px solid var(--line, #e2e8f0); padding-top: 14px; margin-top: 6px;">
           <strong style="font-size: 13px; display: block; margin-bottom: 8px;">Subitens do Checklist (passo a passo)</strong>
           <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-            <input id="taskChecklistNewInput" type="text" placeholder="Ex: Conferir borracha e termostato" style="flex: 1;" />
+            <input id="taskChecklistNewInput" type="text" placeholder="Ex: Conferir bobina e troco" style="flex: 1;" />
             <button type="button" id="taskChecklistAddBtn" class="btn btn-secondary">+ Adicionar</button>
           </div>
           <div id="taskChecklistDraftContainer" class="draft-checklist-list"></div>
@@ -1239,8 +1240,16 @@
       Escolha qual pacote de checklists operacionais você deseja gerar para o turno de hoje:
     </p>
     <div class="routine-picker-cards">
+      <div class="routine-card" data-trigger-routine="caixa">
+        <span class="routine-card-tag tag-caixa">CAIXA</span>
+        <div class="routine-card-info">
+          <h4>Rotina Operacional do Caixa</h4>
+          <p>Abertura do PDV, conferência de sistemas (Takeat, iFood, WhatsApp), lançamento de notas e Drive, grupo VIP, status e pendências.</p>
+          <span class="routine-badge-count">8 tarefas com checklists operacionais</span>
+        </div>
+      </div>
       <div class="routine-card" data-trigger-routine="abertura">
-        <div class="routine-card-icon">☀️</div>
+        <span class="routine-card-tag tag-abertura">ABERTURA</span>
         <div class="routine-card-info">
           <h4>Abertura de Turno</h4>
           <p>Conferência de estoque crítico, temperatura de freezers, pré-aquecimento de chapas/fritadeiras e gaveta de caixa.</p>
@@ -1248,7 +1257,7 @@
         </div>
       </div>
       <div class="routine-card" data-trigger-routine="fechamento">
-        <div class="routine-card-icon">🌙</div>
+        <span class="routine-card-tag tag-fechamento">FECHAMENTO</span>
         <div class="routine-card-info">
           <h4>Fechamento de Turno</h4>
           <p>Limpeza de coifa/chapa, desligamento de gás, descarte ecológico de óleo, fechamento financeiro e lixo/salão.</p>
