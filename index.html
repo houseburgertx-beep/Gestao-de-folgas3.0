@@ -10108,718 +10108,719 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 /* ==========================================================================
-   MÓDULO DE TAREFAS E CHECKLISTS (KANBAN & MODO OPERAÇÃO)
+   MÓDULO DE TAREFAS E CHECKLISTS (ESTILO TRELLO / FOLGAS 3.0)
    ========================================================================== */
-.tasks-shell {
+.tasks-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
   padding-bottom: 40px;
 }
 
-.tasks-header {
+/* Painel de Resumo Superior */
+.tasks-summary-panel {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.tasks-summary-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 24px;
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  color: #fff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  margin-bottom: 20px;
 }
 
-.tasks-header-left h2 {
-  font-size: 26px;
+.tasks-summary-header h2 {
+  font-size: 22px;
   font-weight: 700;
-  margin: 4px 0;
-  color: #fff;
+  margin: 2px 0 4px;
+  color: var(--text, #1e293b);
+  letter-spacing: -0.02em;
 }
 
-.tasks-subhead {
-  color: #94a3b8;
-  font-size: 14px;
+.tasks-summary-subhead {
+  color: var(--muted, #64748b);
+  font-size: 13px;
   margin: 0;
 }
 
-.tasks-header-actions {
+.tasks-header-btn-row {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.tasks-toolbar {
+.tasks-header-btn-row .btn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 10px;
+}
+
+.badge-count-red {
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  margin-left: 4px;
+}
+
+/* Grade de 4 KPIs */
+.tasks-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.tasks-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.tasks-kpi-card:hover {
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+}
+
+.tasks-kpi-card.highlight-purple {
+  border-color: #c4b5fd;
+  background: #faf5ff;
+}
+
+.tasks-kpi-card.highlight-red {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.kpi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.kpi-icon.blue { background: #eff6ff; color: #2563eb; }
+.kpi-icon.green { background: #f0fdf4; color: #16a34a; }
+.kpi-icon.purple { background: #faf5ff; color: #9333ea; }
+.kpi-icon.red { background: #fef2f2; color: #dc2626; }
+
+.kpi-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.kpi-info strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.kpi-info span {
+  font-size: 12px;
+  color: var(--muted, #64748b);
+  margin-top: 2px;
+}
+
+/* Barra de Filtros e Setores */
+.tasks-filter-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e2e8f0);
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
   border-radius: 14px;
-  padding: 16px 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.tasks-toolbar-controls {
+.tasks-filter-left {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 14px;
-}
-
-.tasks-control-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted, #64748b);
-}
-
-.tasks-control-label .form-control {
-  padding: 8px 12px;
-  font-size: 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color, #cbd5e1);
-  background: var(--input-bg, #f8fafc);
-  color: var(--text-color, #1e293b);
-  min-width: 140px;
-}
-
-.tasks-view-mode-switch {
-  display: inline-flex;
-  background: var(--input-bg, #f1f5f9);
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--border-color, #e2e8f0);
-}
-
-.btn-segmented {
-  border: none;
-  background: transparent;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  color: var(--text-muted, #64748b);
-  transition: all 0.15s ease;
-}
-
-.btn-segmented.active {
-  background: var(--primary, #3b82f6);
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-}
-
-.tasks-progress-banner {
-  min-width: 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.tasks-progress-label {
-  font-size: 13px;
-  color: var(--text-color, #1e293b);
-  text-align: right;
-}
-
-.tasks-progress-track {
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.tasks-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #059669);
-  border-radius: 99px;
-  transition: width 0.3s ease;
-}
-
-.tasks-chips-bar {
-  display: flex;
-  flex-direction: column;
   gap: 10px;
 }
 
-.tasks-chips-group {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+.tasks-compact-select,
+.tasks-compact-date {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--line, #cbd5e1);
+  background: var(--bg, #f8fafc);
+  color: var(--text, #1e293b);
 }
 
-.tasks-chips-label {
+.tasks-store-badge {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted, #64748b);
-  margin-right: 4px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 6px 12px;
+  border-radius: 8px;
 }
 
-/* Kanban Board */
-.kanban-board {
+.tasks-sector-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.tasks-sector-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.tasks-sector-tab:hover {
+  background: #f1f5f9;
+  color: var(--text, #1e293b);
+}
+
+.tasks-sector-tab.active {
+  background: #365cf5;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(54, 92, 245, 0.25);
+}
+
+.tasks-filter-right .segmented {
+  display: inline-flex;
+  background: var(--bg, #f1f5f9);
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.segmented-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted, #64748b);
+  transition: all 0.15s ease;
+}
+
+.segmented-btn.active {
+  background: #fff;
+  color: var(--text, #0f172a);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Empty Starter (Acolhedor e Útil) */
+.tasks-empty-starter {
+  background: var(--surface, #ffffff);
+  border: 1px dashed var(--line, #cbd5e1);
+  border-radius: 16px;
+  padding: 40px 24px;
+  text-align: center;
+  max-width: 680px;
+  margin: 30px auto;
+}
+
+.starter-icon {
+  width: 56px;
+  height: 56px;
+  background: #eff6ff;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  margin: 0 auto 16px;
+}
+
+.tasks-empty-starter h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+  margin: 0 0 6px;
+}
+
+.tasks-empty-starter p {
+  font-size: 14px;
+  color: var(--muted, #64748b);
+  margin: 0 0 24px;
+}
+
+.starter-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  text-align: left;
+}
+
+.starter-card-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e2e8f0);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.starter-card-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+}
+
+.starter-card-btn.abertura:hover {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.starter-card-btn.fechamento:hover {
+  border-color: #8b5cf6;
+  background: #faf5ff;
+}
+
+.starter-card-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.starter-card-btn strong {
+  display: block;
+  font-size: 14px;
+  color: var(--text, #1e293b);
+  margin-bottom: 3px;
+}
+
+.starter-card-btn small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted, #64748b);
+  line-height: 1.35;
+}
+
+/* Quadro Trello / Kanban */
+.trello-board {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   align-items: start;
   overflow-x: auto;
-  padding-bottom: 12px;
+  padding-bottom: 20px;
 }
 
-.kanban-column {
-  background: var(--card-bg, #f8fafc);
-  border: 1px solid var(--border-color, #e2e8f0);
+.trello-column {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 14px;
   display: flex;
   flex-direction: column;
-  min-height: 480px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  max-height: calc(100vh - 280px);
 }
 
-.kanban-column-header {
+.trello-column-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
-  background: rgba(0, 0, 0, 0.02);
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.kanban-column-title {
+.trello-col-title {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.kanban-column-title h3 {
-  font-size: 15px;
-  font-weight: 700;
+.trello-col-title h4 {
   margin: 0;
-  color: var(--text-color, #1e293b);
-}
-
-.kanban-badge-count {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 99px;
-  background: var(--border-color, #e2e8f0);
-  color: var(--text-muted, #475569);
+  color: #1e293b;
 }
 
-.kanban-cards-container {
-  padding: 12px;
+.trello-col-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+.trello-cards-area {
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  flex: 1;
-  min-height: 150px;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 120px;
+}
+
+.trello-cards-area.drag-over {
+  background: #eff6ff;
+  border: 2px dashed #3b82f6;
+  border-radius: 8px;
+}
+
+.trello-add-card-btn {
+  background: transparent;
+  border: none;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 0 0 14px 14px;
+  border-top: 1px solid #e2e8f0;
   transition: background 0.15s ease;
 }
 
-.kanban-cards-container.drag-over {
-  background: rgba(59, 130, 246, 0.08);
-  border: 2px dashed #3b82f6;
-  border-radius: 10px;
+.trello-add-card-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
-.kanban-empty-placeholder {
-  padding: 30px 16px;
-  text-align: center;
-  color: var(--text-muted, #94a3b8);
-  font-size: 13px;
-  font-style: italic;
-}
-
-/* Cartão Kanban */
-.kanban-card {
+/* Cartão Trello */
+.trello-card {
   background: #ffffff;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 12px;
-  padding: 14px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   cursor: grab;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.kanban-card:hover {
+.trello-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.kanban-card.is-dragging {
+.trello-card.dragging {
   opacity: 0.4;
   cursor: grabbing;
 }
 
-.kanban-card.card-maintenance {
-  border-left: 4px solid #ef4444;
-}
-
-.kanban-card-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.kanban-card-tags {
+.trello-card-tags {
   display: flex;
   align-items: center;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 6px;
 }
 
-.pill-sector {
+.trello-tag {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 6px;
-  background: #f1f5f9;
-  color: #475569;
+  letter-spacing: 0.2px;
 }
 
-.pill-routine {
+.trello-tag-urgent {
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 6px;
-  background: #fef3c7;
-  color: #92400e;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
 }
 
-.pill-priority {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 6px;
+.trello-tag-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: #dc2626;
 }
 
-.kanban-card-title {
-  font-size: 14px;
-  font-weight: 650;
+.trello-card-title {
   margin: 0;
-  line-height: 1.4;
+  font-size: 13.5px;
+  font-weight: 650;
   color: #0f172a;
+  line-height: 1.35;
 }
 
-.kanban-card-desc {
+.trello-card-desc {
+  margin: 0;
   font-size: 12px;
   color: #64748b;
-  margin: 0;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
-.kanban-card-deadline {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #e11d48;
-}
-
-.kanban-card-checklist-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.trello-card-checklist {
   margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px dashed #f1f5f9;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
 }
 
-.kanban-checklist-gauge {
+.trello-checklist-meta {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  font-weight: 600;
   color: #64748b;
+  margin-bottom: 4px;
 }
 
-.kanban-checklist-bar {
-  height: 6px;
+.trello-checklist-track {
+  height: 5px;
   background: #f1f5f9;
   border-radius: 99px;
   overflow: hidden;
+  margin-bottom: 6px;
 }
 
-.kanban-checklist-fill {
+.trello-checklist-bar {
   height: 100%;
   background: #10b981;
   border-radius: 99px;
-  transition: width 0.2s ease;
+  transition: width 0.25s ease;
 }
 
-.kanban-checklist-items {
+.trello-subtasks {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 4px;
 }
 
-.kanban-checklist-item {
+.trello-subtask-item {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   color: #334155;
   cursor: pointer;
 }
 
-.kanban-checklist-item input {
+.trello-subtask-item input {
   margin-top: 2px;
   accent-color: #10b981;
 }
 
-.kanban-checklist-item span.checked {
+.trello-subtask-item span.is-done {
   text-decoration: line-through;
   color: #94a3b8;
 }
 
-.kanban-card-footer {
+.trello-card-foot {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
   margin-top: 6px;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid #f1f5f9;
 }
 
-.kanban-card-assignee {
+.trello-assignee {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.kanban-avatar {
-  width: 22px;
-  height: 22px;
+.trello-avatar {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #6366f1;
+  background: #4f46e5;
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   display: grid;
   place-items: center;
 }
 
-.kanban-assignee-name {
-  font-size: 12px;
+.trello-assignee-name {
+  font-size: 11.5px;
   font-weight: 600;
   color: #475569;
 }
 
-.kanban-assignee-unassigned {
+.trello-unassigned {
   font-size: 11px;
   color: #94a3b8;
   font-style: italic;
 }
 
-.kanban-card-actions {
+.trello-card-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
-.kanban-step-buttons {
-  display: flex;
-  gap: 2px;
-}
-
-.btn-card-step {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+.trello-btn-step {
+  width: 20px;
+  height: 20px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
-  color: #334155;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
   display: grid;
   place-items: center;
-  cursor: pointer;
-  padding: 0;
   line-height: 1;
+  color: #475569;
 }
 
-.btn-card-step:hover {
+.trello-btn-step:hover {
   background: #e2e8f0;
 }
 
-.btn-card-action.approve {
+.trello-btn-approve {
+  border: none;
   background: #10b981;
   color: #fff;
-  border: none;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
-.btn-card-action.delete {
-  background: transparent;
+.trello-btn-del {
   border: none;
+  background: transparent;
   color: #94a3b8;
-  font-size: 16px;
+  font-size: 12px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0 3px;
 }
 
-.btn-card-action.delete:hover {
+.trello-btn-del:hover {
   color: #ef4444;
 }
 
-.kanban-visto-tag {
-  font-size: 11px;
+.trello-visto-approved {
+  font-size: 10.5px;
   color: #059669;
   background: #ecfdf5;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
   margin-top: 4px;
 }
 
-/* Modo Operação (Mobile-First) */
-.op-mode-container {
+/* Modo Lista Rápida (Operação) */
+.op-list-wrap {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.op-mode-banner {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px 18px;
+.op-group-panel {
+  background: #fff;
 }
 
-.op-mode-banner h3 {
-  margin: 0 0 4px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.op-mode-banner p {
-  margin: 0;
-  font-size: 13px;
-  color: #64748b;
-}
-
-.op-sector-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-}
-
-.op-sector-header {
-  padding: 14px 18px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.op-sector-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 650;
-  color: #334155;
-}
-
-.op-sector-badge {
-  background: #3b82f6;
-  color: #fff;
-  padding: 3px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.op-sector-tasks {
-  padding: 14px 18px;
+.op-group-content {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.op-task-block {
+.op-card {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 14px;
   background: #fff;
-  transition: all 0.2s ease;
 }
 
-.op-task-block.is-done {
+.op-card.is-complete {
   background: #f8fafc;
   border-color: #cbd5e1;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
-.op-task-header {
+.op-card-top {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 10px;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
-.op-task-title {
-  font-size: 15px;
-  color: #0f172a;
-  display: block;
-}
-
-.op-task-time {
-  font-size: 12px;
-  color: #e11d48;
-  font-weight: 600;
-}
-
-.op-status-badge {
+.op-badge {
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 6px;
 }
 
-.op-status-badge.concluido { background: #d1fae5; color: #065f46; }
-.op-status-badge.visto { background: #ede9fe; color: #5b21b6; }
-.op-status-badge.andamento { background: #dbeafe; color: #1e40af; }
-.op-status-badge.pendente { background: #fef3c7; color: #92400e; }
+.op-badge.concluido { background: #d1fae5; color: #065f46; }
+.op-badge.visto { background: #ede9fe; color: #5b21b6; }
+.op-badge.andamento { background: #dbeafe; color: #1e40af; }
+.op-badge.pendente { background: #fef3c7; color: #92400e; }
 
-.op-task-items {
+.op-checklist-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.op-item-row {
+.op-check-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 8px 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 40px;
 }
 
-.op-item-row input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+.op-check-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
   accent-color: #10b981;
 }
 
-.op-item-text {
-  font-size: 14px;
-  color: #1e293b;
-  font-weight: 500;
-}
-
-.op-item-text.checked {
+.op-check-row span.is-done {
   text-decoration: line-through;
   color: #94a3b8;
 }
 
-.op-mode-empty {
-  text-align: center;
-  padding: 50px 20px;
-  background: #fff;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-}
-
-.op-empty-icon {
-  width: 50px;
-  height: 50px;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  background: #d1fae5;
-  color: #059669;
-  font-size: 24px;
-  display: grid;
-  place-items: center;
-}
-
-/* Modais Específicos de Tarefas */
-.tasks-modal-card {
-  max-width: 600px;
-}
-
-.tasks-checklist-builder {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 14px;
-  margin-top: 14px;
-}
-
-.tasks-checklist-input-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.draft-checklist-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.draft-checklist-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 13px;
-}
-
-.btn-remove-item {
-  background: transparent;
-  border: none;
-  color: #ef4444;
-  font-size: 16px;
-  cursor: pointer;
-}
-
+/* Modais Específicos */
 .routine-picker-cards {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 16px 0;
 }
 
 .routine-card {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   padding: 16px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--line, #e2e8f0);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -10827,27 +10828,28 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 .routine-card:hover {
-  border-color: #3b82f6;
-  background: #f0f7ff;
+  border-color: #365cf5;
+  background: #f0f4ff;
   transform: translateY(-2px);
 }
 
 .routine-card-icon {
-  font-size: 32px;
+  font-size: 30px;
   flex-shrink: 0;
 }
 
 .routine-card-info h4 {
   margin: 0 0 4px;
-  font-size: 16px;
-  color: #0f172a;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #1e293b);
 }
 
 .routine-card-info p {
   margin: 0 0 6px;
   font-size: 12px;
-  color: #64748b;
-  line-height: 1.4;
+  color: var(--muted, #64748b);
+  line-height: 1.35;
 }
 
 .routine-badge-count {
@@ -10855,56 +10857,71 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   font-weight: 700;
   background: #e2e8f0;
   color: #475569;
-  padding: 2px 8px;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.draft-checklist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.draft-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
+  font-size: 12.5px;
+}
+
+.btn-del-draft {
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.tasks-loading-state {
+  text-align: center;
+  padding: 50px 20px;
 }
 
 /* Responsividade Mobile */
 @media (max-width: 900px) {
-  .kanban-board {
-    grid-template-columns: repeat(4, 280px);
+  .tasks-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .trello-board {
+    grid-template-columns: repeat(4, 270px);
   }
 }
 
-@media (max-width: 768px) {
-  .tasks-header {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 18px;
+@media (max-width: 600px) {
+  .tasks-kpi-grid {
+    grid-template-columns: 1fr;
   }
-  .tasks-header-actions {
+  .tasks-summary-header {
     flex-direction: column;
   }
-  .tasks-header-actions .btn {
+  .tasks-header-btn-row {
     width: 100%;
   }
-  .tasks-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 14px;
-  }
-  .tasks-toolbar-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .tasks-control-label .form-control {
-    width: 100%;
-  }
-  .tasks-view-mode-switch {
-    width: 100%;
-    display: flex;
-  }
-  .btn-segmented {
+  .tasks-header-btn-row .btn {
     flex: 1;
     text-align: center;
   }
-  .tasks-progress-banner {
-    width: 100%;
-  }
-  .tasks-progress-label {
-    text-align: left;
+  .starter-actions {
+    grid-template-columns: 1fr;
   }
 }
+
 </style>
   </head>
   <body>
@@ -13709,6 +13726,160 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
     <div class="dialog-actions">
       <button type="button" class="btn btn-secondary" data-close="resetStoreBalancesDialog">Cancelar</button>
       <button class="btn btn-danger" type="submit" style="background:#dc2626;color:#fff;border:none">Confirmar e Zerar Saldos</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- DIALOG: Nova / Editar Tarefa -->
+<dialog id="taskDialog">
+  <form id="taskForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">OPERAÇÃO &amp; CHECKLIST</span>
+        <h3 id="taskDialogHeading">Nova Tarefa / Rotina</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="taskDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-grid">
+        <label class="full">Título da Tarefa *
+          <input id="taskTitleInput" type="text" placeholder="Ex: Higienização da chapa morna e gaveta" required />
+        </label>
+        <label>Setor
+          <select id="taskSectorInput">
+            <option value="Cozinha">Cozinha</option>
+            <option value="Chapa">Chapa</option>
+            <option value="Caixa">Caixa</option>
+            <option value="Salão">Salão</option>
+            <option value="Delivery">Delivery</option>
+            <option value="Geral">Geral</option>
+          </select>
+        </label>
+        <label>Prioridade
+          <select id="taskPriorityInput">
+            <option value="Media" selected>Média</option>
+            <option value="Alta">Alta</option>
+            <option value="Urgente">Urgente</option>
+            <option value="Baixa">Baixa</option>
+          </select>
+        </label>
+        <label>Responsável
+          <select id="taskEmployeeInput">
+            <option value="">Equipe da Praça (Geral)</option>
+          </select>
+        </label>
+        <label>Hora Limite (opcional)
+          <input id="taskDeadlineInput" type="time" />
+        </label>
+        <label class="full">Orientações / Detalhes
+          <textarea id="taskDescInput" rows="2" placeholder="Instruções claras para a equipe executar..."></textarea>
+        </label>
+        <label class="switch-label full">
+          <input id="taskManagerSignInput" type="checkbox" /> Exigir visto / aprovação do Gerente para conclusão
+        </label>
+        <div class="full" style="border-top: 1px solid var(--line, #e2e8f0); padding-top: 14px; margin-top: 6px;">
+          <strong style="font-size: 13px; display: block; margin-bottom: 8px;">Subitens do Checklist (passo a passo)</strong>
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <input id="taskChecklistNewInput" type="text" placeholder="Ex: Conferir borracha e termostato" style="flex: 1;" />
+            <button type="button" id="taskChecklistAddBtn" class="btn btn-secondary">+ Adicionar</button>
+          </div>
+          <div id="taskChecklistDraftContainer" class="draft-checklist-list"></div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="taskDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Salvar Tarefa</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- DIALOG: Gerar Rotina do Turno -->
+<dialog id="taskRoutineDialog">
+  <div class="dialog-head">
+    <div>
+      <span class="eyebrow">AUTOMAÇÃO DO TURNO</span>
+      <h3>Disparar Rotina Padrão</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="taskRoutineDialog">✕</button>
+  </div>
+  <div class="dialog-body">
+    <p style="font-size: 14px; color: var(--text-muted, #64748b); margin-top: 0; margin-bottom: 16px;">
+      Escolha qual pacote de checklists operacionais você deseja gerar para o turno de hoje:
+    </p>
+    <div class="routine-picker-cards">
+      <div class="routine-card" data-trigger-routine="abertura">
+        <div class="routine-card-icon">☀️</div>
+        <div class="routine-card-info">
+          <h4>Abertura de Turno</h4>
+          <p>Conferência de estoque crítico, temperatura de freezers, pré-aquecimento de chapas/fritadeiras e gaveta de caixa.</p>
+          <span class="routine-badge-count">4 tarefas com checklists automáticos</span>
+        </div>
+      </div>
+      <div class="routine-card" data-trigger-routine="fechamento">
+        <div class="routine-card-icon">🌙</div>
+        <div class="routine-card-info">
+          <h4>Fechamento de Turno</h4>
+          <p>Limpeza de coifa/chapa, desligamento de gás, descarte ecológico de óleo, fechamento financeiro e lixo/salão.</p>
+          <span class="routine-badge-count">5 tarefas com checklists automáticos</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-secondary" data-close="taskRoutineDialog">Fechar</button>
+  </div>
+</dialog>
+
+<!-- DIALOG: Chamado de Manutenção -->
+<dialog id="taskMaintenanceDialog">
+  <form id="taskMaintenanceForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color: #ef4444;">MANUTENÇÃO &amp; REPAROS</span>
+        <h3>Relatar Equipamento com Defeito</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="taskMaintenanceDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-grid">
+        <label class="full">Equipamento *
+          <select id="taskMaintenanceEquipment" required>
+            <option value="Chapa Principal">Chapa Principal</option>
+            <option value="Fritadeira Elétrica/Gás">Fritadeira Elétrica / Gás</option>
+            <option value="Freezer ou Câmara Fria">Freezer ou Câmara Fria</option>
+            <option value="Ar-condicionado do Salão">Ar-condicionado do Salão</option>
+            <option value="Coifa / Sistema de Exaustão">Coifa / Sistema de Exaustão</option>
+            <option value="Computador / Tablet / PDV">Computador / Tablet / PDV</option>
+            <option value="Bag de Motoboy / Bag Térmica">Bag de Motoboy / Bag Térmica</option>
+            <option value="Instalação Elétrica / Iluminação">Instalação Elétrica / Iluminação</option>
+            <option value="Outro Equipamento">Outro Equipamento</option>
+          </select>
+        </label>
+        <label class="full">O que está acontecendo? *
+          <textarea id="taskMaintenanceDesc" rows="3" placeholder="Ex: Fritadeira 2 está desarmando o termostato ao atingir 180°C..." required></textarea>
+        </label>
+        <label>Urgência
+          <select id="taskMaintenancePriority">
+            <option value="Alta" selected>Alta (atrapalha a produção)</option>
+            <option value="Urgente">Urgente (impede a operação)</option>
+            <option value="Media">Média (pode aguardar término do turno)</option>
+          </select>
+        </label>
+        <label>Setor Afetado
+          <select id="taskMaintenanceSector">
+            <option value="Cozinha">Cozinha</option>
+            <option value="Chapa">Chapa</option>
+            <option value="Caixa">Caixa</option>
+            <option value="Salão">Salão</option>
+            <option value="Delivery">Delivery</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="taskMaintenanceDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit" style="background:#dc2626;border-color:#dc2626;">Registrar Chamado</button>
     </div>
   </form>
 </dialog>

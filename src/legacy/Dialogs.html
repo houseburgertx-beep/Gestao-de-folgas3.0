@@ -1161,3 +1161,157 @@
   </form>
 </dialog>
 
+<!-- DIALOG: Nova / Editar Tarefa -->
+<dialog id="taskDialog">
+  <form id="taskForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">OPERAÇÃO &amp; CHECKLIST</span>
+        <h3 id="taskDialogHeading">Nova Tarefa / Rotina</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="taskDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-grid">
+        <label class="full">Título da Tarefa *
+          <input id="taskTitleInput" type="text" placeholder="Ex: Higienização da chapa morna e gaveta" required />
+        </label>
+        <label>Setor
+          <select id="taskSectorInput">
+            <option value="Cozinha">Cozinha</option>
+            <option value="Chapa">Chapa</option>
+            <option value="Caixa">Caixa</option>
+            <option value="Salão">Salão</option>
+            <option value="Delivery">Delivery</option>
+            <option value="Geral">Geral</option>
+          </select>
+        </label>
+        <label>Prioridade
+          <select id="taskPriorityInput">
+            <option value="Media" selected>Média</option>
+            <option value="Alta">Alta</option>
+            <option value="Urgente">Urgente</option>
+            <option value="Baixa">Baixa</option>
+          </select>
+        </label>
+        <label>Responsável
+          <select id="taskEmployeeInput">
+            <option value="">Equipe da Praça (Geral)</option>
+          </select>
+        </label>
+        <label>Hora Limite (opcional)
+          <input id="taskDeadlineInput" type="time" />
+        </label>
+        <label class="full">Orientações / Detalhes
+          <textarea id="taskDescInput" rows="2" placeholder="Instruções claras para a equipe executar..."></textarea>
+        </label>
+        <label class="switch-label full">
+          <input id="taskManagerSignInput" type="checkbox" /> Exigir visto / aprovação do Gerente para conclusão
+        </label>
+        <div class="full" style="border-top: 1px solid var(--line, #e2e8f0); padding-top: 14px; margin-top: 6px;">
+          <strong style="font-size: 13px; display: block; margin-bottom: 8px;">Subitens do Checklist (passo a passo)</strong>
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <input id="taskChecklistNewInput" type="text" placeholder="Ex: Conferir borracha e termostato" style="flex: 1;" />
+            <button type="button" id="taskChecklistAddBtn" class="btn btn-secondary">+ Adicionar</button>
+          </div>
+          <div id="taskChecklistDraftContainer" class="draft-checklist-list"></div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="taskDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Salvar Tarefa</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- DIALOG: Gerar Rotina do Turno -->
+<dialog id="taskRoutineDialog">
+  <div class="dialog-head">
+    <div>
+      <span class="eyebrow">AUTOMAÇÃO DO TURNO</span>
+      <h3>Disparar Rotina Padrão</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="taskRoutineDialog">✕</button>
+  </div>
+  <div class="dialog-body">
+    <p style="font-size: 14px; color: var(--text-muted, #64748b); margin-top: 0; margin-bottom: 16px;">
+      Escolha qual pacote de checklists operacionais você deseja gerar para o turno de hoje:
+    </p>
+    <div class="routine-picker-cards">
+      <div class="routine-card" data-trigger-routine="abertura">
+        <div class="routine-card-icon">☀️</div>
+        <div class="routine-card-info">
+          <h4>Abertura de Turno</h4>
+          <p>Conferência de estoque crítico, temperatura de freezers, pré-aquecimento de chapas/fritadeiras e gaveta de caixa.</p>
+          <span class="routine-badge-count">4 tarefas com checklists automáticos</span>
+        </div>
+      </div>
+      <div class="routine-card" data-trigger-routine="fechamento">
+        <div class="routine-card-icon">🌙</div>
+        <div class="routine-card-info">
+          <h4>Fechamento de Turno</h4>
+          <p>Limpeza de coifa/chapa, desligamento de gás, descarte ecológico de óleo, fechamento financeiro e lixo/salão.</p>
+          <span class="routine-badge-count">5 tarefas com checklists automáticos</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-secondary" data-close="taskRoutineDialog">Fechar</button>
+  </div>
+</dialog>
+
+<!-- DIALOG: Chamado de Manutenção -->
+<dialog id="taskMaintenanceDialog">
+  <form id="taskMaintenanceForm">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color: #ef4444;">MANUTENÇÃO &amp; REPAROS</span>
+        <h3>Relatar Equipamento com Defeito</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="taskMaintenanceDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-grid">
+        <label class="full">Equipamento *
+          <select id="taskMaintenanceEquipment" required>
+            <option value="Chapa Principal">Chapa Principal</option>
+            <option value="Fritadeira Elétrica/Gás">Fritadeira Elétrica / Gás</option>
+            <option value="Freezer ou Câmara Fria">Freezer ou Câmara Fria</option>
+            <option value="Ar-condicionado do Salão">Ar-condicionado do Salão</option>
+            <option value="Coifa / Sistema de Exaustão">Coifa / Sistema de Exaustão</option>
+            <option value="Computador / Tablet / PDV">Computador / Tablet / PDV</option>
+            <option value="Bag de Motoboy / Bag Térmica">Bag de Motoboy / Bag Térmica</option>
+            <option value="Instalação Elétrica / Iluminação">Instalação Elétrica / Iluminação</option>
+            <option value="Outro Equipamento">Outro Equipamento</option>
+          </select>
+        </label>
+        <label class="full">O que está acontecendo? *
+          <textarea id="taskMaintenanceDesc" rows="3" placeholder="Ex: Fritadeira 2 está desarmando o termostato ao atingir 180°C..." required></textarea>
+        </label>
+        <label>Urgência
+          <select id="taskMaintenancePriority">
+            <option value="Alta" selected>Alta (atrapalha a produção)</option>
+            <option value="Urgente">Urgente (impede a operação)</option>
+            <option value="Media">Média (pode aguardar término do turno)</option>
+          </select>
+        </label>
+        <label>Setor Afetado
+          <select id="taskMaintenanceSector">
+            <option value="Cozinha">Cozinha</option>
+            <option value="Chapa">Chapa</option>
+            <option value="Caixa">Caixa</option>
+            <option value="Salão">Salão</option>
+            <option value="Delivery">Delivery</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" data-close="taskMaintenanceDialog">Cancelar</button>
+      <button class="btn btn-primary" type="submit" style="background:#dc2626;border-color:#dc2626;">Registrar Chamado</button>
+    </div>
+  </form>
+</dialog>
+
