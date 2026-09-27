@@ -11613,6 +11613,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
     width: 100%;
     box-sizing: border-box;
     display: flex;
+    gap: 3px;
     padding: 3px;
     background: #f1f5f9;
     border-radius: 8px;
@@ -11620,13 +11621,17 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 
   .seg-btn {
     flex: 1;
+    min-width: 0;
     text-align: center;
-    height: 34px;
-    font-size: 12.5px;
+    height: 36px;
+    font-size: clamp(10.5px, 2.8vw, 12px);
     font-weight: 600;
+    padding: 4px 4px;
     border-radius: 6px;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
   }
 
   /* Empty state em celular */

@@ -432,6 +432,9 @@ function renderTasksApp() {
             <button class="seg-btn ${state.viewMode === 'checklist' ? 'active' : ''}" data-view-mode="checklist">
               Checklists Diários
             </button>
+            <button class="seg-btn ${state.viewMode === 'my' ? 'active' : ''}" data-view-mode="my">
+              Minhas Tarefas
+            </button>
             <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
               Quadro Kanban
             </button>
@@ -510,7 +513,7 @@ function renderTasksApp() {
             </button>
           </div>
         `}
-      ` : state.viewMode === 'checklist' ? renderDailyChecklist(filtered) : renderKanban(filtered)}
+      ` : state.viewMode === 'checklist' ? renderDailyChecklist(filtered) : state.viewMode === 'my' ? renderMyTasks() : renderKanban(filtered)}
     </div>
   `;
 
@@ -626,6 +629,32 @@ function renderDailyChecklist(tasks) {
   `;
 }
 
+
+function renderMyTasks() {
+  const myId = String(state.user?.FuncionarioID || state.user?.funcionarioId || '');
+  const myName = String(state.user?.Nome || state.user?.nome || '').trim().toLowerCase();
+
+  const myTasks = state.tasks.filter(t => {
+    if (myId && String(t.FuncionarioID) === myId) return true;
+    if (myName && String(t.NomeFuncionario || '').trim().toLowerCase() === myName) return true;
+    return false;
+  });
+
+  if (myTasks.length === 0) {
+    return `
+      <div class="tasks-empty-starter employee-empty" style="margin-top: 14px;">
+        <span class="starter-tag" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;">MINHAS TAREFAS</span>
+        <h3 style="margin-top:14px;font-size:17px;font-weight:700;color:#0f172a;">Nenhuma rotina atribuída individualmente</h3>
+        <p style="max-width:440px;margin:8px auto 18px;color:#64748b;font-size:13.5px;line-height:1.45;">
+          Você não possui tarefas com seu nome no momento. Toque em <strong>Checklists Diários</strong> acima para realizar as rotinas operacionais do turno.
+        </p>
+      </div>
+    `;
+  }
+
+  return renderDailyChecklist(myTasks);
+}
+
 function renderKanban(tasks) {
   return `
     <div class="trello-board">
@@ -658,6 +687,7 @@ function renderKanban(tasks) {
     </div>
   `;
 }
+
 
 function renderCard(task) {
   const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
