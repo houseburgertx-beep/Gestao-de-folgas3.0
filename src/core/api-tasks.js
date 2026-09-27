@@ -9,14 +9,43 @@ export function createTasksHandlers() {
       const profile = await runtime.requireProfile();
       const targetStore = String(lojaId || (!isAdmin(profile) ? (profile.LojaID || "") : "")).trim();
       const rows = await runtime.list("Tarefas", { profile });
+      const userIds = [
+        profile.FuncionarioID,
+        profile.funcionarioId,
+        profile.UsuarioID,
+        profile.usuarioId,
+      ].filter(Boolean).map((x) => String(x).trim().toLowerCase());
+
+      const userNames = [
+        profile.Nome,
+        profile.nome,
+      ].filter(Boolean).map((x) => String(x).trim().toLowerCase());
+
       const filtered = rows.filter((task) => {
+        const taskFuncId = String(task.FuncionarioID || "").trim().toLowerCase();
+        const taskFuncName = String(task.NomeFuncionario || "").trim().toLowerCase();
+
+        const isAssignedToUser = Boolean(
+          (taskFuncId && userIds.includes(taskFuncId)) ||
+          (taskFuncName && userNames.some((name) => taskFuncName.includes(name) || name.includes(taskFuncName))) ||
+          (taskFuncId && userNames.includes(taskFuncId))
+        );
+
+        // Se a tarefa está atribuída diretamente a este usuário, ela SEMPRE aparece
+        if (isAssignedToUser) {
+          return true;
+        }
+
         if (targetStore && String(task.LojaID || "") !== targetStore) {
           return false;
         }
         if (dataTurno && task.DataTurno && task.DataTurno !== dataTurno) {
+          if (task.Tipo === "manutencao" && task.Coluna !== "concluido") {
+            return true;
+          }
           return false;
         }
-        if (!isAdmin(profile) && /\b(teste|test|dummy)\b/i.test(task.Titulo || '')) {
+        if (!isAdmin(profile) && /\b(teste|test|dummy)\b/i.test(task.Titulo || "")) {
           return false;
         }
         return true;

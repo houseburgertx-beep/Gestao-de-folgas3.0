@@ -601,18 +601,23 @@ export class FirebaseRuntime {
     }
 
     if (table === "Tarefas" || table === "TarefasTemplates") {
-      if (storeId) {
-        try {
-          return this.recordsFromSnapshot(
-            table,
-            await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
-          );
-        } catch (error) {
-          if (isPermissionDenied(error)) return [];
-          throw error;
+      try {
+        return this.recordsFromSnapshot(table, await get(tableRef));
+      } catch (error) {
+        if (storeId) {
+          try {
+            return this.recordsFromSnapshot(
+              table,
+              await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
+            );
+          } catch (e) {
+            if (isPermissionDenied(e)) return [];
+            throw e;
+          }
         }
+        if (isPermissionDenied(error)) return [];
+        throw error;
       }
-      return this.recordsFromSnapshot(table, await get(tableRef));
     }
 
     const storeField = STORE_SCOPED_FIELDS[table];

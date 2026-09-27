@@ -41,6 +41,58 @@ function getApi() {
   return window.__GESTAO_FIREBASE__?.api;
 }
 
+function getEmployeeId(e) {
+  if (!e) return '';
+  return String(e.FuncionarioID || e.funcionarioId || e.id || e.UsuarioID || e.usuarioId || '').trim();
+}
+
+function getEmployeeName(e) {
+  if (!e) return '';
+  return String(e.Nome || e.nome || e.NomeFuncionario || '').trim();
+}
+
+function isTaskAssignedToCurrentUser(task) {
+  if (!task) return false;
+  const user = state.user;
+  if (!user) return false;
+
+  const userIds = [
+    user.FuncionarioID,
+    user.funcionarioId,
+    user.id,
+    user.UsuarioID,
+    user.usuarioId,
+  ].filter(Boolean).map(x => String(x).trim().toLowerCase());
+
+  const userNames = [
+    user.Nome,
+    user.nome,
+  ].filter(Boolean).map(x => String(x).trim().toLowerCase());
+
+  const taskFuncId = String(task.FuncionarioID || '').trim().toLowerCase();
+  const taskFuncName = String(task.NomeFuncionario || '').trim().toLowerCase();
+
+  // 1. Match por ID
+  if (taskFuncId && userIds.includes(taskFuncId)) return true;
+
+  // 2. Match por nome completo ou primeiro nome
+  if (taskFuncName && userNames.some(name => {
+    if (taskFuncName === name) return true;
+    const taskFirst = taskFuncName.split(' ')[0];
+    const userFirst = name.split(' ')[0];
+    return taskFirst.length >= 3 && taskFirst === userFirst;
+  })) {
+    return true;
+  }
+
+  // 3. Se o campo FuncionarioID na tarefa for o próprio nome do funcionário
+  if (taskFuncId && userNames.some(name => taskFuncId === name || (name.split(' ')[0].length >= 3 && taskFuncId === name.split(' ')[0]))) {
+    return true;
+  }
+
+  return false;
+}
+
 function isUserAdminOrManager() {
   if (typeof state.isManager === 'boolean' && state.user) return state.isManager;
   if (typeof window.__GESTAO_IS_MANAGER__ === 'boolean') return window.__GESTAO_IS_MANAGER__;
@@ -115,21 +167,36 @@ function updateGlobalStatsDom() {
   }
 }
 
-async function loadTasks() {
+let isInitialTasksLoaded = false;
+let userManuallyToggledView = false;
+
+async function loadTasks(silent = false) {
   const api = getApi();
   if (!api) return;
-  state.loading = true;
-  renderTasksApp();
+  if (!silent) {
+    state.loading = true;
+    renderTasksApp();
+  }
 
   try {
     const res = await api.invoke('tasksList', [state.selectedStore, state.selectedDate]);
     if (res?.success) {
       state.tasks = Array.isArray(res.data) ? res.data : [];
+
+      if (!state.isManager && !userManuallyToggledView && !isInitialTasksLoaded) {
+        const hasMyTasks = state.tasks.some(isTaskAssignedToCurrentUser);
+        if (hasMyTasks) {
+          state.viewMode = 'my';
+        }
+      }
+      isInitialTasksLoaded = true;
     }
   } catch (err) {
     console.error('Erro ao carregar tarefas:', err);
   } finally {
-    state.loading = false;
+    if (!silent) {
+      state.loading = false;
+    }
     renderTasksApp();
   }
 }
@@ -262,7 +329,7 @@ async function deleteTask(taskId) {
 }
 
 function openNewTaskDialog(defaultSector = 'Caixa') {
-  populateEmployeeSelect();
+  populateEmployeeSelect('');
   const idInput = $('#taskIdInput');
   if (idInput) idInput.value = '';
   const heading = $('#taskDialogHeading');
@@ -284,7 +351,7 @@ function openNewTaskDialog(defaultSector = 'Caixa') {
 function openEditTaskDialog(taskId) {
   const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
   if (!task) return;
-  populateEmployeeSelect();
+  populateEmployeeSelect(task.FuncionarioID || task.NomeFuncionario || '');
 
   const idInput = $('#taskIdInput');
   if (idInput) idInput.value = task.TarefaID;
@@ -345,6 +412,8 @@ function renderTasksApp() {
   const maintenanceTasks = allDayTasks.filter(t => t.Tipo === 'manutencao' && t.Coluna !== 'concluido').length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const isManager = isUserAdminOrManager();
+  const myTasks = allDayTasks.filter(isTaskAssignedToCurrentUser);
+  const myTasksCount = myTasks.length;
 
   const filtered = getFilteredTasks();
 
@@ -408,7 +477,11 @@ function renderTasksApp() {
               <button class="btn btn-icon-tool" id="tasksDeduplicateBtn" title="Limpar tarefas duplicadas ou de teste">
                 Organizar
               </button>
-            ` : ''}
+            ` : `
+              <button class="btn btn-secondary" id="tasksHeaderRefreshBtn" title="Sincronizar tarefas em tempo real" style="font-size:12px;font-weight:600;padding:6px 12px;">
+                Sincronizar ↻
+              </button>
+            `}
             <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn" title="Relatar defeito em equipamento">
               Relatar Reparo ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
             </button>
@@ -433,7 +506,7 @@ function renderTasksApp() {
               Checklists Diários
             </button>
             <button class="seg-btn ${state.viewMode === 'my' ? 'active' : ''}" data-view-mode="my">
-              Minhas Tarefas
+              Minhas Tarefas ${myTasksCount > 0 ? `<span class="badge-count-pill">${myTasksCount}</span>` : ''}
             </button>
             <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
               Quadro Kanban
@@ -462,6 +535,18 @@ function renderTasksApp() {
           </div>
         </div>
       </header>
+
+      ${myTasksCount > 0 && state.viewMode !== 'my' ? `
+        <div class="tasks-assigned-banner">
+          <span class="tasks-assigned-banner-icon">★</span>
+          <div class="tasks-assigned-banner-text">
+            Você tem <strong>${myTasksCount} ${myTasksCount === 1 ? 'tarefa atribuída' : 'tarefas atribuídas'}</strong> diretamente ao seu nome neste turno!
+          </div>
+          <button type="button" class="tasks-assigned-banner-btn" data-view-mode="my">
+            Ver Minhas Tarefas →
+          </button>
+        </div>
+      ` : ''}
 
       <!-- Conteúdo Principal -->
       ${state.loading ? `
@@ -541,13 +626,14 @@ function renderDailyChecklist(tasks) {
         const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : (task.Coluna === 'concluido' ? 100 : 0);
         const isAllDone = (chTotal > 0 && chDone === chTotal) || (chTotal === 0 && task.Coluna === 'concluido');
         const theme = getSectorTheme(task.Setor, task.Tipo);
+        const isAssigned = isTaskAssignedToCurrentUser(task);
 
         const stepMatch = (task.Titulo || '').match(/^(\d+)\.\s*(.*)$/);
         const stepNum = stepMatch ? stepMatch[1] : (idx + 1);
         const stepTitle = stepMatch ? stepMatch[2] : task.Titulo;
 
         return `
-          <article class="daily-section-card ${isAllDone ? 'all-complete' : ''}" data-task-id="${esc(task.TarefaID)}">
+          <article class="daily-section-card ${isAllDone ? 'all-complete' : ''} ${isAssigned ? 'assigned-to-me' : ''}" data-task-id="${esc(task.TarefaID)}">
             <header class="daily-section-header">
               <div class="daily-section-title-wrap">
                 <span class="daily-step-num ${isAllDone ? 'done' : ''}">${esc(stepNum)}</span>
@@ -556,6 +642,7 @@ function renderDailyChecklist(tasks) {
                     <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
                       ${esc(task.Setor || 'Geral')}
                     </span>
+                    ${isAssigned ? `<span class="trello-tag-mine">★ Atribuída a você</span>` : (task.NomeFuncionario ? `<span class="trello-tag-assigned">👤 ${esc(task.NomeFuncionario)}</span>` : '')}
                     ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
                     ${task.HoraLimite ? `<span class="trello-tag-time">Limite: ${esc(task.HoraLimite)}</span>` : ''}
                   </div>
@@ -604,6 +691,7 @@ function renderDailyChecklist(tasks) {
             <footer class="daily-section-footer">
               <div class="daily-footer-info">
                 <span>Resp: <strong>${esc(task.NomeFuncionario || 'Equipe da Praça')}</strong></span>
+                ${isAssigned ? `<span class="badge-blue-pill">Você</span>` : ''}
                 ${task.VistoPor ? `
                   <span class="trello-visto-approved" style="margin-top:0;">Visto: ${esc(task.VistoPor)}</span>
                 ` : task.ExigeVistoGerente ? `
@@ -631,14 +719,7 @@ function renderDailyChecklist(tasks) {
 
 
 function renderMyTasks() {
-  const myId = String(state.user?.FuncionarioID || state.user?.funcionarioId || '');
-  const myName = String(state.user?.Nome || state.user?.nome || '').trim().toLowerCase();
-
-  const myTasks = state.tasks.filter(t => {
-    if (myId && String(t.FuncionarioID) === myId) return true;
-    if (myName && String(t.NomeFuncionario || '').trim().toLowerCase() === myName) return true;
-    return false;
-  });
+  const myTasks = state.tasks.filter(isTaskAssignedToCurrentUser);
 
   if (myTasks.length === 0) {
     return `
@@ -646,8 +727,11 @@ function renderMyTasks() {
         <span class="starter-tag" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;">MINHAS TAREFAS</span>
         <h3 style="margin-top:14px;font-size:17px;font-weight:700;color:#0f172a;">Nenhuma rotina atribuída individualmente</h3>
         <p style="max-width:440px;margin:8px auto 18px;color:#64748b;font-size:13.5px;line-height:1.45;">
-          Você não possui tarefas com seu nome no momento. Toque em <strong>Checklists Diários</strong> acima para realizar as rotinas operacionais do turno.
+          Você não possui tarefas com seu nome no momento. Toque no botão abaixo para conferir as rotinas e checklists gerais do turno.
         </p>
+        <button type="button" class="btn btn-primary" data-view-mode="checklist" style="font-size:13px;font-weight:600;padding:8px 20px;">
+          Ver Checklists do Turno
+        </button>
       </div>
     `;
   }
@@ -695,6 +779,7 @@ function renderCard(task) {
   const chDone = checklist.filter(c => c.concluido).length;
   const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : 0;
   const theme = getSectorTheme(task.Setor, task.Tipo);
+  const isAssigned = isTaskAssignedToCurrentUser(task);
 
   const cleanTitle = (task.Titulo || '')
     .replace(/^(\d+\.\s*)?(Abertura|Fechamento|Caixa)\s*(Turno|Rotina)?:\s*/i, '$1')
@@ -709,12 +794,13 @@ function renderCard(task) {
     : (task.Setor || 'Geral');
 
   return `
-    <div class="trello-card" draggable="true" data-task-id="${esc(task.TarefaID)}" data-card-detail="${esc(task.TarefaID)}">
+    <div class="trello-card ${isAssigned ? 'assigned-to-me' : ''}" draggable="true" data-task-id="${esc(task.TarefaID)}" data-card-detail="${esc(task.TarefaID)}">
       <!-- Topo: Tags de Categoria e Prioridade -->
       <div class="trello-card-tags">
         <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
           ${esc(categoryLabel)}
         </span>
+        ${isAssigned ? `<span class="trello-tag-mine">★ Atribuída a você</span>` : ''}
         ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
         ${task.HoraLimite ? `<span class="trello-tag-time">${esc(task.HoraLimite)}</span>` : ''}
       </div>
@@ -951,6 +1037,10 @@ function bindDomEvents() {
     loadTasks();
   });
 
+  $('#tasksHeaderRefreshBtn', container)?.addEventListener('click', () => {
+    loadTasks();
+  });
+
   // Mudança de Loja e Data
   $('#tasksStoreSelect', container)?.addEventListener('change', (e) => {
     state.selectedStore = e.target.value;
@@ -989,13 +1079,23 @@ function bindDomEvents() {
   });
 }
 
-function populateEmployeeSelect() {
+function populateEmployeeSelect(selectedVal = '') {
   const sel = $('#taskEmployeeInput');
   if (!sel) return;
+  const list = Array.isArray(state.employees) ? state.employees : [];
   sel.innerHTML = `
     <option value="">Equipe da Praça (Geral)</option>
-    ${state.employees.map(e => `<option value="${esc(e.FuncionarioID)}">${esc(e.Nome)}</option>`).join('')}
+    ${list.map(e => {
+      const id = getEmployeeId(e);
+      const name = getEmployeeName(e);
+      if (!id && !name) return '';
+      const isSel = selectedVal && (String(id) === String(selectedVal) || String(name) === String(selectedVal));
+      return `<option value="${esc(id || name)}" ${isSel ? 'selected' : ''}>${esc(name || id)}</option>`;
+    }).join('')}
   `;
+  if (selectedVal) {
+    sel.value = selectedVal;
+  }
 }
 
 function renderDraftChecklist() {
@@ -1026,6 +1126,7 @@ document.addEventListener('click', (e) => {
   // Segmented view mode
   const modeBtn = e.target.closest('[data-view-mode]');
   if (modeBtn) {
+    userManuallyToggledView = true;
     state.viewMode = modeBtn.dataset.viewMode;
     renderTasksApp();
     return;
@@ -1204,8 +1305,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const title = $('#taskTitleInput')?.value?.trim();
       if (!title) return;
 
-      const funcId = $('#taskEmployeeInput')?.value || '';
-      const employee = state.employees.find(emp => String(emp.FuncionarioID) === String(funcId));
+      const funcVal = $('#taskEmployeeInput')?.value || '';
+      const selectedOption = $('#taskEmployeeInput')?.selectedOptions?.[0];
+      const optText = selectedOption ? selectedOption.textContent.trim() : '';
+
+      let matchedEmp = null;
+      if (funcVal) {
+        matchedEmp = state.employees.find(emp => {
+          const id = getEmployeeId(emp);
+          const name = getEmployeeName(emp);
+          return (id && id === funcVal) || (name && name === funcVal);
+        });
+      }
+
+      const assignedId = matchedEmp ? getEmployeeId(matchedEmp) : funcVal;
+      const assignedName = (optText && optText !== 'Equipe da Praça (Geral)')
+        ? (matchedEmp ? getEmployeeName(matchedEmp) : optText)
+        : '';
       const taskId = $('#taskIdInput')?.value?.trim();
 
       const payload = {
@@ -1213,8 +1329,8 @@ document.addEventListener('DOMContentLoaded', () => {
         Titulo: title,
         Setor: $('#taskSectorInput')?.value || 'Caixa',
         Prioridade: $('#taskPriorityInput')?.value || 'Media',
-        FuncionarioID: funcId,
-        NomeFuncionario: employee?.Nome || '',
+        FuncionarioID: assignedId,
+        NomeFuncionario: assignedName,
         HoraLimite: $('#taskDeadlineInput')?.value || '',
         Descricao: $('#taskDescInput')?.value || '',
         ExigeVistoGerente: $('#taskManagerSignInput')?.checked || false,
@@ -1279,6 +1395,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Auto-sincronização com o estado global da aplicação
+let realtimeSubscribed = false;
+function setupRealtimeTasks() {
+  if (realtimeSubscribed) return;
+  const runtime = window.__GESTAO_FIREBASE__?.runtime;
+  if (runtime?.subscribe) {
+    realtimeSubscribed = true;
+    try {
+      runtime.subscribe('tables/Tarefas', () => {
+        loadTasks(true);
+      });
+    } catch (err) {
+      console.warn('Falha ao assinar realtime de Tarefas:', err);
+    }
+  }
+}
+
 function ensureTasksInitialized(customCtx = {}) {
   const runtime = window.__GESTAO_FIREBASE__?.runtime;
   const currentProfile = customCtx.user || window.__GESTAO_USER__ || runtime?.profile || state.user;
@@ -1299,6 +1431,7 @@ function ensureTasksInitialized(customCtx = {}) {
     state.selectedStore = match ? String(match.LojaID || match.lojaId) : String(state.stores[0].LojaID || state.stores[0].lojaId);
   }
 
+  setupRealtimeTasks();
   renderTasksApp();
   loadTasks();
 }
