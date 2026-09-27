@@ -1,5 +1,5 @@
 // Módulo de Tarefas e Checklists tipo Trello / Kanban
-// Grupo House 190 / House Burger — Interface Moderna e Prática
+// Grupo House 190 / House Burger — Interface Mobile-First Premium
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -8,10 +8,11 @@ const dateKey = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone:
 
 let state = {
   tasks: [],
-  viewMode: 'checklist', // 'checklist' | 'kanban'
+  viewMode: 'checklist', // 'checklist' | 'my' | 'kanban'
   selectedStore: '',
   selectedDate: dateKey(),
   selectedSector: 'todos',
+  kanbanActiveCol: 'pendente',
   user: null,
   isManager: false,
   stores: [],
@@ -22,19 +23,19 @@ let state = {
 };
 
 const SECTOR_GROUPS = [
-  { id: 'todos', label: 'Todos' },
-  { id: 'caixa', label: 'Caixa' },
-  { id: 'abertura', label: 'Abertura' },
-  { id: 'fechamento', label: 'Fechamento' },
-  { id: 'cozinha', label: 'Cozinha' },
-  { id: 'manutencao', label: 'Reparos' },
+  { id: 'todos', label: 'Todos', icon: '📋' },
+  { id: 'caixa', label: 'Caixa', icon: '💰' },
+  { id: 'abertura', label: 'Abertura', icon: '🌅' },
+  { id: 'fechamento', label: 'Fechamento', icon: '🌙' },
+  { id: 'cozinha', label: 'Cozinha', icon: '🍔' },
+  { id: 'manutencao', label: 'Reparos', icon: '🛠️' },
 ];
 
 const COLUMNS = [
-  { id: 'pendente', title: 'Pendente', dotColor: '#f59e0b' },
-  { id: 'andamento', title: 'Em Andamento', dotColor: '#3b82f6' },
-  { id: 'visto', title: 'Aguardando Visto', dotColor: '#8b5cf6' },
-  { id: 'concluido', title: 'Concluído', dotColor: '#10b981' },
+  { id: 'pendente', title: 'Pendente', shortTitle: 'Pendente', dotColor: '#f59e0b', icon: '⏳' },
+  { id: 'andamento', title: 'Em Andamento', shortTitle: 'Andamento', dotColor: '#3b82f6', icon: '⚡' },
+  { id: 'visto', title: 'Aguardando Visto', shortTitle: 'Visto', dotColor: '#8b5cf6', icon: '👁️' },
+  { id: 'concluido', title: 'Concluído', shortTitle: 'Concluído', dotColor: '#10b981', icon: '✓' },
 ];
 
 function getApi() {
@@ -112,6 +113,15 @@ function closeDialog(id) {
   if (d?.open) d.close();
 }
 
+function triggerHaptic(type = 'light') {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (type === 'success') navigator.vibrate([15, 40, 20]);
+      else navigator.vibrate(10);
+    }
+  } catch (_) {}
+}
+
 function updateCardProgressDom(taskId) {
   const card = $(`[data-task-id="${taskId}"]`);
   if (!card) return;
@@ -127,7 +137,15 @@ function updateCardProgressDom(taskId) {
   card.classList.toggle('all-complete', isAllDone);
 
   const numEl = card.querySelector('.daily-step-num');
-  if (numEl) numEl.classList.toggle('done', isAllDone);
+  if (numEl) {
+    numEl.classList.toggle('done', isAllDone);
+    if (isAllDone) {
+      numEl.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    } else {
+      const stepMatch = (task.Titulo || '').match(/^(\d+)\.\s*(.*)$/);
+      numEl.textContent = stepMatch ? stepMatch[1] : (card.dataset.stepIndex || '•');
+    }
+  }
 
   const pill = card.querySelector('.daily-progress-pill');
   if (pill) {
@@ -205,13 +223,14 @@ async function moveTaskColumn(taskId, newColumn) {
   const api = getApi();
   if (!api) return;
 
+  triggerHaptic('light');
   const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
   if (task) task.Coluna = newColumn;
   renderTasksApp();
 
   try {
     await api.invoke('tasksUpdateColumn', [taskId, newColumn]);
-    await loadTasks();
+    await loadTasks(true);
   } catch (err) {
     console.error('Falha ao mover coluna:', err);
     await loadTasks();
@@ -222,6 +241,8 @@ async function toggleChecklistItem(taskId, itemId, checked) {
   const api = getApi();
   if (!api) return;
 
+  triggerHaptic(checked ? 'light' : 'light');
+
   const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
   if (task && Array.isArray(task.Checklist)) {
     const item = task.Checklist.find(i => String(i.id) === String(itemId));
@@ -230,6 +251,7 @@ async function toggleChecklistItem(taskId, itemId, checked) {
     const allDone = task.Checklist.length > 0 && task.Checklist.every(i => i.concluido);
     if (allDone && task.Coluna === 'pendente') {
       task.Coluna = task.ExigeVistoGerente ? 'visto' : 'concluido';
+      triggerHaptic('success');
     } else if (!allDone && task.Coluna === 'concluido') {
       task.Coluna = 'andamento';
     }
@@ -265,9 +287,10 @@ async function approveTask(taskId, notes = '') {
   const api = getApi();
   if (!api) return;
 
+  triggerHaptic('success');
   try {
     await api.invoke('tasksApprove', [taskId, notes]);
-    await loadTasks();
+    await loadTasks(true);
   } catch (err) {
     alert(err.message || 'Falha ao conceder visto.');
   }
@@ -322,7 +345,7 @@ async function deleteTask(taskId) {
 
   try {
     await api.invoke('tasksDelete', [taskId]);
-    await loadTasks();
+    await loadTasks(true);
   } catch (err) {
     alert(err.message || 'Falha ao excluir tarefa.');
   }
@@ -430,19 +453,20 @@ function renderTasksApp() {
     return count > 0 || ['caixa', 'abertura', 'fechamento'].includes(grp.id);
   });
 
-  const todayLabel = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Bahia', day: '2-digit', month: 'short' });
+  const todayLabel = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Bahia', weekday: 'short', day: '2-digit', month: 'short' });
 
   container.innerHTML = `
     <div class="tasks-page">
-      <!-- Hub Operacional Moderno -->
+      <!-- Hub Operacional Mobile-First -->
       <header class="tasks-hub">
+        <!-- Topo: Identidade, Contexto e Seletores -->
         <div class="tasks-hub-top">
           <div class="tasks-hub-identity">
             <div class="tasks-context-bar">
-              <span class="tasks-brand-tag">HOUSE BURGER</span>
+              <span class="tasks-brand-tag">HOUSE 190</span>
               ${state.stores.length > 1 && isManager ? `
                 <div class="tasks-select-box">
-                  <select id="tasksStoreSelect">
+                  <select id="tasksStoreSelect" aria-label="Selecionar Loja">
                     ${state.stores.map(s => {
                       const id = String(s.LojaID || s.lojaId || '');
                       const name = s.NomeLoja || s.Nome || id;
@@ -451,44 +475,48 @@ function renderTasksApp() {
                   </select>
                 </div>
               ` : `
-                <span class="tasks-store-label">${esc(storeName)}</span>
+                <span class="tasks-store-label">📍 ${esc(storeName)}</span>
               `}
               <span class="tasks-context-sep">·</span>
               ${isManager ? `
                 <div class="tasks-select-box date-box">
-                  <input type="date" id="tasksDateInput" value="${esc(state.selectedDate)}">
+                  <input type="date" id="tasksDateInput" value="${esc(state.selectedDate)}" aria-label="Data das Tarefas">
                 </div>
               ` : `
-                <span class="tasks-date-label">${esc(todayLabel)}</span>
+                <span class="tasks-date-label">📅 ${esc(todayLabel)}</span>
               `}
             </div>
 
-            <h2 class="tasks-hub-title">${isManager ? 'Gestão do Turno' : 'Rotinas do Turno'}</h2>
+            <div class="tasks-title-status-row">
+              <h2 class="tasks-hub-title">${isManager ? 'Gestão do Turno' : 'Rotinas do Turno'}</h2>
+              <span class="tasks-live-badge"><span class="tasks-live-dot"></span> Ao Vivo</span>
+            </div>
           </div>
 
+          <!-- Ações Rápidas no Topo -->
           <div class="tasks-hub-actions">
             ${isManager ? `
               <button class="btn btn-routine" id="openRoutineBtn" title="Disparar rotinas padrão (Caixa, Abertura ou Fechamento)">
-                Rotinas ⚡
+                <span class="btn-icon">⚡</span> Rotinas
               </button>
               <button class="btn btn-new-task" id="openNewTaskBtn">
-                + Nova
+                <span class="btn-icon">+</span> Nova
               </button>
               <button class="btn btn-icon-tool" id="tasksDeduplicateBtn" title="Limpar tarefas duplicadas ou de teste">
-                Organizar
+                🧹 Organizar
               </button>
             ` : `
-              <button class="btn btn-secondary" id="tasksHeaderRefreshBtn" title="Sincronizar tarefas em tempo real" style="font-size:12px;font-weight:600;padding:6px 12px;">
-                Sincronizar ↻
+              <button class="btn btn-secondary" id="tasksHeaderRefreshBtn" title="Sincronizar tarefas em tempo real">
+                ↻ Sincronizar
               </button>
             `}
             <button class="btn btn-repair ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn" title="Relatar defeito em equipamento">
-              Relatar Reparo ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
+              🛠️ Reparo ${maintenanceTasks > 0 ? `<span class="badge-red-mini">${maintenanceTasks}</span>` : ''}
             </button>
           </div>
         </div>
 
-        <!-- Barra de Progresso Global Integrada -->
+        <!-- Seção de Progresso Operacional do Turno -->
         <div class="tasks-hub-progress-section">
           <div class="tasks-progress-info">
             <span class="tasks-progress-text"><strong>${completedTasks}/${totalTasks}</strong> rotinas concluídas</span>
@@ -499,21 +527,21 @@ function renderTasksApp() {
           </div>
         </div>
 
-        <!-- Linha Inferior do Hub: Segmented View + Filtros de Setor -->
+        <!-- Linha Inferior do Hub: Segmented View + Chips de Setores -->
         <div class="tasks-hub-bottom">
-          <div class="segmented-deck" aria-label="Visualização">
+          <div class="segmented-deck" aria-label="Modo de Visualização">
             <button class="seg-btn ${state.viewMode === 'checklist' ? 'active' : ''}" data-view-mode="checklist">
-              Checklists Diários
+              <span class="seg-icon">📋</span> Checklists
             </button>
             <button class="seg-btn ${state.viewMode === 'my' ? 'active' : ''}" data-view-mode="my">
-              Minhas Tarefas ${myTasksCount > 0 ? `<span class="badge-count-pill">${myTasksCount}</span>` : ''}
+              <span class="seg-icon">★</span> Minhas ${myTasksCount > 0 ? `<span class="badge-count-pill">${myTasksCount}</span>` : ''}
             </button>
             <button class="seg-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
-              Quadro Kanban
+              <span class="seg-icon">📊</span> Kanban
             </button>
           </div>
 
-          <div class="tasks-sectors-track">
+          <div class="tasks-sectors-track" role="tablist" aria-label="Filtro de Setores">
             ${relevantSectors.map(grp => {
               const count = allDayTasks.filter(t => {
                 if (grp.id === 'todos') return true;
@@ -526,7 +554,8 @@ function renderTasksApp() {
               }).length;
 
               return `
-                <button class="sector-chip ${state.selectedSector === grp.id ? 'active' : ''}" data-sector-filter="${grp.id}">
+                <button class="sector-chip ${state.selectedSector === grp.id ? 'active' : ''}" data-sector-filter="${grp.id}" role="tab" aria-selected="${state.selectedSector === grp.id ? 'true' : 'false'}">
+                  <span class="chip-icon">${grp.icon || '•'}</span>
                   <span>${grp.label}</span>
                   <span class="chip-count">${count}</span>
                 </button>
@@ -537,13 +566,16 @@ function renderTasksApp() {
       </header>
 
       ${myTasksCount > 0 && state.viewMode !== 'my' ? `
-        <div class="tasks-assigned-banner">
-          <span class="tasks-assigned-banner-icon">★</span>
-          <div class="tasks-assigned-banner-text">
-            Você tem <strong>${myTasksCount} ${myTasksCount === 1 ? 'tarefa atribuída' : 'tarefas atribuídas'}</strong> diretamente ao seu nome neste turno!
+        <div class="tasks-assigned-banner" data-view-mode="my">
+          <div class="assigned-banner-left">
+            <span class="assigned-banner-icon">★</span>
+            <div class="assigned-banner-text">
+              <strong>Você tem ${myTasksCount} ${myTasksCount === 1 ? 'tarefa atribuída' : 'tarefas atribuídas'}!</strong>
+              <small>Toque aqui para focar no seu checklist pessoal.</small>
+            </div>
           </div>
-          <button type="button" class="tasks-assigned-banner-btn" data-view-mode="my">
-            Ver Minhas Tarefas →
+          <button type="button" class="assigned-banner-cta">
+            Ver Minhas →
           </button>
         </div>
       ` : ''}
@@ -551,26 +583,27 @@ function renderTasksApp() {
       <!-- Conteúdo Principal -->
       ${state.loading ? `
         <div class="tasks-loading-state">
-          <div class="spinner"></div>
+          <div class="tasks-spinner"></div>
           <p>Sincronizando tarefas da loja...</p>
         </div>
       ` : totalTasks === 0 ? `
         ${isManager ? `
           <div class="tasks-empty-starter">
+            <div class="starter-badge">PRIMEIRO ACESSO DO DIA</div>
             <h3>Nenhuma rotina gerada para hoje ainda.</h3>
             <p>Carregue os checklists padrão do turno em um clique ou adicione uma tarefa manual:</p>
 
             <div class="starter-actions starter-actions-3">
               <button class="starter-card-btn caixa" data-trigger-routine="caixa">
-                <span class="starter-tag">CAIXA</span>
+                <span class="starter-tag">💰 CAIXA</span>
                 <div>
-                  <strong>Rotina Operacional do Caixa</strong>
+                  <strong>Rotina do Caixa</strong>
                   <small>Abertura do PDV, conferência de sistemas, notas, Drive, grupo VIP e WhatsApp.</small>
                 </div>
               </button>
 
               <button class="starter-card-btn abertura" data-trigger-routine="abertura">
-                <span class="starter-tag">ABERTURA</span>
+                <span class="starter-tag">🌅 ABERTURA</span>
                 <div>
                   <strong>Abertura de Turno</strong>
                   <small>Freezers, estoque crítico, chapa, fritadeira e gaveta de caixa.</small>
@@ -578,7 +611,7 @@ function renderTasksApp() {
               </button>
 
               <button class="starter-card-btn fechamento" data-trigger-routine="fechamento">
-                <span class="starter-tag">FECHAMENTO</span>
+                <span class="starter-tag">🌙 FECHAMENTO</span>
                 <div>
                   <strong>Fechamento de Turno</strong>
                   <small>Limpeza de coifa/chapa, gás, descarte de óleo, caixa e lixo.</small>
@@ -589,12 +622,12 @@ function renderTasksApp() {
         ` : `
           <div class="tasks-empty-starter employee-empty">
             <span class="starter-tag" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;">TURNO DE HOJE</span>
-            <h3 style="margin-top:14px;font-size:17px;font-weight:700;color:#0f172a;">Tudo em ordem por aqui!</h3>
-            <p style="max-width:440px;margin:8px auto 18px;color:#64748b;font-size:13.5px;line-height:1.45;">
+            <h3 style="margin-top:14px;font-size:18px;font-weight:700;color:var(--text, #0f172a);">Tudo em ordem por aqui!</h3>
+            <p style="max-width:440px;margin:8px auto 18px;color:var(--muted, #64748b);font-size:13.5px;line-height:1.45;">
               Nenhum checklist pendente para o seu turno neste momento. As rotinas operacionais serão liberadas pela gerência.
             </p>
-            <button type="button" class="btn btn-secondary" id="tasksEmployeeRefreshBtn" style="font-size:13px;font-weight:600;padding:8px 20px;">
-              Atualizar agora
+            <button type="button" class="btn btn-secondary" id="tasksEmployeeRefreshBtn" style="font-size:13px;font-weight:600;padding:10px 24px;border-radius:10px;">
+              ↻ Atualizar agora
             </button>
           </div>
         `}
@@ -633,18 +666,22 @@ function renderDailyChecklist(tasks) {
         const stepTitle = stepMatch ? stepMatch[2] : task.Titulo;
 
         return `
-          <article class="daily-section-card ${isAllDone ? 'all-complete' : ''} ${isAssigned ? 'assigned-to-me' : ''}" data-task-id="${esc(task.TarefaID)}">
+          <article class="daily-section-card ${isAllDone ? 'all-complete' : ''} ${isAssigned ? 'assigned-to-me' : ''}" data-task-id="${esc(task.TarefaID)}" data-step-index="${esc(stepNum)}">
             <header class="daily-section-header">
               <div class="daily-section-title-wrap">
-                <span class="daily-step-num ${isAllDone ? 'done' : ''}">${esc(stepNum)}</span>
+                <span class="daily-step-num ${isAllDone ? 'done' : ''}">
+                  ${isAllDone ? `
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  ` : esc(stepNum)}
+                </span>
                 <div class="daily-title-meta">
                   <div class="daily-tags-row">
                     <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
                       ${esc(task.Setor || 'Geral')}
                     </span>
-                    ${isAssigned ? `<span class="trello-tag-mine">★ Atribuída a você</span>` : (task.NomeFuncionario ? `<span class="trello-tag-assigned">👤 ${esc(task.NomeFuncionario)}</span>` : '')}
+                    ${isAssigned ? `<span class="trello-tag-mine">★ Sua Tarefa</span>` : (task.NomeFuncionario ? `<span class="trello-tag-assigned">👤 ${esc(task.NomeFuncionario)}</span>` : '')}
                     ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
-                    ${task.HoraLimite ? `<span class="trello-tag-time">Limite: ${esc(task.HoraLimite)}</span>` : ''}
+                    ${task.HoraLimite ? `<span class="trello-tag-time">⏰ Limite: ${esc(task.HoraLimite)}</span>` : ''}
                   </div>
                   <h3 class="daily-section-title">${esc(stepTitle)}</h3>
                   ${task.Descricao ? `<p class="daily-section-desc">${esc(task.Descricao)}</p>` : ''}
@@ -682,8 +719,8 @@ function renderDailyChecklist(tasks) {
               </div>
             ` : `
               <div style="padding: 14px 18px;">
-                <button type="button" class="btn ${isAllDone ? 'btn-secondary' : 'btn-primary'}" data-toggle-card-complete="${esc(task.TarefaID)}" style="font-size: 13px;">
-                  ${isAllDone ? 'Reabrir Tarefa' : 'Marcar como Concluída'}
+                <button type="button" class="btn ${isAllDone ? 'btn-secondary' : 'btn-primary'}" data-toggle-card-complete="${esc(task.TarefaID)}" style="font-size: 13.5px; width: 100%; border-radius: 10px; height: 46px;">
+                  ${isAllDone ? '↩ Reabrir Tarefa' : '✓ Marcar como Concluída'}
                 </button>
               </div>
             `}
@@ -693,16 +730,16 @@ function renderDailyChecklist(tasks) {
                 <span>Resp: <strong>${esc(task.NomeFuncionario || 'Equipe da Praça')}</strong></span>
                 ${isAssigned ? `<span class="badge-blue-pill">Você</span>` : ''}
                 ${task.VistoPor ? `
-                  <span class="trello-visto-approved" style="margin-top:0;">Visto: ${esc(task.VistoPor)}</span>
+                  <span class="trello-visto-approved">✓ Visto: ${esc(task.VistoPor)}</span>
                 ` : task.ExigeVistoGerente ? `
-                  <span style="font-size: 11px; color: #854d0e; background: #fef9c3; padding: 2px 7px; border-radius: 4px;">Exige visto</span>
+                  <span class="trello-visto-pending">Exige visto do gerente</span>
                 ` : ''}
               </div>
 
               <div class="daily-footer-actions">
                 ${chTotal > 0 ? `
                   <button type="button" class="btn-ghost-sm" data-mark-section-all="${esc(task.TarefaID)}" data-action="${isAllDone ? 'uncheck' : 'check'}">
-                    ${isAllDone ? 'Desmarcar todos' : 'Concluir todos da etapa'}
+                    ${isAllDone ? 'Desmarcar todos' : 'Concluir etapa inteira'}
                   </button>
                 ` : ''}
                 ${isManager ? `
@@ -717,61 +754,106 @@ function renderDailyChecklist(tasks) {
   `;
 }
 
-
 function renderMyTasks() {
   const myTasks = state.tasks.filter(isTaskAssignedToCurrentUser);
+  const userName = state.user?.Nome || state.user?.nome || 'Colaborador';
+  const firstName = userName.split(' ')[0];
 
   if (myTasks.length === 0) {
     return `
       <div class="tasks-empty-starter employee-empty" style="margin-top: 14px;">
         <span class="starter-tag" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;">MINHAS TAREFAS</span>
-        <h3 style="margin-top:14px;font-size:17px;font-weight:700;color:#0f172a;">Nenhuma rotina atribuída individualmente</h3>
-        <p style="max-width:440px;margin:8px auto 18px;color:#64748b;font-size:13.5px;line-height:1.45;">
-          Você não possui tarefas com seu nome no momento. Toque no botão abaixo para conferir as rotinas e checklists gerais do turno.
+        <h3 style="margin-top:14px;font-size:18px;font-weight:700;color:var(--text, #0f172a);">Olá, ${esc(firstName)}! Tudo livre por aqui.</h3>
+        <p style="max-width:440px;margin:8px auto 18px;color:var(--muted, #64748b);font-size:13.5px;line-height:1.45;">
+          Você não possui checklists vinculados exclusivamente ao seu nome no momento. Você pode atuar e conferir as rotinas gerais do turno.
         </p>
-        <button type="button" class="btn btn-primary" data-view-mode="checklist" style="font-size:13px;font-weight:600;padding:8px 20px;">
-          Ver Checklists do Turno
+        <button type="button" class="btn btn-primary" data-view-mode="checklist" style="font-size:13.5px;font-weight:600;padding:10px 24px;border-radius:10px;">
+          Ver Checklists Gerais do Turno →
         </button>
       </div>
     `;
   }
 
-  return renderDailyChecklist(myTasks);
-}
+  const completedCount = myTasks.filter(t => t.Coluna === 'concluido').length;
+  const pct = Math.round((completedCount / myTasks.length) * 100);
 
-function renderKanban(tasks) {
   return `
-    <div class="trello-board">
-      ${COLUMNS.map(col => {
-        const colTasks = tasks.filter(t => (t.Coluna || 'pendente') === col.id);
-        return `
-          <div class="trello-column" data-col-id="${col.id}">
-            <div class="trello-column-header">
-              <div class="trello-col-title">
-                <span class="col-status-dot" style="background: ${col.dotColor};"></span>
-                <h4>${col.title}</h4>
-              </div>
-              <span class="trello-col-count">${colTasks.length}</span>
-            </div>
-
-            <div class="trello-cards-area" data-col-target="${col.id}">
-              ${colTasks.length === 0 ? `
-                <div class="trello-empty-column">
-                  <p>Nenhuma tarefa nesta etapa</p>
-                </div>
-              ` : colTasks.map(t => renderCard(t)).join('')}
-            </div>
-
-            <button class="trello-add-card-btn" data-add-card-col="${col.id}">
-              + Adicionar tarefa
-            </button>
+    <div class="my-tasks-container">
+      <div class="my-tasks-hero">
+        <div class="my-tasks-hero-badge">★ SUAS RESPONSABILIDADES</div>
+        <h3 class="my-tasks-hero-title">Olá, ${esc(firstName)}!</h3>
+        <p class="my-tasks-hero-subtitle">
+          Você tem <strong>${myTasks.length - completedCount} ${myTasks.length - completedCount === 1 ? 'rotina pendente' : 'rotinas pendentes'}</strong> para concluir neste turno.
+        </p>
+        <div class="my-tasks-hero-progress">
+          <div class="my-tasks-hero-progress-info">
+            <span>Progresso individual</span>
+            <strong>${completedCount}/${myTasks.length} (${pct}%)</strong>
           </div>
-        `;
-      }).join('')}
+          <div class="my-tasks-hero-track">
+            <div class="my-tasks-hero-fill ${pct === 100 ? 'done' : ''}" style="width:${pct}%;"></div>
+          </div>
+        </div>
+      </div>
+
+      ${renderDailyChecklist(myTasks)}
     </div>
   `;
 }
 
+function renderKanban(tasks) {
+  const activeColId = state.kanbanActiveCol || 'pendente';
+
+  return `
+    <div class="kanban-wrapper">
+      <!-- Seletor Mobile de Colunas do Kanban -->
+      <div class="kanban-mobile-tabs" role="tablist">
+        ${COLUMNS.map(col => {
+          const count = tasks.filter(t => (t.Coluna || 'pendente') === col.id).length;
+          const isActive = col.id === activeColId;
+          return `
+            <button type="button" class="kanban-tab-btn ${isActive ? 'active' : ''}" data-kanban-tab="${col.id}" role="tab" aria-selected="${isActive ? 'true' : 'false'}">
+              <span class="col-status-dot" style="background:${col.dotColor};"></span>
+              <span class="kanban-tab-title">${col.shortTitle || col.title}</span>
+              <span class="kanban-tab-count">${count}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Quadro de Colunas -->
+      <div class="trello-board" id="tasksKanbanBoard">
+        ${COLUMNS.map(col => {
+          const colTasks = tasks.filter(t => (t.Coluna || 'pendente') === col.id);
+          return `
+            <div class="trello-column ${col.id === activeColId ? 'mobile-focused' : ''}" data-col-id="${col.id}" id="kanban-col-${col.id}">
+              <div class="trello-column-header">
+                <div class="trello-col-title">
+                  <span class="col-status-dot" style="background: ${col.dotColor};"></span>
+                  <h4>${col.title}</h4>
+                </div>
+                <span class="trello-col-count">${colTasks.length}</span>
+              </div>
+
+              <div class="trello-cards-area" data-col-target="${col.id}">
+                ${colTasks.length === 0 ? `
+                  <div class="trello-empty-column">
+                    <span class="empty-icon">${col.icon || '📄'}</span>
+                    <p>Nenhuma tarefa nesta etapa</p>
+                  </div>
+                ` : colTasks.map(t => renderCard(t)).join('')}
+              </div>
+
+              <button class="trello-add-card-btn" data-add-card-col="${col.id}">
+                + Adicionar tarefa
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
 
 function renderCard(task) {
   const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
@@ -800,9 +882,9 @@ function renderCard(task) {
         <span class="trello-tag" style="background:${theme.bg}; color:${theme.text}; border-color:${theme.border};">
           ${esc(categoryLabel)}
         </span>
-        ${isAssigned ? `<span class="trello-tag-mine">★ Atribuída a você</span>` : ''}
+        ${isAssigned ? `<span class="trello-tag-mine">★ Sua Tarefa</span>` : ''}
         ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
-        ${task.HoraLimite ? `<span class="trello-tag-time">${esc(task.HoraLimite)}</span>` : ''}
+        ${task.HoraLimite ? `<span class="trello-tag-time">⏰ ${esc(task.HoraLimite)}</span>` : ''}
       </div>
 
       <!-- Título e Descrição Concisa -->
@@ -833,11 +915,11 @@ function renderCard(task) {
 
         <div class="trello-card-actions">
           ${isManager ? `
-            <button type="button" class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa e checklist">Editar</button>
+            <button type="button" class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa">Editar</button>
           ` : ''}
           ${task.Coluna === 'visto' && isManager ? `
             <button type="button" class="trello-btn-approve" data-approve-task="${esc(task.TarefaID)}">
-              Visto
+              ✓ Visto
             </button>
           ` : ''}
           <button type="button" class="trello-btn-step" data-step-dir="prev" data-task-id="${esc(task.TarefaID)}" title="Voltar etapa">‹</button>
@@ -847,7 +929,7 @@ function renderCard(task) {
 
       ${task.VistoPor ? `
         <div class="trello-visto-approved">
-          Visto: <strong>${esc(task.VistoPor)}</strong>
+          ✓ Visto: <strong>${esc(task.VistoPor)}</strong>
         </div>
       ` : ''}
     </div>
@@ -860,6 +942,8 @@ async function markAllSectionItems(taskId, markDone) {
 
   const api = getApi();
   if (!api) return;
+
+  triggerHaptic(markDone ? 'success' : 'light');
 
   task.Checklist.forEach(i => { i.concluido = markDone; });
   if (markDone) {
@@ -937,7 +1021,7 @@ function openTaskDetailDialog(taskId) {
   const container = $('#taskDetailChecklistContainer');
   if (container) {
     if (chList.length === 0) {
-      container.innerHTML = '<div style="font-size:12.5px;color:#94a3b8;font-style:italic;padding:8px 0;">Nenhum subitem de checklist cadastrado.</div>';
+      container.innerHTML = '<div style="font-size:12.5px;color:var(--muted,#94a3b8);font-style:italic;padding:8px 0;">Nenhum subitem de checklist cadastrado.</div>';
     } else {
       container.innerHTML = chList.map(item => `
         <button type="button" class="daily-item-row ${item.concluido ? 'is-done' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}" role="checkbox" aria-checked="${item.concluido ? 'true' : 'false'}" style="margin-bottom:6px;">
@@ -1052,7 +1136,7 @@ function bindDomEvents() {
     loadTasks();
   });
 
-  // Drag and Drop
+  // Drag and Drop (Kanban no desktop/tablet)
   const cards = $$('.trello-card[draggable="true"]', container);
   cards.forEach(card => {
     card.addEventListener('dragstart', (e) => {
@@ -1102,7 +1186,7 @@ function renderDraftChecklist() {
   const box = $('#taskChecklistDraftContainer');
   if (!box) return;
   if (!state.checklistDraft || state.checklistDraft.length === 0) {
-    box.innerHTML = '<div style="font-size:12px;color:#94a3b8;font-style:italic;padding:6px 0;">Nenhum item adicionado ainda. Digite acima e clique em Adicionar ou tecle Enter.</div>';
+    box.innerHTML = '<div style="font-size:12px;color:var(--muted,#94a3b8);font-style:italic;padding:6px 0;">Nenhum item adicionado ainda. Digite acima e clique em Adicionar ou tecle Enter.</div>';
     return;
   }
   box.innerHTML = state.checklistDraft.map((item, idx) => `
@@ -1123,12 +1207,26 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  // Segmented view mode
+  // Segmented view mode (Checklists / Minhas / Kanban)
   const modeBtn = e.target.closest('[data-view-mode]');
   if (modeBtn) {
     userManuallyToggledView = true;
     state.viewMode = modeBtn.dataset.viewMode;
     renderTasksApp();
+    return;
+  }
+
+  // Seletor de Colunas do Kanban no Mobile
+  const kanbanTab = e.target.closest('[data-kanban-tab]');
+  if (kanbanTab) {
+    const colId = kanbanTab.dataset.kanbanTab;
+    state.kanbanActiveCol = colId;
+    $$('.kanban-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.kanbanTab === colId));
+    $$('.trello-column').forEach(col => col.classList.toggle('mobile-focused', col.dataset.colId === colId));
+    const targetCol = document.getElementById(`kanban-col-${colId}`);
+    if (targetCol) {
+      targetCol.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
     return;
   }
 
@@ -1294,7 +1392,6 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
-
 
 // Envio do Form de Nova ou Edição de Tarefa
 document.addEventListener('DOMContentLoaded', () => {
