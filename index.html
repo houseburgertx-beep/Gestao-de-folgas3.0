@@ -10108,341 +10108,295 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 /* ==========================================================================
-   MÓDULO DE TAREFAS E CHECKLISTS (MOBILE-FIRST PREMIUM — HOUSE 190)
+   MÓDULO DE TAREFAS E CHECKLISTS (MOBILE-FIRST PREMIUM — SEM EMOJIS)
    ========================================================================== */
 
 .tasks-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 4px 36px;
   box-sizing: border-box;
+  padding: 0 4px 44px;
 }
 
-/* Hub Superior Operacional */
+/* Hub Superior de Comando */
 .tasks-hub {
   background: var(--surface, #ffffff);
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 18px;
-  padding: 16px 20px;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  position: relative;
-  overflow: hidden;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  gap: 10px;
+  box-sizing: border-box;
 }
 
-.tasks-hub-top {
+.tasks-hub-row-primary {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.tasks-hub-identity {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.tasks-context-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.tasks-brand-tag {
-  font-size: 10.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  background: linear-gradient(135deg, #365cf5 0%, #2547ce 100%);
-  color: #ffffff;
-  padding: 3px 9px;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(54, 92, 245, 0.25);
-}
-
-.tasks-store-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text, #1e293b);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.tasks-context-sep {
-  color: var(--muted, #94a3b8);
-  font-weight: bold;
-}
-
-.tasks-date-label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--muted, #64748b);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.tasks-title-status-row {
-  display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.tasks-hub-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text, #0f172a);
-  margin: 0;
-  letter-spacing: -0.4px;
-  line-height: 1.2;
+.tasks-hub-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.tasks-live-badge {
-  display: inline-flex;
+.tasks-hub-meta {
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
+  color: var(--muted, #64748b);
+  flex-wrap: wrap;
+}
+
+.tasks-brand-tag {
+  font-size: 10px;
   font-weight: 700;
-  background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
-.tasks-live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
-  animation: pulse-dot 1.8s infinite ease-in-out;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
-}
-
-.tasks-select-box {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface-2, #f8fafc);
+.tasks-inline-select,
+.tasks-inline-date {
   border: 1px solid var(--line, #cbd5e1);
-  border-radius: 8px;
-  padding: 4px 10px;
-  height: 36px;
-  box-sizing: border-box;
-}
-
-.tasks-select-box select,
-.tasks-select-box input[type="date"] {
-  border: none;
-  background: transparent;
-  font-size: 13px;
+  background: var(--surface-2, #f8fafc);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text, #1e293b);
   outline: none;
-  cursor: pointer;
-  padding: 0;
+  height: 26px;
+  box-sizing: border-box;
+}
+
+.tasks-meta-store,
+.tasks-meta-date {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted, #64748b);
+}
+
+.tasks-meta-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #94a3b8;
+  display: inline-block;
+}
+
+.tasks-hub-heading {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
   margin: 0;
-}
-
-.tasks-hub-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.tasks-hub-actions .btn {
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.tasks-hub-actions .btn:active {
-  transform: scale(0.97);
-}
-
-.btn-routine {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  border-color: #fde68a !important;
-  color: #b45309 !important;
-  font-weight: 700;
-}
-
-.btn-routine:hover {
-  background: #fde68a;
-}
-
-.btn-new-task {
-  background: linear-gradient(135deg, #365cf5 0%, #2547ce 100%);
-  border-color: #2547ce !important;
-  color: #ffffff !important;
-  font-weight: 700;
-  box-shadow: 0 3px 10px rgba(54, 92, 245, 0.28);
-}
-
-.btn-new-task:hover {
-  box-shadow: 0 5px 14px rgba(54, 92, 245, 0.4);
-}
-
-.btn-repair {
-  background: var(--surface-2, #ffffff);
-  border-color: var(--line, #e2e8f0) !important;
-  color: var(--text, #475569) !important;
-}
-
-.btn-repair.alert {
-  border-color: #fca5a5 !important;
-  background: #fef2f2 !important;
-  color: #b91c1c !important;
-  animation: pulse-border 2s infinite ease-in-out;
-}
-
-@keyframes pulse-border {
-  0%, 100% { border-color: #fca5a5; }
-  50% { border-color: #ef4444; }
-}
-
-.btn-icon-tool {
-  background: var(--surface-2, #f8fafc);
-  border-color: var(--line, #e2e8f0) !important;
-  color: var(--muted, #64748b) !important;
-}
-
-.badge-red-mini {
-  background: #ef4444;
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 99px;
+  letter-spacing: -0.015em;
   line-height: 1.2;
 }
 
-/* Barra de Progresso Global Integrada */
-.tasks-hub-progress-section {
+.tasks-hub-actions-bar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
-  width: 100%;
-}
-
-.tasks-progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12.5px;
-  color: var(--muted, #64748b);
-}
-
-.tasks-progress-pct {
-  font-weight: 800;
-  color: var(--text, #0f172a);
-  font-size: 13px;
-}
-
-.tasks-progress-bar-global {
-  width: 100%;
-  height: 8px;
-  background: var(--surface-2, #f1f5f9);
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--line, rgba(0,0,0,0.03));
-}
-
-.tasks-progress-fill-global {
-  height: 100%;
-  background: linear-gradient(90deg, #365cf5 0%, #6340d8 100%);
-  border-radius: 999px;
-  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tasks-progress-fill-global.done {
-  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-}
-
-/* Linha Inferior do Hub: Segmented View + Chips */
-.tasks-hub-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
   flex-wrap: wrap;
-  padding-top: 12px;
-  border-top: 1px solid var(--line, #f1f5f9);
 }
 
-.segmented-deck {
-  display: inline-flex;
-  background: var(--surface-2, #f1f5f9);
-  padding: 3px;
-  border-radius: 10px;
-  border: 1px solid var(--line, rgba(0,0,0,0.04));
-}
-
-.seg-btn {
-  border: none;
-  background: transparent;
-  padding: 6px 14px;
-  font-size: 12.5px;
+.btn-sm {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
   font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  color: var(--muted, #64748b);
+  border-radius: 7px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.seg-btn:active {
+.btn-sm:active {
   transform: scale(0.97);
+}
+
+.btn-primary.btn-sm {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.btn-primary.btn-sm:hover {
+  background: #1d4ed8;
+}
+
+.btn-secondary.btn-sm {
+  background: var(--surface, #ffffff);
+  border-color: var(--line, #cbd5e1);
+  color: var(--text, #334155);
+}
+
+.btn-secondary.btn-sm:hover {
+  background: var(--surface-2, #f8fafc);
+  border-color: #94a3b8;
+}
+
+.btn-icon-sm {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--line, #cbd5e1);
+  background: var(--surface, #ffffff);
+  color: var(--muted, #475569);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-icon-sm:hover {
+  background: var(--surface-2, #f8fafc);
+  border-color: #94a3b8;
+}
+
+.btn-icon-sm:active {
+  transform: scale(0.96);
+}
+
+.btn-alert {
+  border-color: #fca5a5 !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+.badge-dot-alert {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+/* Card de Progresso Operacional */
+.tasks-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.tasks-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+}
+
+.tasks-progress-stats strong {
+  color: var(--text, #0f172a);
+  font-weight: 600;
+}
+
+.tasks-progress-track-bg {
+  width: 100%;
+  height: 4px;
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.tasks-progress-fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.tasks-progress-fill.done {
+  background: #10b981;
+}
+
+/* Linha de Navegação (Segmented View + Chips) */
+.tasks-hub-nav-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.segmented-deck {
+  display: flex;
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 8px;
+  padding: 2.5px;
+  gap: 2.5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.seg-btn {
+  flex: 1;
+  height: 34px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .seg-btn.active {
   background: var(--surface, #ffffff);
   color: var(--text, #0f172a);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.badge-count-pill {
+  font-size: 10px;
+  font-weight: 700;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 1px 5px;
+  border-radius: 99px;
+  line-height: 1.2;
 }
 
 .tasks-sectors-track {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 5px;
   overflow-x: auto;
-  padding: 2px 0 4px;
-  max-width: 100%;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  padding: 1px 0 3px;
 }
 
 .tasks-sectors-track::-webkit-scrollbar {
@@ -10450,50 +10404,35 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 .sector-chip {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid var(--line, #e2e8f0);
+  background: var(--surface, #ffffff);
+  color: var(--muted, #475569);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 99px;
-  padding: 6px 13px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted, #475569);
-  cursor: pointer;
+  gap: 4px;
   white-space: nowrap;
-  transition: all 0.18s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.sector-chip:active {
-  transform: scale(0.96);
-}
-
-.sector-chip:hover {
-  background: var(--surface, #ffffff);
-  border-color: var(--line, #cbd5e1);
-  color: var(--text, #0f172a);
-}
-
 .sector-chip.active {
-  background: var(--text, #0f172a);
-  border-color: var(--text, #0f172a);
+  background: #0f172a;
   color: #ffffff;
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.18);
+  border-color: #0f172a;
+  font-weight: 600;
 }
 
 .chip-count {
-  font-size: 10.5px;
-  font-weight: 800;
-  background: rgba(0, 0, 0, 0.07);
-  padding: 1px 6px;
-  border-radius: 99px;
-}
-
-.sector-chip.active .chip-count {
-  background: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  font-size: 10px;
+  opacity: 0.75;
+  font-feature-settings: "tnum";
 }
 
 /* Banner de Tarefas Atribuídas */
@@ -10501,475 +10440,244 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+  gap: 10px;
+  background: #eff6ff;
   border: 1px solid #bfdbfe;
-  border-radius: 14px;
-  padding: 12px 16px;
+  border-radius: 12px;
+  padding: 10px 14px;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.1);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-  -webkit-tap-highlight-color: transparent;
+  transition: all 0.12s ease;
 }
 
-.tasks-assigned-banner:active {
-  transform: scale(0.985);
+.tasks-assigned-banner:hover {
+  background: #e0f2fe;
 }
 
 .assigned-banner-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #1e3a8a;
 }
 
 .assigned-banner-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #365cf5;
-  color: #ffffff;
-  display: grid;
-  place-items: center;
-  font-size: 15px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(54, 92, 245, 0.3);
+  color: #2563eb;
+  display: inline-flex;
+}
+
+.assigned-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .assigned-banner-text strong {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 600;
   color: #1e3a8a;
-  line-height: 1.25;
 }
 
 .assigned-banner-text small {
-  font-size: 12px;
-  color: #2563eb;
-  font-weight: 500;
+  color: #3b82f6;
+  font-size: 11px;
 }
 
 .assigned-banner-cta {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 600;
   color: #2563eb;
   background: #ffffff;
-  padding: 6px 12px;
-  border-radius: 8px;
   border: 1px solid #bfdbfe;
-  white-space: nowrap;
-  flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
-}
-
-/* Visão Minhas Tarefas (Hero Card) */
-.my-tasks-container {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: 100%;
-}
-
-.my-tasks-hero {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-  color: #ffffff;
-  border-radius: 16px;
-  padding: 18px 20px;
-  box-shadow: 0 6px 20px rgba(30, 27, 75, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.my-tasks-hero-badge {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  background: rgba(255, 255, 255, 0.15);
-  color: #cbd5e1;
-  padding: 3px 8px;
   border-radius: 6px;
-  align-self: flex-start;
-}
-
-.my-tasks-hero-title {
-  margin: 0;
-  font-size: 21px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-  color: #ffffff;
-}
-
-.my-tasks-hero-subtitle {
-  margin: 0;
-  font-size: 13.5px;
-  color: #c7d2fe;
-  line-height: 1.4;
-}
-
-.my-tasks-hero-subtitle strong {
-  color: #ffffff;
-}
-
-.my-tasks-hero-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.my-tasks-hero-progress-info {
-  display: flex;
-  justify-content: space-between;
+  padding: 4px 8px;
+  display: inline-flex;
   align-items: center;
-  font-size: 12px;
-  color: #c7d2fe;
-}
-
-.my-tasks-hero-track {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.my-tasks-hero-fill {
-  height: 100%;
-  background: #38bdf8;
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.my-tasks-hero-fill.done {
-  background: #34d399;
-}
-
-/* Empty Starter */
-.tasks-empty-starter {
-  background: var(--surface, #ffffff);
-  border: 1px dashed var(--line, #cbd5e1);
-  border-radius: 18px;
-  padding: 36px 24px;
-  text-align: center;
-  max-width: 900px;
-  margin: 16px auto;
-  box-sizing: border-box;
-}
-
-.starter-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  background: #eff6ff;
-  color: #2563eb;
-  padding: 3px 9px;
-  border-radius: 6px;
-  margin-bottom: 8px;
-}
-
-.tasks-empty-starter h3 {
-  font-size: 19px;
-  font-weight: 800;
-  color: var(--text, #1e293b);
-  margin: 0 0 8px;
-  letter-spacing: -0.3px;
-}
-
-.tasks-empty-starter p {
-  font-size: 13.5px;
-  color: var(--muted, #64748b);
-  margin: 0 0 22px;
-}
-
-.starter-actions-3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  text-align: left;
-}
-
-.starter-card-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 16px;
-  border-radius: 14px;
-  border: 1px solid var(--line, #e2e8f0);
-  background: var(--surface, #ffffff);
+  gap: 4px;
+  white-space: nowrap;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.starter-card-btn:active {
-  transform: scale(0.98);
-}
-
-.starter-card-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-}
-
-.starter-card-btn.caixa:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
-}
-
-.starter-card-btn.abertura:hover {
-  border-color: #f59e0b;
-  background: #fffbeb;
-}
-
-.starter-card-btn.fechamento:hover {
-  border-color: #8b5cf6;
-  background: #faf5ff;
-}
-
-.starter-tag {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-  padding: 3px 9px;
-  border-radius: 6px;
-}
-
-.starter-card-btn.caixa .starter-tag {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
-}
-
-.starter-card-btn.abertura .starter-tag {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.starter-card-btn.fechamento .starter-tag {
-  background: #faf5ff;
-  color: #7e22ce;
-  border: 1px solid #e9d5ff;
-}
-
-.starter-card-btn strong {
-  display: block;
-  font-size: 14.5px;
-  color: var(--text, #1e293b);
-  margin-bottom: 4px;
-}
-
-.starter-card-btn small {
-  display: block;
-  font-size: 12px;
-  color: var(--muted, #64748b);
-  line-height: 1.4;
-}
-
-/* ==========================================================================
-   CADERNO DE CHECKLISTS DIÁRIOS OPERACIONAIS
-   ========================================================================== */
+/* Caderno de Checklists Diários */
 .daily-checklist-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
 }
 
 .daily-section-card {
   background: var(--surface, #ffffff);
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   overflow: hidden;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.daily-section-card.assigned-to-me {
-  border-left: 5px solid #365cf5;
-  box-shadow: 0 4px 14px rgba(54, 92, 245, 0.1);
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .daily-section-card.all-complete {
-  border-color: #86efac;
-  background: var(--surface, #ffffff);
+  border-color: #a7f3d0;
+  background: #fafdfb;
 }
 
-.daily-section-card.all-complete.assigned-to-me {
-  border-left-color: #10b981;
+.daily-section-card.assigned-to-me {
+  border-left: 3px solid #2563eb;
 }
 
 .daily-section-header {
+  padding: 12px 14px 10px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 14px 18px;
-  gap: 12px;
-  flex-wrap: wrap;
-  background: var(--surface, #ffffff);
-  border-bottom: 1px solid var(--line, #f1f5f9);
-}
-
-.daily-section-card.all-complete .daily-section-header {
-  background: rgba(16, 185, 129, 0.04);
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .daily-section-title-wrap {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
   flex: 1;
+  min-width: 0;
 }
 
 .daily-step-num {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  color: #2563eb;
-  font-size: 13px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--surface-2, #f1f5f9);
+  color: var(--muted, #64748b);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  border: 1px solid #bfdbfe;
-  transition: all 0.2s ease;
+  margin-top: 1px;
 }
 
 .daily-step-num.done {
   background: #10b981;
-  border-color: #059669;
   color: #ffffff;
-  transform: scale(1.05);
 }
 
 .daily-title-meta {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1;
   min-width: 0;
 }
 
 .daily-tags-row {
   display: flex;
   align-items: center;
+  gap: 4px;
   flex-wrap: wrap;
-  gap: 6px;
 }
 
 .trello-tag {
   font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 6px;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 4px;
   border: 1px solid transparent;
-  letter-spacing: 0.2px;
 }
 
 .trello-tag-mine {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border-radius: 6px;
-  font-size: 10.5px;
-  font-weight: 800;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #93c5fd;
-}
-
-.trello-tag-assigned {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border-radius: 6px;
   font-size: 10.5px;
   font-weight: 600;
-  background: var(--surface-2, #f8fafc);
-  color: var(--muted, #475569);
-  border: 1px solid var(--line, #cbd5e1);
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .trello-tag-urgent {
   font-size: 10.5px;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 6px;
+  font-weight: 700;
+  padding: 1.5px 6px;
+  border-radius: 4px;
   background: #fef2f2;
-  color: #b91c1c;
+  color: #dc2626;
   border: 1px solid #fecaca;
 }
 
 .trello-tag-high {
   font-size: 10.5px;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
 }
 
 .trello-tag-time {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: #dc2626;
-  margin-left: auto;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background: var(--surface-2, #f1f5f9);
+  color: var(--muted, #64748b);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .daily-section-title {
-  margin: 0;
-  font-size: 15.5px;
-  font-weight: 700;
+  font-size: 14.5px;
+  font-weight: 600;
   color: var(--text, #0f172a);
-  letter-spacing: -0.2px;
-  line-height: 1.35;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .daily-section-desc {
-  margin: 2px 0 0;
   font-size: 12.5px;
   color: var(--muted, #64748b);
-  font-weight: 400;
+  margin: 0;
   line-height: 1.35;
 }
 
 .daily-section-meta-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .daily-progress-pill {
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
   background: var(--surface-2, #f1f5f9);
-  color: var(--muted, #475569);
-  border: 1px solid var(--line, rgba(0,0,0,0.04));
+  color: var(--muted, #64748b);
+  white-space: nowrap;
+  font-feature-settings: "tnum";
 }
 
 .daily-progress-pill.done {
-  background: #dcfce7;
-  color: #15803d;
-  border-color: #bbf7d0;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .daily-progress-track {
-  height: 5px;
-  background: var(--surface-2, #f1f5f9);
   width: 100%;
+  height: 2.5px;
+  background: var(--surface-2, #f1f5f9);
 }
 
 .daily-progress-bar {
   height: 100%;
-  background: #365cf5;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #2563eb;
+  transition: width 0.2s ease;
 }
 
 .daily-progress-bar.done {
@@ -10977,444 +10685,464 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 }
 
 .daily-checklist-items {
-  padding: 14px 18px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 10px;
-  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 6px 4px;
 }
 
 .daily-item-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  padding: 12px 16px;
-  background: var(--surface, #ffffff);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.16s ease;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  width: 100%;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
   text-align: left;
-  box-sizing: border-box;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  width: 100%;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  border-bottom: 1px solid var(--line, #f8fafc);
 }
 
-.daily-item-row:hover {
-  background: var(--surface-2, #f8fafc);
-  border-color: var(--line, #cbd5e1);
+.daily-item-row:last-child {
+  border-bottom: none;
 }
 
 .daily-item-row:active {
-  transform: scale(0.985);
   background: var(--surface-2, #f1f5f9);
 }
 
-.daily-item-row.is-done {
-  background: rgba(16, 185, 129, 0.06);
-  border-color: #bbf7d0;
-}
-
 .daily-chk-box {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  max-width: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--line, #cbd5e1);
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line-strong, #cbd5e1);
   background: var(--surface, #ffffff);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  color: transparent;
   flex-shrink: 0;
+  color: transparent;
+  transition: all 0.12s ease;
 }
 
-.daily-chk-box svg {
-  stroke-dasharray: 24;
-  stroke-dashoffset: 24;
-  transition: stroke-dashoffset 0.22s ease 0.04s;
-}
-
-.daily-item-row.is-done .daily-chk-box,
 .daily-chk-box.checked {
   background: #10b981;
   border-color: #10b981;
   color: #ffffff;
-  transform: scale(1.08);
-}
-
-.daily-item-row.is-done .daily-chk-box svg,
-.daily-chk-box.checked svg {
-  stroke-dashoffset: 0;
 }
 
 .daily-item-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text, #0f172a);
-  line-height: 1.4;
+  font-size: 13.5px;
+  font-weight: 450;
+  color: var(--text, #1e293b);
+  line-height: 1.35;
   flex: 1;
-  transition: color 0.16s ease;
+  transition: color 0.12s ease;
 }
 
 .daily-item-row.is-done .daily-item-label {
-  text-decoration: line-through;
-  text-decoration-color: var(--muted, #94a3b8);
   color: var(--muted, #94a3b8);
+  text-decoration: line-through;
+  text-decoration-color: #cbd5e1;
+}
+
+.daily-single-action-box {
+  padding: 10px 14px;
 }
 
 .daily-section-footer {
-  padding: 12px 18px;
-  background: var(--surface-2, #fbfbfd);
-  border-top: 1px solid var(--line, #f1f5f9);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line, #f1f5f9);
+  background: var(--surface-2, #fafafa);
+  font-size: 11.5px;
   color: var(--muted, #64748b);
-  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .daily-footer-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 
+.daily-footer-resp {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+}
+
+.badge-blue-pill {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 99px;
+}
+
 .trello-visto-approved {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #059669;
+  font-weight: 600;
   font-size: 11px;
-  color: #065f46;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 .trello-visto-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #d97706;
   font-size: 11px;
-  color: #854d0e;
-  background: #fef9c3;
-  border: 1px solid #fef08a;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-weight: 600;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 .daily-footer-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .btn-ghost-sm {
   background: transparent;
-  border: 1px solid var(--line, #cbd5e1);
-  padding: 5px 12px;
-  border-radius: 8px;
-  font-size: 12px;
+  border: none;
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--muted, #475569);
+  color: #2563eb;
   cursor: pointer;
-  transition: all 0.14s ease;
+  padding: 3px 6px;
+  border-radius: 4px;
   -webkit-tap-highlight-color: transparent;
 }
 
-.btn-ghost-sm:active {
-  transform: scale(0.97);
-}
-
 .btn-ghost-sm:hover {
-  background: var(--surface-2, #f1f5f9);
-  color: var(--text, #0f172a);
+  background: #eff6ff;
 }
 
-/* ==========================================================================
-   QUADRO KANBAN MOBILE-FIRST & RESPONSIVO
-   ========================================================================== */
-.kanban-wrapper {
+.trello-btn-del {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid var(--line, #e2e8f0);
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+
+.trello-btn-del:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+/* Visão Minhas Tarefas (Hero Card) */
+.my-tasks-container {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
 }
 
-.kanban-mobile-tabs {
-  display: none;
-  background: var(--surface-2, #f1f5f9);
-  padding: 4px;
-  border-radius: 12px;
-  gap: 4px;
-  border: 1px solid var(--line, #e2e8f0);
+.my-tasks-hero {
+  background: #0f172a;
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.kanban-tab-btn {
+.my-tasks-hero-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #93c5fd;
+  text-transform: uppercase;
+}
+
+.my-tasks-hero-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.my-tasks-hero-subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.my-tasks-hero-subtitle strong {
+  color: #ffffff;
+}
+
+.my-tasks-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.my-tasks-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+.my-tasks-progress-header strong {
+  color: #ffffff;
+}
+
+.my-tasks-progress-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.my-tasks-progress-bar {
+  height: 100%;
+  background: #10b981;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+/* Kanban / Quadro */
+.kanban-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.kanban-col-nav {
+  display: flex;
+  gap: 3px;
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 8px;
+  padding: 2.5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.kanban-col-tab {
   flex: 1;
-  min-width: 0;
+  height: 34px;
   border: none;
   background: transparent;
-  height: 38px;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--muted, #64748b);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
-  transition: all 0.16s ease;
-  padding: 2px 6px;
+  transition: all 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.kanban-tab-btn.active {
+.kanban-col-tab.active {
   background: var(--surface, #ffffff);
   color: var(--text, #0f172a);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.kanban-tab-count {
+.kanban-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.kanban-tab-badge {
   font-size: 10px;
-  font-weight: 800;
-  background: rgba(0, 0, 0, 0.07);
-  padding: 1px 6px;
-  border-radius: 99px;
-}
-
-.kanban-tab-btn.active .kanban-tab-count {
-  background: #365cf5;
-  color: #ffffff;
+  font-weight: 700;
+  opacity: 0.75;
+  font-feature-settings: "tnum";
 }
 
 .trello-board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(280px, 1fr));
-  gap: 14px;
-  align-items: start;
-  overflow-x: auto;
-  padding-bottom: 24px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  width: 100%;
 }
 
 .trello-column {
   background: var(--surface-2, #f8fafc);
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  max-height: calc(100vh - 210px);
-  box-sizing: border-box;
-  overflow: hidden;
-  transition: border-color 0.15s ease;
-}
-
-.trello-column-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line, #e2e8f0);
-  background: var(--surface-2, #f8fafc);
-}
-
-.trello-col-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.col-status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.trello-col-title h4 {
-  margin: 0;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text, #1e293b);
-  letter-spacing: -0.2px;
-}
-
-.trello-col-count {
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--line, #e2e8f0);
-  color: var(--muted, #475569);
-  padding: 2px 7px;
-  border-radius: 99px;
-}
-
-.trello-cards-area {
+  border-radius: 12px;
   padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 130px;
+  gap: 8px;
+  min-width: 0;
   box-sizing: border-box;
 }
 
-.trello-cards-area.drag-over {
-  background: #eff6ff;
-  border: 2px dashed #365cf5;
-  border-radius: 10px;
+.trello-column-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 4px 6px;
+}
+
+.trello-col-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trello-col-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.trello-col-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  margin: 0;
+}
+
+.trello-count-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--line, #e2e8f0);
+  color: var(--muted, #64748b);
+  padding: 1px 5px;
+  border-radius: 99px;
+}
+
+.trello-add-card-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid var(--line, #cbd5e1);
+  background: var(--surface, #ffffff);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.trello-cards-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 80px;
 }
 
 .trello-empty-column {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
-  text-align: center;
+  padding: 24px 10px;
   border: 1px dashed var(--line, #cbd5e1);
-  border-radius: 10px;
-  margin: 10px 0;
-  background: rgba(255, 255, 255, 0.4);
-}
-
-.trello-empty-column .empty-icon {
-  font-size: 22px;
-  opacity: 0.6;
-  margin-bottom: 6px;
-}
-
-.trello-empty-column p {
-  margin: 0;
+  border-radius: 8px;
   font-size: 12px;
   color: var(--muted, #94a3b8);
-  font-weight: 500;
-}
-
-.trello-add-card-btn {
-  background: transparent;
-  border: none;
-  padding: 11px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--muted, #64748b);
-  cursor: pointer;
-  border-radius: 0 0 14px 14px;
-  border-top: 1px solid var(--line, #e2e8f0);
-  transition: all 0.15s ease;
-}
-
-.trello-add-card-btn:hover {
-  background: var(--line, #e2e8f0);
-  color: var(--text, #0f172a);
+  text-align: center;
 }
 
 .trello-card {
   background: var(--surface, #ffffff);
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 12px;
-  padding: 12px 14px;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
-  cursor: pointer;
+  border-radius: 10px;
+  padding: 11px 13px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  box-sizing: border-box !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow: hidden !important;
-  word-break: break-word !important;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
+  gap: 7px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
 }
 
 .trello-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-  border-color: var(--line, #cbd5e1);
+  border-color: #cbd5e1;
 }
 
 .trello-card.assigned-to-me {
-  border-left: 4px solid #365cf5;
+  border-left: 3px solid #2563eb;
 }
 
 .trello-card-tags {
   display: flex;
   align-items: center;
+  gap: 4px;
   flex-wrap: wrap;
-  gap: 6px;
 }
 
 .trello-card-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text, #0f172a);
-  line-height: 1.35;
-  word-break: break-word !important;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .trello-card-desc {
-  margin: 0;
   font-size: 12px;
   color: var(--muted, #64748b);
+  margin: 0;
   line-height: 1.35;
-  word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .trello-card-ch-pill {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 6px;
-  padding: 4px 8px;
-}
-
-.trello-card-ch-pill.all-done {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-}
-
-.trello-card-ch-text {
+  flex-direction: column;
+  gap: 3px;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--muted, #475569);
-}
-
-.trello-card-ch-pill.all-done .trello-card-ch-text {
-  color: #166534;
+  color: var(--muted, #64748b);
 }
 
 .trello-card-ch-track {
-  flex: 1;
-  max-width: 80px;
-  height: 5px;
-  background: var(--line, #e2e8f0);
+  width: 100%;
+  height: 3px;
+  background: var(--surface-2, #f1f5f9);
   border-radius: 99px;
   overflow: hidden;
 }
 
 .trello-card-ch-bar {
   height: 100%;
-  background: #365cf5;
+  background: #2563eb;
   border-radius: 99px;
-  transition: width 0.2s ease;
 }
 
 .trello-card-ch-bar.is-complete {
@@ -11425,693 +11153,394 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line, #f1f5f9);
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line, #f8fafc);
 }
 
 .trello-assignee {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
 }
 
 .trello-avatar {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #365cf5;
-  color: #ffffff;
-  font-size: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 9px;
   font-weight: 700;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .trello-avatar.unassigned {
-  background: var(--line, #e2e8f0);
-  color: var(--muted, #64748b);
-  font-size: 11px;
-}
-
-.trello-assignee-name {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--muted, #475569);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100px;
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 .trello-card-actions {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .trello-btn-edit {
-  border: 1px solid var(--line, #cbd5e1);
-  background: var(--surface, #ffffff);
-  color: var(--muted, #475569);
+  background: transparent;
+  border: none;
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
+  color: #2563eb;
   cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.trello-btn-step {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--line, #cbd5e1);
-  background: var(--surface-2, #f8fafc);
-  border-radius: 7px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  color: var(--text, #475569);
-  transition: all 0.12s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.trello-btn-step:active {
-  transform: scale(0.92);
+  padding: 2px 5px;
 }
 
 .trello-btn-approve {
-  border: none;
-  background: #10b981;
-  color: #ffffff;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
   font-size: 11px;
-  font-weight: 700;
-  padding: 4px 9px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-
-.trello-btn-del {
-  border: none;
-  background: transparent;
-  color: var(--muted, #94a3b8);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 2px 5px;
+  font-weight: 600;
   border-radius: 4px;
-  transition: all 0.12s ease;
+  padding: 2px 6px;
+  cursor: pointer;
 }
 
-.trello-btn-del:hover {
-  color: #ef4444;
-  background: #fef2f2;
+.trello-btn-step {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid var(--line, #cbd5e1);
+  background: var(--surface, #ffffff);
+  color: var(--text, #334155);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.1s ease;
 }
 
-/* Modais Específicos */
-.task-detail-dialog {
-  max-width: 580px !important;
-  width: 100%;
-  border-radius: 18px;
+.trello-btn-step:hover {
+  background: var(--surface-2, #f8fafc);
+  border-color: #94a3b8;
 }
 
-.task-detail-meta-row {
+/* Starter Cards & Empty States */
+.tasks-empty-starter {
+  background: var(--surface, #ffffff);
+  border: 1px dashed var(--line-strong, #cbd5e1);
+  border-radius: 14px;
+  padding: 28px 18px;
+  text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.task-detail-desc {
-  font-size: 13.5px;
-  color: var(--text, #475569);
-  background: var(--surface-2, #f8fafc);
-  border-left: 3px solid #365cf5;
-  padding: 10px 14px;
-  border-radius: 0 8px 8px 0;
+.tasks-empty-starter h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
   margin: 0;
+}
+
+.tasks-empty-starter p {
+  font-size: 13px;
+  color: var(--muted, #64748b);
+  margin: 0;
+  max-width: 480px;
   line-height: 1.4;
 }
 
-.task-detail-progress-track {
-  height: 6px;
-  background: var(--surface-2, #e2e8f0);
-  border-radius: 99px;
-  overflow: hidden;
-  margin-bottom: 12px;
-}
-
-.task-detail-progress-bar {
-  height: 100%;
-  background: #10b981;
-  transition: width 0.2s ease;
-}
-
-.task-detail-checklist-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.task-detail-info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 10px;
-}
-
-.task-detail-visto-box {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  padding: 10px 14px;
-  border-radius: 10px;
-}
-
-.btn-danger-ghost {
-  background: transparent;
-  border: 1px solid #fca5a5;
-  color: #dc2626;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 0 12px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.routine-picker-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.routine-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border: 1.5px solid var(--line, #e2e8f0);
-  border-radius: 14px;
-  cursor: pointer;
-  transition: all 0.16s ease;
-  background: var(--surface, #ffffff);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.routine-card:active {
-  transform: scale(0.985);
-}
-
-.routine-card:hover {
-  border-color: #365cf5;
-  background: #f0f4ff;
-  transform: translateY(-2px);
-}
-
-.routine-card-tag {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-
-.routine-card-info h4 {
-  margin: 0 0 4px;
-  font-size: 15px;
+.starter-badge {
+  font-size: 9.5px;
   font-weight: 700;
-  color: var(--text, #1e293b);
-}
-
-.routine-card-info p {
-  margin: 0 0 6px;
-  font-size: 12px;
-  color: var(--muted, #64748b);
-  line-height: 1.35;
-}
-
-.routine-badge-count {
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--line, #e2e8f0);
-  color: var(--muted, #475569);
-  padding: 2px 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 2px 6px;
   border-radius: 4px;
 }
 
-.draft-checklist-list {
+.starter-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.starter-card-btn {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 160px;
-  overflow-y: auto;
+  gap: 5px;
+  transition: all 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.starter-card-btn:hover {
+  border-color: #2563eb;
+  background: #f8fafc;
+}
+
+.starter-card-btn:active {
+  transform: scale(0.98);
+}
+
+.starter-card-btn strong {
+  font-size: 13.5px;
+  color: var(--text, #0f172a);
+  font-weight: 600;
+  display: block;
+}
+
+.starter-card-btn small {
+  font-size: 12px;
+  color: var(--muted, #64748b);
+  line-height: 1.35;
+  display: block;
+}
+
+.starter-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.starter-tag.caixa {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.starter-tag.abertura {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.starter-tag.fechamento {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+/* Modais e Bottom-Sheets */
+@media (max-width: 640px) {
+  dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: auto 0 0 0 !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 88vh;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .dialog-head {
+    padding: 14px 18px;
+  }
+
+  .dialog-body {
+    padding: 14px 18px;
+    max-height: calc(88vh - 130px);
+    overflow-y: auto;
+  }
+
+  .dialog-actions {
+    padding: 10px 18px;
+  }
 }
 
 .draft-row {
   display: flex;
+  gap: 6px;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 8px;
-  font-size: 13px;
+  margin-bottom: 6px;
 }
 
 .draft-item-input {
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  color: var(--text, #1e293b);
   flex: 1;
-  outline: none;
-  padding: 4px 6px;
+  height: 38px;
+  border: 1px solid var(--line, #cbd5e1);
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: var(--surface, #ffffff);
+  color: var(--text, #1e293b);
+  box-sizing: border-box;
 }
 
 .btn-del-draft {
-  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--line, #cbd5e1);
   background: transparent;
-  color: #ef4444;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 13px;
-  padding: 2px 6px;
+  flex-shrink: 0;
 }
 
-.tasks-loading-state {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.tasks-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(54, 92, 245, 0.15);
-  border-top-color: #365cf5;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  margin: 0 auto 12px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ==========================================================================
-   SUPORTE COMPLETO A DARK MODE NO MÓDULO DE TAREFAS
-   ========================================================================== */
-[data-theme="dark"] .tasks-hub {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-
-[data-theme="dark"] .segmented-deck {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .seg-btn.active {
-  background: var(--surface, #1b202c);
-  color: #ffffff;
-}
-
-[data-theme="dark"] .sector-chip {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #343e50);
-  color: var(--muted, #aab5ca);
-}
-
-[data-theme="dark"] .sector-chip.active {
-  background: #6340d8;
-  border-color: #6340d8;
-  color: #ffffff;
-}
-
-[data-theme="dark"] .daily-section-card {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .daily-section-header {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .daily-section-card.all-complete {
-  border-color: #059669;
-}
-
-[data-theme="dark"] .daily-section-card.all-complete .daily-section-header {
-  background: rgba(16, 185, 129, 0.08);
-}
-
-[data-theme="dark"] .daily-item-row {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .daily-item-row:hover {
-  background: var(--surface-2, #252c3a);
-}
-
-[data-theme="dark"] .daily-item-row.is-done {
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.3);
-}
-
-[data-theme="dark"] .daily-chk-box {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #475569);
-}
-
-[data-theme="dark"] .daily-section-footer {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .trello-column {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .trello-column-header {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .trello-card {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .trello-empty-column {
-  border-color: var(--line, #475569);
-  background: rgba(0, 0, 0, 0.15);
-}
-
-[data-theme="dark"] .trello-card-ch-pill {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .kanban-mobile-tabs {
-  background: var(--surface-2, #252c3a);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .kanban-tab-btn.active {
-  background: var(--surface, #1b202c);
-  color: #ffffff;
-}
-
-[data-theme="dark"] .tasks-assigned-banner {
-  background: linear-gradient(135deg, #1e1b4b 0%, #2e1065 100%);
-  border-color: #4338ca;
-}
-
-[data-theme="dark"] .assigned-banner-text strong {
-  color: #e0e7ff;
-}
-
-[data-theme="dark"] .assigned-banner-text small {
-  color: #a5b4fc;
-}
-
-[data-theme="dark"] .assigned-banner-cta {
-  background: #3730a3;
-  color: #ffffff;
-  border-color: #6366f1;
-}
-
-[data-theme="dark"] .starter-card-btn {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50);
-}
-
-[data-theme="dark"] .btn-routine {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.3) !important;
-  color: #fbbf24 !important;
-}
-
-[data-theme="dark"] .btn-repair {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50) !important;
-  color: var(--text, #f1f4fc) !important;
-}
-
-[data-theme="dark"] .btn-icon-tool {
-  background: var(--surface, #1b202c);
-  border-color: var(--line, #343e50) !important;
-  color: var(--muted, #aab5ca) !important;
-}
-
-/* ==========================================================================
-   OTIMIZAÇÕES 100% MOBILE-FIRST (SMARTPHONES E TABLETS)
-   ========================================================================== */
-@media (max-width: 1100px) {
-  .trello-board {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    gap: 14px;
-    padding-bottom: 20px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .trello-column {
-    min-width: 280px;
-    max-width: 320px;
-    flex: 0 0 280px;
-    scroll-snap-align: start;
-  }
-}
-
+/* Media Queries Responsivas */
 @media (max-width: 768px) {
   .tasks-page {
-    padding: 0 0 24px;
-    gap: 12px;
+    padding: 0 0 32px;
+    gap: 10px;
   }
 
   .tasks-hub {
-    padding: 14px 16px;
-    border-radius: 16px;
-    gap: 12px;
-  }
-
-  .tasks-hub-top {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .tasks-hub-identity {
-    width: 100%;
-    gap: 6px;
-  }
-
-  .tasks-context-bar {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 6px;
-  }
-
-  .tasks-brand-tag {
-    font-size: 10px;
-    padding: 2px 7px;
-  }
-
-  .tasks-title-status-row {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .tasks-hub-title {
-    font-size: 19px;
-  }
-
-  .tasks-hub-actions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    width: 100%;
-  }
-
-  .tasks-hub-actions .btn {
-    height: 42px;
-    font-size: 12.5px;
-    border-radius: 10px;
-    padding: 0 8px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .tasks-hub-bottom {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding-top: 10px;
-  }
-
-  .segmented-deck {
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    gap: 3px;
-    padding: 3px;
-  }
-
-  .seg-btn {
-    flex: 1;
-    min-width: 0;
-    height: 38px;
-    font-size: clamp(11px, 2.9vw, 12.5px);
-    padding: 4px 6px;
-    justify-content: center;
-  }
-
-  .tasks-sectors-track {
-    gap: 6px;
-    padding: 2px 0 6px;
-  }
-
-  .sector-chip {
-    padding: 6px 12px;
-    font-size: 11.5px;
-  }
-
-  /* Checklist Diário no Mobile */
-  .daily-checklist-container {
-    gap: 12px;
-  }
-
-  .daily-section-card {
-    border-radius: 14px;
-  }
-
-  .daily-section-header {
-    padding: 12px 14px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .daily-section-meta-right {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .daily-checklist-items {
-    grid-template-columns: 1fr !important;
-    gap: 8px;
-    padding: 12px 14px;
-  }
-
-  .daily-item-row {
-    min-height: 52px;
-    padding: 12px 14px;
+    padding: 12px;
     border-radius: 12px;
-    gap: 12px;
-  }
-
-  .daily-chk-box {
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    max-width: 26px;
-  }
-
-  .daily-item-label {
-    font-size: 14px;
-  }
-
-  .daily-section-footer {
-    padding: 10px 14px;
-    flex-direction: column;
-    align-items: stretch;
     gap: 8px;
-  }
-
-  .daily-footer-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .btn-ghost-sm {
-    height: 36px;
-    padding: 0 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Kanban no Mobile */
-  .kanban-mobile-tabs {
-    display: flex;
   }
 
   .trello-board {
     display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    gap: 12px;
-    padding-bottom: 16px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    flex-direction: column;
+    width: 100%;
   }
 
-  .trello-board::-webkit-scrollbar {
+  .trello-column {
+    display: none;
+  }
+
+  .trello-column.mobile-active {
+    display: flex;
+    width: 100%;
+  }
+
+  .daily-section-card {
+    border-radius: 10px;
+  }
+
+  .daily-item-row {
+    min-height: 46px;
+    padding: 9px 10px;
+  }
+}
+
+@media (min-width: 769px) {
+  .kanban-col-nav {
     display: none;
   }
 
   .trello-column {
-    min-width: 84vw;
-    max-width: 86vw;
-    flex: 0 0 84vw;
-    scroll-snap-align: center;
-    max-height: calc(100vh - 240px);
-    border-radius: 16px;
+    display: flex !important;
   }
+}
 
-  .trello-btn-step {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
-  }
+/* Suporte a Dark Mode */
+[data-theme="dark"] .tasks-hub {
+  background: #18181b;
+  border-color: #27272a;
+}
 
-  /* Starter Actions no Celular */
-  .starter-actions-3 {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
+[data-theme="dark"] .tasks-hub-heading {
+  color: #f4f4f5;
+}
 
-  /* Modais em Bottom Sheet no Celular */
-  dialog.task-detail-dialog,
-  #taskDialog,
-  #taskRoutineDialog,
-  #taskMaintenanceDialog {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: auto 0 0 !important;
-    border-radius: 24px 24px 0 0 !important;
-    max-height: 90vh;
-    animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  }
+[data-theme="dark"] .tasks-inline-select,
+[data-theme="dark"] .tasks-inline-date {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
 
-  @keyframes slide-up {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
-  }
+[data-theme="dark"] .segmented-deck {
+  background: #27272a;
+}
+
+[data-theme="dark"] .seg-btn {
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .seg-btn.active {
+  background: #18181b;
+  color: #f4f4f5;
+}
+
+[data-theme="dark"] .sector-chip {
+  background: #18181b;
+  border-color: #27272a;
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .sector-chip.active {
+  background: #f4f4f5;
+  color: #09090b;
+  border-color: #f4f4f5;
+}
+
+[data-theme="dark"] .daily-section-card {
+  background: #18181b;
+  border-color: #27272a;
+}
+
+[data-theme="dark"] .daily-section-card.all-complete {
+  background: #0f291e;
+  border-color: #065f46;
+}
+
+[data-theme="dark"] .daily-section-title {
+  color: #f4f4f5;
+}
+
+[data-theme="dark"] .daily-item-label {
+  color: #e4e4e7;
+}
+
+[data-theme="dark"] .daily-item-row:active {
+  background: #27272a;
+}
+
+[data-theme="dark"] .daily-section-footer {
+  background: #141416;
+  border-color: #27272a;
+}
+
+[data-theme="dark"] .trello-column {
+  background: #18181b;
+  border-color: #27272a;
+}
+
+[data-theme="dark"] .trello-card {
+  background: #27272a;
+  border-color: #3f3f46;
+}
+
+[data-theme="dark"] .trello-card-title {
+  color: #f4f4f5;
+}
+
+[data-theme="dark"] .tasks-empty-starter {
+  background: #18181b;
+  border-color: #3f3f46;
+}
+
+[data-theme="dark"] .starter-card-btn {
+  background: #27272a;
+  border-color: #3f3f46;
 }
 
 </style>
@@ -14931,7 +14360,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
         <span class="eyebrow">OPERAÇÃO &amp; CHECKLIST</span>
         <h3 id="taskDialogHeading">Nova Tarefa / Checklist</h3>
       </div>
-      <button type="button" class="icon-btn" data-close="taskDialog">✕</button>
+      <button type="button" class="icon-btn" data-close="taskDialog" aria-label="Fechar"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="dialog-body">
       <div class="dialog-grid">
@@ -14994,7 +14423,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
       <span class="eyebrow">AUTOMAÇÃO DO TURNO</span>
       <h3>Disparar Rotina Padrão</h3>
     </div>
-    <button type="button" class="icon-btn" data-close="taskRoutineDialog">✕</button>
+    <button type="button" class="icon-btn" data-close="taskRoutineDialog" aria-label="Fechar"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="dialog-body">
     <p style="font-size: 14px; color: var(--text-muted, #64748b); margin-top: 0; margin-bottom: 16px;">
@@ -15040,7 +14469,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
         <span class="eyebrow" style="color: #ef4444;">MANUTENÇÃO &amp; REPAROS</span>
         <h3>Relatar Equipamento com Defeito</h3>
       </div>
-      <button type="button" class="icon-btn" data-close="taskMaintenanceDialog">✕</button>
+      <button type="button" class="icon-btn" data-close="taskMaintenanceDialog" aria-label="Fechar"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="dialog-body">
       <div class="dialog-grid">
@@ -15092,7 +14521,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
       <span class="eyebrow" id="taskDetailEyebrow">DETALHES DA TAREFA</span>
       <h3 id="taskDetailTitle">Título da Tarefa</h3>
     </div>
-    <button type="button" class="icon-btn" data-close="taskDetailDialog">✕</button>
+    <button type="button" class="icon-btn" data-close="taskDetailDialog" aria-label="Fechar"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="dialog-body">
     <div class="task-detail-meta-row">
