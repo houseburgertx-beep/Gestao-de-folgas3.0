@@ -237,7 +237,8 @@ const workdayIndexes = (schedule) =>
   String(schedule?.DiasTrabalho || "1,2,3,4,5,6")
     .split(/[,;|\s]+/)
     .map(Number)
-    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
+    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 7)
+    .map((value) => (value === 7 ? 0 : value));
 
 const fixedOffWeekdayIndexes = (employee) => {
   const names = [
