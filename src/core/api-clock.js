@@ -138,6 +138,7 @@ const timeValue = (dateTime) => {
   const date = new Date(dateTime);
   return Number.isFinite(date.getTime())
     ? date.toLocaleTimeString("pt-BR", {
+        timeZone: "America/Bahia",
         hour: "2-digit",
         minute: "2-digit",
       })
@@ -404,6 +405,66 @@ const balanceDays = (days) =>
 
 const MAX_DAILY_WORK_MINUTES = 12 * 60;
 
+const getLocalTimeParts = (dateTime) => {
+  if (!dateTime) return null;
+  const d = new Date(dateTime);
+  if (!Number.isFinite(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bahia",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const h = Number(parts.find((p) => p.type === "hour")?.value);
+  const m = Number(parts.find((p) => p.type === "minute")?.value);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return { hour: h % 24, minute: m, totalMinutes: (h % 24) * 60 + m };
+};
+
+const midnightDiffMinutes = (dateTime, shiftDate) => {
+  if (!dateTime) return null;
+  const d = new Date(dateTime);
+  if (!Number.isFinite(d.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bahia",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+
+  const getP = (type) => parts.find((p) => p.type === type)?.value;
+  const exitYear = Number(getP("year"));
+  const exitMonth = Number(getP("month"));
+  const exitDay = Number(getP("day"));
+  const exitHour = Number(getP("hour")) % 24;
+  const exitMinute = Number(getP("minute"));
+
+  if (!Number.isFinite(exitYear) || !Number.isFinite(exitHour)) return null;
+
+  let sY = exitYear;
+  let sM = exitMonth;
+  let sD = exitDay;
+
+  if (shiftDate && /^\d{4}-\d{2}-\d{2}$/.test(String(shiftDate))) {
+    [sY, sM, sD] = String(shiftDate).split("-").map(Number);
+  } else if (exitHour < 12) {
+    const prev = new Date(Date.UTC(exitYear, exitMonth - 1, exitDay - 1));
+    sY = prev.getUTCFullYear();
+    sM = prev.getUTCMonth() + 1;
+    sD = prev.getUTCDate();
+  }
+
+  const nextDayUtc = Date.UTC(sY, sM - 1, sD + 1);
+  const exitDayUtc = Date.UTC(exitYear, exitMonth - 1, exitDay);
+  const daysDiff = Math.round((exitDayUtc - nextDayUtc) / (24 * 3600 * 1000));
+
+  return daysDiff * 1440 + exitHour * 60 + exitMinute;
+};
+
 const dayMetrics = (records, schedule, options = {}) => {
   const ordered = records
     .filter((item) => item.Status !== "Substituído")
@@ -481,9 +542,52 @@ const dayMetrics = (records, schedule, options = {}) => {
     options.expectedMinutes === undefined
       ? scheduleExpectedMinutes(schedule)
       : Math.max(0, Number(options.expectedMinutes || 0));
-  const rawBalance = worked - expected;
+  let rawBalance = worked - expected;
   const tolerance = Math.max(0, Number(schedule?.ToleranciaMinutos || 0));
-  const balance = Math.abs(rawBalance) <= tolerance ? 0 : rawBalance;
+  let balance = Math.abs(rawBalance) <= tolerance ? 0 : rawBalance;
+
+  const isIntegral =
+    String(schedule?.TipoJornada || "Integral").toLowerCase().includes("integral") ||
+    String(schedule?.TipoJornada || "").toLowerCase().includes("completa");
+  const exitSchedMinutes = clockMinutes(schedule?.HoraSaida);
+  const isMidnightClosing =
+    isIntegral &&
+    Boolean(schedule?.HoraSaida) &&
+    (exitSchedMinutes === 0 || exitSchedMinutes >= 23 * 60 + 40);
+
+  if (isMidnightClosing && expected > 0 && exit && entry) {
+    const shiftDate = options.dateKey || exit.Data || entry.Data || "";
+    const exitDiff = midnightDiffMinutes(exit.DataHora, shiftDate);
+    if (exitDiff !== null) {
+      let entryDeficit = 0;
+      const startMinutes = clockMinutes(schedule?.HoraEntrada);
+      if (startMinutes !== null) {
+        const entryParts = getLocalTimeParts(entry.DataHora);
+        if (entryParts && entryParts.totalMinutes > startMinutes) {
+          entryDeficit = entryParts.totalMinutes - startMinutes;
+        }
+      }
+
+      let totalActualBreak = 0;
+      shifts.forEach((shift) => {
+        const bOut = shift.records.find((item) => item.TipoMarcacao === "SAIDA_INTERVALO");
+        const bIn = bOut
+          ? shift.records.find(
+              (item) =>
+                item.TipoMarcacao === "RETORNO_INTERVALO" &&
+                dateTimeNumber(item.DataHora) >= dateTimeNumber(bOut.DataHora),
+            )
+          : null;
+        if (bOut && bIn) {
+          totalActualBreak += exactMinutesBetween(bOut.DataHora, bIn.DataHora);
+        }
+      });
+      const breakDeficit = Math.max(0, totalActualBreak - scheduledBreak);
+      const exitContrib = exitDiff > 0 ? exitDiff : (exitDiff >= -20 ? 0 : exitDiff);
+      balance = exitContrib - entryDeficit - breakDeficit;
+      rawBalance = balance;
+    }
+  }
   return {
     entrada: entry ? timeValue(entry.DataHora) : "",
     saidaIntervalo: breakOut ? timeValue(breakOut.DataHora) : noBreak ? "Sem descanso" : "",
@@ -713,6 +817,7 @@ const accumulatedHourBalance = ({
           scheduledDay && !approvedOff && !fixed
             ? scheduleExpectedMinutes(schedule)
             : 0,
+        dateKey: date,
       });
       const state = dayBalanceState(date, metrics, currentDate);
       if (state.pending) {
@@ -890,6 +995,7 @@ async function clockContext(filters = {}) {
           scheduledDay && !approvedOff && !fixed
             ? scheduleExpectedMinutes(schedule)
             : 0,
+        dateKey,
       });
       const justification = justifications.find(
         (item) =>
@@ -1061,6 +1167,7 @@ async function quickClockContext() {
       scheduledDay && !approvedOff && !fixedOff
         ? scheduleExpectedMinutes(schedule)
         : 0,
+    dateKey: operationalDay,
   });
   return {
     month: operationalDay.slice(0, 7),

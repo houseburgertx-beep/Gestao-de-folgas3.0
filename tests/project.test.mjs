@@ -1941,3 +1941,81 @@ test("House mantém o crédito de folga extra ao salvar um feriado ativo", async
   const api = await readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8");
   assert.match(api, /if \(saved.Ativo !== false\) \{[\s\S]*?await ensureHolidayLeaveCredits\(profile, saved, employees\)/);
 });
+
+test("jornada integral fechando a meia-noite: tolerância de 23:40 a 00:00 sem desconto, hora extra após 00:00 e desconto antes de 23:40", () => {
+  const schedule = {
+    TipoJornada: "Integral",
+    HoraEntrada: "16:00",
+    HoraSaida: "00:00",
+    CargaDiariaMinutos: 480,
+    DuracaoIntervaloMinutos: 0,
+    ToleranciaMinutos: 5,
+  };
+
+  // 1. Saída às 23:45 (entre 23:40 e 00:00): não desconta e não gera extra (saldo 0)
+  const exit2345 = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-09-30T16:00:00-03:00", Data: "2026-09-30" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-09-30T23:45:00-03:00", Data: "2026-09-30" },
+    ],
+    schedule,
+    { dateKey: "2026-09-30" },
+  );
+  assert.equal(exit2345.balance, 0, "Saída às 23:45 deve ter saldo 0 (sem desconto)");
+
+  // 2. Saída às 23:40 (limite exato da tolerância): não desconta (saldo 0)
+  const exit2340 = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-09-30T16:00:00-03:00", Data: "2026-09-30" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-09-30T23:40:00-03:00", Data: "2026-09-30" },
+    ],
+    schedule,
+    { dateKey: "2026-09-30" },
+  );
+  assert.equal(exit2340.balance, 0, "Saída às 23:40 deve ter saldo 0 (sem desconto)");
+
+  // 3. Saída às 23:25 (antes das 23:40): desconta o tempo faltante (-35 minutos)
+  const exit2325 = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-09-30T16:00:00-03:00", Data: "2026-09-30" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-09-30T23:25:00-03:00", Data: "2026-09-30" },
+    ],
+    schedule,
+    { dateKey: "2026-09-30" },
+  );
+  assert.equal(exit2325.balance, -35, "Saída às 23:25 deve descontar 35 minutos");
+
+  // 4. Saída às 00:25 (após as 00:00): gera +25 minutos de hora extra
+  const exit0025 = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-09-30T16:00:00-03:00", Data: "2026-09-30" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-01T00:25:00-03:00", Data: "2026-09-30" },
+    ],
+    schedule,
+    { dateKey: "2026-09-30" },
+  );
+  assert.equal(exit0025.balance, 25, "Saída às 00:25 deve gerar 25 minutos extras");
+
+  // 5. Entrada antecipada (15:40) e saída às 23:50: não gera hora extra antes de 00:00 (saldo 0)
+  const earlyEntryNoOvertime = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-09-30T15:40:00-03:00", Data: "2026-09-30" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-09-30T23:50:00-03:00", Data: "2026-09-30" },
+    ],
+    schedule,
+    { dateKey: "2026-09-30" },
+  );
+  assert.equal(earlyEntryNoOvertime.balance, 0, "Entrada antecipada com saída às 23:50 não deve gerar hora extra");
+
+  // 6. Entrada antecipada (15:40) e saída às 00:30: hora extra conta apenas os 30 min pós meia-noite
+  const earlyEntryWithOvertime = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-09-30T15:40:00-03:00", Data: "2026-09-30" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-01T00:30:00-03:00", Data: "2026-09-30" },
+    ],
+    schedule,
+    { dateKey: "2026-09-30" },
+  );
+  assert.equal(earlyEntryWithOvertime.balance, 30, "Hora extra deve contar estritamente os minutos pós meia-noite");
+});
+
