@@ -2063,10 +2063,8 @@ test("CozinhaFlow 3.0: redesign da tela de login, modais de tarefa com comprova�
   const tasksJs = await readFile(new URL("../src/tasks.js", import.meta.url), "utf8");
   const journeyJs = await readFile(new URL("../src/journey.js", import.meta.url), "utf8");
 
-  // 1. Tela de login Soft Clay e elementos do CozinhaFlow
+  // 1. Tela de login e elementos funcionais preservados
   assert.match(indexHtml, /id="loginScreen"[^>]*class="login-screen/, "loginScreen deve estar presente");
-  assert.match(indexHtml, /class="login-bg-mesh"/, "loginScreen deve ter malha atmosférica");
-  assert.match(indexHtml, /class="brand-steam steam-1"/, "loginScreen deve conter vapor animado do skillet");
   assert.match(indexHtml, /id="loginForm"/, "loginForm deve estar presente");
   assert.match(indexHtml, /id="loginEmail"/, "loginEmail deve estar presente");
   assert.match(indexHtml, /id="loginPassword"/, "loginPassword deve estar presente");
@@ -2075,6 +2073,8 @@ test("CozinhaFlow 3.0: redesign da tela de login, modais de tarefa com comprova�
   assert.match(indexHtml, /id="forgotPasswordBtn"/, "forgotPasswordBtn deve estar presente");
   assert.match(indexHtml, /id="loginError"/, "loginError deve estar presente");
   assert.match(indexHtml, /id="resetPasswordForm"/, "resetPasswordForm deve estar presente");
+  assert.match(indexHtml, /class="login-shell"/, "loginScreen deve ter login-shell estrutural");
+  assert.match(indexHtml, /class="login-form-panel"/, "loginScreen deve ter painel de formulário");
 
   // 2. Estilos do CozinhaFlow e limites de tela estritos
   assert.match(cozinhaCss, /overflow-x:\s*clip\s*!important/, "Limites de tela sem scroll horizontal");
@@ -2082,14 +2082,15 @@ test("CozinhaFlow 3.0: redesign da tela de login, modais de tarefa com comprova�
   assert.match(cozinhaCss, /@keyframes cfConfettiFall/, "Animação de confetes em CSS");
   assert.match(cozinhaCss, /\.task-camera-guide/, "Guia de foto da câmera presente no CSS");
   assert.match(cozinhaCss, /\.task-photo-picker/, "Picker de foto presente no CSS");
-  assert.match(cozinhaCss, /\.w-kitchen/, "Bento card da cozinha presente no CSS");
+  assert.match(cozinhaCss, /\.login-card/, "Estilo do card de login presente no CSS");
+  assert.match(cozinhaCss, /\.btn-glow/, "Botão glow do login presente no CSS");
 
   // 3. Scripts de tarefas e jornada
   assert.match(tasksJs, /function showTaskCelebration/, "tasks.js deve ter modal animado de celebração");
   assert.match(tasksJs, /task-camera-guide/, "Modal de conclusão deve ter guia de foto da câmera");
   assert.match(tasksJs, /Enviar Comprovação/, "Modal de conclusão deve ter botão explícito de envio");
-  assert.match(journeyJs, /w-kitchen/, "journey.js deve exibir o card de carreira da cozinha");
   assert.match(journeyJs, /j-kitchen-tag/, "journey.js deve exibir selos de título da equipe");
+  assert.match(journeyJs, /getKitchenLevel/, "journey.js deve calcular nível da cozinha");
 });
 
 

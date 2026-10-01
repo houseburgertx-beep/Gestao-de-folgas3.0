@@ -51,26 +51,18 @@
       </div>
       <p>A carregar o sistema…</p>
     </div>
-    <section id="loginScreen" class="login-screen hidden">
-      <div class="login-bg-mesh" aria-hidden="true">
-        <div class="login-mesh-orb orb-1"></div>
-        <div class="login-mesh-orb orb-2"></div>
-        <div class="login-mesh-orb orb-3"></div>
-      </div>
+        <section id="loginScreen" class="login-screen hidden">
       <div class="login-shell">
-        <div class="login-brand-panel">
+        <div class="login-brand-panel" aria-hidden="true">
           <div class="login-brand-content">
-            <div class="brand-mark-wrap" style="margin-bottom: 20px;">
-              <div class="brand-steam steam-1"></div>
-              <div class="brand-steam steam-2"></div>
-              <div class="brand-steam steam-3"></div>
+            <div class="brand-mark-wrap" style="margin-bottom: 24px;">
               <div class="brand-mark"><span class="material-symbols-rounded">skillet</span></div>
             </div>
             <strong class="login-group-name">Grupo House 190</strong>
-            <span class="eyebrow"><span class="eyebrow-sparkle">✨</span> PORTAL INTERNO DE EQUIPES</span>
+            <span class="eyebrow">PORTAL INTERNO DE EQUIPES</span>
             <h1>Bora fazer<br />um bom dia.</h1>
             <p>
-              Ponto, escalas, folgas e tarefas com gamificação da cozinha. Entre para acompanhar sua jornada e cuidar de cada turno.
+              Ponto, escalas, folgas e tarefas operacionais. Entre para acompanhar sua jornada e cuidar de cada turno.
             </p>
             <div class="login-feature">
               <span class="material-symbols-rounded">assignment_ind</span><span>Gestão integrada de todas as unidades</span>
@@ -79,32 +71,30 @@
               <span class="material-symbols-rounded">calendar_month</span><span>Escalas e folgas em tempo real</span>
             </div>
             <div class="login-feature">
-              <span class="material-symbols-rounded">task_alt</span><span>Tarefas operacionais com fotos comprobatórias</span>
+              <span class="material-symbols-rounded">task_alt</span><span>Tarefas com fotos comprobatórias</span>
             </div>
             <div class="login-feature">
-              <span class="material-symbols-rounded">storefront</span><span>Loja de recompensas e títulos da equipe</span>
+              <span class="material-symbols-rounded">storefront</span><span>Loja de recompensas da equipe</span>
             </div>
           </div>
         </div>
         <div class="login-form-panel">
           <form id="loginForm" class="login-card">
             <div class="mobile-login-brand">
-              <div class="brand-mark-wrap">
-                <div class="brand-steam steam-1"></div>
-                <div class="brand-steam steam-2"></div>
-                <div class="brand-steam steam-3"></div>
-                <div class="brand-mark"><span class="material-symbols-rounded">skillet</span></div>
-              </div>
+              <div class="brand-mark brand-mark--sm"><span class="material-symbols-rounded">skillet</span></div>
               <div class="login-brand-copy">
                 <strong>Grupo House 190</strong>
-                <span>Portal de Equipes · Folgas 3.0</span>
+                <span>Folgas 3.0</span>
               </div>
               <div class="login-status-badge ms-auto"><span class="status-pulse-dot"></span> Online</div>
             </div>
-            <span class="eyebrow"><span class="eyebrow-sparkle">✨</span> ACESSO AO SISTEMA</span>
-            <h2>Acesse sua área</h2>
+            <span class="eyebrow">
+              <span class="material-symbols-rounded eyebrow-icon">lock</span>
+              ACESSO AO SISTEMA
+            </span>
+            <h2>Entre na sua area</h2>
             <p class="login-subtext">
-              Consulte sua escala, folgas, ponto e tarefas do seu turno.
+              Escala, folgas, ponto e tarefas do seu turno.
             </p>
             <label for="loginEmail" class="form-label-wrap">
               <span>E-mail</span>
@@ -147,25 +137,26 @@
               </button>
             </div>
             <button class="btn btn-primary login-submit btn-glow" type="submit">
-              <span class="material-symbols-rounded btn-icon-left">login</span>
-              <span>Entrar no portal</span>
-              <span class="material-symbols-rounded btn-arrow-right">arrow_forward</span>
+              Entrar no portal
             </button>
             <p id="loginError" class="login-error hidden"></p>
-            <p class="login-version">Folgas 3.0 · CozinhaFlow v1.5.0</p>
+            <p class="login-version">Folgas 3.0 &middot; CozinhaFlow v1.5.0</p>
           </form>
           <form id="resetPasswordForm" class="login-card hidden">
             <button
               id="resetPasswordBack"
               class="reset-password-back"
               type="button">
-              ← Voltar ao login
+              &larr; Voltar ao login
             </button>
-            <span class="eyebrow"><span class="eyebrow-sparkle">🔒</span> RECUPERAÇÃO SEGURA</span>
+            <span class="eyebrow">
+              <span class="material-symbols-rounded eyebrow-icon">lock_reset</span>
+              RECUPERACAO SEGURA
+            </span>
             <h2>Crie uma nova senha</h2>
             <p class="reset-password-hint">
-              Digite o código enviado ao seu e-mail. A senha atual só será
-              alterada depois da confirmação.
+              Digite o codigo enviado ao seu e-mail. A senha atual so sera
+              alterada depois da confirmacao.
             </p>
             <label for="resetPasswordEmail" class="form-label-wrap">
               <span>E-mail</span>
@@ -179,7 +170,7 @@
               </div>
             </label>
             <label for="resetPasswordCode" class="form-label-wrap">
-              <span>Código</span>
+              <span>Codigo</span>
               <div class="input-icon">
                 <span class="material-symbols-rounded">pin</span>
                 <input
@@ -217,8 +208,8 @@
               </div>
             </label>
             <small class="reset-password-policy">
-              Use 10 caracteres e pelo menos três tipos entre maiúscula,
-              minúscula, número e símbolo.
+              Use 10 caracteres e pelo menos tres tipos entre maiuscula,
+              minuscula, numero e simbolo.
             </small>
             <button class="btn btn-primary login-submit btn-glow" type="submit">
               Confirmar nova senha
@@ -227,7 +218,7 @@
               id="resetPasswordResend"
               class="btn btn-ghost"
               type="button">
-              Reenviar código
+              Reenviar codigo
             </button>
             <p id="resetPasswordError" class="login-error hidden"></p>
           </form>

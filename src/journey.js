@@ -1,14 +1,14 @@
 import {scheduleForDay, workday, active, shiftDate} from "./core/reminder-policy.js";
 // Presentation only: all clock mutations stay in the existing validated flow.
 const KITCHEN_LEVELS = [
-  { min: 0, name: 'Ajudante da Cozinha', emoji: '🍳', short: 'Ajudante' },
-  { min: 60, name: 'Mestre do Molho', emoji: '🍅', short: 'Molho' },
-  { min: 150, name: 'Guardião da Fritadeira', emoji: '🍗', short: 'Fritadeira' },
-  { min: 300, name: 'Rei da Chapa', emoji: '🍔', short: 'Chapa' },
-  { min: 550, name: 'Pizzaiolo de Ouro', emoji: '🍕', short: 'Pizzaiolo' },
-  { min: 900, name: 'Mestre do Crocante', emoji: '🔥', short: 'Crocante' },
-  { min: 1500, name: 'Chef da House', emoji: '👨‍🍳', short: 'Chef' },
-  { min: 2500, name: 'Lenda do Foodpark', emoji: '🏆', short: 'Lenda' }
+  { min: 0, name: 'Ajudante da Cozinha', emoji: '', short: 'Ajudante' },
+  { min: 60, name: 'Mestre do Molho', emoji: '', short: 'Molho' },
+  { min: 150, name: 'Guardião da Fritadeira', emoji: '', short: 'Fritadeira' },
+  { min: 300, name: 'Rei da Chapa', emoji: '', short: 'Chapa' },
+  { min: 550, name: 'Pizzaiolo de Ouro', emoji: '', short: 'Pizzaiolo' },
+  { min: 900, name: 'Mestre do Crocante', emoji: '', short: 'Crocante' },
+  { min: 1500, name: 'Chef da House', emoji: '', short: 'Chef' },
+  { min: 2500, name: 'Lenda do Foodpark', emoji: '', short: 'Lenda' }
 ];
 const getKitchenLevel = (points = 0) => {
   let level = KITCHEN_LEVELS[0];
@@ -62,7 +62,7 @@ function person(p) {
  const metadata=[String(p.Cargo || '').trim(),personUnit(p)].filter(Boolean).filter((v,i,a)=>a.findIndex(x=>x.toLocaleLowerCase('pt-BR')===v.toLocaleLowerCase('pt-BR'))===i);
  const pPts = Number(p.Pontos || p.kitchenPoints || 0);
  const pLevel = pPts ? getKitchenLevel(pPts).level : null;
- const kitchenTag = pLevel ? ` <span class="j-kitchen-tag">${pLevel.emoji} ${esc(pLevel.short || pLevel.name)}</span>` : '';
+ const kitchenTag = pLevel ? ` <span class="j-kitchen-tag">${esc(pLevel.short || pLevel.name)}</span>` : '';
  return `<article class="j-person">${avatar(p)}<div><strong>${esc(p.Nome || 'Colaborador')}${kitchenTag}</strong><small>${metadata.map(esc).join(' · ')}</small>${detail?`<span>${esc(detail)}</span>`:''}</div><span class="j-status" style="--status:${colors[p.status] || '#c7b4eb'}">${esc(status)}</span></article>`;
 }
 function unitSelect() { return data.manager ? `<label class="j-unit"><span>Unidade</span><select data-j-unit aria-label="Selecionar unidade"><option value="">Todas as unidades</option>${stores().map(s=>`<option value="${esc(storeId(s))}" ${storeId(s)===unit?'selected':''}>${esc(storeName(s) || 'Unidade sem nome')}</option>`).join('')}</select></label>` : ''; }
@@ -122,44 +122,12 @@ function personal() {
  const coming=requests.filter(x=>approved(x)&&String(x.DataFim || x.DataInicio)>=dateKey()).sort((a,b)=>String(a.DataInicio).localeCompare(String(b.DataInicio)));
  const mineBalance=list(data.balance?.employees).find(x=>String(x.FuncionarioID)===ownId());
  const balance=mineBalance?.saldoTexto || data.balance?.totalTexto;
- const kitchen = window.cozinhaFlowGetBalance?.() || {
-   totalEarned: Number(me.Pontos || 0),
-   available: Number(me.Pontos || 0),
-   levelInfo: getKitchenLevel(Number(me.Pontos || 0))
- };
- const { level, nextLevel, progress, pointsNeeded } = kitchen.levelInfo || getKitchenLevel(0);
-
- const kitchenCard = `<article class="j-card w-kitchen">
-  <div class="j-card-top">
-    <div>
-      <span class="eyebrow">COZINHA FLOW · CARREIRA OPERACIONAL</span>
-      <h3>${esc(level.emoji)} ${esc(level.name)}</h3>
-    </div>
-    <span class="w-badge ok">${kitchen.available} pts</span>
-  </div>
-  <div class="w-kitchen-level-wrap">
-    <div class="w-kitchen-level-icon">${esc(level.emoji)}</div>
-    <div class="w-kitchen-level-info">
-      <strong>${esc(level.name)}</strong>
-      <small>${nextLevel ? `Faltam ${pointsNeeded} pts para alcançar ${nextLevel.emoji} ${esc(nextLevel.name)}` : '🏆 Nível Máximo de Maestria da Cozinha!'}</small>
-      <div class="w-kitchen-progress-bar">
-        <div class="w-kitchen-progress-fill" style="width: ${progress}%;"></div>
-      </div>
-      <small>Progresso do nível: <strong>${progress}%</strong> (${kitchen.totalEarned || 0} pts acumulados)</small>
-    </div>
-  </div>
-  <div class="w-kitchen-actions">
-    <button class="btn btn-primary" data-view-target="tasks">Minhas Tarefas 📋</button>
-    <button class="btn btn-secondary" data-view-target="tasks">Loja de Prêmios 🎁</button>
-  </div>
-</article>`;
 
  return `<article class="j-card w-myday"><div class="j-card-top"><div><span class="eyebrow">${flex?'MINHA JORNADA · DOIS TURNOS':'MINHA JORNADA'}</span><h3>${!d?'Carregando seu ponto…':d.loadError?'Não foi possível carregar o ponto':d.offToday?'Hoje você está de folga':!d.nextAction&&marks.length?'Jornada concluída':!d.nextAction?'Consulte suas marcações':'Sua próxima marcação'}</h3></div><span class="w-badge ${d?.loadError?esc(d.loadError):d?.nextAction==='RETORNO_INTERVALO'?'wait':'ok'}">${esc(d?.date?dateLabel(d.date):dateLabel(dateKey()))}</span></div>
  <div class="w-next-action"><strong>${!d?'Aguarde a sincronização':d.loadError?'Tente atualizar':d.offToday?'Descanso previsto':d.nextAction?nextLabel:marks.length?'Tudo registrado':'Sem marcações'}</strong><p>${d?.loadError?esc(d.loadError):d?.nextAction==='RETORNO_INTERVALO'?(flex?'Ao iniciar o segundo turno, registre sua entrada.':'Ao voltar do intervalo, registre seu retorno.'):d?.nextAction?'Abra o ponto para confirmar sua foto e localização.':'Consulte suas marcações e solicite uma correção quando necessário.'}</p></div>
  <div class="w-punches">${types.map((k,i)=>{const mark=marks.find(x=>x.TipoMarcacao===k);return `<div class="${mark?'done':d?.nextAction===k?'next':''}"><i>${mark?'✓':i+1}</i><strong>${esc(labels[i])}</strong><time>${mark?esc(time(mark.DataHora)):'—'}</time></div>`}).join('')}</div>
  <button class="btn btn-primary j-wide" data-view-target="timeclock">${d?.loadError?'Tentar carregar meu ponto':d?.nextAction?'Abrir ponto · '+esc(nextLabel):'Conferir meus registros'} <span aria-hidden="true">↗</span></button>
  ${today?.incompleto?'<p class="w-footnote">Há marcações para conferir. Abra o ponto e solicite a correção.</p>':''}</article>
- ${kitchenCard}
  <article class="j-card w-wallet"><div class="j-card-top"><div><span class="eyebrow">MEUS DIREITOS E SALDOS</span><h3>Folgas e horas</h3></div></div><div class="w-wallet-values"><button data-view-target="timeoff"><span>Folgas extras disponíveis</span><strong>${data.coreReady?esc(me.SaldoFolgas ?? '—'):'—'}</strong><small>Ver minhas folgas ↗</small></button><button data-view-target="timeclock"><span>Banco de horas</span><strong>${esc(balance || '—')}</strong><small>${mineBalance?.desde?'Desde '+esc(dateLabel(mineBalance.desde)):'Abra o ponto para conferir o período'} ↗</small></button></div><p class="w-footnote">Folga fixa: ${esc([me.DiaFolgaPreferencial,me.SegundoDiaFolgaPreferencial].filter(Boolean).join(' e ') || 'Ainda não cadastrada')}</p><div class="w-actions"><button class="btn btn-secondary" data-j-request-leave>Pedir folga</button><button class="btn btn-ghost" data-view-target="notifications">Meus avisos ↗</button></div></article>
  <article class="j-card w-myweek"><div class="j-card-top"><div><span class="eyebrow">PRÓXIMOS 7 DIAS</span><h3>Minha programação</h3></div><button class="btn btn-ghost" data-view-target="shift-plan">Escala ↗</button></div><div class="w-week-list">${Array.from({length:7},(_,i)=>{const day=shiftDate(dateKey(),i),schedule=scheduleForDay(list(data.schedules),ownId(),day),leave=requests.find(x=>approved(x)&&String(x.DataInicio)<=day&&String(x.DataFim||x.DataInicio)>=day),working=schedule&&workday(me,schedule,day,requests);return `<div class="w-week-day"><time>${i===0?'Hoje':esc(new Date(day+'T12:00:00Z').toLocaleDateString('pt-BR',{weekday:'short',timeZone:'America/Bahia'}))}<small>${esc(dateLabel(day))}</small></time><div><strong>${leave?esc(leave.TipoFolga || 'Folga aprovada'):!data.schedules?'Carregando escala':!schedule?'Jornada não cadastrada':!working?'Descanso previsto':esc(schedule.HoraEntrada+' — '+schedule.HoraSaida)}</strong><small>${working&&active(schedule.HorarioFlexivelDoisTurnos)?'Pausa entre turnos: '+esc(schedule.HoraSaidaIntervalo)+' — '+esc(schedule.HoraRetornoIntervalo):working?esc(personUnit(me)):leave?'Aprovada pela gestão':'Consulte os detalhes na escala'}</small></div><span class="w-week-dot ${working?'work':'off'}" aria-hidden="true"></span></div>`}).join('')}</div></article>
  <article class="j-card w-myrequests"><div class="j-card-top"><div><span class="eyebrow">ACOMPANHAMENTO</span><h3>Meus pedidos</h3></div><button class="btn btn-ghost" data-view-target="pending-center">Ver todos ↗</button></div>${leaveItems(requests.slice(0,4))||emptyState(data.coreReady?'Você ainda não tem pedidos':'Carregando seus pedidos','Peça uma folga e acompanhe a decisão por aqui.')}<div class="w-next-leave"><span>Próxima folga aprovada</span><strong>${coming.length?esc(dateLabel(coming[0].DataInicio)):'Nenhuma agendada'}</strong></div></article>`;
@@ -183,7 +151,7 @@ function workspaceHero() {
  };
  const { level } = kitchen.levelInfo || getKitchenLevel(0);
  if(data.manager) return `${managerCommand()}<div class="w-sync house-sync"><span>${data.presenceError?'Não foi possível atualizar a presença':data.updatedAt?'Presença atualizada às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" data-j-refresh>↻ Atualizar</button></div>${unitOverview()}`;
- return `<header class="v-workspace-hero"><div class="v-hero-copy"><span class="eyebrow">GRUPO HOUSE 190 / ${data.manager?'GESTÃO':'MINHA JORNADA'}</span><h2>${data.manager?'O dia acontece<br>com a sua equipe.':`${first?'Oi, '+esc(first)+'!':'Olá!'}<br>Seu dia começa aqui.`}</h2><p>${data.manager?'Confira a operação e resolva o que precisa de você.':'Seu ponto, suas tarefas operacionais e seu descanso.'} <span class="j-kitchen-tag">${level.emoji} ${esc(level.name)}</span></p><div class="v-hero-actions"><button class="btn btn-primary" data-view-target="${data.manager?'pending-center':'timeclock'}">${data.manager?'Resolver pendências':'Registrar meu ponto'} <span>↗</span></button><button class="btn btn-secondary" data-view-target="tasks">Minhas Tarefas 📋</button></div></div><div class="v-hero-clock"><span>HORÁRIO DA BAHIA</span><strong data-live-clock></strong><small data-live-date></small><div class="v-clock-caption"><i></i> ${data.manager?'Organização para cada turno':'Um registro de cada vez'}</div></div></header><div class="v-workspace-toolbar"><div><span class="eyebrow">${data.manager?'ACOMPANHAMENTO DO DIA':'SUA ÁREA PESSOAL'}</span><h3>${data.manager?'Operação de hoje':'Hoje e próximos dias'}</h3></div>${unitSelect()}<div class="w-sync"><span>${!data.manager?'Seus registros, tarefas e folgas':data.presenceError?'Falha ao atualizar a presença':data.updatedAt?'Presença às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" ${data.manager?'data-j-refresh':'data-view-target="notifications"'}>${data.manager?'↻ Atualizar':'Meus avisos ↗'}</button></div></div>${unitOverview()}`;
+ return `<header class="v-workspace-hero"><div class="v-hero-copy"><span class="eyebrow">GRUPO HOUSE 190 / ${data.manager?'GESTÃO':'MINHA JORNADA'}</span><h2>${data.manager?'O dia acontece<br>com a sua equipe.':`${first?'Oi, '+esc(first)+'!':'Olá!'}<br>Seu dia começa aqui.`}</h2><p>${data.manager?'Confira a operação e resolva o que precisa de você.':'Seu ponto, suas tarefas operacionais e seu descanso.'} <span class="j-kitchen-tag">${esc(level.name)}</span></p><div class="v-hero-actions"><button class="btn btn-primary" data-view-target="${data.manager?'pending-center':'timeclock'}">${data.manager?'Resolver pendências':'Registrar meu ponto'} <span>↗</span></button><button class="btn btn-secondary" data-view-target="tasks">Minhas Tarefas</button></div></div><div class="v-hero-clock"><span>HORÁRIO DA BAHIA</span><strong data-live-clock></strong><small data-live-date></small><div class="v-clock-caption"><i></i> ${data.manager?'Organização para cada turno':'Um registro de cada vez'}</div></div></header><div class="v-workspace-toolbar"><div><span class="eyebrow">${data.manager?'ACOMPANHAMENTO DO DIA':'SUA ÁREA PESSOAL'}</span><h3>${data.manager?'Operação de hoje':'Hoje e próximos dias'}</h3></div>${unitSelect()}<div class="w-sync"><span>${!data.manager?'Seus registros, tarefas e folgas':data.presenceError?'Falha ao atualizar a presença':data.updatedAt?'Presença às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" ${data.manager?'data-j-refresh':'data-view-target="notifications"'}>${data.manager?'↻ Atualizar':'Meus avisos ↗'}</button></div></div>${unitOverview()}`;
 }
 function renderTeam() {
  const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
