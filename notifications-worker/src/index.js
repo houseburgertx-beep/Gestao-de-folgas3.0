@@ -384,11 +384,14 @@ export async function tick(env, now = Date.now()) {
           now - date > 300000
         )
           continue;
+        const viewType = (n.Tipo === "Tarefa" || String(n.Tipo || "").startsWith("TAREFA"))
+          ? "tasks"
+          : (n.Tipo === "Folga" ? "timeoff" : (n.Tipo === "Ponto" ? "timeclock" : "notifications"));
         events.push({
           key: `aviso:${n.NotificacaoID}`,
-          title: "House 190 · Novo aviso",
-          body: "Você tem uma atualização. Abra o aplicativo para conferir.",
-          view: "notifications",
+          title: n.Assunto || (n.Tipo ? `House 190 · ${n.Tipo}` : "House 190 · Novo aviso"),
+          body: n.Mensagem || "Você tem uma atualização. Abra o aplicativo para conferir.",
+          view: viewType,
           tag: `aviso-${n.NotificacaoID}`,
           expires: date + 300000,
         });

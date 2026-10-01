@@ -1,6 +1,6 @@
 import { runtime } from "./runtime.js";
 import { assert, nowIso, todayIso, uuid } from "./utils.js";
-import { isAdmin, isManager, success } from "./api-base.js";
+import { createNotification, createNotificationOnce, isAdmin, isManager, success } from "./api-base.js";
 
 export function createTasksHandlers() {
   return {
@@ -96,6 +96,23 @@ export function createTasksHandlers() {
       };
 
       const saved = await runtime.upsert("Tarefas", record);
+
+      const isReassigned = current?.FuncionarioID && current.FuncionarioID !== record.FuncionarioID;
+      const isNewAssignment = !current && record.FuncionarioID;
+      if (record.FuncionarioID && (isNewAssignment || isReassigned)) {
+        const sev = record.Prioridade === "Urgente" ? "danger" : (record.Prioridade === "Alta" ? "warning" : "info");
+        const limiteText = record.HoraLimite ? ` · até às ${record.HoraLimite}` : "";
+        createNotificationOnce({
+          employeeId: record.FuncionarioID,
+          storeId: record.LojaID,
+          subject: isReassigned ? "Tarefa reatribuída" : "Nova tarefa para você",
+          message: `${record.Titulo}${limiteText}`,
+          type: "Tarefa",
+          relatedId: id,
+          severity: sev,
+        }).catch((err) => console.warn("Notificação de tarefa não gravada:", err.message));
+      }
+
       return success(saved, "Tarefa salva com sucesso.");
     },
 
@@ -224,6 +241,19 @@ export function createTasksHandlers() {
         AtualizadoEm: nowIso(),
       };
       const updated = await runtime.patch("Tarefas", taskId, changes);
+
+      if (task.FuncionarioID) {
+        createNotification({
+          employeeId: task.FuncionarioID,
+          storeId: task.LojaID || profile.LojaID || "",
+          subject: "Tarefa aprovada! 🎉",
+          message: `Sua tarefa "${task.Titulo}" foi aprovada com visto de ${profile.Nome || "Gerente"}.`,
+          type: "Tarefa",
+          relatedId: taskId,
+          severity: "success",
+        }).catch((err) => console.warn("Notificação de visto não gravada:", err.message));
+      }
+
       return success(updated, "Tarefa aprovada com visto do gerente.");
     },
 
@@ -781,6 +811,25 @@ export function createTasksHandlers() {
       };
 
       const saved = await runtime.upsert("Tarefas", record);
+
+      const prevResp = current?.RESPONSAVEL_ID || current?.FuncionarioID;
+      const isReassigned = prevResp && String(prevResp).trim().toLowerCase() !== responsavelId.toLowerCase();
+      const isNewAssignment = !current && responsavelId;
+      if (responsavelId && (isNewAssignment || isReassigned)) {
+        const sev = prioridade === "Urgente" ? "danger" : (prioridade === "Alta" ? "warning" : "info");
+        const prazoText = prazo ? ` · prazo ${String(prazo).replace("T", " ")}` : "";
+        createNotificationOnce({
+          employeeId: responsavelId,
+          email: record.EmailFuncionario || "",
+          storeId: record.LojaID,
+          subject: isReassigned ? "Tarefa reatribuída" : "Nova tarefa para você",
+          message: `${titulo}${prazoText}`,
+          type: "Tarefa",
+          relatedId: id,
+          severity: sev,
+        }).catch((err) => console.warn("Notificação de tarefa CozinhaFlow não gravada:", err.message));
+      }
+
       return success(saved, "Tarefa salva com sucesso.");
     },
 
@@ -836,7 +885,22 @@ export function createTasksHandlers() {
         ATUALIZADO_EM: nowIso(),
       };
 
+      const current = await runtime.getById("Tarefas", taskId);
       const updated = await runtime.patch("Tarefas", taskId, patch);
+
+      const targetManagerId = String(current?.CRIADO_POR_ID || "").trim();
+      const taskTitle = current?.Titulo || current?.TITULO || "Tarefa";
+      const senderName = profile.Nome || profile.UsuarioID || "Colaborador";
+      createNotificationOnce({
+        employeeId: targetManagerId,
+        storeId: current?.LojaID || profile.LojaID || "",
+        subject: "Tarefa enviada para conferência",
+        message: `${senderName} concluiu a tarefa "${taskTitle}" e enviou foto para conferência.`,
+        type: "Tarefa",
+        relatedId: taskId,
+        severity: "info",
+      }).catch((err) => console.warn("Notificação de envio de tarefa não gravada:", err.message));
+
       return success(updated, "Tarefa enviada para conferência com sucesso!");
     },
 
@@ -912,6 +976,17 @@ export function createTasksHandlers() {
             });
           }
         }
+
+        createNotification({
+          employeeId: targetUserId,
+          email: task.EmailFuncionario || task.RESPONSAVEL_EMAIL || "",
+          storeId: task.LojaID || profile.LojaID || "",
+          subject: "Tarefa aprovada! 🎉",
+          message: `Sua tarefa "${task.Titulo || task.TITULO}" foi aprovada por ${profile.Nome || "Administrador"}. +${points} pontos creditados!`,
+          type: "Tarefa",
+          relatedId: String(taskId),
+          severity: "success",
+        }).catch((err) => console.warn("Notificação de aprovação de tarefa não gravada:", err.message));
       }
 
       return success(updated, `Tarefa aprovada! +${points} ponto(s) concedidos.`);
@@ -938,7 +1013,23 @@ export function createTasksHandlers() {
         ATUALIZADO_EM: nowIso(),
       };
 
+      const task = await runtime.getById("Tarefas", taskId);
       const updated = await runtime.patch("Tarefas", taskId, patch);
+
+      const targetUserId = String(task?.FuncionarioID || task?.RESPONSAVEL_ID || "").trim();
+      if (targetUserId) {
+        createNotification({
+          employeeId: targetUserId,
+          email: task?.EmailFuncionario || task?.RESPONSAVEL_EMAIL || "",
+          storeId: task?.LojaID || profile.LojaID || "",
+          subject: "Tarefa devolvida para revisão",
+          message: `A tarefa "${task?.Titulo || task?.TITULO}" precisa de ajuste: ${reason}. Envie uma nova foto comprovando a execução.`,
+          type: "Tarefa",
+          relatedId: String(taskId),
+          severity: "warning",
+        }).catch((err) => console.warn("Notificação de devolução de tarefa não gravada:", err.message));
+      }
+
       return success(updated, "Tarefa devolvida ao colaborador para nova foto.");
     },
 
@@ -967,8 +1058,21 @@ export function createTasksHandlers() {
 
       const updated = await runtime.patch("Tarefas", taskId, patch);
 
+      const targetUserId = String(task?.FuncionarioID || task?.RESPONSAVEL_ID || "").trim();
+      if (targetUserId) {
+        createNotification({
+          employeeId: targetUserId,
+          email: task?.EmailFuncionario || task?.RESPONSAVEL_EMAIL || "",
+          storeId: task?.LojaID || profile.LojaID || "",
+          subject: "Tarefa cancelada",
+          message: `A tarefa "${task?.Titulo || task?.TITULO}" foi cancelada: ${reason}.`,
+          type: "Tarefa",
+          relatedId: String(taskId),
+          severity: "danger",
+        }).catch((err) => console.warn("Notificação de cancelamento de tarefa não gravada:", err.message));
+      }
+
       if (pointsPenalty > 0 && task) {
-        const targetUserId = String(task.FuncionarioID || task.RESPONSAVEL_ID || "").trim();
         const targetUserName = String(task.NomeFuncionario || task.RESPONSAVEL_NOME || "Colaborador").trim();
         if (targetUserId) {
           const penaltyId = `PTS_CANC_${taskId}`;

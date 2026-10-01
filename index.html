@@ -15004,6 +15004,30 @@ tr:last-child td {
   border-bottom: none !important;
 }
 
+/* Notificações e Alertas Inteligentes */
+.notification-item.severity-danger .notification-avatar { background: rgba(255, 59, 48, 0.15) !important; color: #ff3b30 !important; }
+.notification-item.severity-warning .notification-avatar { background: rgba(255, 149, 0, 0.15) !important; color: #ff9500 !important; }
+.notification-item.severity-success .notification-avatar { background: rgba(52, 199, 89, 0.15) !important; color: #34c759 !important; }
+.notification-item.severity-info .notification-avatar { background: rgba(0, 122, 255, 0.15) !important; color: #007aff !important; }
+
+.clock-interval-warning {
+  margin: 10px 0 !important;
+  padding: 10px 14px !important;
+  border-radius: 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  animation: pulse-interval 2s infinite ease-in-out !important;
+}
+
+@keyframes pulse-interval {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
 </style>
   </head>
   <body>
@@ -23198,7 +23222,21 @@ tr:last-child td {
           esc(clockBreakDurationText_()) +
           " extra)</button>"
         : "";
-    panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>${d.nextAction ? "Próxima marcação: " + esc(labels[d.nextAction] || d.nextAction) : marks.length ? "Jornada concluída" : "Registre o início da jornada"}</h3><p>${marks.length ? marks.map((r) => `${esc(labels[r.TipoMarcacao] || r.TipoMarcacao)} ${new Date(r.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`).join(" · ") : "A selfie obrigatória e a localização da sua loja serão validadas."}</p></div><div class="clock-punch-actions"><button id="dashboardClockPunch" class="btn btn-primary" ${d.nextAction ? "" : "disabled"}>${d.nextAction ? "Registrar " + esc(labels[d.nextAction] || d.nextAction) : state.timeClock ? "Jornada concluída" : "Carregando…"}</button>${skipBreakButton}</div>`;
+    let intervalWarningHtml = "";
+    if (d.nextAction === "RETORNO_INTERVALO") {
+      const breakPunch = [...marks].reverse().find((r) => r.TipoMarcacao === "SAIDA_INTERVALO");
+      if (breakPunch && breakPunch.DataHora) {
+        const dur = Number(d.breakDurationMinutes || (state.clockSettings?.schedules?.[0]?.DuracaoIntervaloMinutos) || 60);
+        const endMs = Date.parse(breakPunch.DataHora) + dur * 60000;
+        const leftMin = Math.ceil((endMs - Date.now()) / 60000);
+        if (leftMin <= 5 && leftMin > 0) {
+          intervalWarningHtml = `<div class="clock-interval-warning" style="background:rgba(255,149,0,0.15);border:1px solid rgba(255,149,0,0.35);color:#c96a00;"><span>⚠️</span><span>Faltam <strong>${leftMin} min</strong> para terminar seu intervalo! Prepare-se para o retorno.</span></div>`;
+        } else if (leftMin <= 0) {
+          intervalWarningHtml = `<div class="clock-interval-warning" style="background:rgba(255,59,48,0.15);border:1px solid rgba(255,59,48,0.35);color:#d70015;"><span>⏰</span><span>Seu intervalo terminou! Registre seu retorno agora.</span></div>`;
+        }
+      }
+    }
+    panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>${d.nextAction ? "Próxima marcação: " + esc(labels[d.nextAction] || d.nextAction) : marks.length ? "Jornada concluída" : "Registre o início da jornada"}</h3><p>${marks.length ? marks.map((r) => `${esc(labels[r.TipoMarcacao] || r.TipoMarcacao)} ${new Date(r.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`).join(" · ") : "A selfie obrigatória e a localização da sua loja serão validadas."}</p>${intervalWarningHtml}</div><div class="clock-punch-actions"><button id="dashboardClockPunch" class="btn btn-primary" ${d.nextAction ? "" : "disabled"}>${d.nextAction ? "Registrar " + esc(labels[d.nextAction] || d.nextAction) : state.timeClock ? "Jornada concluída" : "Carregando…"}</button>${skipBreakButton}</div>`;
     $("#dashboardClockPunch").onclick = punchClock;
     const dashboardSkipBreak = $("#dashboardSkipBreak");
     if (dashboardSkipBreak) dashboardSkipBreak.onclick = skipClockBreak_;
@@ -24671,6 +24709,26 @@ tr:last-child td {
       toast(e.message, true);
     }
   }
+  function notificationActionButton_(n) {
+    const tipo = String(val(n, "Tipo") || "");
+    const id = esc(val(n, "NotificacaoID"));
+    if (tipo === "Tarefa" || tipo.startsWith("TAREFA")) {
+      return `<button class="btn btn-secondary" onclick="openNotificationUI('tasks','${id}')">Ver tarefa</button>`;
+    }
+    if (tipo === "Folga") {
+      return `<button class="btn btn-secondary" onclick="openNotificationUI('timeoff','${id}')">Ver folga</button>`;
+    }
+    if (tipo === "Ponto") {
+      return `<button class="btn btn-secondary" onclick="openNotificationUI('timeclock','${id}')">Ver ponto</button>`;
+    }
+    if (tipo === "Enquete") {
+      return `<button class="btn btn-secondary" onclick="openNotificationUI('communication','${id}')">Abrir enquete</button>`;
+    }
+    if (tipo === "Documento") {
+      return `<button class="btn btn-secondary" onclick="openNotificationUI('people-hub','${id}')">Abrir documentos</button>`;
+    }
+    return "";
+  }
   function renderNotifications() {
     $("#noticeUnread").onclick = () => { state.showReadNotifications = !state.showReadNotifications; renderNotifications(); };
     $("#noticeUnread").setAttribute("aria-pressed", String(!state.showReadNotifications));
@@ -24700,7 +24758,7 @@ tr:last-child td {
         .filter(n => state.showReadNotifications || val(n,"Status") !== "Lida")
         .map(
           (n) =>
-            `<div class="activity-item notification-item ${val(n, "Status") === "Lida" ? "is-read" : ""}"><div class="avatar notification-avatar"><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></div><div class="notification-copy"><strong>${esc(notificationTitle_(n))}</strong><p class="notification-message">${esc(notificationMessage_(n))}</p><small>${esc(formatClockDateTime(val(n, "DataCriacao", "dataCriacao", "DataHora", "dataHora")))}</small></div><div class="notification-actions">${val(n, "Tipo") === "Enquete" ? `<button class="btn btn-secondary" onclick="openNotificationUI('communication','${esc(val(n, "NotificacaoID"))}')">Abrir enquete</button>` : val(n, "Tipo") === "Documento" ? `<button class="btn btn-secondary" onclick="openNotificationUI('people-hub','${esc(val(n, "NotificacaoID"))}')">Abrir documentos</button>` : ""}${val(n, "Status") !== "Lida" ? `<button class="btn btn-ghost" onclick="markNotificationReadUI('${esc(val(n, "NotificacaoID"))}')">Marcar lida</button>` : ""}</div></div>`,
+            `<div class="activity-item notification-item ${val(n, "Status") === "Lida" ? "is-read" : ""} ${val(n, "Severidade") ? 'severity-' + esc(val(n, "Severidade")) : ''}"><div class="avatar notification-avatar"><svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></div><div class="notification-copy"><strong>${esc(notificationTitle_(n))}</strong><p class="notification-message">${esc(notificationMessage_(n))}</p><small>${esc(formatClockDateTime(val(n, "DataCriacao", "dataCriacao", "DataHora", "dataHora")))}</small></div><div class="notification-actions">${notificationActionButton_(n)}${val(n, "Status") !== "Lida" ? `<button class="btn btn-ghost" onclick="markNotificationReadUI('${esc(val(n, "NotificacaoID"))}')">Marcar lida</button>` : ""}</div></div>`,
         )
         .join("") || "<p>Nenhuma notificação.</p>";
   }

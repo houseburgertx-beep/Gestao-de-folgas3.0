@@ -92,8 +92,8 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", event => {
   let data = {};
   try { data = event.data?.json() || {}; } catch { /* Always show a safe visible fallback. */ }
-  const destination = new URL("./", APP_BASE);
-  destination.searchParams.set("view", data.view === "timeclock" ? "timeclock" : "notifications");
+  const viewMap = { timeclock: "timeclock", tasks: "tasks", timeoff: "timeoff", notifications: "notifications" };
+  destination.searchParams.set("view", viewMap[data.view] || "notifications");
   event.waitUntil(self.registration.showNotification(String(data.title || "House 190"), {
     body:String(data.body || "Você tem um novo aviso no aplicativo."),
     icon:new URL("./icons/app-icon-192.png", APP_BASE).href,

@@ -123,8 +123,22 @@ function personal() {
  const mineBalance=list(data.balance?.employees).find(x=>String(x.FuncionarioID)===ownId());
  const balance=mineBalance?.saldoTexto || data.balance?.totalTexto;
  const isExitAction = d?.nextAction === 'SAIDA_FINAL' || d?.nextAction === 'SAIDA_INTERVALO';
+ let breakAlertHtml = '';
+ if (d?.nextAction === 'RETORNO_INTERVALO') {
+  const breakPunch = marks.find(x => x.TipoMarcacao === 'SAIDA_INTERVALO');
+  if (breakPunch?.DataHora) {
+   const dur = Number(d.breakDurationMinutes || 60);
+   const endMs = Date.parse(breakPunch.DataHora) + dur * 60000;
+   const leftMin = Math.ceil((endMs - Date.now()) / 60000);
+   if (leftMin <= 5 && leftMin > 0) {
+    breakAlertHtml = `<div class="clock-interval-warning" style="margin:10px 0;padding:8px 12px;background:rgba(255,149,0,0.15);border:1px solid rgba(255,149,0,0.35);border-radius:12px;font-size:13px;font-weight:600;color:#c96a00;display:flex;align-items:center;gap:6px;"><span>⚠️</span><span>Faltam <strong>${leftMin} min</strong> para terminar seu intervalo! Prepare-se para o retorno.</span></div>`;
+   } else if (leftMin <= 0) {
+    breakAlertHtml = `<div class="clock-interval-warning" style="margin:10px 0;padding:8px 12px;background:rgba(255,59,48,0.15);border:1px solid rgba(255,59,48,0.35);border-radius:12px;font-size:13px;font-weight:600;color:#d70015;display:flex;align-items:center;gap:6px;"><span>⏰</span><span>Seu intervalo terminou! Registre seu retorno agora.</span></div>`;
+   }
+  }
+ }
  return `<article class="j-card w-myday"><div class="j-card-top"><div><span class="eyebrow">${flex?'MINHA JORNADA · DOIS TURNOS':'MINHA JORNADA'}</span><h3>${!d?'Carregando seu ponto…':d.loadError?'Não foi possível carregar o ponto':d.offToday?'Hoje você está de folga':!d.nextAction&&marks.length?'Jornada concluída':!d.nextAction?'Consulte suas marcações':'Sua próxima marcação'}</h3></div><span class="w-badge ${d?.loadError?esc(d.loadError):d?.nextAction==='RETORNO_INTERVALO'?'wait':'ok'}">${esc(d?.date?dateLabel(d.date):dateLabel(dateKey()))}</span></div>
- <div class="w-next-action"><strong>${!d?'Aguarde a sincronização':d.loadError?'Tente atualizar':d.offToday?'Descanso previsto':d.nextAction?nextLabel:marks.length?'Tudo registrado':'Sem marcações'}</strong><p>${d?.loadError?esc(d.loadError):d?.nextAction==='RETORNO_INTERVALO'?(flex?'Ao iniciar o segundo turno, registre sua entrada.':'Ao voltar do intervalo, registre seu retorno.'):d?.nextAction?'Abra o ponto para confirmar sua foto e localização.':'Consulte suas marcações e solicite uma correção quando necessário.'}</p></div>
+ <div class="w-next-action"><strong>${!d?'Aguarde a sincronização':d.loadError?'Tente atualizar':d.offToday?'Descanso previsto':d.nextAction?nextLabel:marks.length?'Tudo registrado':'Sem marcações'}</strong><p>${d?.loadError?esc(d.loadError):d?.nextAction==='RETORNO_INTERVALO'?(flex?'Ao iniciar o segundo turno, registre sua entrada.':'Ao voltar do intervalo, registre seu retorno.'):d?.nextAction?'Abra o ponto para confirmar sua foto e localização.':'Consulte suas marcações e solicite uma correção quando necessário.'}</p>${breakAlertHtml}</div>
  <div class="w-punches">${types.map((k,i)=>{const mark=marks.find(x=>x.TipoMarcacao===k);return `<div class="${mark?'done':d?.nextAction===k?'next':''}"><i>${mark?'✓':i+1}</i><strong>${esc(labels[i])}</strong><time>${mark?esc(time(mark.DataHora)):'—'}</time></div>`}).join('')}</div>
  <button class="btn btn-primary j-wide${isExitAction?' btn-punch-exit':''}" data-view-target="timeclock">${d?.loadError?'Tentar carregar meu ponto':d?.nextAction?'Abrir ponto · '+esc(nextLabel):'Conferir meus registros'} <span aria-hidden="true">↗</span></button>
  ${today?.incompleto?'<p class="w-footnote">Há marcações para conferir. Abra o ponto e solicite a correção.</p>':''}</article>

@@ -666,6 +666,7 @@ export async function createNotification({
   message,
   type = "Sistema",
   relatedId = "",
+  severity = "info",
 }) {
   return runtime.upsert("Notificacoes", {
     NotificacaoID: uuid(),
@@ -675,6 +676,7 @@ export async function createNotification({
     Assunto: subject,
     Mensagem: message,
     Tipo: type,
+    Severidade: severity,
     Status: "Pendente",
     DataCriacao: nowIso(),
     DataEnvio: nowIso(),
@@ -685,6 +687,41 @@ export async function createNotification({
     LinkAcao: "",
     Erro: "",
     RegistoRelacionadoID: relatedId,
+  });
+}
+
+export async function createNotificationOnce({
+  employeeId = "",
+  email = "",
+  storeId = "",
+  subject,
+  message,
+  type = "Sistema",
+  relatedId = "",
+  severity = "info",
+}) {
+  if (relatedId) {
+    try {
+      const existing = await runtime.list("Notificacoes", { profile: null });
+      const found = existing.find(
+        (n) =>
+          n.Tipo === type &&
+          String(n.RegistoRelacionadoID || "") === String(relatedId) &&
+          (!employeeId || String(n.DestinatarioID || "") === String(employeeId)) &&
+          n.Status !== "Lida"
+      );
+      if (found) return found;
+    } catch (_) {}
+  }
+  return createNotification({
+    employeeId,
+    email,
+    storeId,
+    subject,
+    message,
+    type,
+    relatedId,
+    severity,
   });
 }
 
@@ -1204,16 +1241,18 @@ const timeOffDecision = async (id, approved, observation = "") => {
       );
     }
   }
+  const obsText = updated.ObservacaoDecisao ? ` Motivo: ${updated.ObservacaoDecisao}` : "";
   await createNotification({
     employeeId: updated.FuncionarioID,
     email: updated.EmailFuncionario,
     storeId: updated.LojaID,
     subject: approved ? "Folga aprovada" : "Folga rejeitada",
-    message: `Seu pedido para ${updated.DataInicio} foi ${
-      approved ? "aprovado" : "rejeitado"
-    }.`,
+    message: approved
+      ? `Seu pedido de folga para ${updated.DataInicio} foi aprovado!`
+      : `Seu pedido de folga para ${updated.DataInicio} foi rejeitado.${obsText}`,
     type: "Folga",
     relatedId: id,
+    severity: approved ? "success" : "warning",
   }).catch((error) =>
     console.warn("Notificação da decisão não gravada:", error.message),
   );
