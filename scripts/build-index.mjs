@@ -18,7 +18,10 @@ const [template, styles, dialogs, scripts] = await Promise.all([
   readLegacy("Scripts.html"),
 ]);
 
-const redesign = await readFile(path.join(projectDir, "src", "redesign.css"), "utf8");
+const [redesign, cozinhaflow] = await Promise.all([
+  readFile(path.join(projectDir, "src", "redesign.css"), "utf8"),
+  readFile(path.join(projectDir, "src", "cozinhaflow.css"), "utf8"),
+]);
 
 let html = template
   .replace(
@@ -31,21 +34,25 @@ let html = template
   )
   // Use callbacks so JavaScript replacement tokens such as "$$" are copied
   // verbatim instead of being collapsed to a single "$".
-  .replace("<?!= include_('Styles'); ?>", () => styles + `<style>${redesign}</style>`)
+  .replace("<?!= include_('Styles'); ?>", () => styles + `<style>${redesign}\n${cozinhaflow}</style>`)
   .replace("<?!= include_('Dialogs'); ?>", () => dialogs)
   .replace(
     "<?!= include_('Scripts'); ?>",
     () =>
       `<script>
-  window.__GESTAO_API_STATUS__ = "loading";
-  window.__GESTAO_API_READY__ = new Promise(function (resolve, reject) {
-    window.__resolveGestaoApiReady__ = resolve;
-    window.__rejectGestaoApiReady__ = reject;
-  });
+  if (window.__GESTAO_API_STATUS__ === "ready") {
+    window.__GESTAO_API_READY__ = Promise.resolve();
+  } else if (!window.__GESTAO_API_READY__) {
+    window.__GESTAO_API_STATUS__ = "loading";
+    window.__GESTAO_API_READY__ = new Promise(function (resolve, reject) {
+      window.__resolveGestaoApiReady__ = resolve;
+      window.__rejectGestaoApiReady__ = reject;
+    });
+  }
   window.addEventListener("error", function (event) {
     if (event.target && event.target.tagName === "SCRIPT" && event.target.type === "module") {
       window.__GESTAO_API_STATUS__ = "failed";
-      window.__rejectGestaoApiReady__(new Error("Falha ao carregar o portal."));
+      window.__rejectGestaoApiReady__?.(new Error("Falha ao carregar o portal."));
     }
   }, true);
 </script>

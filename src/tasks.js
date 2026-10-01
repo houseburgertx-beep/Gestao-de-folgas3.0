@@ -110,6 +110,11 @@ async function callApi(name, args = []) {
 // ==========================================================================
 
 async function loadData() {
+  const hasAuth = !!(state.user || window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser || window.google?.script?.run);
+  if (!hasAuth) {
+    renderApp();
+    return;
+  }
   try {
     state.loading = true;
     const [tasksRes, catalogRes, redemptionsRes, adjustsRes, missionsRes, teamRes] = await Promise.all([
@@ -1563,6 +1568,10 @@ function btnLoading(isLoading) {
 export function initTasksModule(options = {}) {
   if (options.user) state.user = options.user;
   if (options.isManager !== undefined) state.isManager = options.isManager;
+  if (!state.user && window.__GESTAO_FIREBASE__?.runtime?.profile) {
+    state.user = window.__GESTAO_FIREBASE__.runtime.profile;
+    state.isManager = isUserAdmin();
+  }
   loadData();
 }
 
@@ -1584,24 +1593,12 @@ window.addEventListener('house-journey', (e) => {
 });
 
 window.addEventListener('gestao-api-ready', () => {
+  if (window.__GESTAO_FIREBASE__?.runtime?.profile) {
+    state.user = window.__GESTAO_FIREBASE__.runtime.profile;
+    state.isManager = isUserAdmin();
+  }
   const container = $('#tasksApp');
-  if (container && !container.innerHTML.trim()) {
+  if (container && $('#view-tasks')?.classList.contains('active')) {
     initTasksModule();
   }
 });
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    const container = $('#tasksApp');
-    if (container && !container.innerHTML.trim()) {
-      initTasksModule();
-    }
-  });
-} else {
-  setTimeout(() => {
-    const container = $('#tasksApp');
-    if (container && !container.innerHTML.trim()) {
-      initTasksModule();
-    }
-  }, 100);
-}

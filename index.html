@@ -11727,6 +11727,1274 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   border-color: #3f3f46;
 }
 
+
+/* ==========================================================================
+   COZINHA FLOW 3.0 — CSS Integrado no Folgas 3.0
+   Mobile-First, Soft Clay, Gamificação, Selos, Títulos e Loja de Prêmios
+   ========================================================================== */
+
+#tasksApp {
+  --cf-bg: #f4f5f8;
+  --cf-surface: #ffffff;
+  --cf-surface-soft: #f8f8fb;
+  --cf-ink: #202333;
+  --cf-muted: #6f7383;
+  --cf-line: #e6e7ed;
+  --cf-primary: #6558d3;
+  --cf-primary-dark: #5145b7;
+  --cf-primary-light: #f2edff;
+  --cf-blue: #4e8bd8;
+  --cf-green: #39a47c;
+  --cf-amber: #e9a23b;
+  --cf-coral: #e86f66;
+  --cf-shadow: 0 12px 30px rgba(39, 42, 61, .08), 0 2px 8px rgba(39, 42, 61, .04);
+  --cf-shadow-sm: 0 5px 16px rgba(39, 42, 61, .07), 0 1px 3px rgba(39, 42, 61, .04);
+  --cf-radius-lg: 22px;
+  --cf-radius: 18px;
+  --cf-radius-sm: 13px;
+  font-family: inherit;
+  color: var(--cf-ink);
+  padding: 4px 0 24px;
+}
+
+/* ==========================================================================
+   SUB-NAVEGAÇÃO COZINHA FLOW (Tarefas, Títulos & Jornada, Loja, Equipe)
+   ========================================================================== */
+
+.cf-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  background: var(--cf-surface-soft);
+  border: 1px solid var(--cf-line);
+  border-radius: var(--cf-radius);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cf-nav-bar::-webkit-scrollbar { display: none; }
+
+.cf-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: transparent;
+  color: var(--cf-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: all .2s ease;
+  cursor: pointer;
+}
+.cf-nav-btn .material-symbols-rounded {
+  font-size: 20px;
+}
+.cf-nav-btn:hover {
+  color: var(--cf-ink);
+  background: rgba(101, 88, 211, .06);
+}
+.cf-nav-btn.active {
+  background: var(--cf-surface);
+  color: var(--cf-primary);
+  box-shadow: var(--cf-shadow-sm);
+}
+.cf-nav-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--cf-primary-light);
+  color: var(--cf-primary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cf-view-tab {
+  display: none;
+  animation: cfFadeIn .22s ease;
+}
+.cf-view-tab.active {
+  display: block;
+}
+@keyframes cfFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ==========================================================================
+   CABEÇALHO DA PÁGINA E AÇÕES
+   ========================================================================== */
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.page-head h1 {
+  margin: 0;
+  font-size: clamp(20px, 2.5vw, 26px);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  color: var(--cf-ink);
+}
+.page-head p {
+  margin: 4px 0 0;
+  color: var(--cf-muted);
+  font-size: 13.5px;
+}
+.page-head .eyebrow {
+  display: block;
+  color: var(--cf-primary);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cf-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(101, 88, 211, .28);
+  transition: transform .15s ease, background .15s ease;
+}
+.cf-btn-primary:hover {
+  background: var(--cf-primary-dark);
+  transform: translateY(-1px);
+}
+.cf-btn-primary:active {
+  transform: scale(.98);
+}
+
+/* ==========================================================================
+   CARDS DE RESUMO (A fazer, Em andamento, Concluídas hoje, Atrasadas)
+   ========================================================================== */
+
+.task-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (max-width: 768px) {
+  .task-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.task-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--cf-line);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+.task-summary-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--cf-radius-sm);
+}
+.task-summary-icon.todo { background: #f3f0ff; color: #7c3aed; }
+.task-summary-icon.doing { background: #eff6ff; color: #2563eb; }
+.task-summary-icon.done { background: #ecfdf5; color: #059669; }
+.task-summary-icon.overdue { background: #fef2f2; color: #dc2626; }
+
+.task-summary-card small {
+  display: block;
+  color: var(--cf-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.task-summary-card strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.1;
+  color: var(--cf-ink);
+}
+
+/* ==========================================================================
+   PRÓXIMA AÇÃO DO FUNCIONÁRIO (Employee Focus Card)
+   ========================================================================== */
+
+.employee-task-focus {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 18px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(101, 88, 211, .2);
+  border-radius: var(--cf-radius);
+  background: linear-gradient(135deg, #f7f5ff, #ffffff);
+  box-shadow: var(--cf-shadow-sm);
+}
+.employee-task-focus > .material-symbols-rounded {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--cf-primary-light);
+  color: var(--cf-primary);
+  font-size: 24px;
+}
+.employee-task-focus div { flex: 1; min-width: 0; }
+.employee-task-focus small { display: block; color: var(--cf-primary); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.employee-task-focus strong { display: block; font-size: 15px; font-weight: 800; color: var(--cf-ink); margin-top: 1px; }
+.employee-task-focus p { margin: 2px 0 0; color: var(--cf-muted); font-size: 12px; }
+.employee-task-focus button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--cf-primary);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   PAINEL DE ATENÇÃO DO ADMINISTRADOR
+   ========================================================================== */
+
+.task-attention-panel {
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--cf-line);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+.task-attention-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.task-attention-head > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.task-attention-head .material-symbols-rounded {
+  color: #e11d48;
+  font-size: 22px;
+}
+.task-attention-head small {
+  display: block;
+  color: var(--cf-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.task-attention-head strong {
+  display: block;
+  font-size: 14px;
+  color: var(--cf-ink);
+}
+.task-attention-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.task-attention-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--cf-line);
+  border-radius: 12px;
+  background: var(--cf-surface-soft);
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s ease;
+}
+.task-attention-item:hover,
+.task-attention-item.active {
+  border-color: var(--cf-primary);
+  background: #f5f2ff;
+}
+.task-attention-item strong { display: block; font-size: 15px; color: var(--cf-ink); }
+.task-attention-item small { display: block; color: var(--cf-muted); font-size: 10px; font-weight: 700; }
+.task-attention-item.danger .material-symbols-rounded { color: #dc2626; }
+.task-attention-item.warning .material-symbols-rounded { color: #d97706; }
+.task-attention-item.review .material-symbols-rounded { color: #7c3aed; }
+.task-attention-item.returned .material-symbols-rounded { color: #ea580c; }
+.task-attention-clear {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+/* ==========================================================================
+   ABAS MOBILE TÁTEIS (A fazer, Fazendo, Conferir, Feitas)
+   ========================================================================== */
+
+.task-mobile-tabs {
+  display: none;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) {
+  .task-mobile-tabs {
+    display: grid;
+  }
+}
+.task-mobile-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 6px 4px;
+  border: 1px solid var(--cf-line);
+  border-radius: 14px;
+  background: var(--cf-surface);
+  color: var(--cf-muted);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.task-mobile-tab span { font-size: 10.5px; font-weight: 750; }
+.task-mobile-tab strong { font-size: 14px; font-weight: 850; margin-top: 1px; color: var(--cf-ink); }
+.task-mobile-tab.active {
+  border-color: var(--cf-primary);
+  background: #f4f0ff;
+  color: var(--cf-primary);
+  box-shadow: 0 4px 12px rgba(101, 88, 211, .15);
+}
+.task-mobile-tab.active strong { color: var(--cf-primary); }
+
+/* ==========================================================================
+   BARRA DE FERRAMENTAS / FILTROS DE TAREFAS
+   ========================================================================== */
+
+.task-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--cf-line);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+  flex-wrap: wrap;
+}
+.task-search {
+  position: relative;
+  flex: 1 1 200px;
+}
+.task-search .material-symbols-rounded {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cf-muted);
+  font-size: 18px;
+}
+.task-search input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px 0 34px;
+  border: 1px solid var(--cf-line);
+  border-radius: 11px;
+  background: var(--cf-surface-soft);
+  color: var(--cf-ink);
+  font-size: 13px;
+  outline: 0;
+}
+.task-search input:focus {
+  border-color: var(--cf-primary);
+  background: #fff;
+}
+.task-select {
+  height: 38px;
+  padding: 0 28px 0 12px;
+  border: 1px solid var(--cf-line);
+  border-radius: 11px;
+  background: var(--cf-surface-soft);
+  color: var(--cf-ink);
+  font-size: 12.5px;
+  font-weight: 650;
+  outline: 0;
+  cursor: pointer;
+}
+.task-tool-btn {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--cf-line);
+  border-radius: 11px;
+  background: var(--cf-surface-soft);
+  color: var(--cf-ink);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   QUADRO KANBAN DE TAREFAS (COLUNAS E CARDS)
+   ========================================================================== */
+
+.task-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(260px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .task-board {
+    display: block;
+  }
+  .task-column {
+    display: none !important;
+  }
+  .task-column.mobile-active {
+    display: block !important;
+  }
+}
+
+.task-column {
+  border: 1px solid var(--cf-line);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface-soft);
+  padding: 12px;
+  min-height: 240px;
+}
+.task-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, .05);
+}
+.task-column-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--cf-ink);
+}
+.task-column-title .material-symbols-rounded { font-size: 18px; }
+.task-column.todo .task-column-title .material-symbols-rounded { color: #7c3aed; }
+.task-column.doing .task-column-title .material-symbols-rounded { color: #2563eb; }
+.task-column.review .task-column-title .material-symbols-rounded { color: #ea580c; }
+.task-column.done .task-column-title .material-symbols-rounded { color: #059669; }
+
+.task-column-count {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .06);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--cf-muted);
+}
+.task-column-list {
+  display: grid;
+  gap: 10px;
+}
+.task-column-empty {
+  padding: 32px 14px;
+  text-align: center;
+  color: var(--cf-muted);
+}
+.task-column-empty .material-symbols-rounded { font-size: 32px; opacity: .4; }
+.task-column-empty strong { display: block; margin-top: 6px; font-size: 13px; color: var(--cf-ink); }
+.task-column-empty span { display: block; font-size: 11px; margin-top: 2px; }
+
+/* ==========================================================================
+   CARD DE TAREFA (CozinhaFlow Soft Clay)
+   ========================================================================== */
+
+.task-card {
+  position: relative;
+  padding: 14px;
+  border: 1px solid var(--cf-line);
+  border-radius: 16px;
+  background: var(--cf-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .07);
+}
+
+.task-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.task-priority-badge {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.task-priority-badge.urgent { background: #fee2e2; color: #dc2626; }
+.task-priority-badge.high { background: #ffedd5; color: #ea580c; }
+.task-priority-badge.normal { background: #f3f4f6; color: #4b5563; }
+.task-priority-badge.low { background: #f0fdf4; color: #16a34a; }
+
+.task-deadline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--cf-surface-soft);
+  color: var(--cf-muted);
+}
+.task-deadline-badge.danger { background: #fee2e2; color: #dc2626; }
+.task-deadline-badge.warning { background: #fef3c7; color: #b45309; }
+
+.task-card-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--cf-ink);
+}
+.task-card-description {
+  margin: 0 0 10px;
+  color: var(--cf-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.task-card-assignee {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f2f6;
+  margin-top: 8px;
+}
+.task-assignee-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--cf-primary-light);
+  color: var(--cf-primary);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 850;
+}
+.task-card-assignee small { display: block; color: var(--cf-muted); font-size: 8.5px; font-weight: 800; text-transform: uppercase; }
+.task-card-assignee strong { display: block; font-size: 11.5px; color: var(--cf-ink); }
+
+/* Foto Thumbnail */
+.task-card-thumb {
+  margin-top: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 160px;
+  border: 1px solid var(--cf-line);
+  background: #000;
+  cursor: pointer;
+}
+.task-card-thumb img {
+  width: 100%;
+  height: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.task-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.task-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.task-action-btn.primary { background: var(--cf-primary); color: #fff; }
+.task-action-btn.primary:hover { background: var(--cf-primary-dark); }
+.task-action-btn.success { background: #059669; color: #fff; }
+.task-action-btn.light { background: var(--cf-surface-soft); color: var(--cf-ink); border: 1px solid var(--cf-line); }
+.task-action-btn.danger { background: #fee2e2; color: #dc2626; }
+
+/* Canceladas */
+.task-archive {
+  margin-top: 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--cf-line);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+}
+.task-archive summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--cf-muted);
+}
+.task-archive-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* ==========================================================================
+   TÍTULOS & JORNADA DA COZINHA (Gamificação, Painel de Nível, Selos)
+   ========================================================================== */
+
+.profile-points-panel {
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 1px solid rgba(139, 92, 246, .2);
+  border-radius: var(--cf-radius-lg);
+  background: linear-gradient(145deg, #2a1854 0%, #5833aa 55%, #a631c9 120%);
+  color: #fff;
+  box-shadow: 0 16px 36px rgba(50, 20, 100, .22);
+}
+.profile-score-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 20px 16px;
+}
+.profile-level-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .15);
+  backdrop-filter: blur(8px);
+  font-size: 30px;
+}
+.profile-score-copy small {
+  display: block;
+  color: rgba(255, 255, 255, .7);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.profile-score-copy strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 21px;
+  font-weight: 850;
+  letter-spacing: -.03em;
+}
+.profile-score-copy span {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 255, 255, .75);
+  font-size: 11px;
+}
+.profile-score-total {
+  text-align: right;
+}
+.profile-score-total strong {
+  display: block;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: .95;
+}
+.profile-score-total span {
+  display: block;
+  margin-top: 4px;
+  color: #ffe8a3;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.profile-level-track {
+  height: 6px;
+  margin: 0 20px 16px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .2);
+}
+.profile-level-track span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffe17a, #fff4bf);
+  box-shadow: 0 0 12px rgba(255, 225, 122, .7);
+  transition: width .5s ease;
+}
+
+/* Regras de pontuação */
+.profile-score-rules {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.profile-score-rules > div {
+  padding: 10px;
+  border: 1px solid var(--cf-line);
+  border-radius: 14px;
+  background: var(--cf-surface);
+  text-align: center;
+  box-shadow: var(--cf-shadow-sm);
+}
+.profile-score-rules strong { display: block; font-size: 12px; color: var(--cf-ink); }
+.profile-score-rules small { display: block; margin-top: 2px; color: var(--cf-muted); font-size: 9.5px; }
+
+/* Trilho de Selos dos Títulos */
+.kitchen-badges-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 124px;
+  gap: 10px;
+  padding: 6px 2px 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.kitchen-badges-track::-webkit-scrollbar { display: none; }
+
+.kitchen-badge {
+  min-height: 154px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border: 1px solid #e8e5ef;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #fff, #f8f6fc);
+  text-align: center;
+  scroll-snap-align: start;
+}
+.kitchen-badge-medal {
+  width: 60px;
+  height: 60px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: #efedf4;
+  font-size: 26px;
+  filter: grayscale(1);
+}
+.kitchen-badge strong {
+  display: block;
+  min-height: 28px;
+  color: #77798a;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.kitchen-badge small {
+  display: block;
+  margin-top: 3px;
+  color: #a0a2af;
+  font-size: 8.5px;
+}
+.kitchen-badge.is-unlocked {
+  border-color: rgba(230, 167, 37, .35);
+  background: radial-gradient(circle at 50% 10%, #fff9d7, #fff 67%);
+  box-shadow: 0 8px 18px rgba(202, 143, 19, .12);
+}
+.kitchen-badge.is-unlocked .kitchen-badge-medal {
+  background: linear-gradient(145deg, #fff2a8, #f2b83c);
+  box-shadow: inset 0 2px rgba(255, 255, 255, .7), 0 6px 16px rgba(214, 153, 25, .25);
+  filter: none;
+}
+.kitchen-badge.is-unlocked strong { color: #5c3c13; }
+.kitchen-badge.is-unlocked small { color: #9a6b14; font-weight: 800; }
+
+/* Missões Semanais */
+.profile-weekly-missions article {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--cf-line);
+  border-radius: 14px;
+  background: var(--cf-surface-soft);
+  margin-bottom: 8px;
+}
+.profile-weekly-missions article .material-symbols-rounded {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #f1ecff;
+  color: #7c3aed;
+  font-size: 20px;
+}
+.profile-weekly-missions article strong { display: block; font-size: 13px; color: var(--cf-ink); }
+.profile-weekly-missions article small { display: block; color: var(--cf-muted); font-size: 10.5px; }
+.profile-weekly-missions article i { display: block; height: 4px; border-radius: 99px; background: #e2e8f0; margin-top: 5px; overflow: hidden; }
+.profile-weekly-missions article i b { display: block; height: 100%; background: #7c3aed; border-radius: inherit; }
+.profile-weekly-missions article em { display: block; margin-top: 3px; font-style: normal; font-size: 9.5px; color: var(--cf-muted); }
+.profile-weekly-missions article b { color: #7c3aed; font-size: 14px; font-weight: 850; }
+.profile-weekly-missions article.is-complete {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.profile-weekly-missions article.is-complete .material-symbols-rounded {
+  background: #dcfce7;
+  color: #16a34a;
+}
+.profile-weekly-missions article.is-complete b { color: #16a34a; }
+
+/* Extrato de Pontos */
+.point-statement-list article {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--cf-line);
+  border-radius: 12px;
+  background: var(--cf-surface);
+  margin-bottom: 6px;
+}
+.point-statement-list article .material-symbols-rounded {
+  font-size: 20px;
+}
+.point-statement-list article.is-gain .material-symbols-rounded { color: #059669; }
+.point-statement-list article.is-loss .material-symbols-rounded { color: #dc2626; }
+.point-statement-list article strong { display: block; font-size: 12.5px; color: var(--cf-ink); }
+.point-statement-list article small { display: block; color: var(--cf-muted); font-size: 9.5px; }
+.point-statement-list article b { font-size: 14px; font-weight: 850; }
+.point-statement-list article.is-gain b { color: #059669; }
+.point-statement-list article.is-loss b { color: #dc2626; }
+
+/* ==========================================================================
+   LOJA DE PRÊMIOS (Catálogo, Resgate, Histórico, Gestão)
+   ========================================================================== */
+
+.shop-balance-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(101, 88, 211, .2);
+  border-radius: var(--cf-radius-lg);
+  background: linear-gradient(135deg, #1e1b4b, #3b2a82);
+  color: #fff;
+  box-shadow: 0 14px 34px rgba(30, 27, 75, .25);
+}
+.shop-balance-content small {
+  display: block;
+  color: rgba(255, 255, 255, .7);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.shop-balance-content strong {
+  display: block;
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: #ffe28b;
+}
+.shop-balance-content strong span {
+  font-size: 14px;
+  font-weight: 750;
+  color: rgba(255, 255, 255, .8);
+}
+.shop-balance-panel button {
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .15);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.rewards-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.rewards-head small { color: var(--cf-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.rewards-head strong { font-size: 18px; font-weight: 850; color: var(--cf-ink); }
+
+.reward-store-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.reward-store-note .material-symbols-rounded { color: var(--cf-primary); font-size: 18px; }
+
+.rewards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 600px) {
+  .rewards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+.reward-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  grid-template-rows: auto auto;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .04);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+@media (max-width: 600px) {
+  .reward-card {
+    display: flex;
+    flex-direction: column;
+    padding: 11px;
+    gap: 8px;
+  }
+}
+.reward-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .07);
+}
+.reward-card.is-featured {
+  border-color: rgba(230, 167, 37, .4);
+  background: radial-gradient(circle at 50% 0%, #fffbe6, #fff 70%);
+  box-shadow: 0 4px 14px rgba(230, 167, 37, .12);
+}
+.reward-featured-label {
+  grid-column: 1 / -1;
+  display: inline-block;
+  color: #b45309;
+  font-size: 9.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+.reward-emoji {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  font-size: 26px;
+}
+.reward-copy strong { display: block; font-size: 13px; font-weight: 800; color: #0f172a; line-height: 1.25; }
+.reward-copy small {
+  display: -webkit-box;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10.5px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.reward-price {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 850;
+}
+.reward-price .material-symbols-rounded { font-size: 15px; color: #7c3aed; }
+.reward-card button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #1e1b4b;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity .15s ease;
+}
+.reward-card button:hover:not(:disabled) {
+  opacity: .9;
+}
+.reward-card button:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Histórico de Resgates e Entregas */
+.reward-history-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.reward-history-item {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--cf-line);
+  border-radius: 12px;
+  background: var(--cf-surface);
+}
+.reward-history-item span { font-size: 22px; }
+.reward-history-item strong { display: block; font-size: 13px; color: var(--cf-ink); }
+.reward-history-item small { display: block; color: var(--cf-muted); font-size: 10px; }
+.reward-history-item b {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.reward-history-item b.status-solicitado { background: #fef3c7; color: #b45309; }
+.reward-history-item b.status-entregue { background: #dcfce7; color: #15803d; }
+.reward-history-item b.status-cancelado { background: #fee2e2; color: #dc2626; }
+
+.admin-reward-list article {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--cf-line);
+  border-radius: 14px;
+  background: #fdfcff;
+  margin-bottom: 8px;
+}
+.admin-reward-list article span { font-size: 24px; }
+.admin-reward-list article strong { display: block; font-size: 13px; color: var(--cf-ink); }
+.admin-reward-list article small { display: block; color: var(--cf-muted); font-size: 11px; }
+.admin-reward-list article button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 10px;
+  background: #059669;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   EQUIPE & RANKING (Métricas dos Colaboradores, Selo e Pontos Semanais)
+   ========================================================================== */
+
+.team-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.team-list {
+  display: grid;
+  gap: 10px;
+}
+.team-member-card {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--cf-line);
+  border-radius: 16px;
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow-sm);
+}
+.team-member-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--cf-primary-light);
+  color: var(--cf-primary);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 850;
+}
+.team-member-info strong { display: block; font-size: 14px; font-weight: 800; color: var(--cf-ink); }
+.team-member-info small { display: block; color: var(--cf-muted); font-size: 11px; margin-top: 2px; }
+.team-member-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #fdf8e6;
+  color: #92640e;
+  font-size: 10px;
+  font-weight: 750;
+}
+.team-member-metrics {
+  text-align: right;
+}
+.team-member-metrics strong { display: block; font-size: 18px; font-weight: 900; color: #7c3aed; }
+.team-member-metrics small { display: block; font-size: 9.5px; color: var(--cf-muted); text-transform: uppercase; font-weight: 750; }
+
+/* ==========================================================================
+   MODAIS DO COZINHA FLOW (Nova Tarefa, Comprovante, Punição, Resgate)
+   ========================================================================== */
+
+.cf-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, .6);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  animation: cfFadeIn .2s ease;
+}
+.cf-modal-card {
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .2);
+  display: flex;
+  flex-direction: column;
+}
+.cf-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cf-line);
+}
+.cf-modal-head h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--cf-ink); }
+.cf-modal-head button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--cf-surface-soft);
+  color: var(--cf-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+.cf-modal-body {
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+.cf-modal-body label {
+  display: block;
+  font-size: 12px;
+  font-weight: 750;
+  color: #334155;
+  margin-bottom: 4px;
+}
+.cf-modal-body input,
+.cf-modal-body textarea,
+.cf-modal-body select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--cf-line);
+  border-radius: 11px;
+  background: var(--cf-surface-soft);
+  color: var(--cf-ink);
+  font-size: 13px;
+  outline: 0;
+  box-sizing: border-box;
+}
+.cf-modal-body input:focus,
+.cf-modal-body textarea:focus,
+.cf-modal-body select:focus {
+  border-color: var(--cf-primary);
+  background: #fff;
+}
+.cf-modal-foot {
+  padding: 14px 20px;
+  border-top: 1px solid var(--cf-line);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 </style>
   </head>
   <body>
@@ -14762,15 +16030,19 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 
 
     <script>
-  window.__GESTAO_API_STATUS__ = "loading";
-  window.__GESTAO_API_READY__ = new Promise(function (resolve, reject) {
-    window.__resolveGestaoApiReady__ = resolve;
-    window.__rejectGestaoApiReady__ = reject;
-  });
+  if (window.__GESTAO_API_STATUS__ === "ready") {
+    window.__GESTAO_API_READY__ = Promise.resolve();
+  } else if (!window.__GESTAO_API_READY__) {
+    window.__GESTAO_API_STATUS__ = "loading";
+    window.__GESTAO_API_READY__ = new Promise(function (resolve, reject) {
+      window.__resolveGestaoApiReady__ = resolve;
+      window.__rejectGestaoApiReady__ = reject;
+    });
+  }
   window.addEventListener("error", function (event) {
     if (event.target && event.target.tagName === "SCRIPT" && event.target.type === "module") {
       window.__GESTAO_API_STATUS__ = "failed";
-      window.__rejectGestaoApiReady__(new Error("Falha ao carregar o portal."));
+      window.__rejectGestaoApiReady__?.(new Error("Falha ao carregar o portal."));
     }
   }, true);
 </script>

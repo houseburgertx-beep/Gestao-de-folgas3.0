@@ -1,6 +1,5 @@
 import "./brand.js";
 import "./journey.js";
-import "./cozinhaflow.css";
 import "./tasks.js";
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
@@ -16,6 +15,7 @@ window.__GESTAO_FIREBASE__ = { runtime, api };
 
 const signalApiReady = () => {
   window.__GESTAO_API_STATUS__ = "ready";
+  window.__GESTAO_API_READY__ = Promise.resolve();
   window.__resolveGestaoApiReady__?.();
   window.dispatchEvent(new CustomEvent("gestao-api-ready"));
 };
