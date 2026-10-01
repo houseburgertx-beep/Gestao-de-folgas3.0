@@ -628,5 +628,743 @@ export function createTasksHandlers() {
       }
       return success({ removed }, removed > 0 ? `${removed} tarefas de teste removidas com sucesso.` : "Nenhuma tarefa de teste encontrada.");
     },
+
+    // ==========================================
+    // COZINHA FLOW HANDLERS
+    // ==========================================
+
+    async cozinhaTasksList(args) {
+      const profile = await runtime.requireProfile();
+      const rows = await runtime.list("Tarefas", { profile });
+      const userIds = [
+        profile.FuncionarioID,
+        profile.funcionarioId,
+        profile.UsuarioID,
+        profile.usuarioId,
+      ].filter(Boolean).map((x) => String(x).trim().toLowerCase());
+
+      const userNames = [
+        profile.Nome,
+        profile.nome,
+      ].filter(Boolean).map((x) => String(x).trim().toLowerCase());
+
+      const admin = isAdmin(profile) || isManager(profile);
+
+      const normalized = rows.map((t) => {
+        const id = String(t.TarefaID || t.ID || "");
+        const status = String(t.Status || (t.Coluna === 'concluido' ? 'Concluída' : t.Coluna === 'visto' ? 'Aguardando aprovação' : t.Coluna === 'andamento' ? 'Em andamento' : 'A fazer')).trim();
+        const prazo = t.Prazo || t.PRAZO || (t.DataTurno ? `${t.DataTurno}T${t.HoraLimite || '23:59:00'}` : '');
+        return {
+          ID: id,
+          TarefaID: id,
+          TITULO: String(t.Titulo || t.TITULO || '').trim(),
+          DESCRICAO: String(t.Descricao || t.DESCRICAO || '').trim(),
+          RESPONSAVEL_ID: String(t.FuncionarioID || t.RESPONSAVEL_ID || '').trim(),
+          RESPONSAVEL_NOME: String(t.NomeFuncionario || t.RESPONSAVEL_NOME || 'Não atribuído').trim(),
+          RESPONSAVEL_EMAIL: String(t.EmailFuncionario || t.RESPONSAVEL_EMAIL || '').trim(),
+          PRIORIDADE: String(t.Prioridade || t.PRIORIDADE || 'Normal').trim(),
+          PRAZO: prazo,
+          STATUS: status,
+          TURNO: String(t.TURNO || t.Turno || '').trim(),
+          RECORRENCIA: String(t.RECORRENCIA || t.Recorrencia || 'Nenhuma').trim(),
+          RECORRENCIA_DIAS: String(t.RECORRENCIA_DIAS || '').trim(),
+          ORIENTACAO_FOTO: String(t.ORIENTACAO_FOTO || t.OrientacaoFoto || '').trim(),
+          TEM_FOTO: Boolean(t.FotoEvidencia || t.FOTO_URL || t.TEM_FOTO || t.FOTO_ID),
+          FOTO_ID: String(t.FOTO_ID || t.FotoEvidencia || '').trim(),
+          FOTO_URL: String(t.FOTO_URL || t.FotoEvidencia || '').trim(),
+          FOTO_THUMBNAIL_URL: String(t.FOTO_THUMBNAIL_URL || t.FOTO_URL || t.FotoEvidencia || '').trim(),
+          CONFIRMADO: Boolean(t.Confirmado || t.CONFIRMADO),
+          OBSERVACAO_CONCLUSAO: String(t.OBSERVACAO_CONCLUSAO || t.ObservacaoConclusao || '').trim(),
+          REVISAO_STATUS: String(t.REVISAO_STATUS || t.RevisaoStatus || (status === 'Aguardando aprovação' ? 'Pendente' : '')).trim(),
+          MOTIVO_REVISAO: String(t.MOTIVO_REVISAO || t.MotivoRevisao || '').trim(),
+          APROVADO_EM: String(t.APROVADO_EM || t.DataVisto || '').trim(),
+          APROVADO_POR_NOME: String(t.APROVADO_POR_NOME || t.VistoPor || '').trim(),
+          CRIADO_POR_ID: String(t.CRIADO_POR_ID || t.CriadoPorID || '').trim(),
+          CRIADO_POR_NOME: String(t.CRIADO_POR_NOME || t.CriadoPor || '').trim(),
+          CRIADO_EM: String(t.CRIADO_EM || t.CriadoEm || nowIso()).trim(),
+          CONCLUIDO_EM: String(t.CONCLUIDO_EM || t.DataConclusao || '').trim(),
+          CANCELADO_EM: String(t.CANCELADO_EM || '').trim(),
+          MOTIVO_CANCELAMENTO: String(t.MOTIVO_CANCELAMENTO || '').trim(),
+          LojaID: String(t.LojaID || profile.LojaID || '').trim(),
+        };
+      });
+
+      let visible = normalized;
+      if (!admin) {
+        visible = normalized.filter((t) => {
+          const respId = t.RESPONSAVEL_ID.toLowerCase();
+          const respName = t.RESPONSAVEL_NOME.toLowerCase();
+          return (respId && userIds.includes(respId)) ||
+            (respName && userNames.some(name => respName.includes(name) || name.includes(respName)));
+        });
+      }
+
+      visible.sort((a, b) => String(b.CRIADO_EM || '').localeCompare(String(a.CRIADO_EM || '')));
+      return success(visible);
+    },
+
+    async cozinhaTasksAssignees(args) {
+      const profile = await runtime.requireProfile();
+      const employees = await runtime.list("Funcionarios", { profile });
+      const active = employees.filter((e) => e.Ativo !== false && String(e.Status || "").toLowerCase() !== "inativo");
+      const list = active.map((e) => ({
+        id: String(e.FuncionarioID || e.id || ""),
+        name: String(e.Nome || e.nome || ""),
+        role: String(e.Cargo || e.Perfil || "Operador"),
+        email: String(e.Email || ""),
+        store: String(e.LojaID || ""),
+      })).sort((a, b) => a.name.localeCompare(b.name));
+      return success(list);
+    },
+
+    async cozinhaTasksSave(args) {
+      const [payload] = args || [];
+      assert(payload && typeof payload === "object", "Dados da tarefa são obrigatórios.");
+      assert(payload.TITULO || payload.Titulo, "O título da tarefa é obrigatório.");
+
+      const profile = await runtime.requireProfile();
+      const id = String(payload.ID || payload.TarefaID || "").trim() || `cf_${Date.now()}_${uuid().slice(0, 6)}`;
+      const current = (payload.ID || payload.TarefaID) ? await runtime.getById("Tarefas", id) : null;
+
+      const titulo = String(payload.TITULO || payload.Titulo || '').trim();
+      const responsavelId = String(payload.RESPONSAVEL_ID || payload.FuncionarioID || '').trim();
+      const responsavelNome = String(payload.RESPONSAVEL_NOME || payload.NomeFuncionario || '').trim();
+      const prioridade = String(payload.PRIORIDADE || payload.Prioridade || 'Normal').trim();
+      const status = String(payload.STATUS || payload.Status || current?.Status || 'A fazer').trim();
+      const prazo = payload.PRAZO || payload.Prazo || current?.Prazo || '';
+
+      const record = {
+        TarefaID: id,
+        ID: id,
+        Titulo: titulo,
+        TITULO: titulo,
+        Descricao: String(payload.DESCRICAO || payload.Descricao || '').trim(),
+        DESCRICAO: String(payload.DESCRICAO || payload.Descricao || '').trim(),
+        FuncionarioID: responsavelId,
+        RESPONSAVEL_ID: responsavelId,
+        NomeFuncionario: responsavelNome,
+        RESPONSAVEL_NOME: responsavelNome,
+        EmailFuncionario: String(payload.RESPONSAVEL_EMAIL || '').trim(),
+        RESPONSAVEL_EMAIL: String(payload.RESPONSAVEL_EMAIL || '').trim(),
+        Prioridade: prioridade,
+        PRIORIDADE: prioridade,
+        Prazo: prazo,
+        PRAZO: prazo,
+        Status: status,
+        STATUS: status,
+        Coluna: status === 'Concluída' ? 'concluido' : status === 'Aguardando aprovação' ? 'visto' : status === 'Em andamento' ? 'andamento' : 'pendente',
+        Setor: 'Cozinha',
+        TURNO: String(payload.TURNO || '').trim(),
+        RECORRENCIA: String(payload.RECORRENCIA || 'Nenhuma').trim(),
+        RECORRENCIA_DIAS: String(payload.RECORRENCIA_DIAS || '').trim(),
+        ORIENTACAO_FOTO: String(payload.ORIENTACAO_FOTO || '').trim(),
+        TEM_FOTO: Boolean(payload.TEM_FOTO || payload.FOTO_URL || current?.FotoEvidencia),
+        FotoEvidencia: String(payload.FOTO_URL || payload.FotoEvidencia || current?.FotoEvidencia || '').trim(),
+        FOTO_URL: String(payload.FOTO_URL || current?.FotoEvidencia || '').trim(),
+        FOTO_ID: String(payload.FOTO_ID || current?.FOTO_ID || '').trim(),
+        RevisaoStatus: String(payload.REVISAO_STATUS || current?.RevisaoStatus || '').trim(),
+        REVISAO_STATUS: String(payload.REVISAO_STATUS || current?.RevisaoStatus || '').trim(),
+        MotivoRevisao: String(payload.MOTIVO_REVISAO || current?.MotivoRevisao || '').trim(),
+        MOTIVO_REVISAO: String(payload.MOTIVO_REVISAO || current?.MotivoRevisao || '').trim(),
+        Confirmado: Boolean(payload.CONFIRMADO ?? current?.Confirmado),
+        CONFIRMADO: Boolean(payload.CONFIRMADO ?? current?.Confirmado),
+        ObservacaoConclusao: String(payload.OBSERVACAO_CONCLUSAO || current?.ObservacaoConclusao || '').trim(),
+        OBSERVACAO_CONCLUSAO: String(payload.OBSERVACAO_CONCLUSAO || current?.ObservacaoConclusao || '').trim(),
+        LojaID: String(payload.LojaID || current?.LojaID || profile.LojaID || '').trim(),
+        CriadoPor: current?.CriadoPor || profile.Nome || profile.UsuarioID || '',
+        CRIADO_POR_NOME: current?.CRIADO_POR_NOME || profile.Nome || profile.UsuarioID || '',
+        CRIADO_POR_ID: current?.CRIADO_POR_ID || profile.FuncionarioID || profile.UsuarioID || '',
+        CriadoEm: current?.CriadoEm || nowIso(),
+        CRIADO_EM: current?.CRIADO_EM || current?.CriadoEm || nowIso(),
+        AtualizadoEm: nowIso(),
+        ATUALIZADO_EM: nowIso(),
+      };
+
+      const saved = await runtime.upsert("Tarefas", record);
+      return success(saved, "Tarefa salva com sucesso.");
+    },
+
+    async cozinhaTasksStart(args) {
+      const [taskId] = args || [];
+      assert(taskId, "Identificador da tarefa é obrigatório.");
+      const profile = await runtime.requireProfile();
+      const patch = {
+        Status: 'Em andamento',
+        STATUS: 'Em andamento',
+        Coluna: 'andamento',
+        INICIADO_EM: nowIso(),
+        RevisaoStatus: '',
+        REVISAO_STATUS: '',
+        MotivoRevisao: '',
+        MOTIVO_REVISAO: '',
+        AtualizadoEm: nowIso(),
+        ATUALIZADO_EM: nowIso(),
+      };
+      const updated = await runtime.patch("Tarefas", taskId, patch);
+      return success(updated, "Tarefa iniciada.");
+    },
+
+    async cozinhaTasksComplete(args) {
+      const [payload] = args || [];
+      const taskId = payload?.id || payload?.ID || payload?.taskId;
+      assert(taskId, "Identificador da tarefa é obrigatório.");
+      const profile = await runtime.requireProfile();
+
+      const fotoUrl = String(payload?.fotoUrl || payload?.FOTO_URL || payload?.FotoEvidencia || "").trim();
+      const fotoId = String(payload?.fotoId || payload?.FOTO_ID || "").trim();
+      const obs = String(payload?.observacao || payload?.OBSERVACAO_CONCLUSAO || "").trim();
+
+      const patch = {
+        Status: 'Aguardando aprovação',
+        STATUS: 'Aguardando aprovação',
+        Coluna: 'visto',
+        TEM_FOTO: true,
+        FotoEvidencia: fotoUrl,
+        FOTO_URL: fotoUrl,
+        FOTO_ID: fotoId,
+        FOTO_THUMBNAIL_URL: fotoUrl,
+        Confirmado: true,
+        CONFIRMADO: true,
+        ObservacaoConclusao: obs,
+        OBSERVACAO_CONCLUSAO: obs,
+        RevisaoStatus: 'Pendente',
+        REVISAO_STATUS: 'Pendente',
+        MotivoRevisao: '',
+        MOTIVO_REVISAO: '',
+        ENVIADO_REVISAO_EM: nowIso(),
+        AtualizadoEm: nowIso(),
+        ATUALIZADO_EM: nowIso(),
+      };
+
+      const updated = await runtime.patch("Tarefas", taskId, patch);
+      return success(updated, "Tarefa enviada para conferência com sucesso!");
+    },
+
+    async cozinhaTasksApprove(args) {
+      const [taskId] = args || [];
+      assert(taskId, "Identificador da tarefa é obrigatório.");
+      const profile = await runtime.requireProfile();
+      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem aprovar tarefas.");
+
+      const task = await runtime.getById("Tarefas", taskId);
+      assert(task, "Tarefa não encontrada.");
+
+      const points = taskPointValue(task.Prioridade || task.PRIORIDADE || "Normal");
+      const completedAt = nowIso();
+
+      const patch = {
+        Status: 'Concluída',
+        STATUS: 'Concluída',
+        Coluna: 'concluido',
+        RevisaoStatus: 'Aprovada',
+        REVISAO_STATUS: 'Aprovada',
+        MotivoRevisao: '',
+        MOTIVO_REVISAO: '',
+        AprovadoEm: completedAt,
+        APROVADO_EM: completedAt,
+        AprovadoPorNome: profile.Nome || 'Administrador',
+        APROVADO_POR_NOME: profile.Nome || 'Administrador',
+        DataConclusao: completedAt,
+        CONCLUIDO_EM: completedAt,
+        AtualizadoEm: completedAt,
+        ATUALIZADO_EM: completedAt,
+      };
+
+      const updated = await runtime.patch("Tarefas", taskId, patch);
+
+      // Credita pontos ao funcionário responsável
+      const targetUserId = String(task.FuncionarioID || task.RESPONSAVEL_ID || "").trim();
+      const targetUserName = String(task.NomeFuncionario || task.RESPONSAVEL_NOME || "Colaborador").trim();
+      if (targetUserId) {
+        const adjustId = `PTS_APPRV_${taskId}`;
+        await runtime.upsert("PontosAjustes", {
+          ID: adjustId,
+          USUARIO_ID: targetUserId,
+          USUARIO_NOME: targetUserName,
+          PONTOS: points,
+          MOTIVO: `Tarefa aprovada: ${task.Titulo || task.TITULO}`,
+          ORIGEM: 'TAREFA_APROVADA',
+          TAREFA_ID: String(taskId),
+          TAREFA_TITULO: String(task.Titulo || task.TITULO || ''),
+          ADMIN_ID: profile.UsuarioID || profile.FuncionarioID || 'ADMIN',
+          ADMIN_NOME: profile.Nome || 'Administração',
+          CRIADO_EM: completedAt,
+        });
+
+        // Verifica se houve atraso para penalidade
+        if (task.Prazo || task.PRAZO) {
+          const deadline = new Date(task.Prazo || task.PRAZO).getTime();
+          const delivered = new Date(task.ENVIADO_REVISAO_EM || completedAt).getTime();
+          if (Number.isFinite(deadline) && Number.isFinite(delivered) && delivered > deadline) {
+            const penaltyAdjustId = `PTS_LATE_${taskId}`;
+            await runtime.upsert("PontosAjustes", {
+              ID: penaltyAdjustId,
+              USUARIO_ID: targetUserId,
+              USUARIO_NOME: targetUserName,
+              PONTOS: -points,
+              MOTIVO: `Entrega atrasada: ${task.Titulo || task.TITULO}`,
+              ORIGEM: 'ATRASO',
+              TAREFA_ID: String(taskId),
+              TAREFA_TITULO: String(task.Titulo || task.TITULO || ''),
+              ADMIN_ID: 'SYSTEM',
+              ADMIN_NOME: 'Sistema',
+              CRIADO_EM: completedAt,
+            });
+          }
+        }
+      }
+
+      return success(updated, `Tarefa aprovada! +${points} ponto(s) concedidos.`);
+    },
+
+    async cozinhaTasksReject(args) {
+      const [payload] = args || [];
+      const taskId = payload?.id || payload?.ID || payload?.taskId;
+      assert(taskId, "Identificador da tarefa é obrigatório.");
+      const reason = String(payload?.reason || payload?.motivo || "Necessário nova foto com melhor ângulo").trim();
+
+      const profile = await runtime.requireProfile();
+      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem devolver tarefas.");
+
+      const patch = {
+        Status: 'Em andamento',
+        STATUS: 'Em andamento',
+        Coluna: 'andamento',
+        RevisaoStatus: 'Devolvida',
+        REVISAO_STATUS: 'Devolvida',
+        MotivoRevisao: reason,
+        MOTIVO_REVISAO: reason,
+        AtualizadoEm: nowIso(),
+        ATUALIZADO_EM: nowIso(),
+      };
+
+      const updated = await runtime.patch("Tarefas", taskId, patch);
+      return success(updated, "Tarefa devolvida ao colaborador para nova foto.");
+    },
+
+    async cozinhaTasksCancel(args) {
+      const [payload] = args || [];
+      const taskId = payload?.id || payload?.ID || payload?.taskId;
+      assert(taskId, "Identificador da tarefa é obrigatório.");
+      const reason = String(payload?.reason || payload?.motivo || "Cancelada pela administração").trim();
+      const pointsPenalty = Number(payload?.points || 0);
+
+      const profile = await runtime.requireProfile();
+      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem cancelar tarefas.");
+
+      const task = await runtime.getById("Tarefas", taskId);
+      const patch = {
+        Status: 'Cancelada',
+        STATUS: 'Cancelada',
+        Coluna: 'cancelado',
+        CanceladoEm: nowIso(),
+        CANCELADO_EM: nowIso(),
+        MotivoCancelamento: reason,
+        MOTIVO_CANCELAMENTO: reason,
+        AtualizadoEm: nowIso(),
+        ATUALIZADO_EM: nowIso(),
+      };
+
+      const updated = await runtime.patch("Tarefas", taskId, patch);
+
+      if (pointsPenalty > 0 && task) {
+        const targetUserId = String(task.FuncionarioID || task.RESPONSAVEL_ID || "").trim();
+        const targetUserName = String(task.NomeFuncionario || task.RESPONSAVEL_NOME || "Colaborador").trim();
+        if (targetUserId) {
+          const penaltyId = `PTS_CANC_${taskId}`;
+          await runtime.upsert("PontosAjustes", {
+            ID: penaltyId,
+            USUARIO_ID: targetUserId,
+            USUARIO_NOME: targetUserName,
+            PONTOS: -pointsPenalty,
+            MOTIVO: `Tarefa não realizada: ${task.Titulo || task.TITULO} (${reason})`,
+            ORIGEM: 'NAO_REALIZADA',
+            TAREFA_ID: String(taskId),
+            TAREFA_TITULO: String(task.Titulo || task.TITULO || ''),
+            ADMIN_ID: profile.UsuarioID || 'ADMIN',
+            ADMIN_NOME: profile.Nome || 'Administração',
+            CRIADO_EM: nowIso(),
+          });
+        }
+      }
+
+      return success(updated, "Tarefa cancelada.");
+    },
+
+    async cozinhaTasksReopen(args) {
+      const [taskId] = args || [];
+      assert(taskId, "Identificador da tarefa é obrigatório.");
+      const patch = {
+        Status: 'A fazer',
+        STATUS: 'A fazer',
+        Coluna: 'pendente',
+        INICIADO_EM: '',
+        ENVIADO_REVISAO_EM: '',
+        CONCLUIDO_EM: '',
+        DataConclusao: null,
+        Confirmado: false,
+        CONFIRMADO: false,
+        FotoEvidencia: '',
+        FOTO_URL: '',
+        FOTO_ID: '',
+        RevisaoStatus: '',
+        REVISAO_STATUS: '',
+        MotivoRevisao: '',
+        MOTIVO_REVISAO: '',
+        AtualizadoEm: nowIso(),
+        ATUALIZADO_EM: nowIso(),
+      };
+      const updated = await runtime.patch("Tarefas", taskId, patch);
+      return success(updated, "Tarefa reaberta.");
+    },
+
+    // ==========================================
+    // COZINHA FLOW PONTOS E LOJA HANDLERS
+    // ==========================================
+
+    async cozinhaPointCatalog(args) {
+      const profile = await runtime.requireProfile();
+      let custom = [];
+      try {
+        custom = await runtime.list("PontosCatalogo", { profile });
+      } catch (_) { }
+
+      const customMap = new Map(custom.map(item => [String(item.ID), item]));
+      const list = DEFAULT_REWARDS.map(def => {
+        const override = customMap.get(def.ID);
+        return {
+          ...def,
+          ...(override || {}),
+          cost: Number(override?.PONTOS || def.PONTOS),
+          featured: Boolean(override?.DESTAQUE ?? def.DESTAQUE),
+          status: override?.STATUS || def.STATUS || 'Ativo',
+        };
+      });
+
+      // Inclui itens criados exclusivamente no banco
+      custom.forEach(c => {
+        if (!DEFAULT_REWARDS.some(d => d.ID === c.ID)) {
+          list.push({
+            ...c,
+            cost: Number(c.PONTOS || 0),
+            featured: Boolean(c.DESTAQUE),
+            status: c.STATUS || 'Ativo',
+          });
+        }
+      });
+
+      return success(list);
+    },
+
+    async cozinhaPointSaveReward(args) {
+      const [reward] = args || [];
+      assert(reward && typeof reward === "object", "Dados da recompensa são obrigatórios.");
+      const profile = await runtime.requireProfile();
+      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem gerenciar a loja.");
+
+      const id = String(reward.ID || reward.id || `rew_${Date.now()}`);
+      const record = {
+        ID: id,
+        NOME: String(reward.NOME || reward.name || '').trim(),
+        DESCRICAO: String(reward.DESCRICAO || reward.description || '').trim(),
+        PONTOS: Number(reward.PONTOS || reward.cost || 100),
+        EMOJI: String(reward.EMOJI || reward.emoji || '🎁').trim(),
+        TOM: String(reward.TOM || reward.tone || 'violet').trim(),
+        DESTAQUE: Boolean(reward.DESTAQUE || reward.featured),
+        STATUS: reward.STATUS || reward.status || 'Ativo',
+        ATUALIZADO_EM: nowIso(),
+      };
+
+      const saved = await runtime.upsert("PontosCatalogo", record);
+      return success(saved, "Recompensa salva no catálogo.");
+    },
+
+    async cozinhaPointRedemptions(args) {
+      const profile = await runtime.requireProfile();
+      const rows = await runtime.list("PontosResgates", { profile });
+      const admin = isAdmin(profile) || isManager(profile);
+      const uid = String(profile.FuncionarioID || profile.UsuarioID || "").toLowerCase();
+
+      const visible = admin ? rows : rows.filter(r => String(r.USUARIO_ID || "").toLowerCase() === uid);
+      visible.sort((a, b) => String(b.CRIADO_EM || '').localeCompare(String(a.CRIADO_EM || '')));
+      return success(visible);
+    },
+
+    async cozinhaPointRedeem(args) {
+      const [payload] = args || [];
+      const rewardId = payload?.rewardId || payload?.RECOMPENSA_ID;
+      assert(rewardId, "Identificador da recompensa é obrigatório.");
+
+      const profile = await runtime.requireProfile();
+      const uid = String(profile.FuncionarioID || profile.UsuarioID || "");
+      const uName = String(profile.Nome || "Colaborador");
+
+      // Obter recompensas
+      const catalogResult = await this.cozinhaPointCatalog();
+      const catalog = catalogResult.data || [];
+      const reward = catalog.find(r => String(r.ID) === String(rewardId) && r.status !== 'Inativo');
+      assert(reward, "Recompensa não disponível.");
+
+      const cost = Number(reward.cost || reward.PONTOS || 0);
+
+      // Calcular saldo do colaborador
+      const [tasks, adjustments, redemptions] = await Promise.all([
+        runtime.list("Tarefas", { profile }),
+        runtime.list("PontosAjustes", { profile }),
+        runtime.list("PontosResgates", { profile }),
+      ]);
+
+      const myTasks = tasks.filter(t => String(t.FuncionarioID || t.RESPONSAVEL_ID) === uid && (t.Status === 'Concluída' || t.Coluna === 'concluido'));
+      const taskPoints = myTasks.reduce((sum, t) => sum + taskPointValue(t.Prioridade || t.PRIORIDADE), 0);
+
+      const myAdjustments = adjustments.filter(a => String(a.USUARIO_ID) === uid);
+      const bonusPoints = myAdjustments.filter(a => Number(a.PONTOS) > 0).reduce((s, a) => s + Number(a.PONTOS), 0);
+      const penaltyPoints = myAdjustments.filter(a => Number(a.PONTOS) < 0).reduce((s, a) => s + Math.abs(Number(a.PONTOS)), 0);
+
+      const netEarned = Math.max(0, taskPoints + bonusPoints - penaltyPoints);
+      const spent = redemptions.filter(r => String(r.USUARIO_ID) === uid && r.STATUS !== 'Cancelado').reduce((s, r) => s + Number(r.PONTOS || 0), 0);
+      const available = Math.max(0, netEarned - spent);
+
+      assert(available >= cost, `Pontos insuficientes. Você possui ${available} ponto(s) e precisa de ${cost}.`);
+
+      const redemptionId = `red_${Date.now()}_${uuid().slice(0, 6)}`;
+      const record = {
+        ID: redemptionId,
+        RECOMPENSA_ID: String(reward.ID),
+        RECOMPENSA_NOME: String(reward.NOME || reward.name),
+        EMOJI: reward.EMOJI || reward.emoji || '🎁',
+        PONTOS: cost,
+        USUARIO_ID: uid,
+        USUARIO_NOME: uName,
+        STATUS: 'Solicitado',
+        CRIADO_EM: nowIso(),
+        ATUALIZADO_EM: nowIso(),
+      };
+
+      const saved = await runtime.upsert("PontosResgates", record);
+      return success(saved, `Resgate de "${record.RECOMPENSA_NOME}" realizado com sucesso! Aguarde a liderança para entrega.`);
+    },
+
+    async cozinhaPointDeliver(args) {
+      const [payload] = args || [];
+      const redemptionId = payload?.id || payload?.ID || payload?.redemptionId;
+      assert(redemptionId, "Identificador do resgate é obrigatório.");
+
+      const profile = await runtime.requireProfile();
+      assert(isAdmin(profile) || isManager(profile), "Apenas a administração pode marcar resgates como entregues.");
+
+      const patch = {
+        STATUS: 'Entregue',
+        ENTREGUE_EM: nowIso(),
+        ENTREGUE_POR_ID: profile.UsuarioID || profile.FuncionarioID || 'ADMIN',
+        ENTREGUE_POR_NOME: profile.Nome || 'Administrador',
+        ATUALIZADO_EM: nowIso(),
+      };
+
+      const updated = await runtime.patch("PontosResgates", redemptionId, patch);
+      return success(updated, "Recompensa entregue ao colaborador!");
+    },
+
+    async cozinhaPointAdjustments(args) {
+      const profile = await runtime.requireProfile();
+      const rows = await runtime.list("PontosAjustes", { profile });
+      const admin = isAdmin(profile) || isManager(profile);
+      const uid = String(profile.FuncionarioID || profile.UsuarioID || "").toLowerCase();
+
+      const visible = admin ? rows : rows.filter(r => String(r.USUARIO_ID || "").toLowerCase() === uid);
+      visible.sort((a, b) => String(b.CRIADO_EM || '').localeCompare(String(a.CRIADO_EM || '')));
+      return success(visible);
+    },
+
+    async cozinhaPointWeeklyMissions(args) {
+      const profile = await runtime.requireProfile();
+      const uid = String(profile.FuncionarioID || profile.UsuarioID || "");
+      const uName = String(profile.Nome || "Colaborador");
+      const week = currentWeekKey();
+
+      const [tasks, adjustments] = await Promise.all([
+        runtime.list("Tarefas", { profile }),
+        runtime.list("PontosAjustes", { profile }),
+      ]);
+
+      const myTasks = tasks.filter(t => String(t.FuncionarioID || t.RESPONSAVEL_ID) === uid && (t.Status === 'Concluída' || t.Coluna === 'concluido') && String(t.DataConclusao || t.CONCLUIDO_EM || '').slice(0, 10) >= week);
+      const onTime = myTasks.filter(t => {
+        if (!t.Prazo && !t.PRAZO) return true;
+        const deadline = new Date(t.Prazo || t.PRAZO).getTime();
+        const finish = new Date(t.ENVIADO_REVISAO_EM || t.DataConclusao || t.CONCLUIDO_EM).getTime();
+        return finish <= deadline;
+      }).length;
+
+      const missions = [
+        { id: 'ritmo_5', title: 'Ritmo da cozinha', description: 'Conclua 5 tarefas nesta semana.', target: 5, current: myTasks.length, bonus: 2, icon: 'skillet' },
+        { id: 'pontual_3', title: 'Entrega no ponto', description: 'Aprove 3 tarefas sem atraso.', target: 3, current: onTime, bonus: 3, icon: 'timer' },
+        { id: 'craque_8', title: 'Craque da semana', description: 'Conclua 8 tarefas nesta semana.', target: 8, current: myTasks.length, bonus: 4, icon: 'workspace_premium' }
+      ];
+
+      for (const m of missions) {
+        const id = `missao_${week}_${m.id}_${uid}`;
+        const existing = adjustments.find(a => a.ID === id);
+        m.completed = Boolean(existing);
+        if (m.current >= m.target && !existing) {
+          await runtime.upsert("PontosAjustes", {
+            ID: id,
+            USUARIO_ID: uid,
+            USUARIO_NOME: uName,
+            PONTOS: m.bonus,
+            MOTIVO: `Missão concluída: ${m.title}`,
+            ORIGEM: 'MISSAO_SEMANAL',
+            SEMANA: week,
+            ADMIN_ID: 'SYSTEM',
+            ADMIN_NOME: 'CozinhaFlow',
+            CRIADO_EM: nowIso(),
+          });
+          m.completed = true;
+        }
+      }
+
+      return success(missions);
+    },
+
+    async cozinhaPointPenalize(args) {
+      const [payload] = args || [];
+      const userId = String(payload?.userId || payload?.USUARIO_ID || "").trim();
+      const points = Math.abs(Number(payload?.points || payload?.PONTOS || 0));
+      const reason = String(payload?.reason || payload?.MOTIVO || "").trim();
+
+      assert(userId, "Selecione o colaborador.");
+      assert(points > 0, "Informe a quantidade de pontos a retirar.");
+      assert(reason, "O motivo da punição é obrigatório.");
+
+      const profile = await runtime.requireProfile();
+      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem retirar pontos.");
+
+      const employees = await runtime.list("Funcionarios", { profile });
+      const target = employees.find(e => String(e.FuncionarioID) === userId || String(e.id) === userId);
+      const targetName = target?.Nome || target?.nome || "Colaborador";
+
+      const id = `PTS_PEN_${Date.now()}_${uuid().slice(0, 5)}`;
+      const record = {
+        ID: id,
+        USUARIO_ID: userId,
+        USUARIO_NOME: targetName,
+        PONTOS: -points,
+        MOTIVO: reason,
+        ORIGEM: 'MANUAL',
+        ADMIN_ID: profile.UsuarioID || 'ADMIN',
+        ADMIN_NOME: profile.Nome || 'Administração',
+        CRIADO_EM: nowIso(),
+      };
+
+      const saved = await runtime.upsert("PontosAjustes", record);
+      return success(saved, `${targetName} perdeu ${points} ponto(s).`);
+    },
+
+    async cozinhaTeamMetrics(args) {
+      const profile = await runtime.requireProfile();
+      const [employees, tasks, adjustments] = await Promise.all([
+        runtime.list("Funcionarios", { profile }),
+        runtime.list("Tarefas", { profile }),
+        runtime.list("PontosAjustes", { profile }),
+      ]);
+
+      const today = todayIso();
+      const week = currentWeekKey();
+
+      const active = employees.filter(e => e.Ativo !== false && String(e.Status || "").toLowerCase() !== "inativo");
+      const list = active.map(e => {
+        const uid = String(e.FuncionarioID || e.id || "");
+        const ownTasks = tasks.filter(t => String(t.FuncionarioID || t.RESPONSAVEL_ID) === uid);
+        const doneToday = ownTasks.filter(t => (t.Status === 'Concluída' || t.Coluna === 'concluido') && String(t.DataConclusao || t.CONCLUIDO_EM || '').slice(0, 10) === today).length;
+        const pending = ownTasks.filter(t => ['A fazer', 'Em andamento', 'Aguardando aprovação'].includes(t.Status || '') || ['pendente', 'andamento', 'visto'].includes(t.Coluna || '')).length;
+        const late = ownTasks.filter(t => {
+          const prazo = t.Prazo || t.PRAZO;
+          const status = t.Status || t.STATUS;
+          return prazo && !['Concluída', 'Cancelada'].includes(status) && new Date(prazo).getTime() < Date.now();
+        }).length;
+
+        // Pontuação total acumulada
+        const allCompleted = ownTasks.filter(t => t.Status === 'Concluída' || t.Coluna === 'concluido');
+        const pointsFromTasks = allCompleted.reduce((sum, t) => sum + taskPointValue(t.Prioridade || t.PRIORIDADE), 0);
+        const myAdjusts = adjustments.filter(a => String(a.USUARIO_ID) === uid);
+        const bonus = myAdjusts.filter(a => Number(a.PONTOS) > 0).reduce((s, a) => s + Number(a.PONTOS), 0);
+        const penalty = myAdjusts.filter(a => Number(a.PONTOS) < 0).reduce((s, a) => s + Math.abs(Number(a.PONTOS)), 0);
+        const totalPoints = Math.max(0, pointsFromTasks + bonus - penalty);
+
+        // Pontuação da semana
+        const weekTasks = allCompleted.filter(t => String(t.DataConclusao || t.CONCLUIDO_EM || '').slice(0, 10) >= week);
+        const weekBonus = myAdjusts.filter(a => Number(a.PONTOS) > 0 && String(a.CRIADO_EM || '').slice(0, 10) >= week).reduce((s, a) => s + Number(a.PONTOS), 0);
+        const weeklyPoints = weekTasks.reduce((sum, t) => sum + taskPointValue(t.Prioridade || t.PRIORIDADE), 0) + weekBonus;
+
+        const levelInfo = getKitchenLevel(totalPoints);
+
+        return {
+          id: uid,
+          name: e.Nome || e.nome || "Colaborador",
+          role: e.Cargo || e.Perfil || "Operador",
+          email: e.Email || "",
+          store: e.LojaID || "",
+          doneToday,
+          pending,
+          late,
+          totalPoints,
+          weeklyPoints,
+          level: levelInfo.level,
+          progress: levelInfo.progress,
+        };
+      });
+
+      list.sort((a, b) => b.totalPoints - a.totalPoints);
+      return success(list);
+    },
   };
 }
+
+export const KITCHEN_LEVELS = [
+  { min: 0, name: 'Ajudante da Cozinha', emoji: '🍳', short: 'Ajudante', tone: 'bronze' },
+  { min: 60, name: 'Mestre do Molho', emoji: '🍅', short: 'Molho', tone: 'red' },
+  { min: 150, name: 'Guardião da Fritadeira', emoji: '🍗', short: 'Fritadeira', tone: 'amber' },
+  { min: 300, name: 'Rei da Chapa', emoji: '🍔', short: 'Chapa', tone: 'orange' },
+  { min: 550, name: 'Pizzaiolo de Ouro', emoji: '🍕', short: 'Pizzaiolo', tone: 'gold' },
+  { min: 900, name: 'Mestre do Crocante', emoji: '🔥', short: 'Crocante', tone: 'flame' },
+  { min: 1500, name: 'Chef da House', emoji: '👨‍🍳', short: 'Chef', tone: 'purple' },
+  { min: 2500, name: 'Lenda do Foodpark', emoji: '🏆', short: 'Lenda', tone: 'legend' }
+];
+
+export const DEFAULT_REWARDS = [
+  { ID: 'refri_lata', NOME: 'Refrigerante ou suco', DESCRICAO: 'Uma bebida individual gelada.', PONTOS: 100, EMOJI: '🥤', TOM: 'ice', STATUS: 'Ativo' },
+  { ID: 'sobremesa', NOME: 'Sobremesa da casa', DESCRICAO: 'Um doce individual do dia.', PONTOS: 120, EMOJI: '🍨', TOM: 'berry', STATUS: 'Ativo' },
+  { ID: 'batata_individual', NOME: 'Batata individual', DESCRICAO: 'Uma porção para aproveitar no intervalo.', PONTOS: 150, EMOJI: '🍟', TOM: 'gold', STATUS: 'Ativo' },
+  { ID: 'pizza_brotinho', NOME: 'Pizza brotinho', DESCRICAO: 'Um sabor disponível escolhido pelo funcionário.', PONTOS: 180, EMOJI: '🍕', TOM: 'pizza', STATUS: 'Ativo' },
+  { ID: 'descanso_30', NOME: '+30 min de descanso', DESCRICAO: 'Pausa extra combinada com a liderança.', PONTOS: 200, EMOJI: '☕', TOM: 'mint', STATUS: 'Ativo' },
+  { ID: 'lanche_escolha', NOME: 'Lanche à escolha', DESCRICAO: 'Um hambúrguer individual do cardápio interno.', PONTOS: 240, EMOJI: '🍔', TOM: 'burger', STATUS: 'Ativo' },
+  { ID: 'descanso_60', NOME: '+1 hora de descanso', DESCRICAO: 'Uma hora extra de descanso agendada.', PONTOS: 320, EMOJI: '⏰', TOM: 'violet', STATUS: 'Ativo' },
+  { ID: 'combo_individual', NOME: 'Combo individual', DESCRICAO: 'Lanche, acompanhamento e bebida.', PONTOS: 400, EMOJI: '🍔', TOM: 'fire', STATUS: 'Ativo' },
+  { ID: 'escolher_turno', NOME: 'Escolher o turno', DESCRICAO: 'Prioridade na escolha de um turno disponível.', PONTOS: 500, EMOJI: '📅', TOM: 'blue', STATUS: 'Ativo' },
+  { ID: 'kit_house', NOME: 'Kit House exclusivo', DESCRICAO: 'Camisa ou boné da equipe, conforme disponibilidade.', PONTOS: 600, EMOJI: '🧢', TOM: 'ink', STATUS: 'Ativo' },
+  { ID: 'folga_extra', NOME: 'Folga extra', DESCRICAO: 'Uma folga agendada com antecedência e aprovação.', PONTOS: 800, EMOJI: '🏖️', TOM: 'legend', DESTAQUE: true, STATUS: 'Ativo' }
+];
+
+export const taskPointValue = (priority) => ({ Urgente: 3, Alta: 2, Normal: 1, Baixa: 1, Media: 1 }[priority] || 1);
+
+export const getKitchenLevel = (points = 0) => {
+  let level = KITCHEN_LEVELS[0];
+  let nextLevel = KITCHEN_LEVELS[1] || null;
+  for (let i = 0; i < KITCHEN_LEVELS.length; i++) {
+    if (points >= KITCHEN_LEVELS[i].min) {
+      level = KITCHEN_LEVELS[i];
+      nextLevel = KITCHEN_LEVELS[i + 1] || null;
+    }
+  }
+  const currentMin = level.min;
+  const nextMin = nextLevel ? nextLevel.min : currentMin;
+  const progress = nextLevel ? Math.min(100, Math.max(0, Math.round(((points - currentMin) / (nextMin - currentMin)) * 100))) : 100;
+  return { level, nextLevel, progress, pointsNeeded: nextLevel ? Math.max(0, nextLevel.min - points) : 0 };
+};
+
+export const currentWeekKey = () => {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  return d.toISOString().slice(0, 10);
+};
+

@@ -94,12 +94,18 @@ export const ID_FIELDS = Object.freeze({
   BancoHorasMovimentos: "MovID",
   Tarefas: "TarefaID",
   TarefasTemplates: "TemplateID",
+  PontosCatalogo: "ID",
+  PontosResgates: "ID",
+  PontosAjustes: "ID",
+  Media: "ID",
 });
 
 export const PUBLIC_AUTH_TABLES = new Set([
   "Configuracoes",
   "Feriados",
   "RegrasFolga",
+  "PontosCatalogo",
+  "Tarefas",
 ]);
 
 export const STORE_SCOPED_FIELDS = Object.freeze({

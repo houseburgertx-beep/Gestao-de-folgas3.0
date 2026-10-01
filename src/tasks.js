@@ -1,1641 +1,1607 @@
-// Módulo de Tarefas e Checklists tipo Trello / Kanban
-// Grupo House 190 / House Burger — Interface Mobile-First Premium & Minimalista (Sem Emojis)
+// ==========================================================================
+// COZINHA FLOW 3.0 — Sistema Completo Integrado no Folgas 3.0
+// Tarefas com Foto no Google Drive, Gamificação com Títulos e Loja de Prêmios
+// ==========================================================================
+
+import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "./selfie-drive-config.js";
+import { KITCHEN_LEVELS, DEFAULT_REWARDS, getKitchenLevel, taskPointValue } from "./core/api-tasks.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const dateKey = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// Ícones SVG Vetoriais Profissionais (Zero Emojis — Padrão Linear / Things 3)
-const ICONS = {
-  check: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`,
-  plus: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
-  refresh: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
-  zap: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-  tool: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
-  clean: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
-  list: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
-  user: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  kanban: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg>`,
-  chevronLeft: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>`,
-  chevronRight: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>`,
-  chevronDown: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`,
-  chevronUp: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>`,
-  clock: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  arrowRight: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
-  trash: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
-  close: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
-  edit: `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
-  sun: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
-  moon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
-  terminal: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h12M6 12h4m4 0h4M6 16h12"/></svg>`,
-  flame: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`,
-};
+const dateKey = (d = new Date()) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 
 let state = {
+  activeTab: 'tarefas', // 'tarefas' | 'jornada' | 'loja' | 'equipe'
+  mobileStatus: 'A fazer', // 'A fazer' | 'Em andamento' | 'Aguardando aprovação' | 'Concluída'
+  attentionFilter: '',
   tasks: [],
-  viewMode: 'checklist', // 'checklist' | 'my' | 'kanban'
-  selectedStore: '',
-  selectedDate: dateKey(),
-  selectedSector: 'todos',
-  kanbanActiveCol: 'pendente',
+  assignees: [],
+  catalog: [],
+  redemptions: [],
+  adjustments: [],
+  missions: [],
+  teamMetrics: [],
   user: null,
   isManager: false,
-  stores: [],
-  employees: [],
   loading: false,
-  checklistDraft: [],
-  expandedCards: new Set(),
+  searchQuery: '',
+  filterAssignee: '',
+  filterPriority: '',
+  initialized: false,
 };
 
-const SECTOR_GROUPS = [
-  { id: 'todos', label: 'Todos' },
-  { id: 'caixa', label: 'Caixa' },
-  { id: 'abertura', label: 'Abertura' },
-  { id: 'fechamento', label: 'Fechamento' },
-  { id: 'cozinha', label: 'Cozinha' },
-  { id: 'manutencao', label: 'Reparos' },
+const STATUSES = [
+  { value: 'A fazer', title: 'A fazer', icon: 'assignment', tone: 'todo' },
+  { value: 'Em andamento', title: 'Fazendo', icon: 'pending_actions', tone: 'doing' },
+  { value: 'Aguardando aprovação', title: 'Conferir', icon: 'fact_check', tone: 'review' },
+  { value: 'Concluída', title: 'Feitas', icon: 'verified', tone: 'done' },
 ];
 
-const COLUMNS = [
-  { id: 'pendente', title: 'Pendente', shortTitle: 'Pendente', dotColor: '#f59e0b' },
-  { id: 'andamento', title: 'Em Andamento', shortTitle: 'Andamento', dotColor: '#3b82f6' },
-  { id: 'visto', title: 'Aguardando Visto', shortTitle: 'Visto', dotColor: '#8b5cf6' },
-  { id: 'concluido', title: 'Concluído', shortTitle: 'Concluído', dotColor: '#10b981' },
-];
-
-function getApi() {
-  return window.__GESTAO_FIREBASE__?.api;
+function isUserAdmin() {
+  const role = String(state.user?.Perfil || state.user?.role || '').toLowerCase();
+  return role.includes('admin') || role.includes('gerente') || role.includes('responsável') || state.isManager;
 }
 
-function getEmployeeId(e) {
-  if (!e) return '';
-  return String(e.FuncionarioID || e.funcionarioId || e.id || e.UsuarioID || e.usuarioId || '').trim();
+function currentUserId() {
+  return String(state.user?.FuncionarioID || state.user?.UsuarioID || state.user?.id || '').trim();
 }
 
-function getEmployeeName(e) {
-  if (!e) return '';
-  return String(e.Nome || e.nome || e.NomeFuncionario || '').trim();
+function currentUserName() {
+  return String(state.user?.Nome || state.user?.nome || 'Colaborador').trim();
 }
 
-function isTaskAssignedToCurrentUser(task) {
-  if (!task) return false;
-  const user = state.user;
-  if (!user) return false;
+function isTaskOverdue(task) {
+  if (!task.PRAZO) return false;
+  if (['Concluída', 'Cancelada'].includes(task.STATUS)) return false;
+  return new Date(task.PRAZO).getTime() < Date.now();
+}
 
-  const userIds = [
-    user.FuncionarioID,
-    user.funcionarioId,
-    user.id,
-    user.UsuarioID,
-    user.usuarioId,
-  ].filter(Boolean).map(x => String(x).trim().toLowerCase());
+function isTaskDueSoon(task) {
+  if (!task.PRAZO) return false;
+  if (!['A fazer', 'Em andamento'].includes(task.STATUS)) return false;
+  const diff = new Date(task.PRAZO).getTime() - Date.now();
+  return diff >= 0 && diff <= 2 * 60 * 60 * 1000;
+}
 
-  const userNames = [
-    user.Nome,
-    user.nome,
-  ].filter(Boolean).map(x => String(x).trim().toLowerCase());
-
-  const taskFuncId = String(task.FuncionarioID || '').trim().toLowerCase();
-  const taskFuncName = String(task.NomeFuncionario || '').trim().toLowerCase();
-
-  // 1. Match por ID
-  if (taskFuncId && userIds.includes(taskFuncId)) return true;
-
-  // 2. Match por nome completo ou primeiro nome
-  if (taskFuncName && userNames.some(name => {
-    if (taskFuncName === name) return true;
-    const taskFirst = taskFuncName.split(' ')[0];
-    const userFirst = name.split(' ')[0];
-    return taskFirst.length >= 3 && taskFirst === userFirst;
-  })) {
-    return true;
+function formatRelativeDeadline(deadline) {
+  if (!deadline) return { text: 'Sem prazo', tone: '' };
+  const diffMinutes = Math.round((new Date(deadline).getTime() - Date.now()) / 60000);
+  if (diffMinutes < 0) {
+    const elapsed = Math.abs(diffMinutes);
+    if (elapsed < 60) return { text: `Atrasada há ${elapsed}m`, tone: 'danger' };
+    if (elapsed < 1440) return { text: `Atrasada há ${Math.floor(elapsed / 60)}h`, tone: 'danger' };
+    return { text: `Atrasada há ${Math.floor(elapsed / 1440)}d`, tone: 'danger' };
   }
-
-  // 3. Se o campo FuncionarioID na tarefa for o próprio nome do funcionário
-  if (taskFuncId && userNames.some(name => taskFuncId === name || (name.split(' ')[0].length >= 3 && taskFuncId === name.split(' ')[0]))) {
-    return true;
-  }
-
-  return false;
-}
-
-function isUserAdminOrManager() {
-  if (typeof state.isManager === 'boolean' && state.user) return state.isManager;
-  if (typeof window.__GESTAO_IS_MANAGER__ === 'boolean') return window.__GESTAO_IS_MANAGER__;
-  const profile = state.user || window.__GESTAO_USER__ || window.__GESTAO_FIREBASE__?.runtime?.profile;
-  if (!profile) return false;
-  const p = String(profile.Perfil || profile.perfil || profile.Cargo || profile.cargo || profile.profile || '').toLowerCase();
-  return p.includes('admin') || p.includes('gerente') || p.includes('respons');
-}
-
-function openDialog(id) {
-  const d = document.getElementById(id);
-  if (d && !d.open) d.showModal();
-}
-
-function closeDialog(id) {
-  const d = document.getElementById(id);
-  if (d?.open) d.close();
-}
-
-function triggerHaptic(type = 'light') {
+  if (diffMinutes < 60) return { text: `Vence em ${Math.max(1, diffMinutes)}m`, tone: 'warning' };
+  if (diffMinutes < 1440) return { text: `Vence em ${Math.floor(diffMinutes / 60)}h`, tone: 'warning' };
+  if (diffMinutes < 2880) return { text: 'Prazo amanhã', tone: '' };
   try {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      if (type === 'success') navigator.vibrate([15, 30, 20]);
-      else navigator.vibrate(10);
-    }
-  } catch (_) {}
-}
-
-function getTaskStatus(task) {
-  const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
-  const chTotal = checklist.length;
-  const chDone = checklist.filter(c => c.concluido).length;
-
-  if (task.Coluna === 'concluido' || (chTotal > 0 && chDone === chTotal)) {
-    return { id: 'concluido', label: 'Concluído', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' };
-  }
-
-  if (task.HoraLimite) {
-    const parts = task.HoraLimite.split(':');
-    if (parts.length === 2) {
-      const limitMinutes = Number(parts[0]) * 60 + Number(parts[1]);
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      if (nowMinutes > limitMinutes) {
-        return { id: 'atrasado', label: 'Atrasado', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' };
-      }
-    }
-  }
-
-  if (chDone > 0 || task.Coluna === 'andamento') {
-    return { id: 'andamento', label: 'Em andamento', color: '#d97706', bg: '#fffbeb', border: '#fde68a' };
-  }
-
-  return { id: 'pendente', label: 'Não iniciado', color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' };
-}
-
-function getSectorConfig(sector, type) {
-  if (type === 'manutencao') {
-    return { name: 'Reparos', icon: ICONS.tool, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' };
-  }
-  if (type === 'rotina_abertura') {
-    return { name: 'Abertura', icon: ICONS.sun, color: '#b45309', bg: '#fffbeb', border: '#fde68a' };
-  }
-  if (type === 'rotina_fechamento') {
-    return { name: 'Fechamento', icon: ICONS.moon, color: '#7e22ce', bg: '#faf5ff', border: '#e9d5ff' };
-  }
-  if (type === 'rotina_caixa' || sector === 'Caixa') {
-    return { name: 'Caixa', icon: ICONS.terminal, color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' };
-  }
-  if (sector === 'Cozinha' || sector === 'Chapa') {
-    return { name: sector || 'Cozinha', icon: ICONS.flame, color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' };
-  }
-  return { name: sector || 'Geral', icon: ICONS.list, color: '#334155', bg: '#f8fafc', border: '#e2e8f0' };
-}
-
-function updateCardProgressDom(taskId) {
-  const card = $(`[data-task-id="${taskId}"]`);
-  if (!card) return;
-  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-  if (!task) return;
-
-  const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
-  const chTotal = checklist.length;
-  const chDone = checklist.filter(c => c.concluido).length;
-  const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : (task.Coluna === 'concluido' ? 100 : 0);
-  const isAllDone = (chTotal > 0 && chDone === chTotal) || (chTotal === 0 && task.Coluna === 'concluido');
-  const statusCfg = getTaskStatus(task);
-
-  card.classList.toggle('is-complete', isAllDone);
-
-  const statusPill = card.querySelector('.routine-status-pill');
-  if (statusPill) {
-    statusPill.className = `routine-status-pill ${statusCfg.id}`;
-    statusPill.textContent = statusCfg.label;
-  }
-
-  const counter = card.querySelector('.routine-step-counter');
-  if (counter) {
-    counter.textContent = chTotal > 0 ? `${chDone} de ${chTotal} ${chTotal === 1 ? 'tarefa' : 'tarefas'}` : (isAllDone ? 'Tarefa concluída' : '1 tarefa direta');
-  }
-
-  const bar = card.querySelector('.routine-progress-fill');
-  if (bar) {
-    bar.classList.toggle('done', isAllDone);
-    bar.style.width = `${chPercent}%`;
-  }
-
-  const markBtn = card.querySelector('[data-mark-section-all]');
-  if (markBtn) {
-    markBtn.dataset.action = isAllDone ? 'uncheck' : 'check';
-    markBtn.textContent = isAllDone ? 'Desmarcar todos' : 'Concluir todos';
+    const d = new Date(deadline);
+    return { text: `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, tone: '' };
+  } catch (_) {
+    return { text: deadline, tone: '' };
   }
 }
 
-function updateGlobalStatsDom() {
-  const allTasks = state.tasks;
-  const total = allTasks.length;
-  const completed = allTasks.filter(t => t.Coluna === 'concluido' || (Array.isArray(t.Checklist) && t.Checklist.length > 0 && t.Checklist.every(c => c.concluido))).length;
-  const pending = total - completed;
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+// ==========================================================================
+// API HELPER
+// ==========================================================================
 
-  const countNum = $('.shift-count-number');
-  if (countNum) {
-    countNum.textContent = `${completed} de ${total}`;
+async function callApi(name, args = []) {
+  if (window.__GESTAO_FIREBASE__?.api?.invoke) {
+    return await window.__GESTAO_FIREBASE__.api.invoke(name, args);
   }
-  const pctPill = $('.shift-hero-pct-pill');
-  if (pctPill) {
-    pctPill.textContent = `${pct}%`;
-    pctPill.classList.toggle('done', pct === 100);
+  if (window.google?.script?.run) {
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .apiRequest(name, args[0] || {});
+    });
   }
-  const fill = $('.shift-progress-bar');
-  if (fill) {
-    fill.style.width = `${pct}%`;
-    fill.classList.toggle('done', pct === 100);
-  }
-  const badge = $('.shift-hero-badge');
-  if (badge) {
-    badge.className = `shift-hero-badge ${pct === 100 ? 'done' : 'active'}`;
-    badge.textContent = pct === 100 ? 'Turno Finalizado' : `${pending} ${pending === 1 ? 'rotina pendente' : 'rotinas pendentes'}`;
-  }
+  throw new Error("Sistema de conexão indisponível.");
 }
 
-let isInitialTasksLoaded = false;
-let userManuallyToggledView = false;
+// ==========================================================================
+// DATA LOADING
+// ==========================================================================
 
-async function loadTasks(silent = false) {
-  const api = getApi();
-  if (!api) return;
-  if (!silent) {
+async function loadData() {
+  try {
     state.loading = true;
-    renderTasksApp();
-  }
+    const [tasksRes, catalogRes, redemptionsRes, adjustsRes, missionsRes, teamRes] = await Promise.all([
+      callApi('cozinhaTasksList'),
+      callApi('cozinhaPointCatalog'),
+      callApi('cozinhaPointRedemptions'),
+      callApi('cozinhaPointAdjustments'),
+      callApi('cozinhaPointWeeklyMissions'),
+      callApi('cozinhaTeamMetrics'),
+    ]);
 
-  try {
-    const res = await api.invoke('tasksList', [state.selectedStore, state.selectedDate]);
-    if (res?.success) {
-      state.tasks = Array.isArray(res.data) ? res.data : [];
+    state.tasks = tasksRes?.data || [];
+    state.catalog = catalogRes?.data || [];
+    state.redemptions = redemptionsRes?.data || [];
+    state.adjustments = adjustsRes?.data || [];
+    state.missions = missionsRes?.data || [];
+    state.teamMetrics = teamRes?.data || [];
 
-      if (!state.isManager && !userManuallyToggledView && !isInitialTasksLoaded) {
-        const hasMyTasks = state.tasks.some(isTaskAssignedToCurrentUser);
-        if (hasMyTasks) {
-          state.viewMode = 'my';
-        }
-      }
-      isInitialTasksLoaded = true;
+    if (isUserAdmin()) {
+      const assigneesRes = await callApi('cozinhaTasksAssignees');
+      state.assignees = assigneesRes?.data || [];
     }
   } catch (err) {
-    console.error('Erro ao carregar tarefas:', err);
-  } finally {
-    if (!silent) {
-      state.loading = false;
-    }
-    renderTasksApp();
-  }
-}
-
-async function moveTaskColumn(taskId, newColumn) {
-  const api = getApi();
-  if (!api) return;
-
-  triggerHaptic('light');
-  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-  if (task) task.Coluna = newColumn;
-  renderTasksApp();
-
-  try {
-    await api.invoke('tasksUpdateColumn', [taskId, newColumn]);
-    await loadTasks(true);
-  } catch (err) {
-    console.error('Falha ao mover coluna:', err);
-    await loadTasks();
-  }
-}
-
-async function toggleChecklistItem(taskId, itemId, checked) {
-  const api = getApi();
-  if (!api) return;
-
-  triggerHaptic('light');
-
-  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-  if (task && Array.isArray(task.Checklist)) {
-    const item = task.Checklist.find(i => String(i.id) === String(itemId));
-    if (item) item.concluido = checked;
-
-    const allDone = task.Checklist.length > 0 && task.Checklist.every(i => i.concluido);
-    if (allDone && task.Coluna === 'pendente') {
-      task.Coluna = task.ExigeVistoGerente ? 'visto' : 'concluido';
-      triggerHaptic('success');
-    } else if (!allDone && task.Coluna === 'concluido') {
-      task.Coluna = 'andamento';
-    }
-  }
-
-  // Instant DOM update
-  const row = document.querySelector(`[data-toggle-subtask="${itemId}"][data-task-id="${taskId}"]`);
-  if (row) {
-    row.classList.toggle('checked', checked);
-    row.setAttribute('aria-checked', checked ? 'true' : 'false');
-    const box = row.querySelector('.routine-item-checkbox');
-    if (box) box.classList.toggle('checked', checked);
-  }
-
-  updateCardProgressDom(taskId);
-  updateGlobalStatsDom();
-
-  try {
-    const res = await api.invoke('tasksToggleChecklistItem', [taskId, itemId, checked]);
-    if (!res?.success) throw new Error(res?.message || 'Falha ao atualizar');
-  } catch (err) {
-    console.error('Falha ao atualizar checklist no servidor:', err);
-    if (task && Array.isArray(task.Checklist)) {
-      const item = task.Checklist.find(i => String(i.id) === String(itemId));
-      if (item) item.concluido = !checked;
-    }
-    renderTasksApp();
-  }
-}
-
-async function approveTask(taskId, notes = '') {
-  const api = getApi();
-  if (!api) return;
-
-  triggerHaptic('success');
-  try {
-    await api.invoke('tasksApprove', [taskId, notes]);
-    await loadTasks(true);
-  } catch (err) {
-    alert(err.message || 'Falha ao conceder visto.');
-  }
-}
-
-async function generateRoutine(routineType) {
-  const api = getApi();
-  if (!api) return;
-
-  closeDialog('taskRoutineDialog');
-  state.loading = true;
-  renderTasksApp();
-
-  try {
-    const res = await api.invoke('tasksGenerateRoutine', [state.selectedStore, routineType, state.selectedDate]);
-    if (res?.message) {
-      alert(res.message);
-    }
-    await loadTasks();
-  } catch (err) {
-    alert(err.message || 'Falha ao gerar rotina.');
+    console.error("Erro ao carregar dados do CozinhaFlow:", err);
   } finally {
     state.loading = false;
-    renderTasksApp();
+    renderApp();
   }
 }
 
-async function deduplicateTasks() {
-  if (!confirm('Deseja organizar o quadro e remover tarefas idênticas duplicadas?')) return;
-  const api = getApi();
-  if (!api) return;
+// ==========================================================================
+// CALCULAÇÃO DE SALDO DE PONTOS
+// ==========================================================================
 
-  state.loading = true;
-  renderTasksApp();
+function computeUserBalance() {
+  const uid = currentUserId();
+  const myTasks = state.tasks.filter(t => String(t.RESPONSAVEL_ID) === uid && t.STATUS === 'Concluída');
+  const taskPts = myTasks.reduce((sum, t) => sum + taskPointValue(t.PRIORIDADE), 0);
 
-  try {
-    const res = await api.invoke('tasksDeduplicate', [state.selectedStore, state.selectedDate]);
-    if (res?.message) alert(res.message);
-    await loadTasks();
-  } catch (err) {
-    alert(err.message || 'Falha ao organizar tarefas.');
-  } finally {
-    state.loading = false;
-    renderTasksApp();
-  }
+  const myAdjusts = state.adjustments.filter(a => String(a.USUARIO_ID) === uid);
+  const bonus = myAdjusts.filter(a => Number(a.PONTOS) > 0).reduce((s, a) => s + Number(a.PONTOS), 0);
+  const penalties = myAdjusts.filter(a => Number(a.PONTOS) < 0).reduce((s, a) => s + Math.abs(Number(a.PONTOS)), 0);
+
+  const totalEarned = Math.max(0, taskPts + bonus - penalties);
+  const spent = state.redemptions.filter(r => String(r.USUARIO_ID) === uid && r.STATUS !== 'Cancelado').reduce((s, r) => s + Number(r.PONTOS || 0), 0);
+
+  const available = Math.max(0, totalEarned - spent);
+  const levelInfo = getKitchenLevel(totalEarned);
+
+  return { totalEarned, spent, available, levelInfo };
 }
 
-async function deleteTask(taskId) {
-  if (!confirm('Deseja realmente remover esta tarefa?')) return;
-  const api = getApi();
-  if (!api) return;
+// ==========================================================================
+// RENDERIZAÇÃO PRINCIPAL DO COZINHA FLOW
+// ==========================================================================
 
-  try {
-    await api.invoke('tasksDelete', [taskId]);
-    await loadTasks(true);
-  } catch (err) {
-    alert(err.message || 'Falha ao excluir tarefa.');
-  }
+function renderApp() {
+  const host = $('#tasksApp');
+  if (!host) return;
+
+  const { available, levelInfo } = computeUserBalance();
+  const admin = isUserAdmin();
+
+  // Contadores
+  const todoCount = state.tasks.filter(t => t.STATUS === 'A fazer').length;
+  const doingCount = state.tasks.filter(t => t.STATUS === 'Em andamento').length;
+  const reviewCount = state.tasks.filter(t => t.STATUS === 'Aguardando aprovação').length;
+  const doneToday = state.tasks.filter(t => t.STATUS === 'Concluída' && String(t.CONCLUIDO_EM || '').slice(0, 10) === dateKey()).length;
+  const overdueCount = state.tasks.filter(isTaskOverdue).length;
+
+  host.innerHTML = `
+    <!-- Barra Superior de Navegação CozinhaFlow -->
+    <nav class="cf-nav-bar" aria-label="Abas CozinhaFlow">
+      <button type="button" class="cf-nav-btn ${state.activeTab === 'tarefas' ? 'active' : ''}" data-cf-tab="tarefas">
+        <span class="material-symbols-rounded">checklist</span>
+        <span>Tarefas</span>
+        ${reviewCount && admin ? `<b class="cf-nav-badge">${reviewCount}</b>` : ''}
+      </button>
+      <button type="button" class="cf-nav-btn ${state.activeTab === 'jornada' ? 'active' : ''}" data-cf-tab="jornada">
+        <span class="material-symbols-rounded">workspace_premium</span>
+        <span>Títulos &amp; Jornada</span>
+        <b class="cf-nav-badge">${levelInfo.level.emoji} ${levelInfo.level.short}</b>
+      </button>
+      <button type="button" class="cf-nav-btn ${state.activeTab === 'loja' ? 'active' : ''}" data-cf-tab="loja">
+        <span class="material-symbols-rounded">stars</span>
+        <span>Loja de Prêmios</span>
+        <b class="cf-nav-badge" style="background:#fef3c7;color:#b45309;">${available} pts</b>
+      </button>
+      <button type="button" class="cf-nav-btn ${state.activeTab === 'equipe' ? 'active' : ''}" data-cf-tab="equipe">
+        <span class="material-symbols-rounded">groups</span>
+        <span>Equipe</span>
+      </button>
+    </nav>
+
+    <!-- ABA 1: TAREFAS -->
+    <div id="cfTabTarefas" class="cf-view-tab ${state.activeTab === 'tarefas' ? 'active' : ''}">
+      ${renderTarefasTab({ todoCount, doingCount, reviewCount, doneToday, overdueCount, admin })}
+    </div>
+
+    <!-- ABA 2: TÍTULOS & JORNADA -->
+    <div id="cfTabJornada" class="cf-view-tab ${state.activeTab === 'jornada' ? 'active' : ''}">
+      ${renderJornadaTab({ levelInfo, available, admin })}
+    </div>
+
+    <!-- ABA 3: LOJA DE PRÊMIOS -->
+    <div id="cfTabLoja" class="cf-view-tab ${state.activeTab === 'loja' ? 'active' : ''}">
+      ${renderLojaTab({ available, admin })}
+    </div>
+
+    <!-- ABA 4: EQUIPE & RANKING -->
+    <div id="cfTabEquipe" class="cf-view-tab ${state.activeTab === 'equipe' ? 'active' : ''}">
+      ${renderEquipeTab({ admin })}
+    </div>
+  `;
+
+  bindEvents();
 }
 
-function openNewTaskDialog(defaultSector = 'Caixa') {
-  populateEmployeeSelect('');
-  const idInput = $('#taskIdInput');
-  if (idInput) idInput.value = '';
-  const heading = $('#taskDialogHeading');
-  if (heading) heading.textContent = 'Nova Tarefa / Checklist';
+// ==========================================================================
+// ABA 1: TAREFAS
+// ==========================================================================
 
-  if ($('#taskTitleInput')) $('#taskTitleInput').value = '';
-  if ($('#taskSectorInput')) $('#taskSectorInput').value = defaultSector || (state.selectedSector === 'caixa' ? 'Caixa' : 'Geral');
-  if ($('#taskPriorityInput')) $('#taskPriorityInput').value = 'Media';
-  if ($('#taskEmployeeInput')) $('#taskEmployeeInput').value = '';
-  if ($('#taskDeadlineInput')) $('#taskDeadlineInput').value = '';
-  if ($('#taskDescInput')) $('#taskDescInput').value = '';
-  if ($('#taskManagerSignInput')) $('#taskManagerSignInput').checked = false;
+function renderTarefasTab({ todoCount, doingCount, reviewCount, doneToday, overdueCount, admin }) {
+  const visible = getFilteredTasks();
 
-  state.checklistDraft = [];
-  renderDraftChecklist();
-  openDialog('taskDialog');
-}
+  return `
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">${admin ? 'Operação da Equipe' : 'Meu Trabalho'}</span>
+        <h1>${admin ? 'Tarefas da Cozinha' : 'Minhas Tarefas'}</h1>
+        <p>${admin ? 'Distribua o trabalho, acompanhe e aprove as fotos de comprovação.' : 'Veja o que precisa ser feito, inicie e envie foto ao concluir.'}</p>
+      </div>
+      <div class="page-actions">
+        ${admin ? `
+          <button type="button" class="cf-btn-primary" id="cfBtnNewTask">
+            <span class="material-symbols-rounded">add_task</span>Nova Tarefa
+          </button>
+        ` : ''}
+      </div>
+    </div>
 
-function openEditTaskDialog(taskId) {
-  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-  if (!task) return;
-  populateEmployeeSelect(task.FuncionarioID || task.NomeFuncionario || '');
+    <!-- Cards de Resumo -->
+    <div class="task-summary-grid">
+      <div class="task-summary-card">
+        <span class="task-summary-icon todo"><span class="material-symbols-rounded">assignment</span></span>
+        <div><small>A fazer</small><strong>${todoCount}</strong></div>
+      </div>
+      <div class="task-summary-card">
+        <span class="task-summary-icon doing"><span class="material-symbols-rounded">pending_actions</span></span>
+        <div><small>Fazendo</small><strong>${doingCount}</strong></div>
+      </div>
+      <div class="task-summary-card">
+        <span class="task-summary-icon done"><span class="material-symbols-rounded">verified</span></span>
+        <div><small>Feitas hoje</small><strong>${doneToday}</strong></div>
+      </div>
+      <div class="task-summary-card">
+        <span class="task-summary-icon overdue"><span class="material-symbols-rounded">notification_important</span></span>
+        <div><small>Atrasadas</small><strong>${overdueCount}</strong></div>
+      </div>
+    </div>
 
-  const idInput = $('#taskIdInput');
-  if (idInput) idInput.value = task.TarefaID;
-  const heading = $('#taskDialogHeading');
-  if (heading) heading.textContent = 'Editar Tarefa / Checklist';
+    <!-- Próxima ação do colaborador -->
+    ${!admin ? renderEmployeeFocus() : ''}
 
-  if ($('#taskTitleInput')) $('#taskTitleInput').value = task.Titulo || '';
-  if ($('#taskSectorInput')) $('#taskSectorInput').value = task.Setor || 'Caixa';
-  if ($('#taskPriorityInput')) $('#taskPriorityInput').value = task.Prioridade || 'Media';
-  if ($('#taskEmployeeInput')) $('#taskEmployeeInput').value = task.FuncionarioID || '';
-  if ($('#taskDeadlineInput')) $('#taskDeadlineInput').value = task.HoraLimite || '';
-  if ($('#taskDescInput')) $('#taskDescInput').value = task.Descricao || '';
-  if ($('#taskManagerSignInput')) $('#taskManagerSignInput').checked = Boolean(task.ExigeVistoGerente);
+    <!-- Painel de Atenção do Admin -->
+    ${admin ? renderAdminAttentionPanel({ reviewCount, overdueCount }) : ''}
 
-  state.checklistDraft = Array.isArray(task.Checklist)
-    ? task.Checklist.map(c => ({ id: c.id || (Date.now() + Math.random()), texto: c.texto || '', concluido: Boolean(c.concluido) }))
-    : [];
-  renderDraftChecklist();
-  openDialog('taskDialog');
+    <!-- Abas Mobile de Status -->
+    <div class="task-mobile-tabs">
+      <button type="button" class="task-mobile-tab ${state.mobileStatus === 'A fazer' ? 'active' : ''}" data-mobile-status="A fazer">
+        <span>A fazer</span><strong>${state.tasks.filter(t => t.STATUS === 'A fazer').length}</strong>
+      </button>
+      <button type="button" class="task-mobile-tab ${state.mobileStatus === 'Em andamento' ? 'active' : ''}" data-mobile-status="Em andamento">
+        <span>Fazendo</span><strong>${state.tasks.filter(t => t.STATUS === 'Em andamento').length}</strong>
+      </button>
+      <button type="button" class="task-mobile-tab ${state.mobileStatus === 'Aguardando aprovação' ? 'active' : ''}" data-mobile-status="Aguardando aprovação">
+        <span>Conferir</span><strong>${reviewCount}</strong>
+      </button>
+      <button type="button" class="task-mobile-tab ${state.mobileStatus === 'Concluída' ? 'active' : ''}" data-mobile-status="Concluída">
+        <span>Feitas</span><strong>${state.tasks.filter(t => t.STATUS === 'Concluída').length}</strong>
+      </button>
+    </div>
+
+    <!-- Barra de Ferramentas / Filtros -->
+    <div class="task-toolbar">
+      <div class="task-search">
+        <span class="material-symbols-rounded">search</span>
+        <input type="search" id="cfTaskSearch" placeholder="Buscar tarefas..." value="${esc(state.searchQuery)}">
+      </div>
+      ${admin ? `
+        <select class="task-select" id="cfTaskAssigneeFilter">
+          <option value="">Todos os colaboradores</option>
+          ${state.assignees.map(a => `<option value="${esc(a.id)}" ${state.filterAssignee === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+        </select>
+      ` : ''}
+      <select class="task-select" id="cfTaskPriorityFilter">
+        <option value="">Todas as prioridades</option>
+        <option value="Urgente" ${state.filterPriority === 'Urgente' ? 'selected' : ''}>Urgente</option>
+        <option value="Alta" ${state.filterPriority === 'Alta' ? 'selected' : ''}>Alta</option>
+        <option value="Normal" ${state.filterPriority === 'Normal' ? 'selected' : ''}>Normal</option>
+        <option value="Baixa" ${state.filterPriority === 'Baixa' ? 'selected' : ''}>Baixa</option>
+      </select>
+      <button type="button" class="task-tool-btn" id="cfBtnRefreshTasks">
+        <span class="material-symbols-rounded">refresh</span>Atualizar
+      </button>
+    </div>
+
+    <!-- Quadro Kanban de Tarefas -->
+    <div class="task-board">
+      ${STATUSES.map(col => {
+        const colTasks = visible.filter(t => t.STATUS === col.value);
+        return `
+          <div class="task-column ${col.tone} ${state.mobileStatus === col.value ? 'mobile-active' : ''}">
+            <div class="task-column-head">
+              <span class="task-column-title">
+                <span class="material-symbols-rounded">${col.icon}</span>${col.title}
+              </span>
+              <span class="task-column-count">${colTasks.length}</span>
+            </div>
+            <div class="task-column-list">
+              ${colTasks.length ? colTasks.map(t => renderTaskCard(t, admin)).join('') : `
+                <div class="task-column-empty">
+                  <span class="material-symbols-rounded">task_alt</span>
+                  <strong>Nada por aqui</strong>
+                  <span>Nenhuma tarefa nesta etapa.</span>
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+
+    <!-- Canceladas / Arquivadas -->
+    ${renderArchiveSection(visible, admin)}
+  `;
 }
 
 function getFilteredTasks() {
+  const query = state.searchQuery.trim().toLowerCase();
   return state.tasks.filter(t => {
-    if (state.selectedSector === 'todos') return true;
-    if (state.selectedSector === 'caixa') return t.Setor === 'Caixa' || t.Tipo === 'rotina_caixa';
-    if (state.selectedSector === 'abertura') return t.Tipo === 'rotina_abertura';
-    if (state.selectedSector === 'fechamento') return t.Tipo === 'rotina_fechamento';
-    if (state.selectedSector === 'manutencao') return t.Tipo === 'manutencao';
-    if (state.selectedSector === 'cozinha') return t.Setor === 'Cozinha';
-    if (state.selectedSector === 'chapa') return t.Setor === 'Chapa';
-    if (state.selectedSector === 'salao') return t.Setor === 'Salão';
+    if (state.attentionFilter === 'review' && t.STATUS !== 'Aguardando aprovação') return false;
+    if (state.attentionFilter === 'overdue' && !isTaskOverdue(t)) return false;
+    if (state.attentionFilter === 'soon' && !isTaskDueSoon(t)) return false;
+    if (state.attentionFilter === 'returned' && t.REVISAO_STATUS !== 'Devolvida') return false;
+
+    if (state.filterAssignee && String(t.RESPONSAVEL_ID) !== state.filterAssignee) return false;
+    if (state.filterPriority && t.PRIORIDADE !== state.filterPriority) return false;
+
+    if (query) {
+      const haystack = `${t.TITULO} ${t.DESCRICAO} ${t.RESPONSAVEL_NOME}`.toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
     return true;
   });
 }
 
-function renderShiftOverview(tasks) {
-  const total = tasks.length;
-  const completed = tasks.filter(t => t.Coluna === 'concluido' || (Array.isArray(t.Checklist) && t.Checklist.length > 0 && t.Checklist.every(c => c.concluido))).length;
-  const pending = total - completed;
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+function renderEmployeeFocus() {
+  const uid = currentUserId();
+  const returned = state.tasks.find(t => String(t.RESPONSAVEL_ID) === uid && t.REVISAO_STATUS === 'Devolvida' && t.STATUS === 'Em andamento');
+  const doing = state.tasks.find(t => String(t.RESPONSAVEL_ID) === uid && t.STATUS === 'Em andamento');
+  const overdue = state.tasks.find(t => String(t.RESPONSAVEL_ID) === uid && isTaskOverdue(t));
+  const todo = state.tasks.find(t => String(t.RESPONSAVEL_ID) === uid && t.STATUS === 'A fazer');
 
-  if (total === 0) {
+  const target = returned || doing || overdue || todo;
+  if (!target) {
     return `
-      <section class="shift-hero shift-hero-empty" aria-label="Status do Turno">
-        <div class="shift-hero-header">
-          <span class="shift-hero-kicker">SEU TURNO HOJE</span>
-          <span class="shift-hero-badge ok">Operação em Dia</span>
+      <div class="employee-task-focus">
+        <span class="material-symbols-rounded">celebration</span>
+        <div>
+          <small>Tudo em dia!</small>
+          <strong>Nenhuma tarefa pendente agora</strong>
+          <p>Você concluiu suas atividades. Aguarde nova atribuição da liderança.</p>
         </div>
-        <div class="shift-hero-body">
-          <h3 class="shift-hero-title">Tudo em ordem</h3>
-          <p class="shift-hero-desc">Nenhuma rotina pendente neste momento. Novas atividades operacionais serão liberadas pela gerência conforme o andamento do turno.</p>
-        </div>
-      </section>
+      </div>
     `;
   }
 
+  const isReturn = target.REVISAO_STATUS === 'Devolvida';
+  const actionText = target.STATUS === 'A fazer' ? 'Iniciar' : 'Enviar Foto';
+  const actionType = target.STATUS === 'A fazer' ? 'start' : 'complete';
+
   return `
-    <section class="shift-hero" aria-label="Status do Turno">
-      <div class="shift-hero-header">
-        <span class="shift-hero-kicker">SEU TURNO HOJE</span>
-        <span class="shift-hero-badge ${pct === 100 ? 'done' : 'active'}">
-          ${pct === 100 ? 'Turno Finalizado' : `${pending} ${pending === 1 ? 'rotina pendente' : 'rotinas pendentes'}`}
-        </span>
+    <div class="employee-task-focus">
+      <span class="material-symbols-rounded">${isReturn ? 'add_a_photo' : (target.STATUS === 'A fazer' ? 'play_circle' : 'camera_alt')}</span>
+      <div>
+        <small>${isReturn ? 'Foto devolvida · envie nova foto' : 'Sua próxima atividade'}</small>
+        <strong>${esc(target.TITULO)}</strong>
+        <p>${formatRelativeDeadline(target.PRAZO).text} · Prioridade ${esc(target.PRIORIDADE)}</p>
       </div>
-
-      <div class="shift-hero-stats">
-        <div class="shift-hero-count">
-          <strong class="shift-count-number">${completed} de ${total}</strong>
-          <span class="shift-count-label">rotinas concluídas</span>
-        </div>
-        <div class="shift-hero-pct-pill ${pct === 100 ? 'done' : ''}">
-          ${pct}%
-        </div>
-      </div>
-
-      <div class="shift-progress-track">
-        <div class="shift-progress-bar ${pct === 100 ? 'done' : ''}" style="width: ${pct}%;"></div>
-      </div>
-    </section>
-  `;
-}
-
-function renderSkeletonLoading() {
-  return `
-    <div class="tasks-skeleton-wrap" aria-busy="true" aria-label="Carregando rotinas...">
-      <div class="skeleton-shift-hero shimmer"></div>
-      <div class="skeleton-card shimmer"></div>
-      <div class="skeleton-card shimmer"></div>
-      <div class="skeleton-card shimmer"></div>
+      <button type="button" data-cf-action="${actionType}" data-task-id="${esc(target.ID)}">
+        ${actionText}
+      </button>
     </div>
   `;
 }
 
-function renderChecklistCard(task) {
-  const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
-  const chTotal = checklist.length;
-  const chDone = checklist.filter(c => c.concluido).length;
-  const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : (task.Coluna === 'concluido' ? 100 : 0);
-  const isAllDone = (chTotal > 0 && chDone === chTotal) || (chTotal === 0 && task.Coluna === 'concluido');
-  const sectorCfg = getSectorConfig(task.Setor, task.Tipo);
-  const statusCfg = getTaskStatus(task);
-  const isAssigned = isTaskAssignedToCurrentUser(task);
-  const isExpanded = state.expandedCards.has(String(task.TarefaID));
-  const isManager = isUserAdminOrManager();
+function renderAdminAttentionPanel({ reviewCount, overdueCount }) {
+  const returnedCount = state.tasks.filter(t => t.REVISAO_STATUS === 'Devolvida').length;
+  const soonCount = state.tasks.filter(isTaskDueSoon).length;
+  const totalAlerts = reviewCount + overdueCount + returnedCount + soonCount;
 
-  const stepMatch = (task.Titulo || '').match(/^(\d+)\.\s*(.*)$/);
-  const stepTitle = stepMatch ? stepMatch[2] : task.Titulo;
+  if (!totalAlerts) {
+    return `
+      <div class="task-attention-panel">
+        <div class="task-attention-head">
+          <div><span class="material-symbols-rounded" style="color:#059669;">verified</span><div><small>Operação em dia</small><strong>Nenhuma pendência crítica agora</strong></div></div>
+        </div>
+      </div>
+    `;
+  }
 
   return `
-    <article class="routine-card ${isAllDone ? 'is-complete' : ''} ${isAssigned ? 'is-assigned' : ''}" data-task-id="${esc(task.TarefaID)}">
-      <!-- Topo do Card: Ícone Contextual, Meta, Status e Ação -->
-      <div class="routine-card-main" data-toggle-expand-card="${esc(task.TarefaID)}">
-        <div class="routine-icon-container" style="background:${sectorCfg.bg}; color:${sectorCfg.color}; border-color:${sectorCfg.border};">
-          ${sectorCfg.icon}
-        </div>
+    <div class="task-attention-panel">
+      <div class="task-attention-head">
+        <div><span class="material-symbols-rounded">crisis_alert</span><div><small>Visão da Liderança</small><strong>Precisa de atenção (${totalAlerts})</strong></div></div>
+        ${state.attentionFilter ? `<button type="button" class="task-tool-btn" id="cfClearAttention">Mostrar todas</button>` : ''}
+      </div>
+      <div class="task-attention-items">
+        <button type="button" class="task-attention-item review ${state.attentionFilter === 'review' ? 'active' : ''}" data-attention="review">
+          <span class="material-symbols-rounded">photo_library</span>
+          <span><strong>${reviewCount}</strong><small>Fotos para conferir</small></span>
+        </button>
+        <button type="button" class="task-attention-item danger ${state.attentionFilter === 'overdue' ? 'active' : ''}" data-attention="overdue">
+          <span class="material-symbols-rounded">timer_off</span>
+          <span><strong>${overdueCount}</strong><small>Atrasadas</small></span>
+        </button>
+        <button type="button" class="task-attention-item warning ${state.attentionFilter === 'soon' ? 'active' : ''}" data-attention="soon">
+          <span class="material-symbols-rounded">hourglass_top</span>
+          <span><strong>${soonCount}</strong><small>Vencem em 2h</small></span>
+        </button>
+        <button type="button" class="task-attention-item returned ${state.attentionFilter === 'returned' ? 'active' : ''}" data-attention="returned">
+          <span class="material-symbols-rounded">assignment_return</span>
+          <span><strong>${returnedCount}</strong><small>Fotos devolvidas</small></span>
+        </button>
+      </div>
+    </div>
+  `;
+}
 
-        <div class="routine-info-block">
-          <div class="routine-meta-row">
-            <span class="routine-sector-label" style="color:${sectorCfg.color};">${esc(sectorCfg.name)}</span>
-            ${task.HoraLimite ? `
-              <span class="routine-deadline ${statusCfg.id === 'atrasado' ? 'overdue' : ''}">
-                ${ICONS.clock} Até ${esc(task.HoraLimite)}
-              </span>
-            ` : ''}
-            ${isAssigned ? `<span class="routine-assigned-badge">${ICONS.user} Sua Tarefa</span>` : ''}
-          </div>
+function renderTaskCard(task, admin) {
+  const uid = currentUserId();
+  const isMine = String(task.RESPONSAVEL_ID) === uid;
+  const deadlineInfo = formatRelativeDeadline(task.PRAZO);
+  const initials = (task.RESPONSAVEL_NOME || '?').split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
 
-          <h3 class="routine-title">${esc(stepTitle)}</h3>
-          ${task.Descricao ? `<p class="routine-desc">${esc(task.Descricao)}</p>` : ''}
+  const priorityClass = { Urgente: 'urgent', Alta: 'high', Normal: 'normal', Baixa: 'low' }[task.PRIORIDADE] || 'normal';
 
-          <div class="routine-status-row">
-            <span class="routine-status-pill ${statusCfg.id}">
-              ${statusCfg.label}
-            </span>
-            <span class="routine-step-counter">
-              ${chTotal > 0 ? `${chDone} de ${chTotal} ${chTotal === 1 ? 'tarefa' : 'tarefas'}` : (isAllDone ? 'Tarefa concluída' : '1 tarefa direta')}
-            </span>
-          </div>
-        </div>
-
-        <div class="routine-action-side">
-          <button type="button" class="routine-expand-btn ${isExpanded ? 'expanded' : ''}" aria-label="Expandir rotina">
-            <span class="routine-expand-label">${isAllDone ? 'Rever' : isExpanded ? 'Recolher' : chDone > 0 ? 'Continuar' : 'Iniciar'}</span>
-            ${isExpanded ? ICONS.chevronUp : ICONS.arrowRight}
-          </button>
-        </div>
+  return `
+    <article class="task-card" data-task-id="${esc(task.ID)}">
+      <div class="task-card-meta">
+        <span class="task-priority-badge ${priorityClass}">${esc(task.PRIORIDADE)}</span>
+        ${task.PRAZO ? `<span class="task-deadline-badge ${deadlineInfo.tone}"><span class="material-symbols-rounded" style="font-size:12px;">schedule</span>${esc(deadlineInfo.text)}</span>` : ''}
+        ${task.REVISAO_STATUS === 'Devolvida' ? `<span class="task-deadline-badge danger">Devolvida: ${esc(task.MOTIVO_REVISAO)}</span>` : ''}
       </div>
 
-      <!-- Barra de Progresso Fina no Card -->
-      <div class="routine-progress-track">
-        <div class="routine-progress-fill ${isAllDone ? 'done' : ''}" style="width: ${chPercent}%;"></div>
-      </div>
+      <h4 class="task-card-title">${esc(task.TITULO)}</h4>
+      ${task.DESCRICAO ? `<p class="task-card-description">${esc(task.DESCRICAO)}</p>` : ''}
+      ${task.ORIENTACAO_FOTO ? `<p class="task-card-description" style="color:#7c3aed;font-weight:600;"><span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle;">info</span> Foto: ${esc(task.ORIENTACAO_FOTO)}</p>` : ''}
 
-      <!-- Bandeja Expansível com os Subitens -->
-      ${isExpanded ? `
-        <div class="routine-tray">
-          ${chTotal > 0 ? `
-            <div class="routine-items-list">
-              ${checklist.map(item => `
-                <button type="button" class="routine-item-row ${item.concluido ? 'checked' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}" role="checkbox" aria-checked="${item.concluido ? 'true' : 'false'}">
-                  <span class="routine-item-checkbox ${item.concluido ? 'checked' : ''}">
-                    ${ICONS.check}
-                  </span>
-                  <span class="routine-item-text">${esc(item.texto)}</span>
-                </button>
-              `).join('')}
-            </div>
-          ` : `
-            <div class="routine-single-action">
-              <button type="button" class="btn ${isAllDone ? 'btn-secondary' : 'btn-primary'}" data-toggle-card-complete="${esc(task.TarefaID)}" style="width: 100%; height: 44px; border-radius: 8px;">
-                ${isAllDone ? 'Reabrir Rotina' : 'Marcar como Concluída'}
-              </button>
-            </div>
-          `}
-
-          <footer class="routine-tray-footer">
-            <div class="routine-footer-meta">
-              <span class="routine-resp">${ICONS.user} <strong>${esc(task.NomeFuncionario || 'Equipe da Praça')}</strong></span>
-              ${task.VistoPor ? `
-                <span class="visto-badge approved">${ICONS.check} Visto: ${esc(task.VistoPor)}</span>
-              ` : task.ExigeVistoGerente ? `
-                <span class="visto-badge pending">Exige visto</span>
-              ` : ''}
-            </div>
-
-            <div class="routine-footer-actions">
-              ${chTotal > 0 ? `
-                <button type="button" class="btn-ghost-action" data-mark-section-all="${esc(task.TarefaID)}" data-action="${isAllDone ? 'uncheck' : 'check'}">
-                  ${isAllDone ? 'Desmarcar todos' : 'Concluir todos'}
-                </button>
-              ` : ''}
-              ${isManager ? `
-                <button type="button" class="btn-icon-subtle" data-edit-task="${esc(task.TarefaID)}" title="Editar">
-                  ${ICONS.edit}
-                </button>
-                <button type="button" class="btn-icon-danger" data-delete-task="${esc(task.TarefaID)}" title="Excluir rotina">
-                  ${ICONS.trash}
-                </button>
-              ` : ''}
-            </div>
-          </footer>
+      ${task.FOTO_URL ? `
+        <div class="task-card-thumb" data-cf-action="view-evidence" data-task-id="${esc(task.ID)}">
+          <img src="${esc(task.FOTO_URL)}" alt="Foto da tarefa" loading="lazy">
         </div>
       ` : ''}
+
+      <div class="task-card-assignee">
+        <div class="task-assignee-avatar">${esc(initials)}</div>
+        <div>
+          <small>Responsável</small>
+          <strong>${esc(task.RESPONSAVEL_NOME)}</strong>
+        </div>
+      </div>
+
+      <!-- Ações do Card -->
+      <div class="task-card-actions">
+        ${task.STATUS === 'A fazer' && (isMine || admin) ? `
+          <button type="button" class="task-action-btn primary" data-cf-action="start" data-task-id="${esc(task.ID)}">
+            <span class="material-symbols-rounded" style="font-size:16px;">play_arrow</span>Iniciar
+          </button>
+        ` : ''}
+
+        ${task.STATUS === 'Em andamento' && (isMine || admin) ? `
+          <button type="button" class="task-action-btn primary" data-cf-action="complete" data-task-id="${esc(task.ID)}">
+            <span class="material-symbols-rounded" style="font-size:16px;">photo_camera</span>Concluir com Foto
+          </button>
+        ` : ''}
+
+        ${admin && task.STATUS === 'Aguardando aprovação' ? `
+          <button type="button" class="task-action-btn success" data-cf-action="approve" data-task-id="${esc(task.ID)}">
+            <span class="material-symbols-rounded" style="font-size:16px;">check_circle</span>Aprovar
+          </button>
+          <button type="button" class="task-action-btn light" data-cf-action="reject" data-task-id="${esc(task.ID)}">
+            <span class="material-symbols-rounded" style="font-size:16px;">add_a_photo</span>Pedir Nova Foto
+          </button>
+        ` : ''}
+
+        ${task.FOTO_URL ? `
+          <button type="button" class="task-action-btn light" data-cf-action="view-evidence" data-task-id="${esc(task.ID)}">
+            <span class="material-symbols-rounded" style="font-size:16px;">image</span>Foto
+          </button>
+        ` : ''}
+
+        ${admin && task.STATUS !== 'Cancelada' && task.STATUS !== 'Concluída' ? `
+          <button type="button" class="task-action-btn light" data-cf-action="edit" data-task-id="${esc(task.ID)}" title="Editar">
+            <span class="material-symbols-rounded" style="font-size:16px;">edit</span>
+          </button>
+          <button type="button" class="task-action-btn light" data-cf-action="cancel" data-task-id="${esc(task.ID)}" title="Cancelar">
+            <span class="material-symbols-rounded" style="font-size:16px;">block</span>
+          </button>
+        ` : ''}
+
+        ${admin && (task.STATUS === 'Cancelada' || task.STATUS === 'Concluída') ? `
+          <button type="button" class="task-action-btn light" data-cf-action="reopen" data-task-id="${esc(task.ID)}">
+            <span class="material-symbols-rounded" style="font-size:16px;">replay</span>Reabrir
+          </button>
+        ` : ''}
+      </div>
     </article>
   `;
 }
 
-function renderDailyChecklist(tasks) {
-  if (tasks.length === 0) {
-    return `
-      <div class="tasks-empty-starter" style="margin-top: 14px;">
-        <h3>Nenhuma rotina neste filtro</h3>
-        <p>Selecione outro setor acima ou adicione uma nova rotina para o turno de hoje.</p>
-      </div>
-    `;
-  }
-
+function renderArchiveSection(visible, admin) {
+  const canceled = visible.filter(t => t.STATUS === 'Cancelada');
   return `
-    <div class="daily-checklist-container">
-      ${tasks.map(t => renderChecklistCard(t)).join('')}
-    </div>
+    <details class="task-archive">
+      <summary>
+        <span class="material-symbols-rounded">archive</span>
+        <span>Tarefas Canceladas (${canceled.length})</span>
+      </summary>
+      <div class="task-archive-list">
+        ${canceled.length ? canceled.map(t => renderTaskCard(t, admin)).join('') : '<p style="color:#8a8da0;font-size:12px;padding:8px 0;">Nenhuma tarefa cancelada.</p>'}
+      </div>
+    </details>
   `;
 }
 
-function renderMyTasks() {
-  const myTasks = state.tasks.filter(isTaskAssignedToCurrentUser);
-  const userName = state.user?.Nome || state.user?.nome || 'Colaborador';
-  const firstName = userName.split(' ')[0];
+// ==========================================================================
+// ABA 2: TÍTULOS & JORNADA DA COZINHA (Gamificação)
+// ==========================================================================
 
-  if (myTasks.length === 0) {
-    return `
-      <div class="tasks-empty-starter employee-empty" style="margin-top: 14px;">
-        <span class="starter-tag caixa">MINHAS ATRIBUIÇÕES</span>
-        <h3 style="margin-top:14px;font-size:18px;font-weight:700;color:var(--text, #0f172a);">Olá, ${esc(firstName)}</h3>
-        <p style="max-width:440px;margin:8px auto 18px;color:var(--muted, #64748b);font-size:13.5px;line-height:1.45;">
-          Você não possui rotinas vinculadas exclusivamente ao seu nome no momento. Você pode atuar e cumprir as rotinas gerais da praça.
-        </p>
-        <button type="button" class="btn btn-primary" data-view-mode="checklist" style="font-size:13px;font-weight:600;padding:10px 24px;border-radius:8px;">
-          Ver Rotinas Gerais
-        </button>
-      </div>
-    `;
-  }
+function renderJornadaTab({ levelInfo, available, admin }) {
+  const uid = currentUserId();
+  const userName = currentUserName();
+  const myAdjusts = state.adjustments.filter(a => String(a.USUARIO_ID) === uid);
+  const myTasks = state.tasks.filter(t => String(t.RESPONSAVEL_ID) === uid && t.STATUS === 'Concluída');
 
   return `
-    <div class="my-tasks-container">
-      <div class="my-tasks-list">
-        ${renderDailyChecklist(myTasks)}
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">Progressão e Gamificação</span>
+        <h1>Títulos &amp; Jornada da Cozinha</h1>
+        <p>Conclua tarefas, ganhe pontos e suba na hierarquia da House Burger!</p>
+      </div>
+      ${admin ? `
+        <div class="page-actions">
+          <button type="button" class="cf-btn-primary" id="cfBtnPenalty">
+            <span class="material-symbols-rounded">remove_circle</span>Retirar Pontos
+          </button>
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- Painel de Nível / Título -->
+    <div class="profile-points-panel">
+      <div class="profile-score-hero">
+        <div class="profile-level-icon">${levelInfo.level.emoji}</div>
+        <div class="profile-score-copy">
+          <small>Seu Título Atual</small>
+          <strong>${esc(levelInfo.level.name)}</strong>
+          <span>${levelInfo.nextLevel ? `Faltam ${levelInfo.pointsNeeded} pontos para ${levelInfo.nextLevel.name}` : 'Nível Máximo Conquistado!'}</span>
+        </div>
+        <div class="profile-score-total">
+          <strong>${available}</strong>
+          <span>Pontos Disponíveis</span>
+        </div>
+      </div>
+      <div class="profile-level-track">
+        <span style="width: ${levelInfo.progress}%;"></span>
       </div>
     </div>
-  `;
-}
 
-function renderKanban(tasks) {
-  return `
-    <div class="kanban-wrapper">
-      <!-- Navegação de Colunas no Mobile -->
-      <div class="kanban-col-nav" role="tablist" aria-label="Colunas do Quadro">
-        ${COLUMNS.map(col => {
-          const count = tasks.filter(t => (t.Coluna || 'pendente') === col.id).length;
-          return `
-            <button class="kanban-col-tab ${state.kanbanActiveCol === col.id ? 'active' : ''}" data-kanban-tab="${col.id}">
-              <span class="kanban-tab-dot" style="background:${col.dotColor};"></span>
-              <span class="kanban-tab-title">${col.shortTitle}</span>
-              ${count > 0 ? `<span class="kanban-tab-badge">${count}</span>` : ''}
-            </button>
-          `;
-        }).join('')}
+    <!-- Regras de Pontos -->
+    <div class="profile-score-rules">
+      <div>
+        <strong>+1 ponto</strong>
+        <small>Prioridade Normal ou Baixa</small>
       </div>
-
-      <!-- Quadro Kanban -->
-      <div class="trello-board">
-        ${COLUMNS.map(col => {
-          const colTasks = tasks.filter(t => (t.Coluna || 'pendente') === col.id);
-          const isMobileActive = state.kanbanActiveCol === col.id;
-
-          return `
-            <div class="trello-column ${isMobileActive ? 'mobile-active' : ''}" data-column-id="${col.id}">
-              <div class="trello-column-head">
-                <div class="trello-col-title-group">
-                  <span class="trello-col-dot" style="background:${col.dotColor};"></span>
-                  <h3 class="trello-col-title">${col.title}</h3>
-                  ${colTasks.length > 0 ? `<span class="trello-count-pill">${colTasks.length}</span>` : ''}
-                </div>
-                ${isUserAdminOrManager() ? `
-                  <button type="button" class="trello-add-card-btn" data-add-card-col="${col.id}" title="Adicionar">+</button>
-                ` : ''}
-              </div>
-
-              <div class="trello-cards-area" data-col-target="${col.id}">
-                ${colTasks.length === 0 ? `
-                  <div class="trello-empty-column">
-                    <p>Nenhuma tarefa nesta etapa</p>
-                  </div>
-                ` : colTasks.map(t => renderCard(t)).join('')}
-              </div>
-            </div>
-          `;
-        }).join('')}
+      <div>
+        <strong>+2 pontos</strong>
+        <small>Prioridade Alta</small>
+      </div>
+      <div>
+        <strong>+3 pontos</strong>
+        <small>Prioridade Urgente</small>
       </div>
     </div>
-  `;
-}
 
-function renderCard(task) {
-  const checklist = Array.isArray(task.Checklist) ? task.Checklist : [];
-  const chTotal = checklist.length;
-  const chDone = checklist.filter(c => c.concluido).length;
-  const chPercent = chTotal > 0 ? Math.round((chDone / chTotal) * 100) : 0;
-  const sectorCfg = getSectorConfig(task.Setor, task.Tipo);
-  const statusCfg = getTaskStatus(task);
-  const isAssigned = isTaskAssignedToCurrentUser(task);
-
-  const cleanTitle = (task.Titulo || '')
-    .replace(/^(\d+\.\s*)?(Abertura|Fechamento|Caixa)\s*(Turno|Rotina)?:\s*/i, '$1')
-    .trim();
-
-  const isManager = isUserAdminOrManager();
-
-  return `
-    <div class="trello-card ${isAssigned ? 'assigned-to-me' : ''}" draggable="true" data-task-id="${esc(task.TarefaID)}" data-card-detail="${esc(task.TarefaID)}">
-      <div class="trello-card-tags">
-        <span class="trello-tag" style="background:${sectorCfg.bg}; color:${sectorCfg.color}; border-color:${sectorCfg.border};">
-          ${esc(sectorCfg.name)}
+    <!-- Trilho de Selos dos 8 Títulos -->
+    <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head">
+        <div>
+          <small>Hierarquia da Equipe</small>
+          <strong>Os 8 Selos da Cozinha</strong>
+        </div>
+        <span style="font-size:12px;font-weight:750;color:#7c3aed;">
+          ${KITCHEN_LEVELS.filter(l => levelInfo.totalEarned >= l.min).length}/${KITCHEN_LEVELS.length} Desbloqueados
         </span>
-        ${isAssigned ? `<span class="trello-tag-mine">${ICONS.user} Sua Tarefa</span>` : ''}
-        ${task.Prioridade === 'Urgente' ? `<span class="trello-tag-urgent">Urgente</span>` : task.Prioridade === 'Alta' ? `<span class="trello-tag-high">Alta</span>` : ''}
-        ${task.HoraLimite ? `<span class="trello-tag-time">${ICONS.clock} ${esc(task.HoraLimite)}</span>` : ''}
       </div>
-
-      <h4 class="trello-card-title">${esc(cleanTitle)}</h4>
-      ${task.Descricao ? `<p class="trello-card-desc">${esc(task.Descricao)}</p>` : ''}
-
-      ${chTotal > 0 ? `
-        <div class="trello-card-ch-pill ${chDone === chTotal ? 'all-done' : ''}">
-          <span class="trello-card-ch-text">${chDone}/${chTotal} itens</span>
-          <div class="trello-card-ch-track">
-            <div class="trello-card-ch-bar ${chDone === chTotal ? 'is-complete' : ''}" style="width: ${chPercent}%;"></div>
-          </div>
-        </div>
-      ` : ''}
-
-      <div class="trello-card-foot" onclick="event.stopPropagation();">
-        <div class="trello-assignee" title="${task.NomeFuncionario || 'Equipe da Praça'}">
-          ${task.NomeFuncionario ? `
-            <span class="trello-avatar">${esc(task.NomeFuncionario.split(' ').map(n=>n[0]).slice(0,2).join(''))}</span>
-            <span class="trello-assignee-name">${esc(task.NomeFuncionario)}</span>
-          ` : `
-            <span class="trello-avatar unassigned">EQ</span>
-            <span class="trello-unassigned">Equipe</span>
-          `}
-        </div>
-
-        <div class="trello-card-actions">
-          ${isManager ? `
-            <button type="button" class="trello-btn-edit" data-edit-task="${esc(task.TarefaID)}" title="Editar tarefa">Editar</button>
-          ` : ''}
-          ${task.Coluna === 'visto' && isManager ? `
-            <button type="button" class="trello-btn-approve" data-approve-task="${esc(task.TarefaID)}">
-              Visto
-            </button>
-          ` : ''}
-          <button type="button" class="trello-btn-step" data-step-dir="prev" data-task-id="${esc(task.TarefaID)}" title="Voltar etapa">${ICONS.chevronLeft}</button>
-          <button type="button" class="trello-btn-step" data-step-dir="next" data-task-id="${esc(task.TarefaID)}" title="Avançar etapa">${ICONS.chevronRight}</button>
-        </div>
-      </div>
-
-      ${task.VistoPor ? `
-        <div class="trello-visto-approved">
-          Visto: <strong>${esc(task.VistoPor)}</strong>
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
-
-function renderTasksApp() {
-  const container = $('#tasksApp');
-  if (!container) return;
-
-  const currentStore = state.stores.find(s => String(s.LojaID || s.lojaId) === String(state.selectedStore));
-  const storeName = currentStore?.Nome || currentStore?.NomeLoja || 'House 190 Teixeira';
-
-  const allDayTasks = state.tasks;
-  const isManager = isUserAdminOrManager();
-  const myTasks = allDayTasks.filter(isTaskAssignedToCurrentUser);
-  const myTasksCount = myTasks.length;
-  const maintenanceTasks = allDayTasks.filter(t => t.Tipo === 'manutencao' && t.Coluna !== 'concluido').length;
-
-  const filtered = getFilteredTasks();
-
-  const todayLabel = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Bahia', weekday: 'long', day: '2-digit', month: 'long' });
-  const formattedToday = todayLabel.charAt(0).toUpperCase() + todayLabel.slice(1);
-
-  const userName = state.user?.Nome || state.user?.nome || 'Operação';
-  const userInitials = userName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'H';
-
-  container.innerHTML = `
-    <div class="tasks-page">
-      <!-- App Bar Compacta & Sofisticada (Padrão Nativo) -->
-      <header class="app-nav-bar">
-        <div class="app-nav-top">
-          <div class="app-nav-brand">
-            <h1 class="app-nav-title">Rotinas</h1>
-            <span class="app-live-indicator"><span class="live-dot"></span> Ao Vivo</span>
-          </div>
-
-          <div class="app-nav-actions">
-            ${isManager ? `
-              <button class="btn-app-action primary" id="openNewTaskBtn" title="Nova Tarefa">
-                ${ICONS.plus} <span>Nova</span>
-              </button>
-              <button class="btn-app-action" id="openRoutineBtn" title="Disparar Rotinas Padrão">
-                ${ICONS.zap} <span>Rotinas</span>
-              </button>
-              <button class="btn-app-icon ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn" title="Manutenção e Reparos">
-                ${ICONS.tool}
-                ${maintenanceTasks > 0 ? `<span class="badge-dot-alert"></span>` : ''}
-              </button>
-              <button class="btn-app-icon" id="tasksDeduplicateBtn" title="Organizar Quadro">
-                ${ICONS.clean}
-              </button>
-            ` : `
-              <button class="btn-app-action" id="tasksHeaderRefreshBtn" title="Sincronizar">
-                ${ICONS.refresh} <span>Atualizar</span>
-              </button>
-              <button class="btn-app-icon ${maintenanceTasks > 0 ? 'alert' : ''}" id="openMaintenanceBtn" title="Relatar defeito">
-                ${ICONS.tool}
-                ${maintenanceTasks > 0 ? `<span class="badge-dot-alert"></span>` : ''}
-              </button>
-            `}
-            <div class="app-user-avatar" title="${esc(userName)}">${esc(userInitials)}</div>
-          </div>
-        </div>
-
-        <div class="app-nav-context">
-          ${state.stores.length > 1 && isManager ? `
-            <select id="tasksStoreSelect" class="app-context-select" aria-label="Selecionar Loja">
-              ${state.stores.map(s => {
-                const id = String(s.LojaID || s.lojaId || '');
-                const name = s.NomeLoja || s.Nome || id;
-                return `<option value="${esc(id)}" ${id === state.selectedStore ? 'selected' : ''}>${esc(name)}</option>`;
-              }).join('')}
-            </select>
-          ` : `
-            <span class="app-context-unit">${esc(storeName)}</span>
-          `}
-          <span class="app-context-dot"></span>
-          ${isManager ? `
-            <input type="date" id="tasksDateInput" class="app-context-date" value="${esc(state.selectedDate)}" aria-label="Data">
-          ` : `
-            <span class="app-context-day">${esc(formattedToday)}</span>
-          `}
-        </div>
-      </header>
-
-      <!-- Área Principal: Bloco "Seu Turno Hoje" -->
-      ${renderShiftOverview(isManager ? allDayTasks : (myTasksCount > 0 ? myTasks : allDayTasks), isManager)}
-
-      <!-- Seletor de Modo (Checklists / Minhas / Kanban) -->
-      ${isManager ? `
-        <div class="view-segmented-wrap">
-          <div class="view-segmented-control" role="tablist">
-            <button class="view-tab-btn ${state.viewMode === 'checklist' ? 'active' : ''}" data-view-mode="checklist">
-              ${ICONS.list} Checklists
-            </button>
-            <button class="view-tab-btn ${state.viewMode === 'my' ? 'active' : ''}" data-view-mode="my">
-              ${ICONS.user} Minhas ${myTasksCount > 0 ? `<span class="pill-badge">${myTasksCount}</span>` : ''}
-            </button>
-            <button class="view-tab-btn ${state.viewMode === 'kanban' ? 'active' : ''}" data-view-mode="kanban">
-              ${ICONS.kanban} Kanban
-            </button>
-          </div>
-        </div>
-      ` : myTasksCount > 0 ? `
-        <div class="view-segmented-wrap">
-          <div class="view-segmented-control" role="tablist">
-            <button class="view-tab-btn ${state.viewMode === 'my' ? 'active' : ''}" data-view-mode="my">
-              ${ICONS.user} Suas Tarefas ${myTasksCount > 0 ? `<span class="pill-badge">${myTasksCount}</span>` : ''}
-            </button>
-            <button class="view-tab-btn ${state.viewMode === 'checklist' ? 'active' : ''}" data-view-mode="checklist">
-              ${ICONS.list} Todas da Loja
-            </button>
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- Filtros de Setor Compactos em Scroll Horizontal (Sem zeros ruidosos) -->
-      ${state.viewMode !== 'kanban' ? `
-        <div class="sector-filters-rail" role="tablist" aria-label="Filtro de Setor">
-          ${SECTOR_GROUPS.map(grp => {
-            const count = allDayTasks.filter(t => {
-              if (grp.id === 'todos') return true;
-              if (grp.id === 'caixa') return t.Setor === 'Caixa' || t.Tipo === 'rotina_caixa';
-              if (grp.id === 'abertura') return t.Tipo === 'rotina_abertura';
-              if (grp.id === 'fechamento') return t.Tipo === 'rotina_fechamento';
-              if (grp.id === 'manutencao') return t.Tipo === 'manutencao';
-              if (grp.id === 'cozinha') return t.Setor === 'Cozinha';
-              return true;
-            }).length;
-
-            return `
-              <button class="sector-pill ${state.selectedSector === grp.id ? 'active' : ''}" data-sector-filter="${grp.id}" role="tab" aria-selected="${state.selectedSector === grp.id ? 'true' : 'false'}">
-                <span>${grp.label}</span>
-                ${count > 0 ? `<span class="pill-badge">${count}</span>` : ''}
-              </button>
-            `;
-          }).join('')}
-        </div>
-      ` : ''}
-
-      <!-- Conteúdo Principal -->
-      ${state.loading ? renderSkeletonLoading() : allDayTasks.length === 0 ? `
-        ${isManager ? `
-          <div class="tasks-empty-starter">
-            <span class="starter-badge">PRIMEIRO ACESSO</span>
-            <h3>Nenhuma rotina gerada para hoje</h3>
-            <p>Selecione um pacote padrão do turno abaixo ou adicione uma tarefa individual:</p>
-
-            <div class="starter-actions starter-actions-3">
-              <button class="starter-card-btn caixa" data-trigger-routine="caixa">
-                <span class="starter-tag caixa">CAIXA</span>
-                <div>
-                  <strong>Rotina do Caixa</strong>
-                  <small>Abertura do PDV, conferência de sistemas, notas, Drive, grupo VIP e WhatsApp.</small>
-                </div>
-              </button>
-
-              <button class="starter-card-btn abertura" data-trigger-routine="abertura">
-                <span class="starter-tag abertura">ABERTURA</span>
-                <div>
-                  <strong>Abertura de Turno</strong>
-                  <small>Freezers, estoque crítico, chapa, fritadeira e gaveta de caixa.</small>
-                </div>
-              </button>
-
-              <button class="starter-card-btn fechamento" data-trigger-routine="fechamento">
-                <span class="starter-tag fechamento">FECHAMENTO</span>
-                <div>
-                  <strong>Fechamento de Turno</strong>
-                  <small>Limpeza de coifa/chapa, gás, descarte de óleo, caixa e lixo.</small>
-                </div>
-              </button>
+      <div class="kitchen-badges-track">
+        ${KITCHEN_LEVELS.map(lvl => {
+          const unlocked = levelInfo.totalEarned >= lvl.min;
+          const diff = lvl.min - levelInfo.totalEarned;
+          return `
+            <div class="kitchen-badge ${unlocked ? 'is-unlocked' : ''}">
+              <div class="kitchen-badge-medal">${unlocked ? lvl.emoji : '🔒'}</div>
+              <strong>${esc(lvl.name)}</strong>
+              <small>${unlocked ? 'Conquistado' : `${diff} pts para liberar`}</small>
             </div>
-          </div>
-        ` : `
-          <div class="tasks-empty-starter employee-empty">
-            <span class="starter-tag caixa">TURNO DE HOJE</span>
-            <h3 style="margin-top:14px;font-size:18px;font-weight:700;color:var(--text, #0f172a);">Tudo em ordem por aqui</h3>
-            <p style="max-width:440px;margin:8px auto 18px;color:var(--muted, #64748b);font-size:13.5px;line-height:1.45;">
-              Nenhum checklist pendente para o seu turno neste momento. As rotinas operacionais são liberadas pela gerência.
-            </p>
-            <button type="button" class="btn btn-secondary" id="tasksEmployeeRefreshBtn" style="font-size:13px;font-weight:600;padding:10px 24px;border-radius:8px;">
-              ${ICONS.refresh} Atualizar agora
-            </button>
-          </div>
-        `}
-      ` : state.viewMode === 'checklist' ? renderDailyChecklist(filtered) : state.viewMode === 'my' ? renderMyTasks() : renderKanban(filtered)}
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Missões da Semana -->
+    <div class="card-surface profile-weekly-missions" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head">
+        <div>
+          <small>Desafios Semanais</small>
+          <strong>Missões da Semana</strong>
+        </div>
+      </div>
+      <div class="missions-list">
+        ${state.missions.map(m => `
+          <article class="${m.completed ? 'is-complete' : ''}">
+            <span class="material-symbols-rounded">${m.completed ? 'verified' : m.icon}</span>
+            <div>
+              <strong>${esc(m.title)}</strong>
+              <small>${esc(m.description)}</small>
+              <i><b style="width:${Math.min(100, Math.round((m.current / m.target) * 100))}%;"></b></i>
+              <em>${m.current}/${m.target} concluídas</em>
+            </div>
+            <b>+${m.bonus}</b>
+          </article>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- Extrato de Pontos -->
+    <div class="card-surface" style="padding:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head">
+        <div>
+          <small>Transparência</small>
+          <strong>Extrato de Pontos Recentes</strong>
+        </div>
+      </div>
+      <div class="point-statement-list">
+        ${renderStatementEntries(myTasks, myAdjusts)}
+      </div>
     </div>
   `;
-
-  bindDomEvents();
 }
 
-async function markAllSectionItems(taskId, markDone) {
-  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-  if (!task || !Array.isArray(task.Checklist)) return;
+function renderStatementEntries(myTasks, myAdjusts) {
+  const entries = [
+    ...myTasks.map(t => ({
+      date: t.CONCLUIDO_EM || t.ATUALIZADO_EM,
+      title: t.TITULO,
+      detail: `Tarefa aprovada (${t.PRIORIDADE})`,
+      points: taskPointValue(t.PRIORIDADE),
+      icon: 'task_alt',
+      gain: true,
+    })),
+    ...myAdjusts.map(a => ({
+      date: a.CRIADO_EM,
+      title: a.MOTIVO,
+      detail: a.ORIGEM === 'MISSAO_SEMANAL' ? 'Bônus de Missão' : a.ORIGEM === 'ATRASO' ? 'Punição por atraso' : 'Ajuste administrativo',
+      points: Number(a.PONTOS || 0),
+      icon: Number(a.PONTOS || 0) > 0 ? 'workspace_premium' : 'trending_down',
+      gain: Number(a.PONTOS || 0) > 0,
+    })),
+  ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 15);
 
-  const api = getApi();
-  if (!api) return;
-
-  triggerHaptic(markDone ? 'success' : 'light');
-
-  task.Checklist.forEach(i => { i.concluido = markDone; });
-  if (markDone) {
-    task.Coluna = task.ExigeVistoGerente ? 'visto' : 'concluido';
-  } else {
-    task.Coluna = 'pendente';
+  if (!entries.length) {
+    return `<p style="color:#8a8da0;font-size:12px;padding:8px 0;">Nenhuma movimentação registrada até o momento.</p>`;
   }
 
-  updateCardProgressDom(taskId);
-  updateGlobalStatsDom();
-
-  const card = document.querySelector(`[data-task-id="${taskId}"]`);
-  if (card) {
-    const rows = card.querySelectorAll('[data-toggle-subtask]');
-    rows.forEach(r => {
-      r.classList.toggle('checked', markDone);
-      r.setAttribute('aria-checked', markDone ? 'true' : 'false');
-      const box = r.querySelector('.routine-item-checkbox');
-      if (box) box.classList.toggle('checked', markDone);
-    });
-  }
-
-  try {
-    for (const item of task.Checklist) {
-      await api.invoke('tasksToggleChecklistItem', [taskId, item.id, markDone]);
-    }
-  } catch (err) {
-    console.error('Falha ao alternar todos do checklist:', err);
-    await loadTasks();
-  }
-}
-
-function openTaskDetailDialog(taskId) {
-  const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-  if (!task) return;
-
-  const dlg = document.getElementById('taskDetailDialog');
-  if (!dlg) return;
-
-  const eyebrow = $('#taskDetailEyebrow');
-  if (eyebrow) eyebrow.textContent = task.Tipo === 'manutencao' ? 'MANUTENÇÃO & REPARO' : 'DETALHES DA TAREFA';
-  const title = $('#taskDetailTitle');
-  if (title) title.textContent = task.Titulo || 'Tarefa';
-
-  const sectorCfg = getSectorConfig(task.Setor, task.Tipo);
-  const sectorBadge = $('#taskDetailSectorBadge');
-  if (sectorBadge) {
-    sectorBadge.textContent = task.Setor || 'Geral';
-    sectorBadge.style.background = sectorCfg.bg;
-    sectorBadge.style.color = sectorCfg.color;
-    sectorBadge.style.borderColor = sectorCfg.border;
-  }
-
-  const priorityBadge = $('#taskDetailPriorityBadge');
-  if (priorityBadge) {
-    priorityBadge.textContent = task.Prioridade || 'Média';
-    priorityBadge.className = `badge ${task.Prioridade === 'Urgente' ? 'trello-tag-urgent' : task.Prioridade === 'Alta' ? 'trello-tag-high' : ''}`;
-  }
-
-  const colBadge = $('#taskDetailColumnBadge');
-  if (colBadge) {
-    const colName = task.Coluna === 'concluido' ? 'Concluído' : task.Coluna === 'visto' ? 'Aguardando Visto' : task.Coluna === 'andamento' ? 'Em Andamento' : 'Pendente';
-    colBadge.textContent = colName;
-    colBadge.className = `op-badge ${task.Coluna || 'pendente'}`;
-  }
-
-  const timeBadge = $('#taskDetailDeadlineBadge');
-  if (timeBadge) {
-    timeBadge.textContent = task.HoraLimite ? `Limite: ${task.HoraLimite}` : '';
-  }
-
-  const descWrap = $('#taskDetailDescWrap');
-  const descEl = $('#taskDetailDesc');
-  if (task.Descricao && descWrap && descEl) {
-    descWrap.style.display = 'block';
-    descEl.textContent = task.Descricao;
-  } else if (descWrap) {
-    descWrap.style.display = 'none';
-  }
-
-  const chList = Array.isArray(task.Checklist) ? task.Checklist : [];
-  const chDone = chList.filter(c => c.concluido).length;
-  const chPercent = chList.length > 0 ? Math.round((chDone / chList.length) * 100) : 0;
-
-  const progressText = $('#taskDetailChecklistProgress');
-  if (progressText) progressText.textContent = `${chDone}/${chList.length} (${chPercent}%)`;
-  const progressBar = $('#taskDetailProgressBar');
-  if (progressBar) progressBar.style.width = `${chPercent}%`;
-
-  const container = $('#taskDetailChecklistContainer');
-  if (container) {
-    if (chList.length === 0) {
-      container.innerHTML = '<div style="font-size:12.5px;color:var(--muted,#94a3b8);font-style:italic;padding:8px 0;">Nenhum subitem de checklist cadastrado.</div>';
-    } else {
-      container.innerHTML = chList.map(item => `
-        <button type="button" class="routine-item-row ${item.concluido ? 'checked' : ''}" data-toggle-subtask="${esc(item.id)}" data-task-id="${esc(task.TarefaID)}" role="checkbox" aria-checked="${item.concluido ? 'true' : 'false'}" style="margin-bottom:6px;">
-          <span class="routine-item-checkbox ${item.concluido ? 'checked' : ''}">
-            ${ICONS.check}
-          </span>
-          <span class="routine-item-text">${esc(item.texto)}</span>
-        </button>
-      `).join('');
-    }
-  }
-
-  const vistoSection = $('#taskDetailVistoSection');
-  const vistoInfo = $('#taskDetailVistoInfo');
-  if (task.VistoPor && vistoSection && vistoInfo) {
-    vistoSection.style.display = 'block';
-    vistoInfo.textContent = `Validado por ${task.VistoPor} em ${task.DataVisto ? new Date(task.DataVisto).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : 'Turno atual'}`;
-  } else if (vistoSection) {
-    vistoSection.style.display = 'none';
-  }
-
-  const assignee = $('#taskDetailAssignee');
-  if (assignee) assignee.textContent = task.NomeFuncionario || 'Equipe da Praça (Geral)';
-  const currentStore = state.stores.find(s => String(s.LojaID || s.lojaId) === String(task.LojaID));
-  const storeDate = $('#taskDetailStoreDate');
-  if (storeDate) storeDate.textContent = `${currentStore?.Nome || currentStore?.NomeLoja || 'Loja'} - ${task.DataTurno ? task.DataTurno.split('-').reverse().join('/') : ''}`;
-
-  const isMgr = isUserAdminOrManager();
-  const editBtn = $('#taskDetailEditBtn');
-  if (editBtn) {
-    editBtn.style.display = isMgr ? 'inline-block' : 'none';
-    editBtn.onclick = () => {
-      closeDialog('taskDetailDialog');
-      openEditTaskDialog(task.TarefaID);
-    };
-  }
-
-  const delBtn = $('#taskDetailDeleteBtn');
-  if (delBtn) {
-    delBtn.style.display = isMgr ? 'inline-block' : 'none';
-    delBtn.onclick = () => {
-      closeDialog('taskDetailDialog');
-      deleteTask(task.TarefaID);
-    };
-  }
-
-  const moveBtn = $('#taskDetailMoveBtn');
-  if (moveBtn) {
-    const colSeq = ['pendente', 'andamento', 'visto', 'concluido'];
-    const curIdx = colSeq.indexOf(task.Coluna || 'pendente');
-    const nextCol = colSeq[(curIdx + 1) % colSeq.length];
-    const nextLabel = nextCol === 'andamento' ? 'Mover p/ Em Andamento' : nextCol === 'visto' ? 'Mover p/ Visto' : nextCol === 'concluido' ? 'Mover p/ Concluído' : 'Mover p/ Pendente';
-    moveBtn.textContent = nextLabel;
-    moveBtn.onclick = async () => {
-      await moveTaskColumn(task.TarefaID, nextCol);
-      openTaskDetailDialog(task.TarefaID);
-    };
-  }
-
-  const approveBtn = $('#taskDetailApproveBtn');
-  if (approveBtn) {
-    if (task.Coluna === 'visto' && isUserAdminOrManager()) {
-      approveBtn.style.display = 'inline-block';
-      approveBtn.onclick = async () => {
-        closeDialog('taskDetailDialog');
-        const notes = prompt('Anotação do visto gerencial (opcional):') || '';
-        await approveTask(task.TarefaID, notes);
-      };
-    } else {
-      approveBtn.style.display = 'none';
-    }
-  }
-
-  openDialog('taskDetailDialog');
-}
-
-function bindDomEvents() {
-  const storeSel = $('#tasksStoreSelect');
-  if (storeSel) {
-    storeSel.onchange = (e) => {
-      state.selectedStore = e.target.value;
-      loadTasks();
-    };
-  }
-
-  const dateInp = $('#tasksDateInput');
-  if (dateInp) {
-    dateInp.onchange = (e) => {
-      state.selectedDate = e.target.value;
-      loadTasks();
-    };
-  }
-
-  const newBtn = $('#openNewTaskBtn');
-  if (newBtn) newBtn.onclick = () => openNewTaskDialog();
-
-  const routineBtn = $('#openRoutineBtn');
-  if (routineBtn) routineBtn.onclick = () => openDialog('taskRoutineDialog');
-
-  const maintBtn = $('#openMaintenanceBtn');
-  if (maintBtn) maintBtn.onclick = () => openDialog('taskMaintenanceDialog');
-
-  const refreshBtn = $('#tasksHeaderRefreshBtn');
-  if (refreshBtn) refreshBtn.onclick = () => loadTasks();
-
-  const empRefreshBtn = $('#tasksEmployeeRefreshBtn');
-  if (empRefreshBtn) empRefreshBtn.onclick = () => loadTasks();
-}
-
-function populateEmployeeSelect(selectedVal = '') {
-  const sel = $('#taskEmployeeInput');
-  if (!sel) return;
-  const emps = Array.isArray(state.employees) ? state.employees : [];
-
-  sel.innerHTML = `
-    <option value="">Equipe da Praça (Geral)</option>
-    ${emps.map(e => {
-      const id = getEmployeeId(e);
-      const name = getEmployeeName(e);
-      return `<option value="${esc(id)}">${esc(name)}</option>`;
-    }).join('')}
-  `;
-  if (selectedVal) {
-    sel.value = selectedVal;
-  }
-}
-
-function renderDraftChecklist() {
-  const box = $('#taskChecklistDraftContainer');
-  if (!box) return;
-  if (!state.checklistDraft || state.checklistDraft.length === 0) {
-    box.innerHTML = '<div style="font-size:12px;color:var(--muted,#94a3b8);font-style:italic;padding:6px 0;">Nenhum item adicionado ainda. Digite acima e clique em Adicionar ou tecle Enter.</div>';
-    return;
-  }
-  box.innerHTML = state.checklistDraft.map((item, idx) => `
-    <div class="draft-row">
-      <input type="text" class="draft-item-input" data-draft-idx="${idx}" value="${esc(item.texto)}" placeholder="Descrição do item..." />
-      <button type="button" class="btn-del-draft" data-del-draft="${idx}" title="Remover item">${ICONS.trash}</button>
-    </div>
+  return entries.map(e => `
+    <article class="${e.gain ? 'is-gain' : 'is-loss'}">
+      <span class="material-symbols-rounded">${e.icon}</span>
+      <div>
+        <strong>${esc(e.title)}</strong>
+        <small>${esc(e.detail)}</small>
+      </div>
+      <b>${e.points > 0 ? '+' : ''}${e.points}</b>
+    </article>
   `).join('');
 }
 
-// Global delegated clicks
-document.addEventListener('click', (e) => {
-  // Abas de setor
-  const tab = e.target.closest('[data-sector-filter]');
-  if (tab) {
-    state.selectedSector = tab.dataset.sectorFilter;
-    renderTasksApp();
-    return;
-  }
+// ==========================================================================
+// ABA 3: LOJA DE PRÊMIOS
+// ==========================================================================
 
-  // Segmented view mode (Checklists / Minhas / Kanban)
-  const modeBtn = e.target.closest('[data-view-mode]');
-  if (modeBtn) {
-    userManuallyToggledView = true;
-    state.viewMode = modeBtn.dataset.viewMode;
-    renderTasksApp();
-    return;
-  }
+function renderLojaTab({ available, admin }) {
+  const uid = currentUserId();
+  const myRedemptions = state.redemptions.filter(r => String(r.USUARIO_ID) === uid);
+  const pendingDeliveries = state.redemptions.filter(r => r.STATUS === 'Solicitado');
 
-  // Seletor de Colunas do Kanban no Mobile
-  const kanbanTab = e.target.closest('[data-kanban-tab]');
-  if (kanbanTab) {
-    state.kanbanActiveCol = kanbanTab.dataset.kanbanTab;
-    renderTasksApp();
-    return;
-  }
+  return `
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">Benefícios &amp; Recompensas</span>
+        <h1>Loja de Prêmios</h1>
+        <p>Troque seus pontos acumulados por prêmios, lanches, descansos e folga extra!</p>
+      </div>
+    </div>
 
-  // Ações de rotina rápida
-  const routineTrigger = e.target.closest('[data-trigger-routine]');
-  if (routineTrigger) {
-    generateRoutine(routineTrigger.dataset.triggerRoutine);
-    return;
-  }
+    <!-- Saldo Disponível -->
+    <div class="shop-balance-panel">
+      <div class="shop-balance-content">
+        <small>Seu Saldo Disponível</small>
+        <strong>${available} <span>pontos</span></strong>
+      </div>
+      <button type="button" data-cf-tab="jornada">Ver Minha Jornada</button>
+    </div>
 
-  // Editar tarefa e checklist
-  const editBtn = e.target.closest('[data-edit-task]');
-  if (editBtn) {
-    openEditTaskDialog(editBtn.dataset.editTask);
-    return;
-  }
+    <!-- Pedidos para Entregar (Visão do Admin) -->
+    ${admin && pendingDeliveries.length ? `
+      <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
+        <div class="rewards-head">
+          <div>
+            <small>Ação da Liderança</small>
+            <strong>Pedidos para Entregar (${pendingDeliveries.length})</strong>
+          </div>
+        </div>
+        <div class="admin-reward-list">
+          ${pendingDeliveries.map(r => `
+            <article>
+              <span>${esc(r.EMOJI || '🎁')}</span>
+              <div>
+                <strong>${esc(r.USUARIO_NOME)}</strong>
+                <small>${esc(r.RECOMPENSA_NOME)} · ${r.PONTOS} pontos</small>
+              </div>
+              <button type="button" data-cf-action="deliver-reward" data-redemption-id="${esc(r.ID)}">
+                <span class="material-symbols-rounded">redeem</span>Marcar Entregue
+              </button>
+            </article>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
 
-  // Avançar / Voltar etapa do cartão
-  const stepBtn = e.target.closest('[data-step-dir]');
-  if (stepBtn) {
-    const taskId = stepBtn.dataset.taskId;
-    const dir = stepBtn.dataset.stepDir;
-    const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-    if (task) {
-      const colIds = COLUMNS.map(c => c.id);
-      const curr = colIds.indexOf(task.Coluna || 'pendente');
-      const target = dir === 'next' ? curr + 1 : curr - 1;
-      if (target >= 0 && target < colIds.length) {
-        moveTaskColumn(taskId, colIds[target]);
-      }
-    }
-    return;
-  }
+    <!-- Catálogo de Prêmios -->
+    <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head">
+        <div>
+          <small>Catálogo Oficial</small>
+          <strong>Recompensas Disponíveis</strong>
+        </div>
+      </div>
+      <div class="reward-store-note">
+        <span class="material-symbols-rounded">info</span>
+        Ao resgatar, seu pedido é enviado para a gerência combinar a entrega ou agendamento.
+      </div>
+      <div class="rewards-grid">
+        ${state.catalog.filter(r => r.status !== 'Inativo').map(r => {
+          const cost = Number(r.cost || r.PONTOS || 0);
+          const canRedeem = available >= cost;
+          return `
+            <div class="reward-card ${r.featured ? 'is-featured' : ''}">
+              ${r.featured ? `<span class="reward-featured-label">⭐ Recompensa Máxima</span>` : ''}
+              <div class="reward-emoji">${esc(r.EMOJI || r.emoji || '🎁')}</div>
+              <div class="reward-copy">
+                <strong>${esc(r.NOME || r.name)}</strong>
+                <small>${esc(r.DESCRICAO || r.description)}</small>
+              </div>
+              <div class="reward-price">
+                <span class="material-symbols-rounded">stars</span>${cost}
+              </div>
+              <button type="button" data-cf-action="redeem" data-reward-id="${esc(r.ID)}" ${canRedeem ? '' : 'disabled'}>
+                ${canRedeem ? 'Resgatar' : `Faltam ${cost - available}`}
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
 
-  // Adicionar cartão direto da coluna
-  const addCol = e.target.closest('[data-add-card-col]');
-  if (addCol) {
-    openNewTaskDialog(state.selectedSector === 'caixa' ? 'Caixa' : 'Geral');
-    return;
-  }
-
-  // Conceder visto
-  const approveBtn = e.target.closest('[data-approve-task]');
-  if (approveBtn) {
-    const taskId = approveBtn.dataset.approveTask;
-    const notes = prompt('Anotação de validação (opcional):') || '';
-    approveTask(taskId, notes);
-    return;
-  }
-
-  // Remover tarefa
-  const delBtn = e.target.closest('[data-delete-task]');
-  if (delBtn) {
-    deleteTask(delBtn.dataset.deleteTask);
-    return;
-  }
-
-  // Adicionar item no checklist draft do dialog
-  if (e.target.id === 'taskChecklistAddBtn') {
-    const inp = $('#taskChecklistNewInput');
-    const text = (inp?.value || '').trim();
-    if (text) {
-      state.checklistDraft.push({ id: Date.now(), texto: text, concluido: false });
-      inp.value = '';
-      renderDraftChecklist();
-    }
-    return;
-  }
-
-  // Deletar item do checklist draft
-  const delDraft = e.target.closest('[data-del-draft]');
-  if (delDraft) {
-    const idx = Number(delDraft.dataset.delDraft);
-    if (!isNaN(idx)) {
-      state.checklistDraft.splice(idx, 1);
-      renderDraftChecklist();
-    }
-    return;
-  }
-
-  // Toggle rápido de cartão na lista
-  const toggleComplete = e.target.closest('[data-toggle-card-complete]');
-  if (toggleComplete) {
-    const taskId = toggleComplete.dataset.toggleCardComplete;
-    const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-    if (task) {
-      moveTaskColumn(taskId, task.Coluna === 'concluido' ? 'andamento' : 'concluido');
-    }
-    return;
-  }
-
-  // Toggle de item do checklist
-  const subtaskRow = e.target.closest('[data-toggle-subtask]');
-  if (subtaskRow) {
-    const itemId = subtaskRow.dataset.toggleSubtask;
-    const taskId = subtaskRow.dataset.taskId;
-    const task = state.tasks.find(t => String(t.TarefaID) === String(taskId));
-    if (task && Array.isArray(task.Checklist)) {
-      const item = task.Checklist.find(i => String(i.id) === String(itemId));
-      if (item) {
-        toggleChecklistItem(taskId, itemId, !item.concluido);
-      }
-    }
-    return;
-  }
-
-  // Ação de marcar todos ou desmarcar todos de uma etapa
-  const markSection = e.target.closest('[data-mark-section-all]');
-  if (markSection) {
-    const taskId = markSection.dataset.markSectionAll;
-    const action = markSection.dataset.action;
-    markAllSectionItems(taskId, action === 'check');
-    return;
-  }
-
-  // Abrir modal de detalhes ao clicar no cartão Kanban
-  const cardDetail = e.target.closest('[data-card-detail]');
-  if (cardDetail && !e.target.closest('.trello-card-actions') && !e.target.closest('button')) {
-    openTaskDetailDialog(cardDetail.dataset.cardDetail);
-    return;
-  }
-
-  // Expandir / recolher subitens do checklist no cartão
-  const expandBtn = e.target.closest('[data-toggle-expand-card]');
-  if (expandBtn) {
-    const taskId = expandBtn.dataset.toggleExpandCard;
-    if (state.expandedCards.has(taskId)) {
-      state.expandedCards.delete(taskId);
-    } else {
-      state.expandedCards.add(taskId);
-    }
-    renderTasksApp();
-    return;
-  }
-
-  // Deduplicar e organizar quadro
-  if (e.target.id === 'tasksDeduplicateBtn' || e.target.closest('#tasksDeduplicateBtn')) {
-    deduplicateTasks();
-    return;
-  }
-});
-
-// Atualizar texto do checklist draft inline
-document.addEventListener('input', (e) => {
-  if (e.target.matches('.draft-item-input')) {
-    const idx = Number(e.target.dataset.draftIdx);
-    if (!isNaN(idx) && state.checklistDraft[idx]) {
-      state.checklistDraft[idx].texto = e.target.value;
-    }
-  }
-});
-
-// Adicionar subitem de checklist ao teclar Enter no input
-document.addEventListener('keydown', (e) => {
-  if (e.target.id === 'taskChecklistNewInput' && e.key === 'Enter') {
-    e.preventDefault();
-    const text = (e.target.value || '').trim();
-    if (text) {
-      state.checklistDraft.push({ id: Date.now(), texto: text, concluido: false });
-      e.target.value = '';
-      renderDraftChecklist();
-    }
-  }
-});
-
-// Bind de formulários das modais nativas
-document.addEventListener('DOMContentLoaded', () => {
-  const taskForm = document.getElementById('taskForm');
-  if (taskForm) {
-    taskForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const id = $('#taskIdInput')?.value;
-      const title = $('#taskTitleInput')?.value || '';
-      const sector = $('#taskSectorInput')?.value || 'Caixa';
-      const priority = $('#taskPriorityInput')?.value || 'Media';
-      const empId = $('#taskEmployeeInput')?.value || '';
-      const deadline = $('#taskDeadlineInput')?.value || '';
-      const desc = $('#taskDescInput')?.value || '';
-      const reqManagerSign = Boolean($('#taskManagerSignInput')?.checked);
-
-      let empName = '';
-      if (empId) {
-        const emp = (state.employees || []).find(x => getEmployeeId(x) === empId);
-        empName = getEmployeeName(emp);
-      }
-
-      const payload = {
-        TarefaID: id || undefined,
-        Titulo: title,
-        Setor: sector,
-        Prioridade: priority,
-        FuncionarioID: empId,
-        NomeFuncionario: empName,
-        HoraLimite: deadline,
-        Descricao: desc,
-        ExigeVistoGerente: reqManagerSign,
-        Checklist: state.checklistDraft,
-        LojaID: state.selectedStore,
-        DataTurno: state.selectedDate,
-      };
-
-      const api = getApi();
-      if (!api) return;
-
-      try {
-        await api.invoke('tasksSave', [payload]);
-        closeDialog('taskDialog');
-        taskForm.reset();
-        const idInput = $('#taskIdInput');
-        if (idInput) idInput.value = '';
-        state.checklistDraft = [];
-        await loadTasks();
-      } catch (err) {
-        alert(err.message || 'Falha ao salvar tarefa.');
-      }
-    };
-  }
-
-  const maintenanceForm = document.getElementById('taskMaintenanceForm');
-  if (maintenanceForm) {
-    maintenanceForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const equip = $('#taskMaintenanceEquipment')?.value || 'Equipamento';
-      const desc = $('#taskMaintenanceDesc')?.value || '';
-
-      const payload = {
-        Titulo: `Manutenção: ${equip}`,
-        Descricao: desc,
-        Setor: $('#taskMaintenanceSector')?.value || 'Cozinha',
-        Tipo: 'manutencao',
-        Prioridade: $('#taskMaintenancePriority')?.value || 'Alta',
-        LojaID: state.selectedStore,
-        DataTurno: state.selectedDate,
-        ExigeVistoGerente: true,
-        Checklist: [
-          { id: 1, texto: 'Avaliar dano e desligar por precaução', concluido: false },
-          { id: 2, texto: 'Notificar técnico de manutenção ou assistência', concluido: false },
-          { id: 3, texto: 'Conferir conserto e liberar para o turno', concluido: false },
-        ],
-      };
-
-      const api = getApi();
-      if (!api) return;
-
-      try {
-        await api.invoke('tasksSave', [payload]);
-        closeDialog('taskMaintenanceDialog');
-        maintenanceForm.reset();
-        await loadTasks();
-      } catch (err) {
-        alert(err.message || 'Falha ao abrir chamado de manutenção.');
-      }
-    };
-  }
-});
-
-// Auto-sincronização com o estado global da aplicação
-let realtimeSubscribed = false;
-function setupRealtimeTasks() {
-  if (realtimeSubscribed) return;
-  const runtime = window.__GESTAO_FIREBASE__?.runtime;
-  if (runtime?.subscribe) {
-    realtimeSubscribed = true;
-    try {
-      runtime.subscribe('tables/Tarefas', () => {
-        loadTasks(true);
-      });
-    } catch (err) {
-      console.warn('Falha ao assinar realtime de Tarefas:', err);
-    }
-  }
+    <!-- Meus Resgates Recentes -->
+    <div class="card-surface" style="padding:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head">
+        <div>
+          <small>Acompanhamento</small>
+          <strong>Meus Resgates</strong>
+        </div>
+      </div>
+      <div class="reward-history-list">
+        ${myRedemptions.length ? myRedemptions.map(r => `
+          <div class="reward-history-item">
+            <span>${esc(r.EMOJI || '🎁')}</span>
+            <div>
+              <strong>${esc(r.RECOMPENSA_NOME)}</strong>
+              <small>${r.PONTOS} pontos · Solicitado em ${new Date(r.CRIADO_EM || Date.now()).toLocaleDateString('pt-BR')}</small>
+            </div>
+            <b class="status-${String(r.STATUS).toLowerCase()}">${esc(r.STATUS)}</b>
+          </div>
+        `).join('') : '<p style="color:#8a8da0;font-size:12px;padding:8px 0;">Você ainda não solicitou nenhum resgate.</p>'}
+      </div>
+    </div>
+  `;
 }
 
-function ensureTasksInitialized(customCtx = {}) {
-  const runtime = window.__GESTAO_FIREBASE__?.runtime;
-  const currentProfile = customCtx.user || window.__GESTAO_USER__ || runtime?.profile || state.user;
-  const stores = (customCtx.stores && customCtx.stores.length > 0) ? customCtx.stores : (window.state?.stores || state.stores);
-  const employees = (customCtx.employees && customCtx.employees.length > 0) ? customCtx.employees : (window.state?.employees || state.employees);
+// ==========================================================================
+// ABA 4: EQUIPE & RANKING
+// ==========================================================================
 
-  if (typeof customCtx.isManager === 'boolean') {
-    state.isManager = customCtx.isManager;
-  }
-  state.user = currentProfile || null;
-  state.isManager = isUserAdminOrManager();
-  state.stores = Array.isArray(stores) ? stores : [];
-  state.employees = Array.isArray(employees) ? employees : [];
+function renderEquipeTab({ admin }) {
+  const members = state.teamMetrics;
 
-  if (!state.selectedStore && state.stores.length > 0) {
-    const userStore = state.user?.LojaID || state.user?.lojaId;
-    const match = state.stores.find(s => String(s.LojaID || s.lojaId) === String(userStore));
-    state.selectedStore = match ? String(match.LojaID || match.lojaId) : String(state.stores[0].LojaID || state.stores[0].lojaId);
-  }
+  return `
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">Colaboradores &amp; Desempenho</span>
+        <h1>Equipe &amp; Ranking</h1>
+        <p>Acompanhe os títulos, pontos e tarefas concluídas de toda a equipe.</p>
+      </div>
+    </div>
 
-  setupRealtimeTasks();
-  renderTasksApp();
-  loadTasks();
+    <div class="team-list">
+      ${members.length ? members.map((m, index) => `
+        <div class="team-member-card">
+          <div class="team-member-avatar">${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1)}</div>
+          <div class="team-member-info">
+            <strong>${esc(m.name)}</strong>
+            <small>${esc(m.role)} · ${m.doneToday} feitas hoje · ${m.pending} pendentes</small>
+            <div class="team-member-level">
+              <span>${m.level.emoji}</span>
+              <strong>${esc(m.level.name)}</strong>
+            </div>
+          </div>
+          <div class="team-member-metrics">
+            <strong>${m.totalPoints}</strong>
+            <small>pts acumulados</small>
+          </div>
+        </div>
+      `).join('') : '<p style="color:#8a8da0;font-size:12px;padding:12px 0;">Nenhum colaborador encontrado.</p>'}
+    </div>
+  `;
 }
 
-// Inicializador da Aba
-export function initTasksModule(ctx = {}) {
-  ensureTasksInitialized(ctx);
-}
+// ==========================================================================
+// EVENTOS E INTERAÇÃO
+// ==========================================================================
 
-// Export global para compatibilidade com SPA e roteador
-if (typeof window !== 'undefined') {
-  window.initTasksModule = initTasksModule;
+function bindEvents() {
+  const host = $('#tasksApp');
+  if (!host) return;
 
-  // Ouvir abertura da aba
-  window.addEventListener('gestao-tasks-open', (e) => {
-    ensureTasksInitialized(e.detail || {});
+  // Troca de abas principais
+  $$('[data-cf-tab]', host).forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.activeTab = btn.dataset.cfTab;
+      renderApp();
+    });
   });
 
-  // Ouvir dados globais da jornada
-  window.addEventListener('house-journey', (e) => {
-    const detail = e.detail || {};
-    if (detail.user) state.user = detail.user;
-    if (Array.isArray(detail.stores) && detail.stores.length > 0) state.stores = detail.stores;
-    if (Array.isArray(detail.employees) && detail.employees.length > 0) state.employees = detail.employees;
-    state.isManager = isUserAdminOrManager();
-
-    if (!state.selectedStore && state.stores.length > 0) {
-      const userStore = state.user?.LojaID || state.user?.lojaId;
-      const match = state.stores.find(s => String(s.LojaID || s.lojaId) === String(userStore));
-      state.selectedStore = match ? String(match.LojaID || match.lojaId) : String(state.stores[0].LojaID || state.stores[0].lojaId);
-    }
-
-    const container = $('#tasksApp');
-    if (container && (!container.innerHTML.trim() || $('#view-tasks')?.classList.contains('active'))) {
-      renderTasksApp();
-      loadTasks();
-    }
+  // Abas mobile de status
+  $$('[data-mobile-status]', host).forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.mobileStatus = btn.dataset.mobileStatus;
+      renderApp();
+    });
   });
 
-  // Ouvir prontidão da API e DOM
-  window.addEventListener('gestao-api-ready', () => {
-    const container = $('#tasksApp');
-    if (container && !container.innerHTML.trim()) {
-      ensureTasksInitialized();
-    }
+  // Filtros de atenção
+  $$('[data-attention]', host).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.attention;
+      state.attentionFilter = state.attentionFilter === type ? '' : type;
+      renderApp();
+    });
   });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      const container = $('#tasksApp');
-      if (container && !container.innerHTML.trim()) {
-        ensureTasksInitialized();
+  $('#cfClearAttention')?.addEventListener('click', () => {
+    state.attentionFilter = '';
+    renderApp();
+  });
+
+  // Busca e Filtros
+  $('#cfTaskSearch')?.addEventListener('input', (e) => {
+    state.searchQuery = e.target.value;
+    renderApp();
+  });
+
+  $('#cfTaskAssigneeFilter')?.addEventListener('change', (e) => {
+    state.filterAssignee = e.target.value;
+    renderApp();
+  });
+
+  $('#cfTaskPriorityFilter')?.addEventListener('change', (e) => {
+    state.filterPriority = e.target.value;
+    renderApp();
+  });
+
+  $('#cfBtnRefreshTasks')?.addEventListener('click', () => {
+    loadData();
+  });
+
+  $('#cfBtnNewTask')?.addEventListener('click', () => {
+    openNewTaskModal();
+  });
+
+  $('#cfBtnPenalty')?.addEventListener('click', () => {
+    openPenaltyModal();
+  });
+
+  // Ações nos Cards
+  $$('[data-cf-action]', host).forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.cfAction;
+      const taskId = btn.dataset.taskId;
+      const rewardId = btn.dataset.rewardId;
+      const redemptionId = btn.dataset.redemptionId;
+
+      if (action === 'start') {
+        await handleTaskStart(taskId);
+      } else if (action === 'complete') {
+        openCompleteModal(taskId);
+      } else if (action === 'approve') {
+        await handleTaskApprove(taskId);
+      } else if (action === 'reject') {
+        openRejectModal(taskId);
+      } else if (action === 'cancel') {
+        openCancelModal(taskId);
+      } else if (action === 'reopen') {
+        await handleTaskReopen(taskId);
+      } else if (action === 'edit') {
+        openEditTaskModal(taskId);
+      } else if (action === 'view-evidence') {
+        openEvidenceModal(taskId);
+      } else if (action === 'redeem') {
+        await handleRewardRedeem(rewardId);
+      } else if (action === 'deliver-reward') {
+        await handleDeliverReward(redemptionId);
       }
     });
-  } else {
-    setTimeout(() => {
-      const container = $('#tasksApp');
-      if (container && !container.innerHTML.trim()) {
-        ensureTasksInitialized();
-      }
-    }, 100);
+  });
+}
+
+// ==========================================================================
+// AÇÕES DE TAREFA (HANDLERS)
+// ==========================================================================
+
+async function handleTaskStart(taskId) {
+  try {
+    btnLoading(true);
+    await callApi('cozinhaTasksStart', [taskId]);
+    toast("Tarefa iniciada!");
+    await loadData();
+  } catch (err) {
+    alert(err.message || "Erro ao iniciar tarefa.");
+  } finally {
+    btnLoading(false);
   }
+}
+
+async function handleTaskApprove(taskId) {
+  try {
+    btnLoading(true);
+    const res = await callApi('cozinhaTasksApprove', [taskId]);
+    toast(res?.message || "Tarefa aprovada e pontos concedidos!");
+    await loadData();
+  } catch (err) {
+    alert(err.message || "Erro ao aprovar tarefa.");
+  } finally {
+    btnLoading(false);
+  }
+}
+
+async function handleTaskReopen(taskId) {
+  try {
+    btnLoading(true);
+    await callApi('cozinhaTasksReopen', [taskId]);
+    toast("Tarefa reaberta!");
+    await loadData();
+  } catch (err) {
+    alert(err.message || "Erro ao reabrir tarefa.");
+  } finally {
+    btnLoading(false);
+  }
+}
+
+async function handleRewardRedeem(rewardId) {
+  const reward = state.catalog.find(r => String(r.ID) === String(rewardId));
+  if (!reward) return;
+
+  if (!confirm(`Deseja resgatar "${reward.NOME || reward.name}" por ${reward.cost || reward.PONTOS} pontos?`)) {
+    return;
+  }
+
+  try {
+    btnLoading(true);
+    const res = await callApi('cozinhaPointRedeem', [{ rewardId }]);
+    toast(res?.message || "Resgate solicitado com sucesso!");
+    await loadData();
+  } catch (err) {
+    alert(err.message || "Erro ao resgatar produto.");
+  } finally {
+    btnLoading(false);
+  }
+}
+
+async function handleDeliverReward(redemptionId) {
+  if (!confirm("Confirmar que a recompensa foi entregue ao colaborador?")) return;
+
+  try {
+    btnLoading(true);
+    await callApi('cozinhaPointDeliver', [{ id: redemptionId }]);
+    toast("Recompensa entregue!");
+    await loadData();
+  } catch (err) {
+    alert(err.message || "Erro ao marcar entrega.");
+  } finally {
+    btnLoading(false);
+  }
+}
+
+// ==========================================================================
+// MODAIS
+// ==========================================================================
+
+function openNewTaskModal() {
+  const modal = createModalElement('Nova Tarefa CozinhaFlow');
+  modal.querySelector('.cf-modal-body').innerHTML = `
+    <form id="cfNewTaskForm" style="display:grid;gap:12px;">
+      <div>
+        <label>Título da Tarefa *</label>
+        <input type="text" name="TITULO" required placeholder="Ex.: Limpeza e higienização da chapa">
+      </div>
+      <div>
+        <label>Descrição detalhada</label>
+        <textarea name="DESCRICAO" rows="2" placeholder="Instruções específicas para a execução"></textarea>
+      </div>
+      <div>
+        <label>Colaborador Responsável *</label>
+        <select name="RESPONSAVEL_ID" required>
+          <option value="">Selecione o funcionário...</option>
+          ${state.assignees.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${esc(a.role)})</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label>Prioridade</label>
+          <select name="PRIORIDADE">
+            <option value="Normal">Normal (+1 pt)</option>
+            <option value="Alta">Alta (+2 pts)</option>
+            <option value="Urgente">Urgente (+3 pts)</option>
+            <option value="Baixa">Baixa (+1 pt)</option>
+          </select>
+        </div>
+        <div>
+          <label>Prazo Limite</label>
+          <input type="datetime-local" name="PRAZO">
+        </div>
+      </div>
+      <div>
+        <label>Orientação para a foto de conclusão</label>
+        <input type="text" name="ORIENTACAO_FOTO" placeholder="Ex.: Foto ampla mostrando a chapa limpa e desligada">
+      </div>
+      <div>
+        <label>Recorrência</label>
+        <select name="RECORRENCIA">
+          <option value="Nenhuma">Nenhuma (Única)</option>
+          <option value="Diária">Diária (Todos os dias)</option>
+        </select>
+      </div>
+    </form>
+  `;
+
+  modal.querySelector('.cf-modal-foot').innerHTML = `
+    <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
+    <button type="button" class="task-action-btn primary" id="cfSaveNewTask">Criar Tarefa</button>
+  `;
+
+  $('#cfSaveNewTask', modal).addEventListener('click', async () => {
+    const form = $('#cfNewTaskForm', modal);
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.TITULO?.trim() || !data.RESPONSAVEL_ID) {
+      alert("Preencha o título e selecione o colaborador.");
+      return;
+    }
+    const assignee = state.assignees.find(a => a.id === data.RESPONSAVEL_ID);
+    data.RESPONSAVEL_NOME = assignee?.name || '';
+    data.RESPONSAVEL_EMAIL = assignee?.email || '';
+
+    try {
+      btnLoading(true);
+      await callApi('cozinhaTasksSave', [data]);
+      modal.remove();
+      toast("Tarefa criada com sucesso!");
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Erro ao salvar tarefa.");
+    } finally {
+      btnLoading(false);
+    }
+  });
+}
+
+function openEditTaskModal(taskId) {
+  const task = state.tasks.find(t => t.ID === taskId);
+  if (!task) return;
+
+  const modal = createModalElement('Editar Tarefa');
+  modal.querySelector('.cf-modal-body').innerHTML = `
+    <form id="cfEditTaskForm" style="display:grid;gap:12px;">
+      <div>
+        <label>Título da Tarefa *</label>
+        <input type="text" name="TITULO" value="${esc(task.TITULO)}" required>
+      </div>
+      <div>
+        <label>Descrição</label>
+        <textarea name="DESCRICAO" rows="2">${esc(task.DESCRICAO)}</textarea>
+      </div>
+      <div>
+        <label>Colaborador Responsável *</label>
+        <select name="RESPONSAVEL_ID" required>
+          ${state.assignees.map(a => `<option value="${esc(a.id)}" ${String(task.RESPONSAVEL_ID) === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label>Prioridade</label>
+          <select name="PRIORIDADE">
+            <option value="Normal" ${task.PRIORIDADE === 'Normal' ? 'selected' : ''}>Normal (+1 pt)</option>
+            <option value="Alta" ${task.PRIORIDADE === 'Alta' ? 'selected' : ''}>Alta (+2 pts)</option>
+            <option value="Urgente" ${task.PRIORIDADE === 'Urgente' ? 'selected' : ''}>Urgente (+3 pts)</option>
+            <option value="Baixa" ${task.PRIORIDADE === 'Baixa' ? 'selected' : ''}>Baixa (+1 pt)</option>
+          </select>
+        </div>
+        <div>
+          <label>Prazo Limite</label>
+          <input type="datetime-local" name="PRAZO" value="${esc(task.PRAZO ? task.PRAZO.slice(0, 16) : '')}">
+        </div>
+      </div>
+    </form>
+  `;
+
+  modal.querySelector('.cf-modal-foot').innerHTML = `
+    <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
+    <button type="button" class="task-action-btn primary" id="cfSaveEditTask">Salvar Alterações</button>
+  `;
+
+  $('#cfSaveEditTask', modal).addEventListener('click', async () => {
+    const form = $('#cfEditTaskForm', modal);
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.ID = taskId;
+    const assignee = state.assignees.find(a => a.id === data.RESPONSAVEL_ID);
+    if (assignee) {
+      data.RESPONSAVEL_NOME = assignee.name;
+      data.RESPONSAVEL_EMAIL = assignee.email;
+    }
+
+    try {
+      btnLoading(true);
+      await callApi('cozinhaTasksSave', [data]);
+      modal.remove();
+      toast("Tarefa atualizada!");
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Erro ao salvar.");
+    } finally {
+      btnLoading(false);
+    }
+  });
+}
+
+function openCompleteModal(taskId) {
+  const task = state.tasks.find(t => t.ID === taskId);
+  if (!task) return;
+
+  const modal = createModalElement('Concluir Tarefa com Foto');
+  modal.querySelector('.cf-modal-body').innerHTML = `
+    <div style="display:grid;gap:14px;">
+      <div style="padding:10px;border-radius:12px;background:#f3f0ff;color:#5b21b6;font-size:12px;">
+        <strong>${esc(task.TITULO)}</strong>
+        ${task.ORIENTACAO_FOTO ? `<p style="margin:4px 0 0;">📸 ${esc(task.ORIENTACAO_FOTO)}</p>` : ''}
+      </div>
+
+      <div>
+        <label>Tirar ou Carregar Foto Comprobatória *</label>
+        <input type="file" id="cfPhotoInput" accept="image/*" capture="environment" style="padding:8px;">
+        <div id="cfPhotoPreview" style="margin-top:10px;display:none;border-radius:12px;overflow:hidden;max-height:220px;border:1px solid #e2e8f0;">
+          <img src="" style="width:100%;max-height:220px;object-fit:cover;display:block;">
+        </div>
+      </div>
+
+      <div>
+        <label>Observação da Conclusão (Opcional)</label>
+        <textarea id="cfCompleteObs" rows="2" placeholder="Algum detalhe relevante sobre a execução?"></textarea>
+      </div>
+    </div>
+  `;
+
+  modal.querySelector('.cf-modal-foot').innerHTML = `
+    <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
+    <button type="button" class="task-action-btn primary" id="cfSubmitComplete">Enviar para Conferência</button>
+  `;
+
+  let currentBase64 = '';
+  const input = $('#cfPhotoInput', modal);
+  const preview = $('#cfPhotoPreview', modal);
+  const previewImg = $('img', preview);
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    try {
+      const processed = await processPhoto(file, task.TITULO);
+      currentBase64 = processed.base64;
+      previewImg.src = currentBase64;
+      preview.style.display = 'block';
+    } catch (err) {
+      alert("Erro ao preparar foto: " + err.message);
+    }
+  });
+
+  $('#cfSubmitComplete', modal).addEventListener('click', async () => {
+    if (!currentBase64) {
+      alert("A foto comprobatória é obrigatória para concluir a tarefa.");
+      return;
+    }
+
+    const obs = $('#cfCompleteObs', modal).value;
+
+    try {
+      btnLoading(true);
+      // Upload para Google Drive (com fallback para base64)
+      let photoUrl = currentBase64;
+      try {
+        const driveRes = await uploadPhotoToDrive(currentBase64, `task_${taskId}.jpg`);
+        if (driveRes?.url) photoUrl = driveRes.url;
+      } catch (uploadErr) {
+        console.warn("Drive upload fallback:", uploadErr);
+      }
+
+      await callApi('cozinhaTasksComplete', [{
+        taskId,
+        fotoUrl: photoUrl,
+        observacao: obs,
+      }]);
+
+      modal.remove();
+      toast("Tarefa enviada para conferência!");
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Erro ao concluir tarefa.");
+    } finally {
+      btnLoading(false);
+    }
+  });
+}
+
+function openRejectModal(taskId) {
+  const modal = createModalElement('Pedir Nova Foto');
+  modal.querySelector('.cf-modal-body').innerHTML = `
+    <div style="display:grid;gap:12px;">
+      <p style="font-size:12.5px;color:#64748b;">Informe o motivo pelo qual a foto foi recusada para que o colaborador corrija:</p>
+      <textarea id="cfRejectReason" rows="3" placeholder="Ex.: Foto embaçada / ângulo não mostra o fechamento do equipamento" required></textarea>
+    </div>
+  `;
+
+  modal.querySelector('.cf-modal-foot').innerHTML = `
+    <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
+    <button type="button" class="task-action-btn danger" id="cfConfirmReject">Devolver Tarefa</button>
+  `;
+
+  $('#cfConfirmReject', modal).addEventListener('click', async () => {
+    const reason = $('#cfRejectReason', modal).value.trim();
+    if (!reason) {
+      alert("Informe o motivo da devolução.");
+      return;
+    }
+
+    try {
+      btnLoading(true);
+      await callApi('cozinhaTasksReject', [{ taskId, reason }]);
+      modal.remove();
+      toast("Tarefa devolvida com sucesso.");
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Erro ao devolver tarefa.");
+    } finally {
+      btnLoading(false);
+    }
+  });
+}
+
+function openCancelModal(taskId) {
+  const modal = createModalElement('Cancelar Tarefa');
+  modal.querySelector('.cf-modal-body').innerHTML = `
+    <div style="display:grid;gap:12px;">
+      <p style="font-size:12.5px;color:#64748b;">Ao cancelar uma tarefa não executada, você pode aplicar uma penalidade de pontos:</p>
+      <div>
+        <label>Motivo do cancelamento *</label>
+        <textarea id="cfCancelReason" rows="2" placeholder="Ex.: O colaborador não realizou no prazo do turno" required></textarea>
+      </div>
+      <div>
+        <label>Penalidade de pontos (0 se não houver penalidade)</label>
+        <input type="number" id="cfCancelPoints" value="0" min="0" max="10">
+      </div>
+    </div>
+  `;
+
+  modal.querySelector('.cf-modal-foot').innerHTML = `
+    <button type="button" class="task-action-btn light" data-close-modal>Voltar</button>
+    <button type="button" class="task-action-btn danger" id="cfConfirmCancel">Confirmar Cancelamento</button>
+  `;
+
+  $('#cfConfirmCancel', modal).addEventListener('click', async () => {
+    const reason = $('#cfCancelReason', modal).value.trim();
+    const points = Number($('#cfCancelPoints', modal).value || 0);
+
+    try {
+      btnLoading(true);
+      await callApi('cozinhaTasksCancel', [{ taskId, reason, points }]);
+      modal.remove();
+      toast("Tarefa cancelada.");
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Erro ao cancelar tarefa.");
+    } finally {
+      btnLoading(false);
+    }
+  });
+}
+
+function openEvidenceModal(taskId) {
+  const task = state.tasks.find(t => t.ID === taskId);
+  if (!task || !task.FOTO_URL) return;
+
+  const modal = createModalElement('Comprovante da Tarefa');
+  modal.querySelector('.cf-modal-body').innerHTML = `
+    <div style="display:grid;gap:10px;">
+      <div style="border-radius:14px;overflow:hidden;background:#000;border:1px solid #e2e8f0;text-align:center;">
+        <img src="${esc(task.FOTO_URL)}" style="max-width:100%;max-height:70vh;object-fit:contain;display:block;margin:auto;">
+      </div>
+      <div style="font-size:12px;color:#475569;">
+        <strong>${esc(task.TITULO)}</strong>
+        <p style="margin:2px 0 0;">Concluída por <b>${esc(task.RESPONSAVEL_NOME)}</b></p>
+        ${task.OBSERVACAO_CONCLUSAO ? `<p style="margin:4px 0 0;font-style:italic;">"${esc(task.OBSERVACAO_CONCLUSAO)}"</p>` : ''}
+      </div>
+    </div>
+  `;
+  modal.querySelector('.cf-modal-foot').innerHTML = `
+    <button type="button" class="task-action-btn primary" data-close-modal>Fechar</button>
+  `;
+}
+
+function openPenaltyModal() {
+  const modal = createModalElement('Retirar Pontos (Penalidade Administrativa)');
+  modal.querySelector('.cf-modal-body').innerHTML = `
+    <div style="display:grid;gap:12px;">
+      <div style="padding:10px;border-radius:12px;background:#fef2f2;color:#b91c1c;font-size:12px;">
+        ⚠️ Esta ação retira pontos do saldo do colaborador e fica registrada no extrato dele com a justificativa.
+      </div>
+      <div>
+        <label>Colaborador *</label>
+        <select id="cfPenUserId" required>
+          <option value="">Selecione o funcionário...</option>
+          ${state.assignees.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>Quantidade de pontos a retirar *</label>
+        <input type="number" id="cfPenPoints" min="1" max="100" value="2" required>
+      </div>
+      <div>
+        <label>Motivo obrigatório *</label>
+        <textarea id="cfPenReason" rows="3" placeholder="Ex.: Não cumpriu o procedimento de higienização conforme treinado" required></textarea>
+      </div>
+    </div>
+  `;
+
+  modal.querySelector('.cf-modal-foot').innerHTML = `
+    <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
+    <button type="button" class="task-action-btn danger" id="cfConfirmPenalty">Aplicar Penalidade</button>
+  `;
+
+  $('#cfConfirmPenalty', modal).addEventListener('click', async () => {
+    const userId = $('#cfPenUserId', modal).value;
+    const points = Number($('#cfPenPoints', modal).value || 0);
+    const reason = $('#cfPenReason', modal).value.trim();
+
+    if (!userId || points <= 0 || !reason) {
+      alert("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    try {
+      btnLoading(true);
+      await callApi('cozinhaPointPenalize', [{ userId, points, reason }]);
+      modal.remove();
+      toast("Penalidade aplicada com sucesso.");
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Erro ao aplicar penalidade.");
+    } finally {
+      btnLoading(false);
+    }
+  });
+}
+
+function createModalElement(title) {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'cf-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="cf-modal-card">
+      <div class="cf-modal-head">
+        <h3>${esc(title)}</h3>
+        <button type="button" data-close-modal>&times;</button>
+      </div>
+      <div class="cf-modal-body"></div>
+      <div class="cf-modal-foot"></div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+  backdrop.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', () => backdrop.remove());
+  });
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) backdrop.remove();
+  });
+  return backdrop;
+}
+
+// ==========================================================================
+// PROCESSAMENTO E UPLOAD DE FOTOS (GOOGLE DRIVE & CANVAS WATERMARK)
+// ==========================================================================
+
+async function processPhoto(file, taskTitle) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Erro ao ler o arquivo."));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Formato de imagem inválido."));
+      img.onload = () => {
+        const maxSide = 1400;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxSide || h > maxSide) {
+          if (w > h) {
+            h = Math.round((h * maxSide) / w);
+            w = maxSide;
+          } else {
+            w = Math.round((w * maxSide) / h);
+            h = maxSide;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // Faixa com carimbo no rodapé
+        const bannerHeight = Math.max(50, Math.round(h * 0.08));
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.fillRect(0, h - bannerHeight, w, bannerHeight);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(14, Math.round(bannerHeight * 0.35))}px sans-serif`;
+        ctx.fillText(`CozinhaFlow · ${taskTitle || 'Tarefa'}`, 16, h - bannerHeight + bannerHeight * 0.45);
+
+        ctx.font = `${Math.max(11, Math.round(bannerHeight * 0.28))}px sans-serif`;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        const dateStr = new Date().toLocaleString('pt-BR');
+        ctx.fillText(`${currentUserName()} · ${dateStr}`, 16, h - bannerHeight + bannerHeight * 0.82);
+
+        const base64 = canvas.toDataURL('image/jpeg', 0.82);
+        resolve({ base64 });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPhotoToDrive(base64, filename) {
+  const endpoint = SELFIE_DRIVE_UPLOAD_ENDPOINT;
+  if (!endpoint) return { url: base64 };
+
+  const payload = {
+    action: 'driveUpload',
+    name: filename,
+    mimeType: 'image/jpeg',
+    base64: base64,
+  };
+
+  const formData = new FormData();
+  Object.entries(payload).forEach(([k, v]) => formData.append(k, v));
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) throw new Error("Erro no upload do Google Drive.");
+  const data = await response.json().catch(() => ({}));
+  return data;
+}
+
+// ==========================================================================
+// TOAST E FEEDBACK
+// ==========================================================================
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1e1b4b;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 750;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    z-index: 99999;
+    animation: cfFadeIn 0.25s ease;
+  `;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function btnLoading(isLoading) {
+  document.body.style.cursor = isLoading ? 'wait' : 'default';
+}
+
+// ==========================================================================
+// INICIALIZAÇÃO DO MÓDULO
+// ==========================================================================
+
+export function initTasksModule(options = {}) {
+  if (options.user) state.user = options.user;
+  if (options.isManager !== undefined) state.isManager = options.isManager;
+  loadData();
+}
+
+window.initTasksModule = initTasksModule;
+
+// Ouvintes de eventos da aplicação Folgas 3.0
+window.addEventListener('gestao-tasks-open', (e) => {
+  initTasksModule(e.detail || {});
+});
+
+window.addEventListener('house-journey', (e) => {
+  const detail = e.detail || {};
+  if (detail.user) state.user = detail.user;
+  state.isManager = isUserAdmin();
+  const container = $('#tasksApp');
+  if (container && (!container.innerHTML.trim() || $('#view-tasks')?.classList.contains('active'))) {
+    loadData();
+  }
+});
+
+window.addEventListener('gestao-api-ready', () => {
+  const container = $('#tasksApp');
+  if (container && !container.innerHTML.trim()) {
+    initTasksModule();
+  }
+});
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const container = $('#tasksApp');
+    if (container && !container.innerHTML.trim()) {
+      initTasksModule();
+    }
+  });
+} else {
+  setTimeout(() => {
+    const container = $('#tasksApp');
+    if (container && !container.innerHTML.trim()) {
+      initTasksModule();
+    }
+  }, 100);
 }

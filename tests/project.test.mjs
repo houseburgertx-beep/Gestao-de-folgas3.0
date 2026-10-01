@@ -2019,3 +2019,41 @@ test("jornada integral fechando a meia-noite: tolerância de 23:40 a 00:00 sem d
   assert.equal(earlyEntryWithOvertime.balance, 30, "Hora extra deve contar estritamente os minutos pós meia-noite");
 });
 
+test("CozinhaFlow: títulos, pontuação por prioridade e catálogo de prêmios da loja", async () => {
+  const {
+    DEFAULT_REWARDS,
+    KITCHEN_LEVELS,
+    getKitchenLevel,
+    taskPointValue,
+  } = await import("../src/core/api-tasks.js");
+
+  // 1. Validação dos 8 níveis oficiais da cozinha
+  assert.equal(KITCHEN_LEVELS.length, 8, "Devem existir 8 níveis de carreira da cozinha");
+  assert.equal(KITCHEN_LEVELS[0].name, "Ajudante da Cozinha");
+  assert.equal(KITCHEN_LEVELS[7].name, "Lenda do Foodpark");
+
+  // Níveis por faixa de pontos
+  assert.equal(getKitchenLevel(0).level.name, "Ajudante da Cozinha");
+  assert.equal(getKitchenLevel(50).level.name, "Ajudante da Cozinha");
+  assert.equal(getKitchenLevel(60).level.name, "Mestre do Molho");
+  assert.equal(getKitchenLevel(150).level.name, "Guardião da Fritadeira");
+  assert.equal(getKitchenLevel(300).level.name, "Rei da Chapa");
+  assert.equal(getKitchenLevel(550).level.name, "Pizzaiolo de Ouro");
+  assert.equal(getKitchenLevel(900).level.name, "Mestre do Crocante");
+  assert.equal(getKitchenLevel(1500).level.name, "Chef da House");
+  assert.equal(getKitchenLevel(2500).level.name, "Lenda do Foodpark");
+  assert.equal(getKitchenLevel(5000).level.name, "Lenda do Foodpark");
+
+  // 2. Pontuação por tarefa/prioridade
+  assert.equal(taskPointValue("Urgente"), 3, "Prioridade urgente gera 3 pontos");
+  assert.equal(taskPointValue("Alta"), 2, "Prioridade alta gera 2 pontos");
+  assert.equal(taskPointValue("Media"), 1, "Prioridade média gera 1 ponto");
+  assert.equal(taskPointValue("Baixa"), 1, "Prioridade baixa gera 1 ponto");
+
+  // 3. Catálogo de prêmios da loja
+  assert.equal(DEFAULT_REWARDS.length, 11, "Devem existir 11 prêmios padrão na loja");
+  const rewardFolgaExtra = DEFAULT_REWARDS.find((r) => (r.NOME || r.nome) === "Folga extra");
+  assert.ok(rewardFolgaExtra, "Deve incluir 'Folga extra'");
+  assert.equal(rewardFolgaExtra.PONTOS || rewardFolgaExtra.pontos, 800);
+});
+
