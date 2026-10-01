@@ -1133,71 +1133,73 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   --rt-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
-/* Equalização Universal da Barra de Navegação Inferior (Mobile Dock) */
-.mobile-dock {
-  background: var(--surface, #ffffff) !important;
-  border-top: 1px solid var(--line, #e2e8f0) !important;
-  box-shadow: 0 -2px 16px rgba(15, 23, 42, 0.05) !important;
-  padding: 4px 8px calc(6px + env(safe-area-inset-bottom)) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  display: flex !important;
-}
+/* Equalização Universal da Barra de Navegação Inferior (Mobile Dock) — apenas mobile */
+@media (max-width: 760px) {
+  .mobile-dock {
+    background: var(--surface, #ffffff) !important;
+    border-top: 1px solid var(--line, #e2e8f0) !important;
+    box-shadow: 0 -2px 16px rgba(15, 23, 42, 0.05) !important;
+    padding: 4px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex !important;
+  }
 
-.mobile-dock button {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 1 !important;
-  min-width: 0 !important;
-  height: 52px !important;
-  min-height: 52px !important;
-  padding: 4px 2px !important;
-  border: 0 !important;
-  border-radius: 8px !important;
-  color: var(--muted, #64748b) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  margin: 0 !important;
-  gap: 3px !important;
-  transition: all 0.15s ease !important;
-  -webkit-tap-highlight-color: transparent;
-}
+  .mobile-dock button {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    padding: 4px 2px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    color: var(--muted, #64748b) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    gap: 3px !important;
+    transition: all 0.15s ease !important;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-.mobile-dock button:active {
-  transform: scale(0.96);
-}
+  .mobile-dock button:active {
+    transform: scale(0.96);
+  }
 
-.mobile-dock button svg {
-  width: 20px !important;
-  height: 20px !important;
-  display: block !important;
-  margin: 0 !important;
-  stroke-width: 1.8 !important;
-  transition: color 0.15s ease, transform 0.15s ease;
-}
+  .mobile-dock button svg {
+    width: 20px !important;
+    height: 20px !important;
+    display: block !important;
+    margin: 0 !important;
+    stroke-width: 1.8 !important;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
 
-.mobile-dock button span {
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  line-height: 1.1 !important;
-  letter-spacing: -0.01em !important;
-}
+  .mobile-dock button span {
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.01em !important;
+  }
 
-.mobile-dock button.active {
-  color: var(--primary, #2563eb) !important;
-  background: transparent !important;
-}
+  .mobile-dock button.active {
+    color: var(--primary, #2563eb) !important;
+    background: transparent !important;
+  }
 
-.mobile-dock button.active svg {
-  color: var(--primary, #2563eb) !important;
-  transform: translateY(-1px);
-}
+  .mobile-dock button.active svg {
+    color: var(--primary, #2563eb) !important;
+    transform: translateY(-1px);
+  }
 
-.mobile-dock button.active span {
-  font-weight: 700 !important;
-  color: var(--primary, #2563eb) !important;
+  .mobile-dock button.active span {
+    font-weight: 700 !important;
+    color: var(--primary, #2563eb) !important;
+  }
 }
 
 /* Layout Geral da Página de Rotinas */
