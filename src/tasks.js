@@ -142,6 +142,10 @@ async function loadData() {
   } finally {
     state.loading = false;
     renderApp();
+    try {
+      const balance = computeUserBalance();
+      window.dispatchEvent(new CustomEvent('cozinha-tasks-updated', { detail: balance }));
+    } catch (_) {}
   }
 }
 
@@ -149,7 +153,7 @@ async function loadData() {
 // CALCULAÇÃO DE SALDO DE PONTOS
 // ==========================================================================
 
-function computeUserBalance() {
+export function computeUserBalance() {
   const uid = currentUserId();
   const myTasks = state.tasks.filter(t => String(t.RESPONSAVEL_ID) === uid && t.STATUS === 'Concluída');
   const taskPts = myTasks.reduce((sum, t) => sum + taskPointValue(t.PRIORIDADE), 0);
@@ -166,6 +170,8 @@ function computeUserBalance() {
 
   return { totalEarned, spent, available, levelInfo };
 }
+
+window.cozinhaFlowGetBalance = computeUserBalance;
 
 // ==========================================================================
 // RENDERIZAÇÃO PRINCIPAL DO COZINHA FLOW
@@ -1048,16 +1054,12 @@ async function handleDeliverReward(redemptionId) {
 // ==========================================================================
 
 function openNewTaskModal() {
-  const modal = createModalElement('Nova Tarefa CozinhaFlow');
+  const modal = createModalElement('Nova Tarefa CozinhaFlow', 'Atribua a atividade com orientação clara para a equipe');
   modal.querySelector('.cf-modal-body').innerHTML = `
-    <form id="cfNewTaskForm" style="display:grid;gap:12px;">
+    <form id="cfNewTaskForm" style="display:grid;gap:14px;">
       <div>
         <label>Título da Tarefa *</label>
         <input type="text" name="TITULO" required placeholder="Ex.: Limpeza e higienização da chapa">
-      </div>
-      <div>
-        <label>Descrição detalhada</label>
-        <textarea name="DESCRICAO" rows="2" placeholder="Instruções específicas para a execução"></textarea>
       </div>
       <div>
         <label>Colaborador Responsável *</label>
@@ -1066,38 +1068,57 @@ function openNewTaskModal() {
           ${state.assignees.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${esc(a.role)})</option>`).join('')}
         </select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div>
-          <label>Prioridade</label>
-          <select name="PRIORIDADE">
-            <option value="Normal">Normal (+1 pt)</option>
-            <option value="Alta">Alta (+2 pts)</option>
-            <option value="Urgente">Urgente (+3 pts)</option>
-            <option value="Baixa">Baixa (+1 pt)</option>
-          </select>
+      <div>
+        <label>Prioridade da Atividade</label>
+        <div class="task-priority-chips">
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Normal" checked>
+            <span><strong>Normal</strong><small>+1 pt</small></span>
+          </label>
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Alta">
+            <span><strong>Alta</strong><small>+2 pts</small></span>
+          </label>
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Urgente">
+            <span><strong>Urgente</strong><small>+3 pts</small></span>
+          </label>
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Baixa">
+            <span><strong>Baixa</strong><small>+1 pt</small></span>
+          </label>
         </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <label>Prazo Limite</label>
           <input type="datetime-local" name="PRAZO">
         </div>
+        <div>
+          <label>Recorrência</label>
+          <select name="RECORRENCIA">
+            <option value="Nenhuma">Única (Não repete)</option>
+            <option value="Diária">Diária (Todos os dias)</option>
+          </select>
+        </div>
       </div>
       <div>
-        <label>Orientação para a foto de conclusão</label>
+        <label>O que deve aparecer na foto de conclusão</label>
         <input type="text" name="ORIENTACAO_FOTO" placeholder="Ex.: Foto ampla mostrando a chapa limpa e desligada">
       </div>
       <div>
-        <label>Recorrência</label>
-        <select name="RECORRENCIA">
-          <option value="Nenhuma">Nenhuma (Única)</option>
-          <option value="Diária">Diária (Todos os dias)</option>
-        </select>
+        <label>Instruções detalhadas (opcional)</label>
+        <textarea name="DESCRICAO" rows="2" placeholder="Passo a passo, produtos adequados ou observações"></textarea>
       </div>
     </form>
   `;
 
   modal.querySelector('.cf-modal-foot').innerHTML = `
     <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
-    <button type="button" class="task-action-btn primary" id="cfSaveNewTask">Criar Tarefa</button>
+    <button type="button" class="task-action-btn primary btn-glow" id="cfSaveNewTask">
+      <span class="material-symbols-rounded">add_task</span>
+      <span>Salvar e Atribuir Tarefa</span>
+    </button>
   `;
 
   $('#cfSaveNewTask', modal).addEventListener('click', async () => {
@@ -1115,7 +1136,7 @@ function openNewTaskModal() {
       btnLoading(true);
       await callApi('cozinhaTasksSave', [data]);
       modal.remove();
-      toast("Tarefa criada com sucesso!");
+      toast("Tarefa criada e atribuída com sucesso! 🚀");
       await loadData();
     } catch (err) {
       alert(err.message || "Erro ao salvar tarefa.");
@@ -1129,16 +1150,12 @@ function openEditTaskModal(taskId) {
   const task = state.tasks.find(t => t.ID === taskId);
   if (!task) return;
 
-  const modal = createModalElement('Editar Tarefa');
+  const modal = createModalElement('Editar Tarefa', 'Ajuste os dados e prazos da atividade');
   modal.querySelector('.cf-modal-body').innerHTML = `
-    <form id="cfEditTaskForm" style="display:grid;gap:12px;">
+    <form id="cfEditTaskForm" style="display:grid;gap:14px;">
       <div>
         <label>Título da Tarefa *</label>
         <input type="text" name="TITULO" value="${esc(task.TITULO)}" required>
-      </div>
-      <div>
-        <label>Descrição</label>
-        <textarea name="DESCRICAO" rows="2">${esc(task.DESCRICAO)}</textarea>
       </div>
       <div>
         <label>Colaborador Responsável *</label>
@@ -1146,27 +1163,54 @@ function openEditTaskModal(taskId) {
           ${state.assignees.map(a => `<option value="${esc(a.id)}" ${String(task.RESPONSAVEL_ID) === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
         </select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div>
-          <label>Prioridade</label>
-          <select name="PRIORIDADE">
-            <option value="Normal" ${task.PRIORIDADE === 'Normal' ? 'selected' : ''}>Normal (+1 pt)</option>
-            <option value="Alta" ${task.PRIORIDADE === 'Alta' ? 'selected' : ''}>Alta (+2 pts)</option>
-            <option value="Urgente" ${task.PRIORIDADE === 'Urgente' ? 'selected' : ''}>Urgente (+3 pts)</option>
-            <option value="Baixa" ${task.PRIORIDADE === 'Baixa' ? 'selected' : ''}>Baixa (+1 pt)</option>
-          </select>
+      <div>
+        <label>Prioridade</label>
+        <div class="task-priority-chips">
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Normal" ${task.PRIORIDADE === 'Normal' ? 'checked' : ''}>
+            <span><strong>Normal</strong><small>+1 pt</small></span>
+          </label>
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Alta" ${task.PRIORIDADE === 'Alta' ? 'checked' : ''}>
+            <span><strong>Alta</strong><small>+2 pts</small></span>
+          </label>
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Urgente" ${task.PRIORIDADE === 'Urgente' ? 'checked' : ''}>
+            <span><strong>Urgente</strong><small>+3 pts</small></span>
+          </label>
+          <label class="task-priority-chip">
+            <input type="radio" name="PRIORIDADE" value="Baixa" ${task.PRIORIDADE === 'Baixa' ? 'checked' : ''}>
+            <span><strong>Baixa</strong><small>+1 pt</small></span>
+          </label>
         </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <label>Prazo Limite</label>
           <input type="datetime-local" name="PRAZO" value="${esc(task.PRAZO ? task.PRAZO.slice(0, 16) : '')}">
         </div>
+        <div>
+          <label>Recorrência</label>
+          <select name="RECORRENCIA">
+            <option value="Nenhuma" ${task.RECORRENCIA === 'Nenhuma' ? 'selected' : ''}>Única (Não repete)</option>
+            <option value="Diária" ${task.RECORRENCIA === 'Diária' ? 'selected' : ''}>Diária (Todos os dias)</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>O que deve aparecer na foto</label>
+        <input type="text" name="ORIENTACAO_FOTO" value="${esc(task.ORIENTACAO_FOTO || '')}" placeholder="Ex.: forno limpo e desligado">
+      </div>
+      <div>
+        <label>Descrição</label>
+        <textarea name="DESCRICAO" rows="2">${esc(task.DESCRICAO)}</textarea>
       </div>
     </form>
   `;
 
   modal.querySelector('.cf-modal-foot').innerHTML = `
     <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
-    <button type="button" class="task-action-btn primary" id="cfSaveEditTask">Salvar Alterações</button>
+    <button type="button" class="task-action-btn primary btn-glow" id="cfSaveEditTask">Salvar Alterações</button>
   `;
 
   $('#cfSaveEditTask', modal).addEventListener('click', async () => {
@@ -1183,7 +1227,7 @@ function openEditTaskModal(taskId) {
       btnLoading(true);
       await callApi('cozinhaTasksSave', [data]);
       modal.remove();
-      toast("Tarefa atualizada!");
+      toast("Tarefa atualizada com sucesso!");
       await loadData();
     } catch (err) {
       alert(err.message || "Erro ao salvar.");
@@ -1197,60 +1241,112 @@ function openCompleteModal(taskId) {
   const task = state.tasks.find(t => t.ID === taskId);
   if (!task) return;
 
-  const modal = createModalElement('Concluir Tarefa com Foto');
+  const pointsWon = taskPointValue(task.PRIORIDADE);
+  const modal = createModalElement('Concluir Tarefa com Foto', 'Envie a comprovação visual para aprovação e pontuação');
+  
   modal.querySelector('.cf-modal-body').innerHTML = `
     <div style="display:grid;gap:14px;">
-      <div style="padding:10px;border-radius:12px;background:#f3f0ff;color:#5b21b6;font-size:12px;">
-        <strong>${esc(task.TITULO)}</strong>
-        ${task.ORIENTACAO_FOTO ? `<p style="margin:4px 0 0;">📸 ${esc(task.ORIENTACAO_FOTO)}</p>` : ''}
+      <div class="task-complete-summary">
+        <span class="material-symbols-rounded">assignment_turned_in</span>
+        <div>
+          <small>Tarefa a concluir</small>
+          <strong>${esc(task.TITULO)}</strong>
+        </div>
       </div>
 
-      <div>
-        <label>Tirar ou Carregar Foto Comprobatória *</label>
-        <input type="file" id="cfPhotoInput" accept="image/*" capture="environment" style="padding:8px;">
-        <div id="cfPhotoPreview" style="margin-top:10px;display:none;border-radius:12px;overflow:hidden;max-height:220px;border:1px solid #e2e8f0;">
-          <img src="" style="width:100%;max-height:220px;object-fit:cover;display:block;">
+      <div class="task-camera-guide">
+        <span class="material-symbols-rounded">center_focus_strong</span>
+        <div>
+          <small>Mostre na foto</small>
+          <strong>${esc(task.ORIENTACAO_FOTO || `o resultado completo de “${task.TITULO}”`)}</strong>
+          <span>A foto receberá automaticamente carimbo de data, hora e seu nome.</span>
         </div>
       </div>
 
       <div>
-        <label>Observação da Conclusão (Opcional)</label>
+        <label>Foto da atividade concluída *</label>
+        <input id="taskEvidenceFile" type="file" accept="image/*" capture="environment" class="task-photo-input">
+        <label class="task-photo-picker" for="taskEvidenceFile">
+          <span class="material-symbols-rounded">photo_camera</span>
+          <span>
+            <strong>Tirar ou escolher foto</strong>
+            <small id="taskPhotoFileName">Nenhuma foto selecionada</small>
+          </span>
+        </label>
+        <div id="taskPhotoPreview" class="task-photo-preview" style="display:none;">
+          <img src="" alt="Prévia da foto">
+          <div>
+            <strong>Foto pronta e carimbada!</strong>
+            <small style="display:block;color:#15803d;font-size:11px;">Toque na câmera se desejar trocar.</small>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label>Observação da conclusão (opcional)</label>
         <textarea id="cfCompleteObs" rows="2" placeholder="Algum detalhe relevante sobre a execução?"></textarea>
+      </div>
+
+      <div>
+        <label class="task-confirm-check">
+          <input type="checkbox" id="cfConfirmCheck" checked>
+          <span>
+            <strong>Confirmo que executei esta tarefa.</strong>
+            <small>A conclusão ficará registrada com meu usuário, data, hora e foto.</small>
+          </span>
+        </label>
       </div>
     </div>
   `;
 
   modal.querySelector('.cf-modal-foot').innerHTML = `
     <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
-    <button type="button" class="task-action-btn primary" id="cfSubmitComplete">Enviar para Conferência</button>
+    <button type="button" class="task-action-btn primary btn-glow" id="cfSubmitComplete">
+      <span class="material-symbols-rounded">send</span>
+      <span>🚀 Enviar Comprovação (+${pointsWon} pts)</span>
+    </button>
   `;
 
   let currentBase64 = '';
-  const input = $('#cfPhotoInput', modal);
-  const preview = $('#cfPhotoPreview', modal);
+  const fileInput = $('#taskEvidenceFile', modal);
+  const preview = $('#taskPhotoPreview', modal);
   const previewImg = $('img', preview);
+  const fileNameLabel = $('#taskPhotoFileName', modal);
 
-  input.addEventListener('change', async () => {
-    const file = input.files[0];
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
     if (!file) return;
 
+    fileNameLabel.textContent = file.name;
     try {
       const processed = await processPhoto(file, task.TITULO);
       currentBase64 = processed.base64;
       previewImg.src = currentBase64;
-      preview.style.display = 'block';
+      preview.style.display = 'flex';
+      preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (err) {
       alert("Erro ao preparar foto: " + err.message);
     }
   });
 
   $('#cfSubmitComplete', modal).addEventListener('click', async () => {
+    const confirmCheck = $('#cfConfirmCheck', modal);
+    if (!confirmCheck?.checked) {
+      alert("Por favor, marque a caixa confirmando a execução da tarefa.");
+      return;
+    }
+
     if (!currentBase64) {
-      alert("A foto comprobatória é obrigatória para concluir a tarefa.");
+      alert("A foto comprobatória é obrigatória. Toque em 'Tirar ou escolher foto'.");
       return;
     }
 
     const obs = $('#cfCompleteObs', modal).value;
+
+    const submitBtn = $('#cfSubmitComplete', modal);
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<span>Enviando foto...</span>`;
 
     try {
       btnLoading(true);
@@ -1270,14 +1366,100 @@ function openCompleteModal(taskId) {
       }]);
 
       modal.remove();
-      toast("Tarefa enviada para conferência!");
       await loadData();
+      const updatedBalance = computeUserBalance();
+      showTaskCelebration({
+        task,
+        pointsWon,
+        newLevelInfo: updatedBalance.levelInfo,
+        totalEarned: updatedBalance.totalEarned,
+        available: updatedBalance.available
+      });
     } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
       alert(err.message || "Erro ao concluir tarefa.");
     } finally {
       btnLoading(false);
     }
   });
+}
+
+function showTaskCelebration({ task, pointsWon, newLevelInfo, totalEarned, available }) {
+  // Feedback tátil
+  try {
+    if (navigator.vibrate) navigator.vibrate([60, 40, 80]);
+  } catch (_) {}
+
+  const overlay = document.createElement('div');
+  overlay.className = 'cf-celebration-overlay';
+
+  // Gerar pedaços de confetes coloridos
+  const colors = ['#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#6366f1', '#f43f5e'];
+  let confettiHtml = '<div class="cf-confetti-container">';
+  for (let i = 0; i < 35; i++) {
+    const left = Math.random() * 100;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const duration = 2.2 + Math.random() * 2.5;
+    const delay = Math.random() * 0.8;
+    const size = 7 + Math.random() * 7;
+    const isCircle = Math.random() > 0.5;
+    confettiHtml += `<div class="cf-confetti-piece" style="left:${left}vw;width:${size}px;height:${size * (isCircle ? 1 : 1.6)}px;background:${color};border-radius:${isCircle ? '50%' : '3px'};animation-duration:${duration}s;animation-delay:${delay}s;"></div>`;
+  }
+  confettiHtml += '</div>';
+
+  const { level, nextLevel, progress, pointsNeeded } = newLevelInfo;
+
+  overlay.innerHTML = `
+    ${confettiHtml}
+    <div class="cf-celebration-card">
+      <div class="cf-celebrate-badge-wrap">
+        <span>${level.emoji}</span>
+      </div>
+      <h2 class="cf-celebrate-title">Parabéns! Mandou muito bem! 🎉</h2>
+      <p class="cf-celebrate-task-name">${esc(task.TITULO)}</p>
+      
+      <div class="cf-celebration-points-badge">
+        <span>⭐</span>
+        <strong>+${pointsWon} Pts Adicionados à sua Carteira</strong>
+      </div>
+
+      <div class="cf-celebrate-level-box">
+        <div class="cf-celebrate-level-header">
+          <span class="cf-celebrate-level-title">${level.emoji} ${esc(level.name)}</span>
+          <span class="cf-celebrate-level-points">${available} pts na loja</span>
+        </div>
+        <div class="cf-celebrate-bar-wrap">
+          <div class="cf-celebrate-bar-fill" style="width: ${progress}%;"></div>
+        </div>
+        <div class="cf-celebrate-level-footer">
+          ${nextLevel ? `Faltam <strong>${pointsNeeded} pts</strong> para alcançar ${nextLevel.emoji} ${esc(nextLevel.name)}` : '🏆 Nível Máximo de Maestria da Cozinha!'}
+        </div>
+      </div>
+
+      <button type="button" class="cf-celebrate-btn" id="cfCloseCelebration">
+        Continuar Mandando Bem! 🚀
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const close = () => {
+    overlay.style.transition = 'opacity .25s ease';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 250);
+  };
+
+  overlay.querySelector('#cfCloseCelebration').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+
+  // Notificar o ecossistema
+  window.dispatchEvent(new CustomEvent('cozinha-tasks-updated', {
+    detail: { available, totalEarned, levelInfo: newLevelInfo }
+  }));
 }
 
 function openRejectModal(taskId) {
@@ -1430,14 +1612,17 @@ function openPenaltyModal() {
   });
 }
 
-function createModalElement(title) {
+function createModalElement(title, subtitle = '') {
   const backdrop = document.createElement('div');
   backdrop.className = 'cf-modal-backdrop';
   backdrop.innerHTML = `
     <div class="cf-modal-card">
       <div class="cf-modal-head">
-        <h3>${esc(title)}</h3>
-        <button type="button" data-close-modal>&times;</button>
+        <div>
+          <h3>${esc(title)}</h3>
+          ${subtitle ? `<p class="cf-modal-sub">${esc(subtitle)}</p>` : ''}
+        </div>
+        <button type="button" class="cf-modal-close" data-close-modal aria-label="Fechar">&times;</button>
       </div>
       <div class="cf-modal-body"></div>
       <div class="cf-modal-foot"></div>

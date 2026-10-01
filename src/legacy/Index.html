@@ -52,138 +52,181 @@
       <p>A carregar o sistema…</p>
     </div>
     <section id="loginScreen" class="login-screen hidden">
+      <div class="login-bg-mesh" aria-hidden="true">
+        <div class="login-mesh-orb orb-1"></div>
+        <div class="login-mesh-orb orb-2"></div>
+        <div class="login-mesh-orb orb-3"></div>
+      </div>
       <div class="login-shell">
         <div class="login-brand-panel">
           <div class="login-brand-content">
-            <div
-              class="brand-logo login-logo"
-              aria-label="Grupo House 190"
-            ></div>
-            <strong class="login-group-name">Grupo House 190</strong
-            ><span class="eyebrow">PORTAL INTERNO DE EQUIPES</span>
+            <div class="brand-mark-wrap" style="margin-bottom: 20px;">
+              <div class="brand-steam steam-1"></div>
+              <div class="brand-steam steam-2"></div>
+              <div class="brand-steam steam-3"></div>
+              <div class="brand-mark"><span class="material-symbols-rounded">skillet</span></div>
+            </div>
+            <strong class="login-group-name">Grupo House 190</strong>
+            <span class="eyebrow"><span class="eyebrow-sparkle">✨</span> PORTAL INTERNO DE EQUIPES</span>
             <h1>Bora fazer<br />um bom dia.</h1>
             <p>
-              Ponto, escalas e folgas do Grupo House 190. Entre para acompanhar sua jornada e cuidar de cada turno.
+              Ponto, escalas, folgas e tarefas com gamificação da cozinha. Entre para acompanhar sua jornada e cuidar de cada turno.
             </p>
             <div class="login-feature">
-              <i>✓</i><span>Gestão integrada de todas as unidades</span>
+              <span class="material-symbols-rounded">assignment_ind</span><span>Gestão integrada de todas as unidades</span>
             </div>
             <div class="login-feature">
-              <i>✓</i><span>Escalas claras para cada equipe</span>
+              <span class="material-symbols-rounded">calendar_month</span><span>Escalas e folgas em tempo real</span>
             </div>
             <div class="login-feature">
-              <i>✓</i><span>Acesso seguro por perfil e loja</span>
+              <span class="material-symbols-rounded">task_alt</span><span>Tarefas operacionais com fotos comprobatórias</span>
+            </div>
+            <div class="login-feature">
+              <span class="material-symbols-rounded">storefront</span><span>Loja de recompensas e títulos da equipe</span>
             </div>
           </div>
         </div>
         <div class="login-form-panel">
           <form id="loginForm" class="login-card">
             <div class="mobile-login-brand">
-              <div class="brand-logo"></div>
-              <div>
-                <strong>Grupo House 190</strong
-                ><span>Portal interno de equipes</span>
+              <div class="brand-mark-wrap">
+                <div class="brand-steam steam-1"></div>
+                <div class="brand-steam steam-2"></div>
+                <div class="brand-steam steam-3"></div>
+                <div class="brand-mark"><span class="material-symbols-rounded">skillet</span></div>
               </div>
+              <div class="login-brand-copy">
+                <strong>Grupo House 190</strong>
+                <span>Portal de Equipes · Folgas 3.0</span>
+              </div>
+              <div class="login-status-badge ms-auto"><span class="status-pulse-dot"></span> Online</div>
             </div>
-            <span class="eyebrow">BEM-VINDO AO GRUPO HOUSE 190</span>
+            <span class="eyebrow"><span class="eyebrow-sparkle">✨</span> ACESSO AO SISTEMA</span>
             <h2>Acesse sua área</h2>
-            <p>
-              Consulte sua escala, suas folgas e as informações da sua unidade.
+            <p class="login-subtext">
+              Consulte sua escala, folgas, ponto e tarefas do seu turno.
             </p>
-            <label
-              >E-mail<input
-                id="loginEmail"
-                type="email"
-                autocomplete="username"
-                placeholder="seuemail@exemplo.com"
-                required /></label
-            ><label
-              >Senha
-              <div class="password-field">
+            <label for="loginEmail" class="form-label-wrap">
+              <span>E-mail</span>
+              <div class="input-icon">
+                <span class="material-symbols-rounded">mail</span>
+                <input
+                  id="loginEmail"
+                  type="email"
+                  autocomplete="username"
+                  placeholder="seuemail@exemplo.com"
+                  required />
+              </div>
+            </label>
+            <label for="loginPassword" class="form-label-wrap">
+              <span>Senha</span>
+              <div class="input-icon password-field">
+                <span class="material-symbols-rounded">lock</span>
                 <input
                   id="loginPassword"
                   type="password"
                   autocomplete="current-password"
                   placeholder="Digite sua senha"
-                  required
-                /><button
+                  required />
+                <button
                   id="togglePassword"
                   type="button"
-                  aria-label="Mostrar senha"
-                >
-                  ◉
+                  class="password-toggle"
+                  aria-label="Mostrar senha">
+                  <span class="material-symbols-rounded">visibility</span>
                 </button>
-              </div></label
-            >
-            <div class="login-options">
-              <label
-                ><input id="rememberLogin" type="checkbox" /> Manter conectado
-                por 7 dias</label
-              ><button id="forgotPasswordBtn" type="button">
+              </div>
+            </label>
+            <div class="login-options-row">
+              <label class="custom-check">
+                <input id="rememberLogin" type="checkbox" />
+                <span>Manter conectado por 7 dias</span>
+              </label>
+              <button id="forgotPasswordBtn" type="button" class="btn-link">
                 Esqueci a senha
               </button>
             </div>
-            <button class="btn btn-primary login-submit" type="submit">
-              Entrar no portal
+            <button class="btn btn-primary login-submit btn-glow" type="submit">
+              <span class="material-symbols-rounded btn-icon-left">login</span>
+              <span>Entrar no portal</span>
+              <span class="material-symbols-rounded btn-arrow-right">arrow_forward</span>
             </button>
             <p id="loginError" class="login-error hidden"></p>
+            <p class="login-version">Folgas 3.0 · CozinhaFlow v1.5.0</p>
           </form>
           <form id="resetPasswordForm" class="login-card hidden">
             <button
               id="resetPasswordBack"
               class="reset-password-back"
-              type="button"
-            >
+              type="button">
               ← Voltar ao login
             </button>
-            <span class="eyebrow">RECUPERAÇÃO SEGURA</span>
+            <span class="eyebrow"><span class="eyebrow-sparkle">🔒</span> RECUPERAÇÃO SEGURA</span>
             <h2>Crie uma nova senha</h2>
             <p class="reset-password-hint">
               Digite o código enviado ao seu e-mail. A senha atual só será
               alterada depois da confirmação.
             </p>
-            <label
-              >E-mail<input
-                id="resetPasswordEmail"
-                type="email"
-                autocomplete="username"
-                required /></label
-            ><label
-              >Código<input
-                id="resetPasswordCode"
-                type="text"
-                inputmode="text"
-                autocomplete="one-time-code"
-                maxlength="13"
-                placeholder="ABC123-DEF456"
-                required /></label
-            ><label
-              >Nova senha<input
-                id="resetPasswordNew"
-                type="password"
-                autocomplete="new-password"
-                minlength="10"
-                required /></label
-            ><label
-              >Confirmar nova senha<input
-                id="resetPasswordConfirm"
-                type="password"
-                autocomplete="new-password"
-                minlength="10"
-                required /></label
-            >
-            <small class="reset-password-policy"
-              >Use 10 caracteres e pelo menos três tipos entre maiúscula,
-              minúscula, número e símbolo.</small
-            >
-            <button class="btn btn-primary login-submit" type="submit">
+            <label for="resetPasswordEmail" class="form-label-wrap">
+              <span>E-mail</span>
+              <div class="input-icon">
+                <span class="material-symbols-rounded">mail</span>
+                <input
+                  id="resetPasswordEmail"
+                  type="email"
+                  autocomplete="username"
+                  required />
+              </div>
+            </label>
+            <label for="resetPasswordCode" class="form-label-wrap">
+              <span>Código</span>
+              <div class="input-icon">
+                <span class="material-symbols-rounded">pin</span>
+                <input
+                  id="resetPasswordCode"
+                  type="text"
+                  inputmode="text"
+                  autocomplete="one-time-code"
+                  maxlength="13"
+                  placeholder="ABC123-DEF456"
+                  required />
+              </div>
+            </label>
+            <label for="resetPasswordNew" class="form-label-wrap">
+              <span>Nova senha</span>
+              <div class="input-icon">
+                <span class="material-symbols-rounded">lock_reset</span>
+                <input
+                  id="resetPasswordNew"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="10"
+                  required />
+              </div>
+            </label>
+            <label for="resetPasswordConfirm" class="form-label-wrap">
+              <span>Confirmar nova senha</span>
+              <div class="input-icon">
+                <span class="material-symbols-rounded">lock_clock</span>
+                <input
+                  id="resetPasswordConfirm"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="10"
+                  required />
+              </div>
+            </label>
+            <small class="reset-password-policy">
+              Use 10 caracteres e pelo menos três tipos entre maiúscula,
+              minúscula, número e símbolo.
+            </small>
+            <button class="btn btn-primary login-submit btn-glow" type="submit">
               Confirmar nova senha
             </button>
             <button
               id="resetPasswordResend"
               class="btn btn-ghost"
-              type="button"
-            >
+              type="button">
               Reenviar código
             </button>
             <p id="resetPasswordError" class="login-error hidden"></p>
