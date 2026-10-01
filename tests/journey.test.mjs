@@ -67,7 +67,7 @@ test('programação pessoal usa os quatro nomes de marcação para dois turnos',
  const h=harness();h.send({user:{FuncionarioID:'me'},clock:{flexibleTwoShifts:true,nextAction:'RETORNO_INTERVALO',todayRecords:[]}});
  const html=h.nodes.get('#journeyHome').innerHTML;
  for(const label of ['Entrada 1','Saída 1','Entrada 2','Saída 2']) assert.match(html,new RegExp(label));
- assert.match(html,/Abrir ponto · Entrada 2/);
+ assert.match(html,/(?:Abrir|Bater) ponto · Entrada 2/);
 });
 
 test('quadro de equipe permite alternar para lista sem perder o filtro da unidade',()=>{

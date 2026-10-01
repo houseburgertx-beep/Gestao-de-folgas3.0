@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.10.2" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.10.3" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.10.2-firebase-github" />
+    <meta name="app-version" content="6.10.3-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -15166,12 +15166,12 @@ tr:last-child td {
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
-  border: 1.5px solid #DDD6FE;
-  border-radius: 22px;
-  padding: 18px 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
-  animation: slide-in-banner 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid #DDD6FE;
+  border-radius: 14px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.07), 0 2px 4px rgba(0, 0, 0, 0.03);
+  animation: slide-in-banner 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
   width: 100%;
 }
@@ -15180,171 +15180,158 @@ tr:last-child td {
   display: none !important;
 }
 
-.notif-banner-badge-row {
+.notif-banner-compact {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 10px;
 }
 
-.notif-banner-badge {
+.notif-banner-compact-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.notif-platform-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background: #EDE9FE;
   color: #6D28D9;
   font-size: 11px;
   font-weight: 750;
-  letter-spacing: 0.06em;
-  padding: 4px 10px;
-  border-radius: 20px;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2.5px 8px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.notif-bell-anim {
-  display: inline-block;
-  animation: bell-bounce 2s infinite ease-in-out;
+.notif-banner-compact-text {
+  min-width: 0;
+  flex: 1;
 }
 
-@keyframes bell-bounce {
-  0%, 100% { transform: rotate(0deg); }
-  20%, 60% { transform: rotate(15deg); }
-  40%, 80% { transform: rotate(-15deg); }
+.notif-banner-compact-text strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E1B4B;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.notif-banner-dismiss {
-  background: rgba(0, 0, 0, 0.04);
+.notif-banner-compact-text p {
+  margin: 0;
+  font-size: 11px;
+  color: #4B5563;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-banner-compact-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notif-compact-btn {
+  background: linear-gradient(135deg, #7C3AED, #6366F1) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 9px !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.25) !important;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.notif-compact-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+.notif-compact-dismiss {
+  background: rgba(0, 0, 0, 0.05);
   border: none;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   color: #64748B;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
+  padding: 0;
 }
 
-.notif-banner-dismiss:hover {
-  background: rgba(0, 0, 0, 0.08);
+.notif-compact-dismiss:hover {
+  background: rgba(0, 0, 0, 0.1);
   color: #1E293B;
 }
 
-.notif-banner-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.notif-banner-icon-box {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #7C3AED, #6D28D9);
-  color: #FFFFFF;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
-}
-
-.notif-banner-icon-box svg {
-  width: 22px;
-  height: 22px;
-}
-
-.notif-banner-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.notif-banner-text strong {
+.notif-compact-help {
   display: block;
-  font-size: 16px;
-  font-weight: 750;
-  color: #1E1B4B;
-  letter-spacing: -0.02em;
-  margin-bottom: 4px;
-  line-height: 1.25;
-}
-
-.notif-banner-text p {
-  margin: 0;
-  font-size: 13px;
-  color: #4B5563;
-  line-height: 1.45;
-}
-
-.notif-banner-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.notif-banner-btn {
-  background: linear-gradient(135deg, #7C3AED, #6366F1) !important;
-  color: #FFFFFF !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: 10px 18px !important;
-  font-size: 13.5px !important;
-  font-weight: 700 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3) !important;
-  cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.notif-banner-btn:active {
-  transform: scale(0.97);
-  opacity: 0.9;
-}
-
-.notif-banner-help-btn {
-  font-size: 12.5px;
+  font-size: 11px;
   color: #6D28D9;
   text-decoration: underline;
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 8px 10px;
+  padding: 4px 2px 0 2px;
+  margin-top: 4px;
+  text-align: left;
+}
+
+.notif-compact-help.hidden {
+  display: none !important;
 }
 
 @media (max-width: 600px) {
   .notif-prompt-banner {
-    padding: 16px 14px;
-    border-radius: 18px;
-    margin-bottom: 16px;
-  }
-  .notif-banner-main {
-    gap: 12px;
-  }
-  .notif-banner-icon-box {
-    width: 38px;
-    height: 38px;
+    padding: 7px 10px;
     border-radius: 12px;
+    margin-bottom: 10px;
   }
-  .notif-banner-icon-box svg {
-    width: 20px;
-    height: 20px;
+  .notif-banner-compact-left {
+    gap: 6px;
   }
-  .notif-banner-text strong {
-    font-size: 14.5px;
+  .notif-platform-badge {
+    font-size: 10px;
+    padding: 2px 6px;
   }
-  .notif-banner-text p {
+  .notif-banner-compact-text strong {
     font-size: 12px;
   }
-  .notif-banner-btn {
-    width: 100% !important;
-    justify-content: center !important;
-    min-height: 44px !important;
+  .notif-banner-compact-text p {
+    font-size: 10.5px;
+  }
+  .notif-compact-btn {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+  }
+  .notif-compact-dismiss {
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
   }
 }
 
@@ -15808,28 +15795,24 @@ tr:last-child td {
 
         <nav class="mobile-dock" aria-label="Acessos rápidos"><div class="dock-indicator" id="dockIndicator"></div><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" data-view-target="timeoff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Folgas</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="pending-center" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg><span>Pendências</span></button></nav><main class="content">
           <aside id="notificationPromptBanner" class="notif-prompt-banner hidden" role="region" aria-label="Aviso de notificações">
-            <div class="notif-banner-badge-row">
-              <span class="notif-banner-badge"><span class="notif-bell-anim">🔔</span> AVISO IMPORTANTE</span>
-              <button id="notifBannerDismissBtn" type="button" class="notif-banner-dismiss" aria-label="Lembrar mais tarde">✕</button>
-            </div>
-            <div class="notif-banner-main">
-              <div class="notif-banner-icon-box" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <div class="notif-banner-compact">
+              <div class="notif-banner-compact-left">
+                <span id="notifBannerPlatformBadge" class="notif-platform-badge">🔔 AVISO</span>
+                <div class="notif-banner-compact-text">
+                  <strong id="notifBannerTitle">Ativar notificações</strong>
+                  <p id="notifBannerDesc">Receba avisos de folgas aprovadas, intervalo e ponto.</p>
+                </div>
               </div>
-              <div class="notif-banner-text">
-                <strong id="notifBannerTitle">Ative suas Notificações no Celular</strong>
-                <p id="notifBannerDesc">Receba avisos de folgas aprovadas, alerta 5 minutos antes de acabar seu intervalo e lembretes para bater o ponto.</p>
+              <div class="notif-banner-compact-right">
+                <button id="notifBannerActionBtn" type="button" class="btn btn-primary notif-compact-btn">
+                  <span id="notifBannerActionLabel">Ativar</span>
+                </button>
+                <button id="notifBannerDismissBtn" type="button" class="notif-compact-dismiss" aria-label="Fechar aviso">✕</button>
               </div>
             </div>
-            <div class="notif-banner-actions">
-              <button id="notifBannerActionBtn" type="button" class="btn btn-primary notif-banner-btn">
-                <span id="notifBannerActionLabel">Ativar notificações agora</span>
-                <span aria-hidden="true">→</span>
-              </button>
-              <button id="notifBannerHelpBtn" type="button" class="btn btn-ghost notif-banner-help-btn hidden">
-                Como instalar no iPhone
-              </button>
-            </div>
+            <button id="notifBannerHelpBtn" type="button" class="notif-compact-help hidden">
+              Como instalar no iPhone ↗
+            </button>
           </aside>
           <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
           <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
@@ -18572,7 +18555,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.10.2"></script>
+<script type="module" src="./src/main.js?v=6.10.3"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -24040,9 +24023,14 @@ tr:last-child td {
       releaseFormSubmission_(form);
     }
   }
-  async function punchClock() {
-    return startClockPunch_(String((state.timeClock || {}).nextAction || ""));
+  async function punchClock(overrideAction) {
+    const action =
+      typeof overrideAction === "string" && overrideAction
+        ? overrideAction
+        : String((state.timeClock || {}).nextAction || "");
+    return startClockPunch_(action);
   }
+  window.punchClock = punchClock;
   function skipClockBreak_() {
     if (String((state.timeClock || {}).nextAction || "") !== "SAIDA_INTERVALO")
       return toast(
@@ -24060,6 +24048,9 @@ tr:last-child td {
   async function startClockPunch_(expectedAction) {
     if (!navigator.geolocation)
       return toast("Este aparelho não disponibiliza localização.", true);
+    if (!expectedAction) {
+      expectedAction = String((state.timeClock || {}).nextAction || "");
+    }
     if (!expectedAction)
       return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
     CLOCK_EXPECTED_ACTION_ = expectedAction;
@@ -24269,20 +24260,41 @@ tr:last-child td {
   }
   function getClockPosition_() {
     return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 10000,
-      });
+      if (!navigator.geolocation) {
+        return reject(new Error("Este aparelho não disponibiliza localização."));
+      }
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (err) => {
+          if (err && (err.code === 2 || err.code === 3)) {
+            console.warn(
+              "[ponto] Falha de alta precisão GPS indoors, alternando para triangulação de rede:",
+              err,
+            );
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 12000,
+              maximumAge: 30000,
+            });
+          } else {
+            reject(err);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 10000,
+        },
+      );
     });
   }
   function clockLocationError_(error) {
     if (error?.code === 1)
-      return "Permissão de localização negada. Ative a localização precisa para este navegador.";
+      return "Permissão de localização negada. Ative a localização precisa para este navegador nas configurações do aparelho.";
     if (error?.code === 2)
-      return "O aparelho não conseguiu determinar sua localização.";
+      return "O aparelho não conseguiu determinar sua localização. Verifique se a localização e o Wi-Fi estão ligados.";
     if (error?.code === 3)
-      return "A localização demorou demais. Tente novamente em local aberto.";
+      return "A localização demorou além do esperado. Tente novamente em alguns instantes ou conectado ao Wi-Fi da loja.";
     return error?.message || "Não foi possível obter a localização.";
   }
   function applySavedClockPunch_(saved) {
@@ -24331,7 +24343,13 @@ tr:last-child td {
     let confirmed = false;
     const punchStartedAt = performance.now();
     try {
-      const pos = await (CLOCK_POSITION_PROMISE_ || getClockPosition_());
+      let pos;
+      try {
+        pos = await (CLOCK_POSITION_PROMISE_ || getClockPosition_());
+      } catch (posErr) {
+        console.warn("[ponto] Tentando nova leitura de localização na confirmação:", posErr);
+        pos = await getClockPosition_();
+      }
       const saved = await call(FN.clockPunch, sessionToken(), {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
@@ -24343,6 +24361,12 @@ tr:last-child td {
       applySavedClockPunch_(saved);
       confirmed = true;
       closeDialog("clockSelfieDialog");
+      try {
+        localStorage.setItem("house_employee_punched", "true");
+        window.dispatchEvent(new CustomEvent("house-employee-punched"));
+        const banner = document.getElementById("notificationPromptBanner");
+        if (banner) banner.classList.add("hidden");
+      } catch (e) {}
       toast(
         bool(saved.ForaHorario)
           ? "Ponto registrado fora do horário programado. A marcação foi mantida normalmente."

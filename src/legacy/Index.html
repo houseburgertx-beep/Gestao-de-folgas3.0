@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.10.2" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.10.3" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -381,28 +381,24 @@
 
         <nav class="mobile-dock" aria-label="Acessos rápidos"><div class="dock-indicator" id="dockIndicator"></div><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" data-view-target="timeoff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Folgas</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="pending-center" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg><span>Pendências</span></button></nav><main class="content">
           <aside id="notificationPromptBanner" class="notif-prompt-banner hidden" role="region" aria-label="Aviso de notificações">
-            <div class="notif-banner-badge-row">
-              <span class="notif-banner-badge"><span class="notif-bell-anim">🔔</span> AVISO IMPORTANTE</span>
-              <button id="notifBannerDismissBtn" type="button" class="notif-banner-dismiss" aria-label="Lembrar mais tarde">✕</button>
-            </div>
-            <div class="notif-banner-main">
-              <div class="notif-banner-icon-box" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <div class="notif-banner-compact">
+              <div class="notif-banner-compact-left">
+                <span id="notifBannerPlatformBadge" class="notif-platform-badge">🔔 AVISO</span>
+                <div class="notif-banner-compact-text">
+                  <strong id="notifBannerTitle">Ativar notificações</strong>
+                  <p id="notifBannerDesc">Receba avisos de folgas aprovadas, intervalo e ponto.</p>
+                </div>
               </div>
-              <div class="notif-banner-text">
-                <strong id="notifBannerTitle">Ative suas Notificações no Celular</strong>
-                <p id="notifBannerDesc">Receba avisos de folgas aprovadas, alerta 5 minutos antes de acabar seu intervalo e lembretes para bater o ponto.</p>
+              <div class="notif-banner-compact-right">
+                <button id="notifBannerActionBtn" type="button" class="btn btn-primary notif-compact-btn">
+                  <span id="notifBannerActionLabel">Ativar</span>
+                </button>
+                <button id="notifBannerDismissBtn" type="button" class="notif-compact-dismiss" aria-label="Fechar aviso">✕</button>
               </div>
             </div>
-            <div class="notif-banner-actions">
-              <button id="notifBannerActionBtn" type="button" class="btn btn-primary notif-banner-btn">
-                <span id="notifBannerActionLabel">Ativar notificações agora</span>
-                <span aria-hidden="true">→</span>
-              </button>
-              <button id="notifBannerHelpBtn" type="button" class="btn btn-ghost notif-banner-help-btn hidden">
-                Como instalar no iPhone
-              </button>
-            </div>
+            <button id="notifBannerHelpBtn" type="button" class="notif-compact-help hidden">
+              Como instalar no iPhone ↗
+            </button>
           </aside>
           <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
           <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>

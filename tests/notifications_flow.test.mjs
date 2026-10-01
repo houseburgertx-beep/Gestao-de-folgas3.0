@@ -374,3 +374,33 @@ test("A interface HTML e scripts contêm botões de ação e aviso visual de int
   assert.match(journeyJs, /clock-interval-warning/, "journey.js deve renderizar alerta de intervalo");
   assert.match(scriptsHtml, /clock-interval-warning/, "Scripts.html deve renderizar alerta de intervalo");
 });
+
+test("Banner de notificações é compacto, diferencia iPhone/Android, some após ponto e auditoria de permissões", async () => {
+  const pushJs = await readFile(new URL("../src/push.js", import.meta.url), "utf8");
+  const journeyJs = await readFile(new URL("../src/journey.js", import.meta.url), "utf8");
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  const indexHtml = await readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8");
+  const cozinhaCss = await readFile(new URL("../src/cozinhaflow.css", import.meta.url), "utf8");
+
+  // 1. Botão do ponto bate direto pela tela inicial
+  assert.match(journeyJs, /data-j-punch/, "Botão no card da jornada deve conter data-j-punch");
+  assert.match(journeyJs, /window\.punchClock\(action\)/, "Clique no card da jornada deve chamar window.punchClock diretamente");
+  assert.match(scriptsHtml, /window\.punchClock\s*=\s*punchClock/, "punchClock deve estar exportado globalmente para chamada direta");
+
+  // 2. Banner compacto e diferenciação de plataforma
+  assert.match(indexHtml, /notif-banner-compact/, "Index.html deve usar estrutura compacta para o aviso");
+  assert.match(cozinhaCss, /\.notif-banner-compact/, "CSS deve conter estilos para banner compacto");
+  assert.match(pushJs, /isAndroid/, "push.js deve detectar se o aparelho é Android");
+  assert.match(pushJs, /🍎 iPhone/, "push.js deve exibir badge e instruções para iPhone");
+  assert.match(pushJs, /🤖 Android/, "push.js deve exibir badge e instruções para Android");
+
+  // 3. Banner some e não volta se funcionário bater ponto ou ativar notificações
+  assert.match(pushJs, /house_employee_punched/, "push.js deve verificar se colaborador já bateu ponto");
+  assert.match(pushJs, /house_notif_activated/, "push.js deve verificar se notificações já foram ativadas");
+  assert.match(pushJs, /house-employee-punched/, "push.js deve escutar evento de ponto registrado para ocultar banner");
+  assert.match(scriptsHtml, /localStorage\.setItem\("house_employee_punched",\s*"true"\)/, "Ao confirmar ponto com selfie, deve gravar flag de ponto");
+
+  // 4. Auditoria de permissões de geolocalização com fallback indoors
+  assert.match(scriptsHtml, /enableHighAccuracy:\s*false/, "getClockPosition_ deve ter fallback para standard accuracy caso GPS falhe indoors");
+  assert.match(scriptsHtml, /showNativeClockCamera_/, "Scripts.html deve conter fallback de câmera nativa do celular se getUserMedia falhar");
+});

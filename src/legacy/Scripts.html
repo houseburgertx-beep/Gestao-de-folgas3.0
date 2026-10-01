@@ -5465,9 +5465,14 @@
       releaseFormSubmission_(form);
     }
   }
-  async function punchClock() {
-    return startClockPunch_(String((state.timeClock || {}).nextAction || ""));
+  async function punchClock(overrideAction) {
+    const action =
+      typeof overrideAction === "string" && overrideAction
+        ? overrideAction
+        : String((state.timeClock || {}).nextAction || "");
+    return startClockPunch_(action);
   }
+  window.punchClock = punchClock;
   function skipClockBreak_() {
     if (String((state.timeClock || {}).nextAction || "") !== "SAIDA_INTERVALO")
       return toast(
@@ -5485,6 +5490,9 @@
   async function startClockPunch_(expectedAction) {
     if (!navigator.geolocation)
       return toast("Este aparelho não disponibiliza localização.", true);
+    if (!expectedAction) {
+      expectedAction = String((state.timeClock || {}).nextAction || "");
+    }
     if (!expectedAction)
       return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
     CLOCK_EXPECTED_ACTION_ = expectedAction;
@@ -5694,20 +5702,41 @@
   }
   function getClockPosition_() {
     return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 10000,
-      });
+      if (!navigator.geolocation) {
+        return reject(new Error("Este aparelho não disponibiliza localização."));
+      }
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (err) => {
+          if (err && (err.code === 2 || err.code === 3)) {
+            console.warn(
+              "[ponto] Falha de alta precisão GPS indoors, alternando para triangulação de rede:",
+              err,
+            );
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 12000,
+              maximumAge: 30000,
+            });
+          } else {
+            reject(err);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 10000,
+        },
+      );
     });
   }
   function clockLocationError_(error) {
     if (error?.code === 1)
-      return "Permissão de localização negada. Ative a localização precisa para este navegador.";
+      return "Permissão de localização negada. Ative a localização precisa para este navegador nas configurações do aparelho.";
     if (error?.code === 2)
-      return "O aparelho não conseguiu determinar sua localização.";
+      return "O aparelho não conseguiu determinar sua localização. Verifique se a localização e o Wi-Fi estão ligados.";
     if (error?.code === 3)
-      return "A localização demorou demais. Tente novamente em local aberto.";
+      return "A localização demorou além do esperado. Tente novamente em alguns instantes ou conectado ao Wi-Fi da loja.";
     return error?.message || "Não foi possível obter a localização.";
   }
   function applySavedClockPunch_(saved) {
@@ -5756,7 +5785,13 @@
     let confirmed = false;
     const punchStartedAt = performance.now();
     try {
-      const pos = await (CLOCK_POSITION_PROMISE_ || getClockPosition_());
+      let pos;
+      try {
+        pos = await (CLOCK_POSITION_PROMISE_ || getClockPosition_());
+      } catch (posErr) {
+        console.warn("[ponto] Tentando nova leitura de localização na confirmação:", posErr);
+        pos = await getClockPosition_();
+      }
       const saved = await call(FN.clockPunch, sessionToken(), {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
@@ -5768,6 +5803,12 @@
       applySavedClockPunch_(saved);
       confirmed = true;
       closeDialog("clockSelfieDialog");
+      try {
+        localStorage.setItem("house_employee_punched", "true");
+        window.dispatchEvent(new CustomEvent("house-employee-punched"));
+        const banner = document.getElementById("notificationPromptBanner");
+        if (banner) banner.classList.add("hidden");
+      } catch (e) {}
       toast(
         bool(saved.ForaHorario)
           ? "Ponto registrado fora do horário programado. A marcação foi mantida normalmente."
