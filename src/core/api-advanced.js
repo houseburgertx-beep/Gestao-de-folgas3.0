@@ -460,6 +460,69 @@ const nextTimeOffSummary = (records, employeeId, currentDay = todayIso(), employ
   return fixedDayEntry.dias <= approvedEntry.dias ? { ...fixedDayEntry } : approvedEntry;
 };
 
+export async function checkAutomatedReminders(profile) {
+  if (!profile?.FuncionarioID) return;
+  try {
+    const today = todayIso();
+    const [records, employee, punches, schedules] = await Promise.all([
+      runtime.list("Folgas", { profile }).catch(() => []),
+      runtime.getById("Funcionarios", profile.FuncionarioID).catch(() => null),
+      runtime.list("RegistrosPonto", { profile }).catch(() => []),
+      runtime.list("JornadasPonto", { profile }).catch(() => []),
+    ]);
+
+    // 1. Aviso: Amanhã será a sua folga
+    if (employee) {
+      const nextOff = nextTimeOffSummary(records, profile.FuncionarioID, today, employee);
+      if (nextOff && nextOff.dias === 1) {
+        const offDate = nextOff.data || nextOff.date || nextOff.dateKey;
+        await createNotificationOnce({
+          employeeId: profile.FuncionarioID,
+          email: profile.Email || employee.Email || "",
+          storeId: profile.LojaID || employee.LojaID || "",
+          subject: "Amanhã é sua folga! 🎉",
+          message: `Lembrete: amanhã (${nextOff.diaSemana}) você estará de folga. Aproveite seu merecido descanso!`,
+          type: "Folga",
+          relatedId: `folga_amanha_${profile.FuncionarioID}_${offDate}`,
+          severity: "info",
+        }).catch(() => {});
+      }
+    }
+
+    // 2. Aviso: Falta 5 minutos para acabar o intervalo
+    const todayPunches = punches
+      .filter((p) => String(p.FuncionarioID) === String(profile.FuncionarioID) && String(p.Data || "").slice(0, 10) === today && p.Status !== "Substituído")
+      .sort((a, b) => Date.parse(a.DataHora) - Date.parse(b.DataHora));
+
+    const lastPunch = todayPunches.at(-1);
+    if (lastPunch && lastPunch.TipoMarcacao === "SAIDA_INTERVALO") {
+      const schedule = schedules.find((s) => String(s.FuncionarioID) === String(profile.FuncionarioID) && s.Ativa !== false);
+      const duration = Number(schedule?.DuracaoIntervaloMinutos || 60);
+      const breakStart = Date.parse(lastPunch.DataHora);
+      if (Number.isFinite(breakStart) && duration >= 5) {
+        const breakEnd = breakStart + duration * 60000;
+        const now = Date.now();
+        const diffMs = breakEnd - now;
+        const diffMin = Math.ceil(diffMs / 60000);
+        if (diffMin <= 5 && diffMin > 0) {
+          await createNotificationOnce({
+            employeeId: profile.FuncionarioID,
+            email: profile.Email || "",
+            storeId: profile.LojaID || "",
+            subject: "Falta pouco para o fim do intervalo",
+            message: `Faltam ${diffMin} minuto(s) para encerrar seu intervalo. Prepare-se para registrar o retorno.`,
+            type: "Ponto",
+            relatedId: `intervalo_5_${profile.FuncionarioID}_${lastPunch.RegistroPontoID || lastPunch.DataHora}`,
+            severity: "warning",
+          }).catch(() => {});
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("Lembretes automáticos não processados:", error.message);
+  }
+}
+
 export function createAdvancedHandlers() {
   return {
     async getOperationalRules() {
@@ -957,74 +1020,17 @@ export function createAdvancedHandlers() {
       return success(saved, "Ciência confirmada.");
     },
 
-    async checkAutomatedReminders(profile) {
-      if (!profile?.FuncionarioID) return;
-      try {
-        const today = todayIso();
-        const [records, employee, punches, schedules] = await Promise.all([
-          runtime.list("Folgas", { profile }).catch(() => []),
-          runtime.getById("Funcionarios", profile.FuncionarioID).catch(() => null),
-          runtime.list("RegistrosPonto", { profile }).catch(() => []),
-          runtime.list("JornadasPonto", { profile }).catch(() => []),
-        ]);
-
-        // 1. Aviso: Amanhã será a sua folga
-        if (employee) {
-          const nextOff = nextTimeOffSummary(records, profile.FuncionarioID, today, employee);
-          if (nextOff && nextOff.dias === 1) {
-            const offDate = nextOff.data || nextOff.date || nextOff.dateKey;
-            await createNotificationOnce({
-              employeeId: profile.FuncionarioID,
-              email: profile.Email || employee.Email || "",
-              storeId: profile.LojaID || employee.LojaID || "",
-              subject: "Amanhã é sua folga! 🎉",
-              message: `Lembrete: amanhã (${nextOff.diaSemana}) você estará de folga. Aproveite seu merecido descanso!`,
-              type: "Folga",
-              relatedId: `folga_amanha_${profile.FuncionarioID}_${offDate}`,
-              severity: "info",
-            }).catch(() => {});
-          }
-        }
-
-        // 2. Aviso: Falta 5 minutos para acabar o intervalo
-        const todayPunches = punches
-          .filter((p) => String(p.FuncionarioID) === String(profile.FuncionarioID) && String(p.Data || "").slice(0, 10) === today && p.Status !== "Substituído")
-          .sort((a, b) => Date.parse(a.DataHora) - Date.parse(b.DataHora));
-
-        const lastPunch = todayPunches.at(-1);
-        if (lastPunch && lastPunch.TipoMarcacao === "SAIDA_INTERVALO") {
-          const schedule = schedules.find((s) => String(s.FuncionarioID) === String(profile.FuncionarioID) && s.Ativa !== false);
-          const duration = Number(schedule?.DuracaoIntervaloMinutos || 60);
-          const breakStart = Date.parse(lastPunch.DataHora);
-          if (Number.isFinite(breakStart) && duration >= 5) {
-            const breakEnd = breakStart + duration * 60000;
-            const now = Date.now();
-            const diffMs = breakEnd - now;
-            const diffMin = Math.ceil(diffMs / 60000);
-            if (diffMin <= 5 && diffMin > 0) {
-              await createNotificationOnce({
-                employeeId: profile.FuncionarioID,
-                email: profile.Email || "",
-                storeId: profile.LojaID || "",
-                subject: "Falta pouco para o fim do intervalo",
-                message: `Faltam ${diffMin} minuto(s) para encerrar seu intervalo. Prepare-se para registrar o retorno.`,
-                type: "Ponto",
-                relatedId: `intervalo_5_${profile.FuncionarioID}_${lastPunch.RegistroPontoID || lastPunch.DataHora}`,
-                severity: "warning",
-              }).catch(() => {});
-            }
-          }
-        }
-      } catch (error) {
-        console.warn("Lembretes automáticos não processados:", error.message);
-      }
+    async checkAutomatedReminders(args) {
+      const profile = await runtime.requireProfile();
+      await checkAutomatedReminders(profile);
+      return success(true);
     },
 
     async getMyNotifications(args) {
       const profile = await runtime.requireProfile();
       const values = dropClientToken(args);
       const limit = Number(values[0]?.limit || 100);
-      await this.checkAutomatedReminders(profile);
+      await checkAutomatedReminders(profile);
       const rows = await runtime.list("Notificacoes", { profile });
       return success(
         rows
