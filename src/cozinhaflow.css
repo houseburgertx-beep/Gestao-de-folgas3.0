@@ -3427,4 +3427,309 @@ tr:last-child td {
   }
 }
 
+/* ==========================================================================
+   AVISO DE ATIVAÇÃO DE NOTIFICAÇÕES (PWA / BROWSER / IPHONE / ANDROID)
+   ========================================================================== */
+
+.notif-prompt-banner {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #FFFFFF 0%, #F5F3FF 100%);
+  border: 1.5px solid #DDD6FE;
+  border-radius: 22px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
+  animation: slide-in-banner 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.notif-prompt-banner.hidden {
+  display: none !important;
+}
+
+.notif-banner-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.notif-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #EDE9FE;
+  color: #6D28D9;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.notif-bell-anim {
+  display: inline-block;
+  animation: bell-bounce 2s infinite ease-in-out;
+}
+
+@keyframes bell-bounce {
+  0%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(15deg); }
+  40%, 80% { transform: rotate(-15deg); }
+}
+
+.notif-banner-dismiss {
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.notif-banner-dismiss:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #1E293B;
+}
+
+.notif-banner-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.notif-banner-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #7C3AED, #6D28D9);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.notif-banner-icon-box svg {
+  width: 22px;
+  height: 22px;
+}
+
+.notif-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-banner-text strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 750;
+  color: #1E1B4B;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+  line-height: 1.25;
+}
+
+.notif-banner-text p {
+  margin: 0;
+  font-size: 13px;
+  color: #4B5563;
+  line-height: 1.45;
+}
+
+.notif-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.notif-banner-btn {
+  background: linear-gradient(135deg, #7C3AED, #6366F1) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 10px 18px !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3) !important;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.notif-banner-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+.notif-banner-help-btn {
+  font-size: 12.5px;
+  color: #6D28D9;
+  text-decoration: underline;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 10px;
+}
+
+@media (max-width: 600px) {
+  .notif-prompt-banner {
+    padding: 16px 14px;
+    border-radius: 18px;
+    margin-bottom: 16px;
+  }
+  .notif-banner-main {
+    gap: 12px;
+  }
+  .notif-banner-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+  .notif-banner-icon-box svg {
+    width: 20px;
+    height: 20px;
+  }
+  .notif-banner-text strong {
+    font-size: 14.5px;
+  }
+  .notif-banner-text p {
+    font-size: 12px;
+  }
+  .notif-banner-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 44px !important;
+  }
+}
+
+/* ==========================================================================
+   SAFE-AREA & MOBILE CONTAINMENT (iPhone Status Bar / Notch & Deslocamento)
+   ========================================================================== */
+
+/* Topbar fixa com espaçamento seguro abaixo da Dynamic Island / Notch */
+.topbar {
+  padding-top: max(14px, env(safe-area-inset-top, 0px)) !important;
+  padding-bottom: 12px !important;
+  padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
+  min-height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+}
+
+/* Sidebar com suporte à área segura do iPhone */
+.sidebar {
+  padding-top: max(16px, env(safe-area-inset-top, 0px)) !important;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  box-sizing: border-box !important;
+}
+
+/* Mobile: eliminação definitiva de overflow horizontal e alinhamento centrado */
+@media (max-width: 900px) {
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell, .workspace, .main-content, .view, #view-dashboard {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .content {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
+    padding-top: 14px !important;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-x: hidden !important;
+  }
+
+  #journeyHome {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  #journeyHome > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    grid-column: 1 / -1 !important;
+  }
+
+  .v-workspace-hero {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    contain: paint !important;
+  }
+
+  .v-workspace-hero:before,
+  .v-workspace-hero:after {
+    max-width: 100% !important;
+    right: 0 !important;
+  }
+
+  .w-punches {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .w-punches > div {
+    min-width: 0 !important;
+    padding: 10px 4px !important;
+    box-sizing: border-box !important;
+  }
+
+  .w-punches time {
+    font-size: clamp(12px, 3.3vw, 15px) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .w-punches strong {
+    font-size: clamp(10px, 2.5vw, 11px) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
+
 

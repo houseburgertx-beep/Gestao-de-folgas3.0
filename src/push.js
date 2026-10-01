@@ -133,10 +133,11 @@ async function refresh() {
     }
   } else if (Notification.permission === "granted" && !sub && runtime.auth?.currentUser) {
     enable().catch(() => {});
-  } else
+  }  else
     status(
       "Receba lembretes com o aplicativo fechado. Você escolhe quais avisos receber.",
     );
+  await updatePromptBanner().catch(() => {});
 }
 async function enable() {
   // Ask only on this user gesture, never during login or page load.
@@ -170,6 +171,7 @@ async function enable() {
     preferences: prefs(),
   });
   await refresh();
+  await updatePromptBanner().catch(() => {});
 }
 async function disable() {
   const sub = await subscription();
@@ -178,8 +180,121 @@ async function disable() {
     await sub.unsubscribe();
   }
   await refresh();
+  await updatePromptBanner().catch(() => {});
   status("Lembretes desativados neste celular.");
 }
+
+export async function updatePromptBanner() {
+  const banner = $("notificationPromptBanner");
+  if (!banner) return;
+
+  const isInsideApp = !$("loginScreen") || $("loginScreen")?.classList.contains("hidden");
+  if (!isInsideApp) {
+    banner.classList.add("hidden");
+    return;
+  }
+
+  if (sessionStorage.getItem("house_notif_banner_dismissed") === "true") {
+    banner.classList.add("hidden");
+    return;
+  }
+
+  const ios = isIos();
+  const isStand = standalone();
+  const nativeSupport = supportsNative();
+
+  const titleEl = $("notifBannerTitle");
+  const descEl = $("notifBannerDesc");
+  const actionBtn = $("notifBannerActionBtn");
+  const actionLabel = $("notifBannerActionLabel");
+  const helpBtn = $("notifBannerHelpBtn");
+
+  // Se já concedeu permissão e tem subscrição ativa, esconde o aviso
+  if (window.Notification && Notification.permission === "granted") {
+    const sub = await subscription().catch(() => null);
+    if (sub) {
+      banner.classList.add("hidden");
+      return;
+    }
+  }
+
+  if (window.Notification && Notification.permission === "denied") {
+    if (titleEl) titleEl.textContent = "Notificações bloqueadas";
+    if (descEl) descEl.textContent = "Para receber avisos de folgas aprovadas, lembretes de ponto e alerta de intervalo, libere as notificações nas configurações do seu celular ou navegador.";
+    if (actionLabel) actionLabel.textContent = "Como desbloquear ↗";
+    if (helpBtn) helpBtn.classList.add("hidden");
+    if (actionBtn) {
+      actionBtn.onclick = () => {
+        alert("Para desbloquear notificações:\n\n1. No celular ou computador, abra as Configurações do navegador ou Ajustes do iPhone/Android.\n2. Procure por Notificações ou Permissões do Site.\n3. Selecione 'Permitir' para o app Gestão de Folgas.\n4. Recarregue a página.");
+      };
+    }
+    banner.classList.remove("hidden");
+    return;
+  }
+
+  // Caso: iPhone dentro do Safari (precisa instalar na Tela de Início primeiro)
+  if (ios && !isStand && !nativeSupport) {
+    if (titleEl) titleEl.textContent = "Instale o app para ativar as notificações";
+    if (descEl) descEl.textContent = "No iPhone, as notificações do sistema funcionam pelo aplicativo na Tela de Início. Adicione o app para receber alertas de folgas e lembretes de ponto.";
+    if (actionLabel) actionLabel.textContent = "Instalar app no iPhone ↗";
+    if (helpBtn) helpBtn.classList.add("hidden");
+    if (actionBtn) {
+      actionBtn.onclick = () => {
+        if (typeof window.showDownloadHelp === "function") {
+          window.showDownloadHelp();
+        } else {
+          alert("No iPhone, para ativar as notificações:\n\n1. Abra este endereço no Safari.\n2. Toque no botão Compartilhar (⎋).\n3. Escolha 'Adicionar à Tela de Início'.\n4. Abra pelo ícone na tela inicial e ative as notificações!");
+        }
+      };
+    }
+    banner.classList.remove("hidden");
+    return;
+  }
+
+  // Caso: App instalado (iPhone PWA ou Android) ou Navegador com suporte nativo
+  if (titleEl) titleEl.textContent = "Ative suas Notificações no Celular";
+  if (descEl) descEl.textContent = "Receba avisos de folgas aprovadas, alerta 5 minutos antes de acabar o intervalo e lembretes para bater o ponto.";
+  if (actionLabel) actionLabel.textContent = "Ativar notificações agora ↗";
+  if (helpBtn) {
+    if (ios && !isStand) {
+      helpBtn.classList.remove("hidden");
+      helpBtn.onclick = () => window.showDownloadHelp?.();
+    } else {
+      helpBtn.classList.add("hidden");
+    }
+  }
+  if (actionBtn) {
+    actionBtn.onclick = async () => {
+      actionBtn.disabled = true;
+      if (actionLabel) actionLabel.textContent = "Ativando notificações…";
+      try {
+        await enable();
+        sessionStorage.removeItem("house_notif_banner_dismissed");
+        banner.classList.add("hidden");
+        try {
+          const reg = (await navigator.serviceWorker.getRegistration("./")) || (await navigator.serviceWorker.ready);
+          if (reg && typeof reg.showNotification === "function") {
+            await reg.showNotification("House 190 · Notificações Ativadas! 🎉", {
+              body: "Você receberá avisos sobre folgas aprovadas, lembretes de ponto e alerta de intervalo.",
+              icon: "./icons/app-icon-192.png",
+              badge: "./icons/app-icon-192.png",
+              tag: "house-ativado-sucesso",
+              vibrate: [150, 80, 150]
+            });
+          }
+        } catch {}
+      } catch (err) {
+        alert(err.message || "Não foi possível ativar as notificações. Tente novamente.");
+      } finally {
+        actionBtn.disabled = false;
+        if (actionLabel) actionLabel.textContent = "Ativar notificações agora ↗";
+        await updatePromptBanner().catch(() => {});
+      }
+    };
+  }
+  banner.classList.remove("hidden");
+}
+
 // Logout must revoke the device first; failures don't block the user's logout.
 window.__disableGestaoPush = async () => {
   if (!configured() || !("serviceWorker" in navigator)) return;
@@ -190,7 +305,15 @@ window.__disableGestaoPush = async () => {
     await sub?.unsubscribe();
   }
 };
+window.activatePushNotifications = enable;
+window.__updateNotifBanner = updatePromptBanner;
+
 function bind() {
+  $("notifBannerDismissBtn")?.addEventListener("click", () => {
+    sessionStorage.setItem("house_notif_banner_dismissed", "true");
+    $("notificationPromptBanner")?.classList.add("hidden");
+  });
+
   for (const [id, action] of [
     ["pushEnable", enable],
     ["pushDisable", disable],
@@ -239,9 +362,12 @@ function bind() {
       ),
     ),
   );
+  window.addEventListener("house-auth-ready", () => updatePromptBanner().catch(() => {}));
+  window.addEventListener("house-journey", () => updatePromptBanner().catch(() => {}));
   refresh().catch(() =>
     status("Não foi possível consultar as notificações deste celular."),
   );
+  updatePromptBanner().catch(() => {});
 }
 if (document.readyState === "loading")
   document.addEventListener("DOMContentLoaded", bind, { once: true });
