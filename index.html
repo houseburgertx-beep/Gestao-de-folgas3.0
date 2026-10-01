@@ -14214,6 +14214,27 @@ button.btn-secondary {
   color: #807EFA !important;
   font-weight: 650 !important;
 }
+.btn-danger,
+button.btn-danger {
+  background: #FF3B30 !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  box-shadow: 0 6px 18px rgba(255, 59, 48, 0.28) !important;
+}
+.btn-danger:hover,
+button.btn-danger:hover {
+  background: #E02E24 !important;
+  box-shadow: 0 8px 24px rgba(255, 59, 48, 0.38) !important;
+}
+.btn-danger-ghost {
+  background: transparent !important;
+  border: 1.5px solid rgba(255, 59, 48, 0.35) !important;
+  color: #FF3B30 !important;
+  font-weight: 650 !important;
+}
+.btn-danger-ghost:hover {
+  background: #FFF5F5 !important;
+}
 
 .icon-btn,
 .topbar .icon-btn {
@@ -14516,35 +14537,6 @@ textarea:focus {
   font-weight: 600 !important;
 }
 
-/* Card 3: Minha Programação (Lavanda) */
-#journeyHome > .w-myweek {
-  background: #FFFFFF !important;
-  border-radius: var(--ios-radius-card, 30px) !important;
-  border: 1px solid rgba(40, 45, 70, 0.06) !important;
-  border-top: 4px solid #E6E2FF !important;
-  box-shadow: 0 12px 28px rgba(40, 45, 70, 0.06), 0 2px 6px rgba(40, 45, 70, 0.03) !important;
-  padding: 24px 20px !important;
-}
-#journeyHome > .w-myweek .eyebrow {
-  color: #4F46E5 !important;
-  font-weight: 750 !important;
-}
-.w-week-list {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  margin-top: 14px !important;
-}
-.w-week-day {
-  background: #F4F5FB !important;
-  border-radius: 18px !important;
-  padding: 10px 14px !important;
-  border: 1px solid rgba(40, 45, 70, 0.04) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 12px !important;
-}
 
 /* Card 4: Meus Pedidos (Pêssego) */
 #journeyHome > .w-myrequests {
@@ -14613,21 +14605,41 @@ textarea:focus {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  padding: 26px 20px !important;
+  padding: 28px 20px !important;
   border-radius: var(--ios-radius-hero, 34px) !important;
   background: #FFFFFF !important;
-  border: 1px solid rgba(40, 45, 70, 0.06) !important;
-  box-shadow: 0 14px 34px rgba(40, 45, 70, 0.07), 0 2px 6px rgba(40, 45, 70, 0.03) !important;
+  border: 1px solid rgba(40, 45, 70, 0.08) !important;
+  box-shadow: 0 14px 34px rgba(40, 45, 70, 0.08), 0 2px 6px rgba(40, 45, 70, 0.03) !important;
   text-align: center !important;
+}
+#view-timeclock .clock-punch-summary .eyebrow {
+  color: #4F46E5 !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+  display: block !important;
+  margin-bottom: 2px !important;
 }
 #view-timeclock .clock-live-time {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif !important;
-  font-size: clamp(40px, 11vw, 56px) !important;
+  font-size: clamp(42px, 12vw, 58px) !important;
   font-weight: 800 !important;
   letter-spacing: -0.04em !important;
-  color: #242737 !important;
+  color: #111827 !important;
   line-height: 1.1 !important;
   margin: 6px 0 !important;
+}
+#view-timeclock #clockLocationHint,
+#view-timeclock .clock-punch-summary p {
+  color: #374151 !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  max-width: 320px !important;
+  margin: 10px auto 16px auto !important;
+  opacity: 1 !important;
 }
 #view-timeclock .clock-punch-btn {
   border-radius: 9999px !important;
@@ -14637,7 +14649,7 @@ textarea:focus {
   font-weight: 750 !important;
   background: #807EFA !important;
   color: #FFFFFF !important;
-  box-shadow: 0 10px 28px rgba(128, 126, 250, 0.32) !important;
+  box-shadow: 0 10px 28px rgba(128, 126, 250, 0.35) !important;
   border: 0 !important;
   letter-spacing: -0.01em !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -14651,10 +14663,70 @@ textarea:focus {
 #view-timeclock .clock-punch-btn:hover {
   background: #6866E8 !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 12px 32px rgba(128, 126, 250, 0.4) !important;
+  box-shadow: 0 12px 32px rgba(128, 126, 250, 0.42) !important;
 }
 #view-timeclock .clock-punch-btn:active {
   transform: scale(0.96) !important;
+}
+
+/* Botões Vermelhos no Sistema (Saída de Ponto, Desistência de Intervalo, Ações Críticas) */
+#view-timeclock .clock-punch-btn.btn-punch-exit,
+#view-timeclock .clock-punch-btn[data-punch-action="SAIDA_FINAL"],
+#view-timeclock .clock-punch-btn[data-punch-action="SAIDA_INTERVALO"],
+.btn-punch-exit,
+.btn-danger,
+button.btn-danger {
+  background: #FF3B30 !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  box-shadow: 0 10px 28px rgba(255, 59, 48, 0.35) !important;
+}
+#view-timeclock .clock-punch-btn.btn-punch-exit:hover,
+#view-timeclock .clock-punch-btn[data-punch-action="SAIDA_FINAL"]:hover,
+#view-timeclock .clock-punch-btn[data-punch-action="SAIDA_INTERVALO"]:hover,
+.btn-punch-exit:hover,
+.btn-danger:hover,
+button.btn-danger:hover {
+  background: #E02E24 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 12px 32px rgba(255, 59, 48, 0.45) !important;
+}
+
+#view-timeclock #clockSkipBreakBtn {
+  border-radius: 9999px !important;
+  min-height: 48px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  background: #FFF5F5 !important;
+  color: #FF3B30 !important;
+  border: 1.5px solid rgba(255, 59, 48, 0.3) !important;
+  box-shadow: 0 4px 14px rgba(255, 59, 48, 0.1) !important;
+  margin-top: 8px !important;
+  width: 100% !important;
+  max-width: 340px !important;
+}
+#view-timeclock #clockSkipBreakBtn:hover {
+  background: #FFE8E8 !important;
+}
+
+#view-timeclock #clockRefreshBtn {
+  background: #F4F5FB !important;
+  color: #374151 !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  border-radius: 9999px !important;
+  padding: 8px 18px !important;
+  border: 1px solid rgba(40, 45, 70, 0.08) !important;
+  box-shadow: 0 2px 6px rgba(40, 45, 70, 0.03) !important;
+  margin: 10px auto 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: all 0.18s ease !important;
+}
+#view-timeclock #clockRefreshBtn:hover {
+  background: #EAEBF5 !important;
+  color: #111827 !important;
 }
 #view-timeclock #clockTodayPanel {
   order: 1 !important;
@@ -15199,7 +15271,7 @@ tr:last-child td {
           </div>
         </header>
 
-        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" id="dockMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Mais</span></button></nav><main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" id="dockMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Mais</span></button></nav><main class="content">
           <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
           <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
           <section id="view-tasks" class="view"><div id="tasksApp"></div></section>
@@ -23190,6 +23262,9 @@ tr:last-child td {
     }
     $("#clockPunchBtn").disabled =
       teamOnlyView || !d.nextAction || !!d.offToday;
+    const isExitAction = d.nextAction === "SAIDA_FINAL" || d.nextAction === "SAIDA_INTERVALO";
+    $("#clockPunchBtn").classList.toggle("btn-punch-exit", isExitAction);
+    $("#clockPunchBtn").dataset.punchAction = d.nextAction || "";
     $("#clockPunchBtn").textContent = teamOnlyView
       ? "Visualização da equipe"
       : d.offToday

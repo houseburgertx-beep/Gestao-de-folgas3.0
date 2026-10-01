@@ -5246,6 +5246,9 @@
     }
     $("#clockPunchBtn").disabled =
       teamOnlyView || !d.nextAction || !!d.offToday;
+    const isExitAction = d.nextAction === "SAIDA_FINAL" || d.nextAction === "SAIDA_INTERVALO";
+    $("#clockPunchBtn").classList.toggle("btn-punch-exit", isExitAction);
+    $("#clockPunchBtn").dataset.punchAction = d.nextAction || "";
     $("#clockPunchBtn").textContent = teamOnlyView
       ? "Visualização da equipe"
       : d.offToday

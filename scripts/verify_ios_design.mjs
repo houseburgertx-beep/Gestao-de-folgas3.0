@@ -234,6 +234,11 @@ console.log("Dashboard overflow:", ov);
 await sleep(400);
 await takeScreenshot("03_view_dashboard");
 
+// 3b. Dashboard Scrolled (Verificar remoção de Minha Programação)
+await evalCode(`window.scrollTo(0, 480);`);
+await sleep(300);
+await takeScreenshot("03b_view_dashboard_scrolled");
+
 // 4. View Timeclock (Meu Ponto)
 console.log("Capturing 04_view_timeclock...");
 ov = await switchToView("timeclock");
@@ -244,8 +249,20 @@ await evalCode(`
   const punchBtn = document.getElementById("clockPunchBtn");
   if (punchBtn) {
     punchBtn.textContent = "Registrar Saída Intervalo";
+    punchBtn.classList.add("btn-punch-exit");
+    punchBtn.dataset.punchAction = "SAIDA_INTERVALO";
     punchBtn.classList.remove("action-busy");
     punchBtn.disabled = false;
+  }
+  const skipBtn = document.getElementById("clockSkipBreakBtn");
+  if (skipBtn) {
+    skipBtn.textContent = "Não tirar descanso (+60min extra)";
+    skipBtn.classList.remove("hidden");
+    skipBtn.disabled = false;
+  }
+  const hint = document.getElementById("clockLocationHint");
+  if (hint) {
+    hint.textContent = "Sua selfie e localização serão validadas no momento do registro. A foto ficará no Google Drive.";
   }
   const todayList = document.getElementById("clockTodayList");
   if (todayList) {
