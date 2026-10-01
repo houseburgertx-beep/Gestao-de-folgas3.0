@@ -3298,3 +3298,133 @@ tr:last-child td {
   100% { transform: scale(1); }
 }
 
+/* Banner Flutuante de Notificação em Tempo Real (In-App) */
+.in-app-notice-container {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999999;
+  width: calc(100% - 28px);
+  max-width: 440px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.in-app-notice-banner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(40, 45, 70, 0.16), 0 2px 6px rgba(40, 45, 70, 0.06);
+  border: 1px solid rgba(40, 45, 70, 0.08);
+  animation: slide-in-banner 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.25s ease;
+}
+
+.in-app-notice-banner.is-closing {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+}
+
+.in-app-notice-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #E6E2FF;
+  color: #807EFA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.in-app-notice-banner.severity-warning .in-app-notice-icon {
+  background: rgba(255, 149, 0, 0.15);
+  color: #ff9500;
+}
+
+.in-app-notice-banner.severity-danger .in-app-notice-icon {
+  background: rgba(255, 59, 48, 0.15);
+  color: #ff3b30;
+}
+
+.in-app-notice-banner.severity-success .in-app-notice-icon {
+  background: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+}
+
+.in-app-notice-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.in-app-notice-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #242737;
+  margin: 0 0 2px 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.in-app-notice-msg {
+  font-size: 11.5px;
+  color: #858A9E;
+  margin: 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.in-app-notice-action {
+  background: #807EFA;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 7px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.in-app-notice-action:active {
+  opacity: 0.8;
+}
+
+.in-app-notice-close {
+  background: transparent;
+  border: none;
+  color: #858A9E;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+
+@keyframes slide-in-banner {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+

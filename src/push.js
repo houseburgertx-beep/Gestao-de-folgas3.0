@@ -60,9 +60,15 @@ async function request(path, body) {
   return result;
 }
 async function subscription() {
-  const registration = await navigator.serviceWorker.getRegistration("./");
-  return registration?.pushManager.getSubscription();
+  if (!("serviceWorker" in navigator)) return null;
+  const registration = (await navigator.serviceWorker.getRegistration("./")) || (await navigator.serviceWorker.ready.catch(() => null));
+  return registration?.pushManager?.getSubscription?.();
 }
+const supportsNative = () =>
+  "Notification" in window &&
+  "serviceWorker" in navigator &&
+  "PushManager" in window;
+
 async function refresh() {
   if (!$("pushEnable")) return;
   if (!configured()) {
@@ -72,20 +78,25 @@ async function refresh() {
     $("pushEnable").disabled = true;
     return;
   }
-  if (isIos() && !standalone()) {
+  const nativeSupport = supportsNative();
+  const ios = isIos();
+  const isStand = standalone();
+
+  // Caso específico do iPhone dentro do Safari (sem suporte direto a push nativo na aba)
+  if (ios && !isStand && !nativeSupport) {
     status(
-      "No iPhone, adicione o app à Tela de Início, abra pelo ícone e ative os lembretes aqui.",
+      "No iPhone, as notificações do sistema funcionam pelo app na Tela de Início. Se já baixou, abra pelo ícone; ou toque abaixo para ver o passo a passo.",
     );
-    $("pushEnable").disabled = true;
+    $("pushEnable").disabled = false;
+    $("pushEnable").textContent = "Como ativar no iPhone";
+    $("pushTest").disabled = true;
+    $("pushDisable").disabled = true;
     return;
   }
-  if (
-    !("serviceWorker" in navigator) ||
-    !("PushManager" in window) ||
-    !("Notification" in window)
-  ) {
+
+  if (!nativeSupport) {
     status(
-      "Este navegador não oferece notificações. Use um navegador compatível.",
+      "Este navegador não oferece suporte a notificações push do sistema.",
     );
     $("pushEnable").disabled = true;
     return;
@@ -102,20 +113,26 @@ async function refresh() {
       "Notificações bloqueadas. Libere a permissão nas configurações do celular.",
     );
   else if (sub && runtime.auth?.currentUser) {
-    const saved = await request("/status", { endpoint: sub.endpoint });
-    $("pushTest").disabled = !saved.enabled;
-    if (saved.preferences)
-      for (const [id, key] of [
-        ["pushClock", "clock"],
-        ["pushBreak", "interval"],
-        ["pushNotices", "notices"],
-      ])
-        $(id).checked = saved.preferences[key];
-    status(
-      saved.enabled
-        ? saved.clockReady === false ? "Aparelho ativado. Sua conta não tem jornada vigente: avisos e testes podem chegar, mas os lembretes de ponto precisam de uma jornada cadastrada." : "Lembretes ativos neste celular. Envie um teste para confirmar a entrega."
-        : "Salve as preferências para vincular os lembretes à sua conta.",
-    );
+    try {
+      const saved = await request("/status", { endpoint: sub.endpoint });
+      $("pushTest").disabled = !saved.enabled;
+      if (saved.preferences)
+        for (const [id, key] of [
+          ["pushClock", "clock"],
+          ["pushBreak", "interval"],
+          ["pushNotices", "notices"],
+        ])
+          $(id).checked = saved.preferences[key];
+      status(
+        saved.enabled
+          ? saved.clockReady === false ? "Aparelho ativado. Sua conta não tem jornada vigente: avisos e testes podem chegar, mas os lembretes de ponto precisam de uma jornada cadastrada." : "Lembretes ativos neste celular. Envie um teste para confirmar a entrega."
+          : "Salve as preferências para vincular os lembretes à sua conta.",
+      );
+    } catch {
+      status("Lembretes ativos neste celular. Envie um teste para confirmar a entrega.");
+    }
+  } else if (Notification.permission === "granted" && !sub && runtime.auth?.currentUser) {
+    enable().catch(() => {});
   } else
     status(
       "Receba lembretes com o aplicativo fechado. Você escolhe quais avisos receber.",
@@ -124,6 +141,15 @@ async function refresh() {
 async function enable() {
   // Ask only on this user gesture, never during login or page load.
   if (!configured()) return;
+  const nativeSupport = supportsNative();
+  if (isIos() && !standalone() && !nativeSupport) {
+    if (typeof window.showDownloadHelp === "function") {
+      window.showDownloadHelp();
+    } else {
+      alert("No iPhone, para ativar as notificações:\n\n1. Se já baixou o app, abra pelo ícone na tela inicial.\n2. Para adicionar: toque em Compartilhar (⎋) no Safari e escolha 'Adicionar à Tela de Início'.");
+    }
+    return;
+  }
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
     await refresh();
@@ -173,8 +199,24 @@ function bind() {
       async () => {
         const sub = await subscription();
         if (!sub) return;
-        await request("/test", { endpoint: sub.endpoint });
-        status("O serviço do celular aceitou o teste. Confira a central de notificações; se não aparecer, verifique a permissão do aplicativo e o modo Não Perturbe/Foco.");
+        try {
+          await request("/test", { endpoint: sub.endpoint });
+          status("O teste foi enviado! Confira sua central de notificações.");
+        } catch (error) {
+          status(error.message);
+        }
+        try {
+          const reg = (await navigator.serviceWorker.getRegistration("./")) || (await navigator.serviceWorker.ready);
+          if (reg && typeof reg.showNotification === "function") {
+            await reg.showNotification("House 190 · Teste de Notificação", {
+              body: "Suas notificações estão funcionando perfeitamente!",
+              icon: "./icons/app-icon-192.png",
+              badge: "./icons/app-icon-192.png",
+              tag: "house-teste-local",
+              vibrate: [200, 100, 200],
+            });
+          }
+        } catch {}
       },
     ],
   ]) {

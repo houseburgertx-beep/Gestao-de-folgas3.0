@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.10.0";
+const CACHE_NAME = "house-folgas-v6.10.1";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.10.0",
+  "./manifest.webmanifest?v=6.10.1",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -88,18 +88,27 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 // Web Push works while the page is closed; no background timers are required.
 self.addEventListener("push", event => {
   let data = {};
   try { data = event.data?.json() || {}; } catch { /* Always show a safe visible fallback. */ }
+  const destination = new URL("./", APP_BASE);
   const viewMap = { timeclock: "timeclock", tasks: "tasks", timeoff: "timeoff", notifications: "notifications" };
   destination.searchParams.set("view", viewMap[data.view] || "notifications");
   event.waitUntil(self.registration.showNotification(String(data.title || "House 190"), {
-    body:String(data.body || "Você tem um novo aviso no aplicativo."),
-    icon:new URL("./icons/app-icon-192.png", APP_BASE).href,
-    badge:new URL("./icons/app-icon-192.png", APP_BASE).href,
-    tag:String(data.tag || "house-aviso"),
-    data:{url:destination.href},
+    body: String(data.body || "Você tem um novo aviso no aplicativo."),
+    icon: new URL("./icons/app-icon-192.png", APP_BASE).href,
+    badge: new URL("./icons/app-icon-192.png", APP_BASE).href,
+    tag: String(data.tag || "house-aviso"),
+    vibrate: [200, 100, 200],
+    renotify: true,
+    data: { url: destination.href },
   }));
 });
 self.addEventListener("notificationclick", event => {

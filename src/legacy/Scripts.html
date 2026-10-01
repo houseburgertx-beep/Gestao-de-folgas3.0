@@ -189,7 +189,7 @@
       const overlay = document.createElement("div");
       overlay.className = "app-download-overlay";
       const steps = isIOS
-        ? "<li><b>1</b><span>Se houver um atalho antigo, apague-o da tela inicial.</span></li><li><b>2</b><span>Abra este endereço no <strong>Safari</strong> e toque em <strong>Compartilhar</strong>.</span></li><li><b>3</b><span>Escolha <strong>Adicionar à Tela de Início</strong>.</span></li><li><b>4</b><span>Confira a imagem do ícone e confirme em <strong>Adicionar</strong>.</span></li>"
+        ? "<li><b>1</b><span>Se já adicionou o app à tela inicial, <strong>feche o Safari e abra pelo ícone</strong> do app.</span></li><li><b>2</b><span>Para adicionar: abra este endereço no <strong>Safari</strong> e toque em <strong>Compartilhar</strong>.</span></li><li><b>3</b><span>Escolha <strong>Adicionar à Tela de Início</strong>.</span></li><li><b>4</b><span>Confira a imagem do ícone e confirme em <strong>Adicionar</strong>.</span></li>"
         : "<li><b>1</b><span>Abra o menu <strong>⋮</strong> do navegador.</span></li><li><b>2</b><span>Escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</span></li>";
       const warningText = isIOS
         ? "Importante: no iPhone, faça a instalação somente pelo Safari. Não use o Chrome para adicionar o aplicativo."
@@ -225,6 +225,7 @@
       };
       document.body.appendChild(overlay);
     }
+    window.showDownloadHelp = showDownloadHelp;
 
     async function installApplication() {
       if (!installPrompt) {
@@ -1806,6 +1807,7 @@
        nem para bater ponto. Rodam quando o navegador estiver ocioso e nunca
        disputam conexão/CPU com o caminho crítico. */
     scheduleIdleTask_(() => loadNotifications(), 6000);
+    scheduleIdleTask_(() => initNotificationMonitor_(), 7000);
     scheduleIdleTask_(() => loadHourBalance(), 10000);
   }
 
@@ -6583,6 +6585,10 @@
         '<div class="empty-state">Carregando notificações…</div>';
     try {
       state.notifications = arr(await call(FN.notifications, { limit: 100 }));
+      state.notifications.forEach(n => {
+        const id = String(val(n, "NotificacaoID") || "");
+        if (id) knownNotificationIds_.add(id);
+      });
       renderNotifications();
     } catch (e) {
       if (list)
@@ -6656,6 +6662,131 @@
       await loadNotifications();
     } catch (e) {
       toast(e.message, true);
+    }
+  }
+
+  var knownNotificationIds_ = new Set();
+  var notificationMonitorStarted_ = false;
+
+  function playNotificationChime_() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      var ctx = new AC();
+      var now = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.setValueAtTime(880, now + 0.12);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } catch {}
+  }
+
+  function showInAppNotificationBanner_(n) {
+    try {
+      var container = document.querySelector(".in-app-notice-container");
+      if (!container) {
+        container = document.createElement("div");
+        container.className = "in-app-notice-container";
+        document.body.appendChild(container);
+      }
+      var banner = document.createElement("div");
+      var sev = val(n, "Severidade") ? "severity-" + esc(val(n, "Severidade")) : "";
+      banner.className = "in-app-notice-banner " + sev;
+      var title = esc(notificationTitle_(n));
+      var message = esc(notificationMessage_(n));
+      var tipo = String(val(n, "Tipo") || "");
+      var targetView = (tipo === "Tarefa" || tipo.startsWith("TAREFA"))
+        ? "tasks"
+        : (tipo === "Folga" ? "timeoff" : (tipo === "Ponto" ? "timeclock" : "notifications"));
+      var id = esc(val(n, "NotificacaoID"));
+
+      banner.innerHTML =
+        '<div class="in-app-notice-icon">🔔</div>' +
+        '<div class="in-app-notice-content">' +
+        '<div class="in-app-notice-title">' + title + '</div>' +
+        '<div class="in-app-notice-msg">' + message + '</div>' +
+        '</div>' +
+        '<button class="in-app-notice-action" type="button">Ver</button>' +
+        '<button class="in-app-notice-close" type="button" aria-label="Fechar">×</button>';
+
+      var closeBanner = function() {
+        banner.classList.add("is-closing");
+        setTimeout(function() { banner.remove(); }, 250);
+      };
+
+      banner.querySelector(".in-app-notice-close").onclick = closeBanner;
+      banner.querySelector(".in-app-notice-action").onclick = function() {
+        closeBanner();
+        openNotificationUI(targetView, id);
+      };
+
+      container.appendChild(banner);
+      setTimeout(closeBanner, 7000);
+
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try {
+          new Notification(title, {
+            body: message,
+            icon: "./icons/app-icon-192.png",
+            tag: "inapp-" + id,
+          });
+        } catch {}
+      }
+    } catch {}
+  }
+
+  async function checkRealtimeNotifications_() {
+    if (!sessionToken() && !state.user) return;
+    try {
+      var rows = arr(await call(FN.notifications, { limit: 25 }));
+      var isFirst = knownNotificationIds_.size === 0;
+
+      rows.forEach(function(n) {
+        var id = String(val(n, "NotificacaoID"));
+        var isUnread = val(n, "Status") !== "Lida";
+        if (!knownNotificationIds_.has(id)) {
+          knownNotificationIds_.add(id);
+          if (!isFirst && isUnread) {
+            playNotificationChime_();
+            showInAppNotificationBanner_(n);
+          }
+        }
+      });
+
+      state.notifications = rows;
+      var unreadCount = rows.filter(function(n) { return val(n, "Status") !== "Lida"; }).length;
+      ["#notificationBadge", "#notificationTopBadge"].forEach(function(sel) {
+        var el = $(sel);
+        if (el) {
+          el.textContent = unreadCount;
+          el.style.display = unreadCount ? "inline-flex" : "none";
+        }
+      });
+
+      if (state.currentView === "notifications") {
+        renderNotifications();
+      }
+    } catch {}
+  }
+
+  function initNotificationMonitor_() {
+    if (notificationMonitorStarted_) return;
+    notificationMonitorStarted_ = true;
+    setTimeout(checkRealtimeNotifications_, 3500);
+    setInterval(checkRealtimeNotifications_, 25000);
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === "visible") {
+          checkRealtimeNotifications_();
+        }
+      });
     }
   }
 

@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = "6.10.0";
+const SERVICE_WORKER_VERSION = "6.10.1";
 
 let registrationPromise;
 const registerServiceWorker = () => registrationPromise ||= registerOnce();
@@ -19,7 +19,32 @@ const registerOnce = async () => {
         updateViaCache: "none",
       },
     );
+
+    registration.addEventListener("updatefound", () => {
+      const newWorker = registration.installing;
+      if (newWorker) {
+        newWorker.addEventListener("statechange", () => {
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            newWorker.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      }
+    });
+
     registration.update().catch(() => null);
+
+    // Auto-check for updates when app returns to foreground
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          registration.update().catch(() => null);
+        }
+      });
+      window.addEventListener("online", () => {
+        registration.update().catch(() => null);
+      });
+    }
+
     return registration;
   } catch (error) {
     console.warn("Aplicativo instalável:", error?.message || error);
