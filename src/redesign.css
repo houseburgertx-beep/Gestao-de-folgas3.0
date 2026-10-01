@@ -1066,7 +1066,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 [data-theme=dark] .pending-center-hero .eyebrow {color:#bdc9ff;}
 [data-theme=dark] .mobile-dock .dock-point,[data-theme=dark] .mobile-dock .dock-point.active,[data-theme=dark] .app-download-icon {color:#1c294f;}
 @media(max-width:759px){.login-shell {grid-template-columns:1fr;}.login-form-panel {padding:28px 24px;}.login-options {gap:8px;}#loginForm .login-options label {flex-basis:100%;}#loginForm .login-options button {padding:0;}}
-.mobile-login-brand {background:linear-gradient(120deg,#365cf5,#705ae5);color:#fff;border:0;box-shadow:0 8px 24px #5265ef25;}.mobile-login-brand strong,.mobile-login-brand span {color:#fff;}.mobile-login-brand span {opacity:.85;}
+/* .mobile-login-brand legacy reset - styled in cozinhaflow.css */
 
 /* House 190: keep the decision shortcuts alongside the new workspace. */
 .j-command {grid-column:1/-1;min-width:0;padding:30px;border-radius:24px;background:linear-gradient(115deg,#365cf5,#5763ee 65%,#7860e7);color:#fff;}
