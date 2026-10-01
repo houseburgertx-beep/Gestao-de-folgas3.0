@@ -1,4 +1,4 @@
-const CACHE_NAME = "house-folgas-v6.10.3";
+const CACHE_NAME = "house-folgas-v6.10.4";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",

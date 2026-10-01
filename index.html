@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.10.3" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.10.4" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.10.3-firebase-github" />
+    <meta name="app-version" content="6.10.4-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -10143,71 +10143,73 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   --rt-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
-/* Equalização Universal da Barra de Navegação Inferior (Mobile Dock) */
-.mobile-dock {
-  background: var(--surface, #ffffff) !important;
-  border-top: 1px solid var(--line, #e2e8f0) !important;
-  box-shadow: 0 -2px 16px rgba(15, 23, 42, 0.05) !important;
-  padding: 4px 8px calc(6px + env(safe-area-inset-bottom)) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  display: flex !important;
-}
+/* Equalização Universal da Barra de Navegação Inferior (Mobile Dock) — apenas mobile */
+@media (max-width: 760px) {
+  .mobile-dock {
+    background: var(--surface, #ffffff) !important;
+    border-top: 1px solid var(--line, #e2e8f0) !important;
+    box-shadow: 0 -2px 16px rgba(15, 23, 42, 0.05) !important;
+    padding: 4px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex !important;
+  }
 
-.mobile-dock button {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 1 !important;
-  min-width: 0 !important;
-  height: 52px !important;
-  min-height: 52px !important;
-  padding: 4px 2px !important;
-  border: 0 !important;
-  border-radius: 8px !important;
-  color: var(--muted, #64748b) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  margin: 0 !important;
-  gap: 3px !important;
-  transition: all 0.15s ease !important;
-  -webkit-tap-highlight-color: transparent;
-}
+  .mobile-dock button {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    padding: 4px 2px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    color: var(--muted, #64748b) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    gap: 3px !important;
+    transition: all 0.15s ease !important;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-.mobile-dock button:active {
-  transform: scale(0.96);
-}
+  .mobile-dock button:active {
+    transform: scale(0.96);
+  }
 
-.mobile-dock button svg {
-  width: 20px !important;
-  height: 20px !important;
-  display: block !important;
-  margin: 0 !important;
-  stroke-width: 1.8 !important;
-  transition: color 0.15s ease, transform 0.15s ease;
-}
+  .mobile-dock button svg {
+    width: 20px !important;
+    height: 20px !important;
+    display: block !important;
+    margin: 0 !important;
+    stroke-width: 1.8 !important;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
 
-.mobile-dock button span {
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  line-height: 1.1 !important;
-  letter-spacing: -0.01em !important;
-}
+  .mobile-dock button span {
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.01em !important;
+  }
 
-.mobile-dock button.active {
-  color: var(--primary, #2563eb) !important;
-  background: transparent !important;
-}
+  .mobile-dock button.active {
+    color: var(--primary, #2563eb) !important;
+    background: transparent !important;
+  }
 
-.mobile-dock button.active svg {
-  color: var(--primary, #2563eb) !important;
-  transform: translateY(-1px);
-}
+  .mobile-dock button.active svg {
+    color: var(--primary, #2563eb) !important;
+    transform: translateY(-1px);
+  }
 
-.mobile-dock button.active span {
-  font-weight: 700 !important;
-  color: var(--primary, #2563eb) !important;
+  .mobile-dock button.active span {
+    font-weight: 700 !important;
+    color: var(--primary, #2563eb) !important;
+  }
 }
 
 /* Layout Geral da Página de Rotinas */
@@ -14417,7 +14419,8 @@ textarea:focus {
    4. DASHBOARD (HERO COM RELÓGIO DIGITAL & BENTO CARDS PASTEL)
    -------------------------------------------------------------------------- */
 
-.v-workspace-hero,
+/* Hero do GERENTE — mantém o gradiente azul do redesign.css */
+/* (não sobrescrever background aqui; o redesign.css já define corretamente) */
 .hero-row {
   border-radius: var(--ios-radius-hero, 34px) !important;
   background: linear-gradient(135deg, rgba(230, 226, 255, 0.4) 0%, rgba(223, 242, 247, 0.35) 50%, rgba(255, 233, 221, 0.35) 100%), #FFFFFF !important;
@@ -14426,7 +14429,25 @@ textarea:focus {
   padding: 24px !important;
   overflow: hidden !important;
 }
-.v-hero-copy h2,
+/* Hero do FUNCIONÁRIO (tela pessoal) — fundo pastel claro */
+.v-personal-home .v-workspace-hero {
+  border-radius: var(--ios-radius-hero, 34px) !important;
+  background: linear-gradient(135deg, rgba(230, 226, 255, 0.4) 0%, rgba(223, 242, 247, 0.35) 50%, rgba(255, 233, 221, 0.35) 100%), #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 14px 32px rgba(40, 45, 70, 0.07), 0 2px 6px rgba(40, 45, 70, 0.03) !important;
+  overflow: hidden !important;
+}
+.v-personal-home .v-hero-copy h2 {
+  font-size: clamp(22px, 3vw, 28px) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.035em !important;
+  color: #242737 !important;
+  line-height: 1.2 !important;
+}
+.v-personal-home .v-hero-copy p {
+  color: #858A9E !important;
+  font-size: 13.5px !important;
+}
 .hero-row h2 {
   font-size: clamp(22px, 3vw, 28px) !important;
   font-weight: 800 !important;
@@ -14434,25 +14455,25 @@ textarea:focus {
   color: #242737 !important;
   line-height: 1.2 !important;
 }
-.v-hero-copy p,
 .hero-row p {
   color: #858A9E !important;
   font-size: 13.5px !important;
 }
-.v-hero-clock {
+.v-personal-home .v-hero-clock {
   background: #FFFFFF !important;
   border-radius: 22px !important;
   border: 1px solid rgba(40, 45, 70, 0.06) !important;
   box-shadow: 0 8px 20px rgba(40, 45, 70, 0.04) !important;
   padding: 14px 18px !important;
 }
-.v-hero-clock strong {
+.v-personal-home .v-hero-clock strong {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
   font-size: 26px !important;
   font-weight: 800 !important;
   letter-spacing: -0.02em !important;
   color: #242737 !important;
 }
+
 
 /* Distribuição Harmoniosa das 4 Cores Pastel nos Cards do Colaborador */
 #journeyHome > .w-myday {
@@ -15339,25 +15360,29 @@ tr:last-child td {
    SAFE-AREA & MOBILE CONTAINMENT (iPhone Status Bar / Notch & Deslocamento)
    ========================================================================== */
 
-/* Topbar fixa com espaçamento seguro abaixo da Dynamic Island / Notch */
-.topbar {
-  padding-top: max(14px, env(safe-area-inset-top, 0px)) !important;
-  padding-bottom: 12px !important;
-  padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
-  padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
-  min-height: calc(56px + env(safe-area-inset-top, 0px)) !important;
-  height: auto !important;
-  box-sizing: border-box !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 50 !important;
+/* Sidebar com suporte à área segura do iPhone — apenas mobile */
+@media (max-width: 760px) {
+  .topbar {
+    padding-top: max(14px, env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 12px !important;
+    padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
+    min-height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+  }
 }
 
-/* Sidebar com suporte à área segura do iPhone */
-.sidebar {
-  padding-top: max(16px, env(safe-area-inset-top, 0px)) !important;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
-  box-sizing: border-box !important;
+/* Sidebar com suporte à área segura do iPhone — apenas mobile */
+@media (max-width: 760px) {
+  .sidebar {
+    padding-top: max(16px, env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+    box-sizing: border-box !important;
+  }
 }
 
 /* Mobile: eliminação definitiva de overflow horizontal e alinhamento centrado */
@@ -18555,7 +18580,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.10.3"></script>
+<script type="module" src="./src/main.js?v=6.10.4"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
