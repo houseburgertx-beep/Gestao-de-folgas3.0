@@ -2687,7 +2687,8 @@ textarea:focus {
    4. DASHBOARD (HERO COM RELÓGIO DIGITAL & BENTO CARDS PASTEL)
    -------------------------------------------------------------------------- */
 
-.v-workspace-hero,
+/* Hero do GERENTE — mantém o gradiente azul do redesign.css */
+/* (não sobrescrever background aqui; o redesign.css já define corretamente) */
 .hero-row {
   border-radius: var(--ios-radius-hero, 34px) !important;
   background: linear-gradient(135deg, rgba(230, 226, 255, 0.4) 0%, rgba(223, 242, 247, 0.35) 50%, rgba(255, 233, 221, 0.35) 100%), #FFFFFF !important;
@@ -2696,7 +2697,25 @@ textarea:focus {
   padding: 24px !important;
   overflow: hidden !important;
 }
-.v-hero-copy h2,
+/* Hero do FUNCIONÁRIO (tela pessoal) — fundo pastel claro */
+.v-personal-home .v-workspace-hero {
+  border-radius: var(--ios-radius-hero, 34px) !important;
+  background: linear-gradient(135deg, rgba(230, 226, 255, 0.4) 0%, rgba(223, 242, 247, 0.35) 50%, rgba(255, 233, 221, 0.35) 100%), #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 14px 32px rgba(40, 45, 70, 0.07), 0 2px 6px rgba(40, 45, 70, 0.03) !important;
+  overflow: hidden !important;
+}
+.v-personal-home .v-hero-copy h2 {
+  font-size: clamp(22px, 3vw, 28px) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.035em !important;
+  color: #242737 !important;
+  line-height: 1.2 !important;
+}
+.v-personal-home .v-hero-copy p {
+  color: #858A9E !important;
+  font-size: 13.5px !important;
+}
 .hero-row h2 {
   font-size: clamp(22px, 3vw, 28px) !important;
   font-weight: 800 !important;
@@ -2704,25 +2723,25 @@ textarea:focus {
   color: #242737 !important;
   line-height: 1.2 !important;
 }
-.v-hero-copy p,
 .hero-row p {
   color: #858A9E !important;
   font-size: 13.5px !important;
 }
-.v-hero-clock {
+.v-personal-home .v-hero-clock {
   background: #FFFFFF !important;
   border-radius: 22px !important;
   border: 1px solid rgba(40, 45, 70, 0.06) !important;
   box-shadow: 0 8px 20px rgba(40, 45, 70, 0.04) !important;
   padding: 14px 18px !important;
 }
-.v-hero-clock strong {
+.v-personal-home .v-hero-clock strong {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
   font-size: 26px !important;
   font-weight: 800 !important;
   letter-spacing: -0.02em !important;
   color: #242737 !important;
 }
+
 
 /* Distribuição Harmoniosa das 4 Cores Pastel nos Cards do Colaborador */
 #journeyHome > .w-myday {
