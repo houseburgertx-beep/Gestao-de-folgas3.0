@@ -13500,7 +13500,13 @@ html, body {
   padding: 32px 20px !important;
   margin: 0 !important;
 }
-.login-screen.hidden {
+
+/* Regra MESTRE para elementos ocultos: NUNCA permitir que apareçam */
+.login-screen.hidden,
+.login-card.hidden,
+#loginForm.hidden,
+#resetPasswordForm.hidden,
+.hidden {
   display: none !important;
 }
 
@@ -13632,6 +13638,9 @@ html, body {
   padding: 0 !important;
   margin: 0 !important;
 }
+.login-card:not(.hidden) {
+  display: block;
+}
 .login-card h2 {
   margin: 6px 0 6px !important;
   font-size: 24px !important;
@@ -13660,9 +13669,11 @@ html, body {
   font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 20;
 }
 
-/* --- Cabeçalho Mobile Brand (Oculto no Desktop) --------------------------- */
-.mobile-login-brand {
-  display: none !important;
+/* --- Desktop only: esconde cabeçalho mobile ------------------------------- */
+@media (min-width: 861px) {
+  .mobile-login-brand {
+    display: none !important;
+  }
 }
 
 /* --- Inputs de Login ------------------------------------------------------ */
@@ -13902,8 +13913,8 @@ html, body {
     margin: 0 !important;
   }
 
+  /* login-card no mobile NÃO deve ter display com !important */
   .login-card {
-    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
     background: transparent !important;
@@ -13914,7 +13925,7 @@ html, body {
     margin: 0 !important;
   }
 
-  /* Cabeçalho Mobile Totalmente Clean e Discreto (Substitui o bloco azul antigo) */
+  /* Cabeçalho Mobile Totalmente Clean e Discreto */
   .mobile-login-brand {
     display: flex !important;
     align-items: center !important;
