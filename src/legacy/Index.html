@@ -401,7 +401,7 @@
             <div id="journeyHome" class="journey-bento"></div>
             <div id="incompletePunchesAlert" class="incomplete-punches-alert hidden">
               <div class="incomplete-alert-content">
-                <span class="incomplete-alert-icon">⚠️</span>
+                <span class="incomplete-alert-icon"><span class="material-symbols-rounded">warning</span></span>
                 <div class="incomplete-alert-text">
                   <strong id="incompletePunchesTitle">Saídas esquecidas detectadas</strong>
                   <p id="incompletePunchesDesc">Há colaboradores sem registro de saída em dias anteriores.</p>
@@ -491,7 +491,7 @@
                   <option value="">Todas as lojas</option></select
                 ><select id="calendarEmployeeFilter">
                   <option value="">Todos os funcionários</option></select
-                ><button id="calendarWhatsAppBtn" class="btn btn-secondary" style="color:#25D366; font-weight:600">📲 WhatsApp</button><button id="calendarPdfBtn" class="btn btn-secondary">
+                ><button id="calendarWhatsAppBtn" class="btn btn-secondary" style="color:#25D366; font-weight:600"><span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">chat</span>WhatsApp</button><button id="calendarPdfBtn" class="btn btn-secondary">
                   ⇩ PDF</button
                 ><button id="calendarNewBtn" class="btn btn-primary">
                   ＋ Nova folga
@@ -1025,8 +1025,8 @@
                   <input id="adminHourBalanceMonth" type="month" />
                 </label>
                 <button id="adminHourBalanceRefresh" class="btn btn-secondary" type="button">↻ Atualizar</button>
-                <button id="adminHourBalanceSettleBtn" class="btn btn-primary" type="button">⚖️ Fechar / Quitar Mês</button>
-                <button id="adminResetStoreBalancesBtn" class="btn btn-secondary" type="button" style="border-color:rgba(239,68,68,0.4);color:#ef4444">🗑️ Zerar Saldos da Loja</button>
+                <button id="adminHourBalanceSettleBtn" class="btn btn-primary" type="button"><span class="material-symbols-rounded">balance</span> Fechar / Quitar Mês</button>
+                <button id="adminResetStoreBalancesBtn" class="btn btn-secondary" type="button" style="border-color:rgba(239,68,68,0.4);color:#ef4444"><span class="material-symbols-rounded">delete_outline</span> Zerar Saldos da Loja</button>
               </div>
             </div>
             <div class="metric-grid admin-hour-balance-metrics">
@@ -1128,7 +1128,7 @@
                     id="aiSimulateBtn"
                     class="btn btn-secondary"
                   >
-                    ✨ Otimizar distribuição
+                    <span class="material-symbols-rounded">auto_awesome</span> Otimizar distribuição
                   </button>
                 </div>
               </form>
@@ -1389,7 +1389,7 @@
               <button id="communicationRefreshBtn" class="btn btn-secondary">
                 ↻ Atualizar
               </button>
-              <button class="btn btn-secondary" data-view-target="notifications">🔔 Meus avisos</button>
+              <button class="btn btn-secondary" data-view-target="notifications"><span class="material-symbols-rounded">notifications</span> Meus avisos</button>
             </div>
             <div class="advanced-grid">
               <form

@@ -347,7 +347,7 @@
       <section class="monthly-leave-reward-card" role="dialog" aria-modal="true" aria-labelledby="monthlyLeaveRewardTitle" aria-describedby="monthlyLeaveRewardText">
         <div class="monthly-leave-reward-orbit" aria-hidden="true">
           <span class="monthly-leave-reward-ring"></span>
-          <div class="monthly-leave-reward-icon">🎉</div>
+          <div class="monthly-leave-reward-icon"><span class="material-symbols-rounded" style="font-size:32px;">celebration</span></div>
           <span class="monthly-leave-reward-spark spark-one">✦</span>
           <span class="monthly-leave-reward-spark spark-two">✦</span>
           <span class="monthly-leave-reward-spark spark-three">•</span>
@@ -467,7 +467,7 @@
       <section class="monthly-leave-reward-card" role="dialog" aria-modal="true" aria-labelledby="holidayLeaveRewardTitle" aria-describedby="holidayLeaveRewardText">
         <div class="monthly-leave-reward-orbit" aria-hidden="true">
           <span class="monthly-leave-reward-ring"></span>
-          <div class="monthly-leave-reward-icon">🎉</div>
+          <div class="monthly-leave-reward-icon"><span class="material-symbols-rounded" style="font-size:32px;">celebration</span></div>
           <span class="monthly-leave-reward-spark spark-one">✦</span>
           <span class="monthly-leave-reward-spark spark-two">✦</span>
           <span class="monthly-leave-reward-spark spark-three">•</span>
@@ -2503,7 +2503,7 @@
       $("#whatsappScheduleText")?.value || state.whatsappScheduleMessage || "";
     if (!text) return toast("Nenhuma mensagem para copiar.", true);
     navigator.clipboard.writeText(text).then(
-      () => toast("📋 Mensagem copiada! Cole diretamente no WhatsApp."),
+      () => toast("Mensagem copiada! Cole diretamente no WhatsApp."),
       () => toast("Erro ao copiar para a área de transferência.", true),
     );
   }
@@ -2529,7 +2529,7 @@
     $("#userRole").textContent = profile(u) || "Perfil";
     applyAvatar($("#userAvatar"), name, u);
     const hour = Number(new Intl.DateTimeFormat("pt-BR", {hour: "numeric", timeZone: "America/Bahia"}).format(new Date()));
-    $("#greeting").textContent = `${hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"}, ${name.split(" ")[0]} 👋`;
+    $("#greeting").textContent = `${hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"}, ${name.split(" ")[0]}`;
 
     /*
      * Sempre restaura a navegação antes de aplicar o novo perfil. Sem isso, os
@@ -4693,7 +4693,7 @@
           state.simulationAI.alertas.map((a) => `<li>${esc(a)}</li>`).join("") +
           "</ul>"
         : "";
-      hint.innerHTML = `<span>✨</span><span><b>Análise da IA:</b> ${esc(state.simulationAI.resumo || "Revisão concluída.")}${alerts}</span>`;
+      hint.innerHTML = `<span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;color:var(--primary)">auto_awesome</span><span><b>Análise da IA:</b> ${esc(state.simulationAI.resumo || "Revisão concluída.")}${alerts}</span>`;
       hint.classList.remove("hidden");
       renderSimulation();
       toast("Análise da IA concluída.");
@@ -4701,7 +4701,7 @@
       toast(err.message, true);
     } finally {
       btn.disabled = false;
-      btn.textContent = "✨ Otimizar distribuição";
+      btn.innerHTML = '<span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">auto_awesome</span> Otimizar distribuição';
       setLoading(false);
     }
   }
@@ -5061,7 +5061,7 @@
       return;
     }
     if (d.offToday) {
-      panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>😌 ${esc(d.offTodayLabel || "De folga hoje")}</h3><p>Você não precisa bater ponto hoje.</p></div><button id="dashboardClockPunch" class="btn btn-ghost" disabled>Sem marcação hoje</button>`;
+      panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>${esc(d.offTodayLabel || "De folga hoje")}</h3><p>Você não precisa bater ponto hoje.</p></div><button id="dashboardClockPunch" class="btn btn-ghost" disabled>Sem marcação hoje</button>`;
       return;
     }
     const skipBreakButton =

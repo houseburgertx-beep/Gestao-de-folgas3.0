@@ -1072,8 +1072,8 @@
         </div>
         <label class="full">Ação desejada
           <select id="settleMode" required>
-            <option value="converter_folga">🏖️ Converter em Folgas Compensatórias</option>
-            <option value="quitar_folha">💵 Quitar / Pagar Horas Extras em Folha</option>
+            <option value="converter_folga">Converter em Folgas Compensatórias</option>
+            <option value="quitar_folha">Quitar / Pagar Horas Extras em Folha</option>
           </select>
         </label>
         <label id="settleLeaveCountField">Folgas a creditar
@@ -1118,8 +1118,8 @@
   </div>
   <div class="dialog-actions">
     <button type="button" class="btn btn-secondary" data-close="whatsappScheduleDialog">Fechar</button>
-    <button type="button" id="copyWhatsAppScheduleBtn" class="btn btn-secondary">📋 Copiar Mensagem</button>
-    <button type="button" id="sendWhatsAppScheduleBtn" class="btn btn-primary" style="background:#25D366; border-color:#25D366; color:#09090b; font-weight:700">📲 Abrir no WhatsApp</button>
+    <button type="button" id="copyWhatsAppScheduleBtn" class="btn btn-secondary"><span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">content_copy</span>Copiar Mensagem</button>
+    <button type="button" id="sendWhatsAppScheduleBtn" class="btn btn-primary" style="background:#25D366; border-color:#25D366; color:#09090b; font-weight:700"><span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">chat</span>Abrir no WhatsApp</button>
   </div>
 </dialog>
 
@@ -1140,13 +1140,13 @@
         </label>
         <label class="full">Qual saldo deseja zerar?
           <select id="resetBalanceMode" required>
-            <option value="ambos">🔄 Ambos (Banco de Horas e Saldo de Folgas)</option>
-            <option value="banco_horas">⏱️ Apenas Banco de Horas</option>
-            <option value="saldo_folgas">🏖️ Apenas Saldo de Folgas</option>
+            <option value="ambos">Ambos (Banco de Horas e Saldo de Folgas)</option>
+            <option value="banco_horas">Apenas Banco de Horas</option>
+            <option value="saldo_folgas">Apenas Saldo de Folgas</option>
           </select>
         </label>
         <div class="full" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;">
-          <strong style="color:#ef4444;font-size:13px;display:block;margin-bottom:4px">⚠️ Atenção: Ação Administrativa</strong>
+          <strong style="color:#ef4444;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px"><span class="material-symbols-rounded" style="font-size:16px;">warning</span> Atenção: Ação Administrativa</strong>
           <span style="font-size:12px;color:var(--text, #333)">Esta operação irá calcular e zerar o saldo de todos os colaboradores ativos da loja selecionada, gravando a compensação e o histórico em auditoria.</span>
         </div>
         <label class="full">Motivo / Justificativa

@@ -636,7 +636,7 @@ function renderJornadaTab({ levelInfo, available, admin }) {
           const diff = lvl.min - levelInfo.totalEarned;
           return `
             <div class="kitchen-badge ${unlocked ? 'is-unlocked' : ''}">
-              <div class="kitchen-badge-medal">${unlocked ? lvl.emoji : '🔒'}</div>
+              <div class="kitchen-badge-medal">${unlocked ? '<span class="material-symbols-rounded">verified</span>' : '<span class="material-symbols-rounded">lock</span>'}</div>
               <strong>${esc(lvl.name)}</strong>
               <small>${unlocked ? 'Conquistado' : `${diff} pts para liberar`}</small>
             </div>
@@ -759,7 +759,7 @@ function renderLojaTab({ available, admin }) {
         <div class="admin-reward-list">
           ${pendingDeliveries.map(r => `
             <article>
-              <span>${esc(r.EMOJI || '🎁')}</span>
+              <span class="material-symbols-rounded" style="color:var(--cf-primary)">redeem</span>
               <div>
                 <strong>${esc(r.USUARIO_NOME)}</strong>
                 <small>${esc(r.RECOMPENSA_NOME)} · ${r.PONTOS} pontos</small>
@@ -791,8 +791,8 @@ function renderLojaTab({ available, admin }) {
           const canRedeem = available >= cost;
           return `
             <div class="reward-card ${r.featured ? 'is-featured' : ''}">
-              ${r.featured ? `<span class="reward-featured-label">⭐ Recompensa Máxima</span>` : ''}
-              <div class="reward-emoji">${esc(r.EMOJI || r.emoji || '🎁')}</div>
+              ${r.featured ? `<span class="reward-featured-label"><span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle;margin-right:2px;">star</span>Destaque</span>` : ''}
+              <div class="reward-emoji"><span class="material-symbols-rounded" style="font-size:32px;color:var(--cf-primary)">redeem</span></div>
               <div class="reward-copy">
                 <strong>${esc(r.NOME || r.name)}</strong>
                 <small>${esc(r.DESCRICAO || r.description)}</small>
@@ -820,7 +820,7 @@ function renderLojaTab({ available, admin }) {
       <div class="reward-history-list">
         ${myRedemptions.length ? myRedemptions.map(r => `
           <div class="reward-history-item">
-            <span>${esc(r.EMOJI || '🎁')}</span>
+            <span class="material-symbols-rounded" style="color:var(--cf-primary)">redeem</span>
             <div>
               <strong>${esc(r.RECOMPENSA_NOME)}</strong>
               <small>${r.PONTOS} pontos · Solicitado em ${new Date(r.CRIADO_EM || Date.now()).toLocaleDateString('pt-BR')}</small>
@@ -852,12 +852,12 @@ function renderEquipeTab({ admin }) {
     <div class="team-list">
       ${members.length ? members.map((m, index) => `
         <div class="team-member-card">
-          <div class="team-member-avatar">${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1)}</div>
+          <div class="team-member-avatar">${index === 0 ? '1º' : index === 1 ? '2º' : index === 2 ? '3º' : (index + 1)}</div>
           <div class="team-member-info">
             <strong>${esc(m.name)}</strong>
             <small>${esc(m.role)} · ${m.doneToday} feitas hoje · ${m.pending} pendentes</small>
             <div class="team-member-level">
-              <span>${m.level.emoji}</span>
+              <span class="material-symbols-rounded" style="font-size:16px;color:var(--cf-primary)">stars</span>
               <strong>${esc(m.level.name)}</strong>
             </div>
           </div>
@@ -1136,7 +1136,7 @@ function openNewTaskModal() {
       btnLoading(true);
       await callApi('cozinhaTasksSave', [data]);
       modal.remove();
-      toast("Tarefa criada e atribuída com sucesso! 🚀");
+      toast("Tarefa criada e atribuída com sucesso!");
       await loadData();
     } catch (err) {
       alert(err.message || "Erro ao salvar tarefa.");
@@ -1303,7 +1303,7 @@ function openCompleteModal(taskId) {
     <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
     <button type="button" class="task-action-btn primary btn-glow" id="cfSubmitComplete">
       <span class="material-symbols-rounded">send</span>
-      <span>🚀 Enviar Comprovação (+${pointsWon} pts)</span>
+      <span>Enviar Comprovação (+${pointsWon} pts)</span>
     </button>
   `;
 
@@ -1414,31 +1414,31 @@ function showTaskCelebration({ task, pointsWon, newLevelInfo, totalEarned, avail
     ${confettiHtml}
     <div class="cf-celebration-card">
       <div class="cf-celebrate-badge-wrap">
-        <span>${level.emoji}</span>
+        <span class="material-symbols-rounded" style="font-size:42px;color:var(--cf-primary)">celebration</span>
       </div>
-      <h2 class="cf-celebrate-title">Parabéns! Mandou muito bem! 🎉</h2>
+      <h2 class="cf-celebrate-title">Parabéns! Mandou muito bem!</h2>
       <p class="cf-celebrate-task-name">${esc(task.TITULO)}</p>
       
       <div class="cf-celebration-points-badge">
-        <span>⭐</span>
+        <span class="material-symbols-rounded">stars</span>
         <strong>+${pointsWon} Pts Adicionados à sua Carteira</strong>
       </div>
 
       <div class="cf-celebrate-level-box">
         <div class="cf-celebrate-level-header">
-          <span class="cf-celebrate-level-title">${level.emoji} ${esc(level.name)}</span>
+          <span class="cf-celebrate-level-title">${esc(level.name)}</span>
           <span class="cf-celebrate-level-points">${available} pts na loja</span>
         </div>
         <div class="cf-celebrate-bar-wrap">
           <div class="cf-celebrate-bar-fill" style="width: ${progress}%;"></div>
         </div>
         <div class="cf-celebrate-level-footer">
-          ${nextLevel ? `Faltam <strong>${pointsNeeded} pts</strong> para alcançar ${nextLevel.emoji} ${esc(nextLevel.name)}` : '🏆 Nível Máximo de Maestria da Cozinha!'}
+          ${nextLevel ? `Faltam <strong>${pointsNeeded} pts</strong> para alcançar ${esc(nextLevel.name)}` : '<span class="material-symbols-rounded">emoji_events</span> Nível Máximo de Maestria da Cozinha!'}
         </div>
       </div>
 
       <button type="button" class="cf-celebrate-btn" id="cfCloseCelebration">
-        Continuar Mandando Bem! 🚀
+        Continuar
       </button>
     </div>
   `;
@@ -1562,8 +1562,9 @@ function openPenaltyModal() {
   const modal = createModalElement('Retirar Pontos (Penalidade Administrativa)');
   modal.querySelector('.cf-modal-body').innerHTML = `
     <div style="display:grid;gap:12px;">
-      <div style="padding:10px;border-radius:12px;background:#fef2f2;color:#b91c1c;font-size:12px;">
-        ⚠️ Esta ação retira pontos do saldo do colaborador e fica registrada no extrato dele com a justificativa.
+      <div style="display:flex;align-items:center;gap:6px;padding:10px;border-radius:12px;background:#fef2f2;color:#b91c1c;font-size:12px;">
+        <span class="material-symbols-rounded" style="font-size:16px;">warning</span>
+        <span>Esta ação retira pontos do saldo do colaborador e fica registrada no extrato dele com a justificativa.</span>
       </div>
       <div>
         <label>Colaborador *</label>

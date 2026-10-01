@@ -14028,6 +14028,240 @@ html, body {
     gap: 8px !important;
   }
 }
+
+/* ==========================================================================
+   OTIMIZAÇÕES GLOBAIS DE MOBILE (LAYOUT, ERGONOMIA & ZERO OVERFLOW)
+   ========================================================================== */
+
+@media (max-width: 860px) {
+  /* Blindagem universal contra rolagem horizontal acidental */
+  html, body, #app, .app-shell, .content, .view {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .content {
+    padding: 14px 12px 90px 12px !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     1. INÍCIO (DASHBOARD)
+     ------------------------------------------------------------------------ */
+  .v-workspace-hero {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 18px 16px !important;
+    border-radius: 18px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  .v-workspace-hero:before,
+  .v-workspace-hero:after {
+    display: none !important; /* Elimina o transbordo de 75px */
+  }
+  .v-hero-copy h2 {
+    font-size: 22px !important;
+    margin: 6px 0 !important;
+    line-height: 1.2 !important;
+  }
+  .v-hero-copy p {
+    font-size: 12px !important;
+    margin-bottom: 12px !important;
+  }
+  .v-hero-clock {
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  .v-hero-clock strong {
+    font-size: 24px !important;
+    line-height: 1 !important;
+  }
+  .v-hero-clock > span {
+    font-size: 10px !important;
+    letter-spacing: 0.05em !important;
+  }
+  .w-myday {
+    padding: 18px 16px !important;
+    border-radius: 18px !important;
+  }
+  .w-myday h3,
+  .w-myday .j-card-top h3 {
+    font-size: 24px !important;
+    margin: 4px 0 !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     2. MEU PONTO (ABOVE THE FOLD - BATER PONTO EM 1 TOQUE NO TOPO)
+     /* ------------------------------------------------------------------------
+     2. MEU PONTO (FOCO NO PUNCH CARD NO TOPO - ZERO SCROLL PARA BATER PONTO)
+     ------------------------------------------------------------------------ */
+  #view-timeclock.active {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding-top: 4px !important;
+  }
+  #view-timeclock .clock-layout {
+    display: contents !important;
+  }
+  #view-timeclock .clock-side {
+    order: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+  #view-timeclock .clock-punch-card {
+    order: -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 20px 16px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 4px 16px rgba(54, 92, 245, 0.2) !important;
+  }
+  #view-timeclock .clock-live-time {
+    font-size: clamp(2.4rem, 12vw, 3.2rem) !important;
+    margin: 4px 0 !important;
+  }
+  #view-timeclock .clock-punch-btn {
+    min-height: 52px !important;
+    font-size: 16px !important;
+    font-weight: 750 !important;
+    border-radius: 14px !important;
+  }
+
+  /* Marcações do dia logo abaixo da batida */
+  #view-timeclock #clockTodayPanel {
+    order: 1 !important;
+  }
+
+  /* Toolbar de filtros e histórico ficam ABAIXO do cartão de bater ponto */
+  #view-timeclock .section-toolbar {
+    order: 2 !important;
+    margin: 8px 0 4px !important;
+  }
+  #view-timeclock .section-toolbar .eyebrow,
+  #view-timeclock .section-toolbar p {
+    display: none !important;
+  }
+  #view-timeclock .section-toolbar h2 {
+    font-size: 18px !important;
+    margin-bottom: 6px !important;
+  }
+  #view-timeclock .section-toolbar .toolbar-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+  #view-timeclock .clock-metrics {
+    order: 3 !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  #view-timeclock .clock-metrics .metric-card {
+    padding: 14px 12px !important;
+    min-height: 84px !important;
+    border-radius: 14px !important;
+  }
+  #view-timeclock .clock-metrics .metric-card strong {
+    font-size: 20px !important;
+  }
+  #view-timeclock .clock-main {
+    order: 4 !important;
+    width: 100% !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     3. COZINHAFLOW & LOJA (NAV FLUIDA EM CHIPS & CARDS 2x2)
+     ------------------------------------------------------------------------ */
+  .cf-nav-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 4px !important;
+    gap: 6px !important;
+    border-radius: 14px !important;
+  }
+  .cf-nav-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .cf-nav-btn {
+    flex-shrink: 0 !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Contadores em grid 2x2 compacto */
+  .cf-kpi-grid,
+  .cf-status-grid,
+  #tasksApp .cf-status-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+  .cf-kpi-card,
+  #tasksApp .cf-status-card {
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+  }
+  .cf-kpi-val,
+  #tasksApp .cf-status-num {
+    font-size: 20px !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     4. CENTRAL DE PENDÊNCIAS (HERO & CARDS ENXUTOS)
+     ------------------------------------------------------------------------ */
+  .pending-center-hero {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    padding: 18px 16px !important;
+    border-radius: 18px !important;
+  }
+  .pending-center-hero:before,
+  .pending-center-hero:after {
+    display: none !important; /* Elimina o transbordo de 80px */
+  }
+  .pending-center-hero h2 {
+    font-size: 22px !important;
+    margin: 4px 0 !important;
+  }
+  .pending-center-content {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     5. CALENDÁRIO & ESCALAS
+     ------------------------------------------------------------------------ */
+  #view-calendar .section-toolbar .toolbar-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  #view-calendar .calendar-day-card,
+  .calendar-agenda-item {
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    margin-bottom: 8px !important;
+  }
+}
 </style>
   </head>
   <body>
@@ -14393,7 +14627,7 @@ html, body {
             <div id="journeyHome" class="journey-bento"></div>
             <div id="incompletePunchesAlert" class="incomplete-punches-alert hidden">
               <div class="incomplete-alert-content">
-                <span class="incomplete-alert-icon">⚠️</span>
+                <span class="incomplete-alert-icon"><span class="material-symbols-rounded">warning</span></span>
                 <div class="incomplete-alert-text">
                   <strong id="incompletePunchesTitle">Saídas esquecidas detectadas</strong>
                   <p id="incompletePunchesDesc">Há colaboradores sem registro de saída em dias anteriores.</p>
@@ -14483,7 +14717,7 @@ html, body {
                   <option value="">Todas as lojas</option></select
                 ><select id="calendarEmployeeFilter">
                   <option value="">Todos os funcionários</option></select
-                ><button id="calendarWhatsAppBtn" class="btn btn-secondary" style="color:#25D366; font-weight:600">📲 WhatsApp</button><button id="calendarPdfBtn" class="btn btn-secondary">
+                ><button id="calendarWhatsAppBtn" class="btn btn-secondary" style="color:#25D366; font-weight:600"><span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">chat</span>WhatsApp</button><button id="calendarPdfBtn" class="btn btn-secondary">
                   ⇩ PDF</button
                 ><button id="calendarNewBtn" class="btn btn-primary">
                   ＋ Nova folga
@@ -15017,8 +15251,8 @@ html, body {
                   <input id="adminHourBalanceMonth" type="month" />
                 </label>
                 <button id="adminHourBalanceRefresh" class="btn btn-secondary" type="button">↻ Atualizar</button>
-                <button id="adminHourBalanceSettleBtn" class="btn btn-primary" type="button">⚖️ Fechar / Quitar Mês</button>
-                <button id="adminResetStoreBalancesBtn" class="btn btn-secondary" type="button" style="border-color:rgba(239,68,68,0.4);color:#ef4444">🗑️ Zerar Saldos da Loja</button>
+                <button id="adminHourBalanceSettleBtn" class="btn btn-primary" type="button"><span class="material-symbols-rounded">balance</span> Fechar / Quitar Mês</button>
+                <button id="adminResetStoreBalancesBtn" class="btn btn-secondary" type="button" style="border-color:rgba(239,68,68,0.4);color:#ef4444"><span class="material-symbols-rounded">delete_outline</span> Zerar Saldos da Loja</button>
               </div>
             </div>
             <div class="metric-grid admin-hour-balance-metrics">
@@ -15120,7 +15354,7 @@ html, body {
                     id="aiSimulateBtn"
                     class="btn btn-secondary"
                   >
-                    ✨ Otimizar distribuição
+                    <span class="material-symbols-rounded">auto_awesome</span> Otimizar distribuição
                   </button>
                 </div>
               </form>
@@ -15381,7 +15615,7 @@ html, body {
               <button id="communicationRefreshBtn" class="btn btn-secondary">
                 ↻ Atualizar
               </button>
-              <button class="btn btn-secondary" data-view-target="notifications">🔔 Meus avisos</button>
+              <button class="btn btn-secondary" data-view-target="notifications"><span class="material-symbols-rounded">notifications</span> Meus avisos</button>
             </div>
             <div class="advanced-grid">
               <form
@@ -16781,8 +17015,8 @@ html, body {
         </div>
         <label class="full">Ação desejada
           <select id="settleMode" required>
-            <option value="converter_folga">🏖️ Converter em Folgas Compensatórias</option>
-            <option value="quitar_folha">💵 Quitar / Pagar Horas Extras em Folha</option>
+            <option value="converter_folga">Converter em Folgas Compensatórias</option>
+            <option value="quitar_folha">Quitar / Pagar Horas Extras em Folha</option>
           </select>
         </label>
         <label id="settleLeaveCountField">Folgas a creditar
@@ -16827,8 +17061,8 @@ html, body {
   </div>
   <div class="dialog-actions">
     <button type="button" class="btn btn-secondary" data-close="whatsappScheduleDialog">Fechar</button>
-    <button type="button" id="copyWhatsAppScheduleBtn" class="btn btn-secondary">📋 Copiar Mensagem</button>
-    <button type="button" id="sendWhatsAppScheduleBtn" class="btn btn-primary" style="background:#25D366; border-color:#25D366; color:#09090b; font-weight:700">📲 Abrir no WhatsApp</button>
+    <button type="button" id="copyWhatsAppScheduleBtn" class="btn btn-secondary"><span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">content_copy</span>Copiar Mensagem</button>
+    <button type="button" id="sendWhatsAppScheduleBtn" class="btn btn-primary" style="background:#25D366; border-color:#25D366; color:#09090b; font-weight:700"><span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">chat</span>Abrir no WhatsApp</button>
   </div>
 </dialog>
 
@@ -16849,13 +17083,13 @@ html, body {
         </label>
         <label class="full">Qual saldo deseja zerar?
           <select id="resetBalanceMode" required>
-            <option value="ambos">🔄 Ambos (Banco de Horas e Saldo de Folgas)</option>
-            <option value="banco_horas">⏱️ Apenas Banco de Horas</option>
-            <option value="saldo_folgas">🏖️ Apenas Saldo de Folgas</option>
+            <option value="ambos">Ambos (Banco de Horas e Saldo de Folgas)</option>
+            <option value="banco_horas">Apenas Banco de Horas</option>
+            <option value="saldo_folgas">Apenas Saldo de Folgas</option>
           </select>
         </label>
         <div class="full" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;">
-          <strong style="color:#ef4444;font-size:13px;display:block;margin-bottom:4px">⚠️ Atenção: Ação Administrativa</strong>
+          <strong style="color:#ef4444;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px"><span class="material-symbols-rounded" style="font-size:16px;">warning</span> Atenção: Ação Administrativa</strong>
           <span style="font-size:12px;color:var(--text, #333)">Esta operação irá calcular e zerar o saldo de todos os colaboradores ativos da loja selecionada, gravando a compensação e o histórico em auditoria.</span>
         </div>
         <label class="full">Motivo / Justificativa
@@ -17463,7 +17697,7 @@ html, body {
       <section class="monthly-leave-reward-card" role="dialog" aria-modal="true" aria-labelledby="monthlyLeaveRewardTitle" aria-describedby="monthlyLeaveRewardText">
         <div class="monthly-leave-reward-orbit" aria-hidden="true">
           <span class="monthly-leave-reward-ring"></span>
-          <div class="monthly-leave-reward-icon">🎉</div>
+          <div class="monthly-leave-reward-icon"><span class="material-symbols-rounded" style="font-size:32px;">celebration</span></div>
           <span class="monthly-leave-reward-spark spark-one">✦</span>
           <span class="monthly-leave-reward-spark spark-two">✦</span>
           <span class="monthly-leave-reward-spark spark-three">•</span>
@@ -17583,7 +17817,7 @@ html, body {
       <section class="monthly-leave-reward-card" role="dialog" aria-modal="true" aria-labelledby="holidayLeaveRewardTitle" aria-describedby="holidayLeaveRewardText">
         <div class="monthly-leave-reward-orbit" aria-hidden="true">
           <span class="monthly-leave-reward-ring"></span>
-          <div class="monthly-leave-reward-icon">🎉</div>
+          <div class="monthly-leave-reward-icon"><span class="material-symbols-rounded" style="font-size:32px;">celebration</span></div>
           <span class="monthly-leave-reward-spark spark-one">✦</span>
           <span class="monthly-leave-reward-spark spark-two">✦</span>
           <span class="monthly-leave-reward-spark spark-three">•</span>
@@ -19619,7 +19853,7 @@ html, body {
       $("#whatsappScheduleText")?.value || state.whatsappScheduleMessage || "";
     if (!text) return toast("Nenhuma mensagem para copiar.", true);
     navigator.clipboard.writeText(text).then(
-      () => toast("📋 Mensagem copiada! Cole diretamente no WhatsApp."),
+      () => toast("Mensagem copiada! Cole diretamente no WhatsApp."),
       () => toast("Erro ao copiar para a área de transferência.", true),
     );
   }
@@ -19645,7 +19879,7 @@ html, body {
     $("#userRole").textContent = profile(u) || "Perfil";
     applyAvatar($("#userAvatar"), name, u);
     const hour = Number(new Intl.DateTimeFormat("pt-BR", {hour: "numeric", timeZone: "America/Bahia"}).format(new Date()));
-    $("#greeting").textContent = `${hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"}, ${name.split(" ")[0]} 👋`;
+    $("#greeting").textContent = `${hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"}, ${name.split(" ")[0]}`;
 
     /*
      * Sempre restaura a navegação antes de aplicar o novo perfil. Sem isso, os
@@ -21809,7 +22043,7 @@ html, body {
           state.simulationAI.alertas.map((a) => `<li>${esc(a)}</li>`).join("") +
           "</ul>"
         : "";
-      hint.innerHTML = `<span>✨</span><span><b>Análise da IA:</b> ${esc(state.simulationAI.resumo || "Revisão concluída.")}${alerts}</span>`;
+      hint.innerHTML = `<span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;color:var(--primary)">auto_awesome</span><span><b>Análise da IA:</b> ${esc(state.simulationAI.resumo || "Revisão concluída.")}${alerts}</span>`;
       hint.classList.remove("hidden");
       renderSimulation();
       toast("Análise da IA concluída.");
@@ -21817,7 +22051,7 @@ html, body {
       toast(err.message, true);
     } finally {
       btn.disabled = false;
-      btn.textContent = "✨ Otimizar distribuição";
+      btn.innerHTML = '<span class="material-symbols-rounded" style="font-size:18px;vertical-align:middle;margin-right:4px;">auto_awesome</span> Otimizar distribuição';
       setLoading(false);
     }
   }
@@ -22177,7 +22411,7 @@ html, body {
       return;
     }
     if (d.offToday) {
-      panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>😌 ${esc(d.offTodayLabel || "De folga hoje")}</h3><p>Você não precisa bater ponto hoje.</p></div><button id="dashboardClockPunch" class="btn btn-ghost" disabled>Sem marcação hoje</button>`;
+      panel.innerHTML = `<div class="employee-clock-copy"><span class="eyebrow">MEU PONTO</span><h3>${esc(d.offTodayLabel || "De folga hoje")}</h3><p>Você não precisa bater ponto hoje.</p></div><button id="dashboardClockPunch" class="btn btn-ghost" disabled>Sem marcação hoje</button>`;
       return;
     }
     const skipBreakButton =
