@@ -219,6 +219,7 @@ async function switchToView(viewTarget) {
         try { b.scrollIntoView({ behavior: "instant", inline: "center", block: "nearest" }); } catch(_) {}
       }
     });
+    window.positionDockIndicator?.();
 
     window.scrollTo(0, 0);
 

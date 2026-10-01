@@ -1167,11 +1167,14 @@
     if ($("#dockMore")) $("#dockMore").onclick = () => document.body.classList.add("menu-open");
     const mobileDockEl = $(".mobile-dock");
     if (mobileDockEl) {
+      window.addEventListener("resize", () => requestAnimationFrame(positionDockIndicator));
+      mobileDockEl.addEventListener("scroll", () => requestAnimationFrame(positionDockIndicator), { passive: true });
       mobileDockEl.addEventListener("wheel", (e) => {
         if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
           mobileDockEl.scrollLeft += e.deltaY;
         }
       }, { passive: true });
+      setTimeout(positionDockIndicator, 100);
     }
     $("#notificationTopBtn").onclick = () => switchView("notifications");
     $("#schedulerForm").onsubmit = simulateSchedule;
@@ -2694,6 +2697,21 @@
       if (state.user) switchView(event.data.view);
     }
   });
+  function positionDockIndicator() {
+    const dock = $(".mobile-dock");
+    const indicator = $("#dockIndicator");
+    if (!dock || !indicator) return;
+    const activeBtn = dock.querySelector("button.active:not(.hidden)");
+    if (!activeBtn || activeBtn.offsetParent === null) {
+      indicator.style.opacity = "0";
+      return;
+    }
+    indicator.style.opacity = "1";
+    indicator.style.width = activeBtn.offsetWidth + "px";
+    indicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+  }
+  window.positionDockIndicator = positionDockIndicator;
+
   function switchView(view) {
     const legacyPendingViews = {
       requests: "timeoff",
@@ -2723,6 +2741,7 @@
         } catch (_) {}
       }
     });
+    positionDockIndicator();
     $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
     );

@@ -14048,35 +14048,36 @@ html, body {
   }
 
   /* ------------------------------------------------------------------------
-     DOCK DE NAVEGAÇÃO FLUTUANTE (LIQUID CAPSULE APPLE) - EFEITO DE ROLAGEM
+     DOCK DE NAVEGAÇÃO FLUTUANTE (LIQUID CAPSULE APPLE) - ALINHAMENTO & TRANSIÇÃO
      ------------------------------------------------------------------------ */
   .mobile-dock {
     position: fixed !important;
     bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
-    left: 16px !important;
-    right: 16px !important;
-    width: calc(100% - 32px) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: min(440px, calc(100% - 32px)) !important;
     max-width: 440px !important;
-    margin: 0 auto !important;
+    margin: 0 !important;
     height: 64px !important;
     min-height: 64px !important;
-    background: rgba(255, 255, 255, 0.90) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
     backdrop-filter: blur(28px) saturate(190%) !important;
     -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
     border: 1px solid rgba(255, 255, 255, 0.95) !important;
     border-radius: 9999px !important;
     box-shadow: 0 16px 36px rgba(40, 45, 70, 0.12), 0 2px 8px rgba(40, 45, 70, 0.04) !important;
-    padding: 6px 10px !important;
+    padding: 6px !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: flex-start !important;
+    justify-content: space-around !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
     -webkit-overflow-scrolling: touch !important;
     scroll-snap-type: x proximity !important;
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
-    gap: 6px !important;
+    gap: 4px !important;
     z-index: 999 !important;
     box-sizing: border-box !important;
     overscroll-behavior-x: contain !important;
@@ -14088,25 +14089,45 @@ html, body {
     height: 0 !important;
   }
 
+  /* Pílula Deslizante com Física Líquida Apple (Sliding Pill Indicator) */
+  .dock-indicator {
+    position: absolute !important;
+    top: 6px !important;
+    left: 0 !important;
+    height: 52px !important;
+    background: #E6E2FF !important;
+    border-radius: 9999px !important;
+    transition: transform 0.35s cubic-bezier(0.34, 1.35, 0.64, 1), width 0.3s cubic-bezier(0.34, 1.35, 0.64, 1), opacity 0.2s ease !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    box-shadow: 0 2px 10px rgba(128, 126, 250, 0.18) !important;
+    will-change: transform, width !important;
+    opacity: 0;
+  }
+
   .mobile-dock button {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    flex: 0 0 auto !important;
-    min-width: 64px !important;
+    flex: 1 1 0 !important;
+    min-width: 58px !important;
+    max-width: 76px !important;
     height: 52px !important;
     min-height: 52px !important;
     border-radius: 9999px !important;
     border: 0 !important;
     background: transparent !important;
     color: #858A9E !important;
-    padding: 4px 10px !important;
+    padding: 4px 6px !important;
     gap: 3px !important;
+    position: relative !important;
+    z-index: 2 !important;
     scroll-snap-align: center !important;
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: color 0.25s ease, transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1) !important;
     -webkit-tap-highlight-color: transparent !important;
     cursor: pointer !important;
+    user-select: none !important;
   }
 
   .mobile-dock button.hidden {
@@ -14114,7 +14135,7 @@ html, body {
   }
 
   .mobile-dock button:active {
-    transform: scale(0.92) !important;
+    transform: scale(0.90) !important;
   }
 
   .mobile-dock button svg {
@@ -14122,7 +14143,8 @@ html, body {
     height: 20px !important;
     stroke-width: 2 !important;
     color: inherit !important;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: transform 0.3s cubic-bezier(0.34, 1.5, 0.64, 1), color 0.25s ease !important;
+    will-change: transform !important;
   }
 
   .mobile-dock button span {
@@ -14132,21 +14154,54 @@ html, body {
     letter-spacing: -0.01em !important;
     color: inherit !important;
     white-space: nowrap !important;
+    transition: color 0.25s ease, font-weight 0.25s ease !important;
   }
 
   .mobile-dock button.active {
-    background: #E6E2FF !important;
     color: #807EFA !important;
+    background: transparent !important;
   }
 
+  /* Microinteração elástica no ícone ao selecionar */
   .mobile-dock button.active svg {
     color: #807EFA !important;
-    transform: scale(1.08) !important;
+    transform: scale(1.12) translateY(-1px) !important;
+    animation: iosDockIconPop 0.35s cubic-bezier(0.34, 1.5, 0.64, 1) !important;
   }
 
   .mobile-dock button.active span {
     color: #807EFA !important;
     font-weight: 750 !important;
+  }
+
+  @keyframes iosDockIconPop {
+    0% {
+      transform: scale(0.85);
+    }
+    50% {
+      transform: scale(1.22) translateY(-2px);
+    }
+    100% {
+      transform: scale(1.12) translateY(-1px);
+    }
+  }
+
+  /* Transição suave e fluida entre telas (iOS Liquid Transition) */
+  .view.active {
+    display: block !important;
+    animation: iosViewTransition 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    will-change: opacity, transform !important;
+  }
+
+  @keyframes iosViewTransition {
+    0% {
+      opacity: 0;
+      transform: translateY(8px) scale(0.995);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   /* Blindagem universal contra rolagem horizontal */
@@ -15292,7 +15347,7 @@ tr:last-child td {
           </div>
         </header>
 
-        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" data-view-target="timeoff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Folgas</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="pending-center" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg><span>Pendências</span></button></nav><main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><div class="dock-indicator" id="dockIndicator"></div><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" data-view-target="timeoff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Folgas</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="pending-center" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg><span>Pendências</span></button></nav><main class="content">
           <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
           <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
           <section id="view-tasks" class="view"><div id="tasksApp"></div></section>
@@ -19204,11 +19259,14 @@ tr:last-child td {
     if ($("#dockMore")) $("#dockMore").onclick = () => document.body.classList.add("menu-open");
     const mobileDockEl = $(".mobile-dock");
     if (mobileDockEl) {
+      window.addEventListener("resize", () => requestAnimationFrame(positionDockIndicator));
+      mobileDockEl.addEventListener("scroll", () => requestAnimationFrame(positionDockIndicator), { passive: true });
       mobileDockEl.addEventListener("wheel", (e) => {
         if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
           mobileDockEl.scrollLeft += e.deltaY;
         }
       }, { passive: true });
+      setTimeout(positionDockIndicator, 100);
     }
     $("#notificationTopBtn").onclick = () => switchView("notifications");
     $("#schedulerForm").onsubmit = simulateSchedule;
@@ -20731,6 +20789,21 @@ tr:last-child td {
       if (state.user) switchView(event.data.view);
     }
   });
+  function positionDockIndicator() {
+    const dock = $(".mobile-dock");
+    const indicator = $("#dockIndicator");
+    if (!dock || !indicator) return;
+    const activeBtn = dock.querySelector("button.active:not(.hidden)");
+    if (!activeBtn || activeBtn.offsetParent === null) {
+      indicator.style.opacity = "0";
+      return;
+    }
+    indicator.style.opacity = "1";
+    indicator.style.width = activeBtn.offsetWidth + "px";
+    indicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+  }
+  window.positionDockIndicator = positionDockIndicator;
+
   function switchView(view) {
     const legacyPendingViews = {
       requests: "timeoff",
@@ -20760,6 +20833,7 @@ tr:last-child td {
         } catch (_) {}
       }
     });
+    positionDockIndicator();
     $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
     );
