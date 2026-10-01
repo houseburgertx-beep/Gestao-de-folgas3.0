@@ -1755,7 +1755,10 @@ html, body {
   box-sizing: border-box;
 }
 
-.login-screen {
+/* ─── Login Screen ───────────────────────────────────────────────────────── */
+/* IMPORTANT: always keep :not(.hidden) so the legacy .hidden {display:none}  */
+/* rule is not overridden by the !important display:grid below.               */
+.login-screen:not(.hidden) {
   position: relative !important;
   min-height: 100vh !important;
   min-height: 100dvh !important;
@@ -1769,6 +1772,10 @@ html, body {
     var(--cf-bg) !important;
   padding: 0 !important;
   margin: 0 !important;
+}
+/* Extra safety belt — always hide when .hidden is present */
+.login-screen.hidden {
+  display: none !important;
 }
 
 .login-bg-mesh {
@@ -2211,7 +2218,7 @@ html, body {
 
 /* Responsividade Mobile Estrita sem Overflow */
 @media (max-width: 900px) {
-  .login-screen {
+  .login-screen:not(.hidden) {
     grid-template-columns: 1fr !important;
     background: linear-gradient(155deg, #111729, #292757 58%, #5b52bd) !important;
   }
