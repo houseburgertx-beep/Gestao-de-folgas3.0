@@ -215,6 +215,9 @@ async function switchToView(viewTarget) {
     document.querySelectorAll(".mobile-dock button").forEach(b => {
       const match = b.dataset.viewTarget === "${viewTarget}";
       b.classList.toggle("active", match);
+      if (match) {
+        try { b.scrollIntoView({ behavior: "instant", inline: "center", block: "nearest" }); } catch(_) {}
+      }
     });
 
     window.scrollTo(0, 0);

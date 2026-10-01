@@ -1164,7 +1164,15 @@
     $("#requestTimeOffChangeBtn").onclick = () =>
       saveAcknowledgementUI(null, "Solicitar alteração");
     $("#refreshNotificationsBtn").onclick = loadNotifications;
-    $("#dockMore").onclick = () => document.body.classList.add("menu-open");
+    if ($("#dockMore")) $("#dockMore").onclick = () => document.body.classList.add("menu-open");
+    const mobileDockEl = $(".mobile-dock");
+    if (mobileDockEl) {
+      mobileDockEl.addEventListener("wheel", (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
+          mobileDockEl.scrollLeft += e.deltaY;
+        }
+      }, { passive: true });
+    }
     $("#notificationTopBtn").onclick = () => switchView("notifications");
     $("#schedulerForm").onsubmit = simulateSchedule;
     const mandatoryDeduct = $("#schedulerDeductBalance");
@@ -2705,7 +2713,16 @@
     }
     state.currentView = view;
     publishJourney_();
-    $$(".mobile-dock [data-view-target]").forEach(item => { item.classList.toggle("active", item.dataset.viewTarget === view); item.setAttribute("aria-current", item.dataset.viewTarget === view ? "page" : "false"); });
+    $$(".mobile-dock [data-view-target]").forEach(item => {
+      const isActive = item.dataset.viewTarget === view;
+      item.classList.toggle("active", isActive);
+      item.setAttribute("aria-current", isActive ? "page" : "false");
+      if (isActive && typeof item.scrollIntoView === "function") {
+        try {
+          item.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        } catch (_) {}
+      }
+    });
     $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
     );

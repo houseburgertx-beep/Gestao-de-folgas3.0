@@ -14048,7 +14048,7 @@ html, body {
   }
 
   /* ------------------------------------------------------------------------
-     DOCK DE NAVEGAÇÃO FLUTUANTE (LIQUID CAPSULE APPLE)
+     DOCK DE NAVEGAÇÃO FLUTUANTE (LIQUID CAPSULE APPLE) - EFEITO DE ROLAGEM
      ------------------------------------------------------------------------ */
   .mobile-dock {
     position: fixed !important;
@@ -14060,18 +14060,32 @@ html, body {
     margin: 0 auto !important;
     height: 64px !important;
     min-height: 64px !important;
-    background: rgba(255, 255, 255, 0.88) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    background: rgba(255, 255, 255, 0.90) !important;
+    backdrop-filter: blur(28px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
     border: 1px solid rgba(255, 255, 255, 0.95) !important;
     border-radius: 9999px !important;
     box-shadow: 0 16px 36px rgba(40, 45, 70, 0.12), 0 2px 8px rgba(40, 45, 70, 0.04) !important;
-    padding: 6px 8px !important;
+    padding: 6px 10px !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: space-around !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x proximity !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    gap: 6px !important;
     z-index: 999 !important;
     box-sizing: border-box !important;
+    overscroll-behavior-x: contain !important;
+  }
+
+  .mobile-dock::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
 
   .mobile-dock button {
@@ -14079,18 +14093,24 @@ html, body {
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    flex: 1 !important;
-    min-width: 0 !important;
-    height: 50px !important;
-    min-height: 50px !important;
+    flex: 0 0 auto !important;
+    min-width: 64px !important;
+    height: 52px !important;
+    min-height: 52px !important;
     border-radius: 9999px !important;
     border: 0 !important;
     background: transparent !important;
     color: #858A9E !important;
-    padding: 4px 6px !important;
+    padding: 4px 10px !important;
     gap: 3px !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    scroll-snap-align: center !important;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
     -webkit-tap-highlight-color: transparent !important;
+    cursor: pointer !important;
+  }
+
+  .mobile-dock button.hidden {
+    display: none !important;
   }
 
   .mobile-dock button:active {
@@ -14111,6 +14131,7 @@ html, body {
     line-height: 1 !important;
     letter-spacing: -0.01em !important;
     color: inherit !important;
+    white-space: nowrap !important;
   }
 
   .mobile-dock button.active {
@@ -15271,7 +15292,7 @@ tr:last-child td {
           </div>
         </header>
 
-        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" id="dockMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Mais</span></button></nav><main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="shift-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg><span>Escala</span></button><button type="button" data-view-target="timeoff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Folgas</span></button><button type="button" data-view-target="live-team" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg><span>Equipe</span></button><button type="button" data-view-target="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Calendário</span></button><button type="button" data-view-target="pending-center" class="permission-manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg><span>Pendências</span></button><button type="button" data-view-target="hour-balances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg><span>Horas</span></button></nav><main class="content">
           <section id="view-live-team" class="view permission-manager"><div id="journeyTeam"></div></section>
           <section id="view-shift-plan" class="view"><div id="journeySchedule"></div></section>
           <section id="view-tasks" class="view"><div id="tasksApp"></div></section>
@@ -19180,7 +19201,15 @@ tr:last-child td {
     $("#requestTimeOffChangeBtn").onclick = () =>
       saveAcknowledgementUI(null, "Solicitar alteração");
     $("#refreshNotificationsBtn").onclick = loadNotifications;
-    $("#dockMore").onclick = () => document.body.classList.add("menu-open");
+    if ($("#dockMore")) $("#dockMore").onclick = () => document.body.classList.add("menu-open");
+    const mobileDockEl = $(".mobile-dock");
+    if (mobileDockEl) {
+      mobileDockEl.addEventListener("wheel", (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
+          mobileDockEl.scrollLeft += e.deltaY;
+        }
+      }, { passive: true });
+    }
     $("#notificationTopBtn").onclick = () => switchView("notifications");
     $("#schedulerForm").onsubmit = simulateSchedule;
     const mandatoryDeduct = $("#schedulerDeductBalance");
@@ -20721,7 +20750,16 @@ tr:last-child td {
     }
     state.currentView = view;
     publishJourney_();
-    $$(".mobile-dock [data-view-target]").forEach(item => { item.classList.toggle("active", item.dataset.viewTarget === view); item.setAttribute("aria-current", item.dataset.viewTarget === view ? "page" : "false"); });
+    $$(".mobile-dock [data-view-target]").forEach(item => {
+      const isActive = item.dataset.viewTarget === view;
+      item.classList.toggle("active", isActive);
+      item.setAttribute("aria-current", isActive ? "page" : "false");
+      if (isActive && typeof item.scrollIntoView === "function") {
+        try {
+          item.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        } catch (_) {}
+      }
+    });
     $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
     );

@@ -2318,7 +2318,7 @@ html, body {
   }
 
   /* ------------------------------------------------------------------------
-     DOCK DE NAVEGAÇÃO FLUTUANTE (LIQUID CAPSULE APPLE)
+     DOCK DE NAVEGAÇÃO FLUTUANTE (LIQUID CAPSULE APPLE) - EFEITO DE ROLAGEM
      ------------------------------------------------------------------------ */
   .mobile-dock {
     position: fixed !important;
@@ -2330,18 +2330,32 @@ html, body {
     margin: 0 auto !important;
     height: 64px !important;
     min-height: 64px !important;
-    background: rgba(255, 255, 255, 0.88) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    background: rgba(255, 255, 255, 0.90) !important;
+    backdrop-filter: blur(28px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
     border: 1px solid rgba(255, 255, 255, 0.95) !important;
     border-radius: 9999px !important;
     box-shadow: 0 16px 36px rgba(40, 45, 70, 0.12), 0 2px 8px rgba(40, 45, 70, 0.04) !important;
-    padding: 6px 8px !important;
+    padding: 6px 10px !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: space-around !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x proximity !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    gap: 6px !important;
     z-index: 999 !important;
     box-sizing: border-box !important;
+    overscroll-behavior-x: contain !important;
+  }
+
+  .mobile-dock::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
 
   .mobile-dock button {
@@ -2349,18 +2363,24 @@ html, body {
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    flex: 1 !important;
-    min-width: 0 !important;
-    height: 50px !important;
-    min-height: 50px !important;
+    flex: 0 0 auto !important;
+    min-width: 64px !important;
+    height: 52px !important;
+    min-height: 52px !important;
     border-radius: 9999px !important;
     border: 0 !important;
     background: transparent !important;
     color: #858A9E !important;
-    padding: 4px 6px !important;
+    padding: 4px 10px !important;
     gap: 3px !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    scroll-snap-align: center !important;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
     -webkit-tap-highlight-color: transparent !important;
+    cursor: pointer !important;
+  }
+
+  .mobile-dock button.hidden {
+    display: none !important;
   }
 
   .mobile-dock button:active {
@@ -2381,6 +2401,7 @@ html, body {
     line-height: 1 !important;
     letter-spacing: -0.01em !important;
     color: inherit !important;
+    white-space: nowrap !important;
   }
 
   .mobile-dock button.active {
