@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.10.4" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.10.5" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.10.4-firebase-github" />
+    <meta name="app-version" content="6.10.5-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -14649,13 +14649,73 @@ textarea:focus {
   font-weight: 750 !important;
 }
 
-/* Painel do Gestor (Operação) */
+/* Painel do Gestor (Operação) — Card de Comando Principal com Gradiente Azul e Contraste Nítido */
 .j-command {
-  background: linear-gradient(135deg, rgba(230, 226, 255, 0.4) 0%, rgba(223, 242, 247, 0.35) 50%, rgba(255, 233, 221, 0.35) 100%), #FFFFFF !important;
-  border: 1px solid rgba(255, 255, 255, 0.9) !important;
-  border-radius: var(--ios-radius-hero, 34px) !important;
-  box-shadow: 0 14px 32px rgba(40, 45, 70, 0.07), 0 2px 6px rgba(40, 45, 70, 0.03) !important;
-  padding: 24px !important;
+  background: linear-gradient(115deg, #365cf5 0%, #5763ee 65%, #7860e7 100%) !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-radius: var(--ios-radius-hero, 28px) !important;
+  box-shadow: 0 16px 36px rgba(54, 92, 245, 0.22), 0 4px 12px rgba(54, 92, 245, 0.1) !important;
+  padding: 28px 24px !important;
+}
+.j-command-head .eyebrow {
+  color: #e2e8ff !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+}
+.j-command-head h2 {
+  color: #FFFFFF !important;
+  font-size: clamp(24px, 3.2vw, 36px) !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.04em !important;
+  margin: 10px 0 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+}
+.j-command-head p {
+  color: #e5eaff !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+}
+.j-command .j-unit {
+  color: #FFFFFF !important;
+}
+.j-command .j-unit > span {
+  color: #e5eaff !important;
+}
+.j-command .j-unit select {
+  background: #FFFFFF !important;
+  color: #242737 !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+.j-command-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: none !important;
+}
+.j-command-actions .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+}
+.j-command-actions .btn-primary {
+  background: #FFFFFF !important;
+  color: #365cf5 !important;
+  border: 0 !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15) !important;
+  font-weight: 750 !important;
+}
+.j-command-actions .btn-primary:hover {
+  background: #F4F6FF !important;
+  color: #2547ce !important;
+}
+[data-theme="dark"] .j-command {
+  background: linear-gradient(115deg, #27376c 0%, #3a3260 65%, #442f60 100%) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4) !important;
 }
 .w-summary .w-stat:nth-child(1) {
   background: #FFFFFF !important;
@@ -18580,7 +18640,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.10.4"></script>
+<script type="module" src="./src/main.js?v=6.10.5"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
