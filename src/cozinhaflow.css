@@ -3802,4 +3802,68 @@ tr:last-child td {
   }
 }
 
+/* --------------------------------------------------------------------------
+   GESTÃO DEDICADA DE AUSÊNCIAS & JUSTIFICATIVAS
+   -------------------------------------------------------------------------- */
+#view-absences .toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+#view-absences .toolbar-actions input,
+#view-absences .toolbar-actions select {
+  min-height: 42px;
+  min-width: 160px;
+}
+.absences-metrics .absences-card-pending {
+  border-top: 4px solid #EF4444 !important;
+}
+.absences-metrics .absences-card-pending strong {
+  color: #DC2626 !important;
+}
+.absences-metrics .absences-card-justified {
+  border-top: 4px solid #10B981 !important;
+}
+.absences-metrics .absences-card-justified strong {
+  color: #059669 !important;
+}
+.absences-metrics .absences-card-medical {
+  border-top: 4px solid #6366F1 !important;
+}
+.absences-metrics .absences-card-medical strong {
+  color: #4F46E5 !important;
+}
+.absences-metrics .absences-card-total {
+  border-top: 4px solid #3B82F6 !important;
+}
+.absences-metrics .absences-card-total strong {
+  color: #2563EB !important;
+}
+.btn-sm {
+  min-height: 36px !important;
+  padding: 6px 14px !important;
+  font-size: 12.5px !important;
+  border-radius: 9999px !important;
+}
+@media (max-width: 760px) {
+  #view-absences .toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+  #view-absences .toolbar-actions input,
+  #view-absences .toolbar-actions select,
+  #view-absences .toolbar-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+  .absences-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+
 

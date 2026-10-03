@@ -6,6 +6,7 @@ import {
   createNotification,
   createNotificationOnce,
 } from "../src/core/api-base.js";
+import { todayIso } from "../src/core/utils.js";
 import { createTasksHandlers } from "../src/core/api-tasks.js";
 import { createAdvancedHandlers } from "../src/core/api-advanced.js";
 
@@ -245,7 +246,7 @@ test("Aviso automático: Amanhã é sua folga é gerado na consulta de notifica�
     // Calcula amanhã no fuso da aplicação
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const tomorrowStr = todayIso(tomorrow);
 
     // Cadastra uma folga aprovada para amanhã
     await mock.upsert("Folgas", {
@@ -297,7 +298,7 @@ test("Aviso automático: Falta pouco para o fim do intervalo (5 minutos)", async
 
   try {
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = todayIso(now);
 
     // Funcionário saiu para intervalo de 60 minutos há 57 minutos (faltam 3 minutos para voltar)
     const breakStartTime = new Date(Date.now() - 57 * 60000).toISOString();

@@ -1039,6 +1039,11 @@
     $("#clockDecisionForm").onsubmit = approveClockAdjustment;
     $("#clockDecisionReject").onclick = rejectClockAdjustment;
     $("#clockJustificationForm").onsubmit = saveClockJustification_;
+    $("#absencesMonth") && ($("#absencesMonth").onchange = () => loadAbsences_(true));
+    $("#absencesStoreFilter") && ($("#absencesStoreFilter").onchange = () => renderAbsences_());
+    $("#absencesStatusFilter") && ($("#absencesStatusFilter").onchange = () => renderAbsences_());
+    $("#absencesRefreshBtn") && ($("#absencesRefreshBtn").onclick = () => loadAbsences_(true));
+    $("#absencesNewBtn") && ($("#absencesNewBtn").onclick = () => openNewClockJustification_());
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
     $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
@@ -2801,6 +2806,7 @@
     else if (view === "operations") loadOperationalRules();
     else if (view === "notifications") { loadNotifications(); window.dispatchEvent(new Event("gestao-notifications-open")); }
     else if (view === "timeclock") loadTimeClock();
+    else if (view === "absences") loadAbsences_();
     else if (view === "hour-balances") loadAdminHourBalances_();
     else if (view === "tasks") {
       window.__GESTAO_USER__ = state.user;
@@ -5154,6 +5160,10 @@
       Date.now() - Number(state.timeClock._loadedAt || 0) < 30000
     ) {
       renderTimeClock();
+      updateAbsencesBadge_();
+      if (state.currentView === "absences") {
+        renderAbsences_();
+      }
       if ((state.timeClockBalance || {})._cacheKey !== cacheKey) {
         loadTimeClockBalance_(month, funcionarioId);
       }
@@ -5168,6 +5178,10 @@
       d._loadedAt = Date.now();
       state.timeClock = d;
       renderTimeClock();
+      updateAbsencesBadge_();
+      if (state.currentView === "absences") {
+        renderAbsences_();
+      }
       loadTimeClockBalance_(month, funcionarioId);
       saveTurboShellCache_();
       return d;
@@ -5430,31 +5444,82 @@
         String(item.funcionarioId) === String(employeeId) &&
         normalizeClockDay_(item.data) === normalizeClockDay_(date),
     );
-    if (!day) return toast("Jornada não encontrada.", true);
+    const emp = arr(state.employees).find(
+      (e) => String(idOf(e, "Funcionario")) === String(employeeId),
+    );
+    const empName = day?.nome || val(emp, "Nome", "nome") || "Colaborador";
     $("#clockJustificationForm").reset();
+    const manualFields = $("#clockJustificationManualFields");
+    if (manualFields) manualFields.classList.add("hidden");
     $("#clockJustificationEmployeeId").value = employeeId;
     $("#clockJustificationDate").value = normalizeClockDay_(date);
     $("#clockJustificationEmployee").textContent =
-      `${day.nome} · ${formatDateUI(day.data)}`;
-    $("#clockJustificationType").value = day.justificativaTipo || "Atestado";
+      `${empName} · ${formatDateUI(date)}`;
+    $("#clockJustificationType").value = day?.justificativaTipo || "Atestado";
     $("#clockJustificationObservation").value =
-      day.justificativaObservacao || "";
+      day?.justificativaObservacao || "";
     openDialog("clockJustificationDialog");
   }
+
+  function openNewClockJustification_() {
+    $("#clockJustificationForm").reset();
+    $("#clockJustificationEmployeeId").value = "";
+    $("#clockJustificationDate").value = "";
+    $("#clockJustificationEmployee").textContent = "";
+
+    const manualFields = $("#clockJustificationManualFields");
+    if (manualFields) manualFields.classList.remove("hidden");
+
+    const empSelect = $("#clockJustificationEmployeeSelect");
+    if (empSelect) {
+      empSelect.innerHTML =
+        '<option value="">Selecione o colaborador...</option>' +
+        arr(state.employees)
+          .filter((e) => bool(val(e, "Ativo", "ativo")))
+          .map((e) => {
+            const id = idOf(e, "Funcionario");
+            const name = val(e, "Nome", "nome");
+            const store = val(e, "NomeLoja", "nomeLoja") || "";
+            return `<option value="${esc(id)}">${esc(name)}${store ? " · " + esc(store) : ""}</option>`;
+          })
+          .join("");
+    }
+    const dateInput = $("#clockJustificationDateInput");
+    if (dateInput) {
+      const today = iso(new Date()).slice(0, 10);
+      dateInput.value = today;
+      dateInput.max = today;
+    }
+    $("#clockJustificationType").value = "Atestado";
+    $("#clockJustificationObservation").value = "";
+    openDialog("clockJustificationDialog");
+  }
+
   async function saveClockJustification_(event) {
     event.preventDefault();
     const form = event.currentTarget;
     setLoading(true);
     try {
+      const employeeId =
+        $("#clockJustificationEmployeeId").value ||
+        $("#clockJustificationEmployeeSelect")?.value;
+      const date =
+        $("#clockJustificationDate").value ||
+        $("#clockJustificationDateInput")?.value;
+      if (!employeeId) throw new Error("Selecione um colaborador.");
+      if (!date) throw new Error("Informe a data da ausência.");
       await call(FN.clockJustifyDay, {
-        funcionarioId: $("#clockJustificationEmployeeId").value,
-        data: $("#clockJustificationDate").value,
+        funcionarioId: employeeId,
+        data: date,
         tipo: $("#clockJustificationType").value,
         observacao: $("#clockJustificationObservation").value,
       });
       toast("Dia justificado sem gerar saldo negativo.");
       closeDialog("clockJustificationDialog");
       await loadTimeClock(true, true);
+      if (state.currentView === "absences") {
+        renderAbsences_();
+      }
     } catch (error) {
       toast(
         error?.message || "Não foi possível salvar a justificativa.",
@@ -5464,6 +5529,181 @@
       setLoading(false);
       releaseFormSubmission_(form);
     }
+  }
+
+  function updateAbsencesBadge_() {
+    const badge = $("#absencesBadge");
+    if (!badge || !state.timeClock) return;
+    const allDays = arr((state.timeClock || {}).days);
+    const today = iso(new Date()).slice(0, 10);
+    const pendingCount = allDays.filter((day) => {
+      const wasScheduled =
+        Number(day.previstoMinutos) > 0 && !day.folga && !day.folgaFixa;
+      const didNotPunch = !day.trabalhou;
+      const isPastOrToday = normalizeClockDay_(day.data) <= today;
+      return (
+        wasScheduled &&
+        didNotPunch &&
+        isPastOrToday &&
+        !day.justificado &&
+        Number(day.saldoMinutos) < 0
+      );
+    }).length;
+    badge.textContent = pendingCount;
+    badge.classList.toggle("hidden", pendingCount === 0);
+  }
+
+  function populateAbsencesStoreFilter_() {
+    const select = $("#absencesStoreFilter");
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML =
+      '<option value="">Todas as unidades</option>' +
+      arr(state.stores)
+        .map((s) => {
+          const id = idOf(s, "Loja");
+          const name = val(s, "NomeLoja", "nomeLoja", "Nome", "nome");
+          return `<option value="${esc(id)}">${esc(name)}</option>`;
+        })
+        .join("");
+    if (current) select.value = current;
+  }
+
+  async function loadAbsences_(force = false) {
+    if (!sessionToken()) return;
+    const absencesMonthInput = $("#absencesMonth");
+    const month =
+      absencesMonthInput?.value || iso(new Date()).slice(0, 7);
+    if (absencesMonthInput && !absencesMonthInput.value) {
+      absencesMonthInput.value = month;
+    }
+    populateAbsencesStoreFilter_();
+    if ($("#clockMonth")) $("#clockMonth").value = month;
+    await loadTimeClock(false, force);
+    renderAbsences_();
+  }
+
+  function renderAbsences_() {
+    const tbody = $("#absencesTableBody");
+    if (!tbody) return;
+
+    const monthInput = $("#absencesMonth");
+    const month = monthInput?.value || iso(new Date()).slice(0, 7);
+    const selectedStore = $("#absencesStoreFilter")?.value || "";
+    const selectedStatus = $("#absencesStatusFilter")?.value || "pending";
+
+    const allDays = arr((state.timeClock || {}).days);
+    const employees = arr(state.employees);
+    const employeeMap = new Map(
+      employees.map((e) => [String(idOf(e, "Funcionario")), e]),
+    );
+
+    const today = iso(new Date()).slice(0, 10);
+
+    const rawAbsences = allDays.filter((day) => {
+      const emp = employeeMap.get(String(day.funcionarioId));
+      if (!emp) return false;
+      const empStore = String(val(emp, "LojaID", "lojaId") || "");
+      if (selectedStore && empStore !== String(selectedStore)) return false;
+
+      const wasScheduled =
+        Number(day.previstoMinutos) > 0 && !day.folga && !day.folgaFixa;
+      const didNotPunch = !day.trabalhou;
+      const isPastOrToday = normalizeClockDay_(day.data) <= today;
+      return (wasScheduled && didNotPunch && isPastOrToday) || day.justificado;
+    });
+
+    rawAbsences.sort((a, b) =>
+      String(b.data).localeCompare(String(a.data)),
+    );
+
+    const pendingList = rawAbsences.filter(
+      (a) => !a.justificado && Number(a.saldoMinutos) < 0,
+    );
+    const justifiedList = rawAbsences.filter((a) => a.justificado);
+    const medicalList = rawAbsences.filter(
+      (a) => a.justificado && a.justificativaTipo === "Atestado",
+    );
+
+    const pendingElem = $("#absencesPendingMetric");
+    if (pendingElem) pendingElem.textContent = pendingList.length;
+    const justifiedElem = $("#absencesJustifiedMetric");
+    if (justifiedElem) justifiedElem.textContent = justifiedList.length;
+    const medicalElem = $("#absencesMedicalMetric");
+    if (medicalElem) medicalElem.textContent = medicalList.length;
+    const totalElem = $("#absencesTotalMetric");
+    if (totalElem) totalElem.textContent = rawAbsences.length;
+
+    const badge = $("#absencesBadge");
+    if (badge) {
+      badge.textContent = pendingList.length;
+      badge.classList.toggle("hidden", pendingList.length === 0);
+    }
+
+    let displayList = rawAbsences;
+    if (selectedStatus === "pending") {
+      displayList = pendingList;
+    } else if (selectedStatus === "justified") {
+      displayList = justifiedList;
+    }
+
+    if (!displayList.length) {
+      const msg =
+        selectedStatus === "pending"
+          ? "Nenhuma falta pendente de justificativa neste período. Todas em dia!"
+          : "Nenhuma ausência encontrada para os filtros selecionados.";
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:36px 16px;color:var(--muted);"><span style="font-size:28px;display:block;margin-bottom:8px;">✓</span><strong>${msg}</strong></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = displayList
+      .map((item) => {
+        const emp = employeeMap.get(String(item.funcionarioId)) || {};
+        const storeName =
+          val(emp, "NomeLoja", "nomeLoja") || "Unidade não informada";
+        const role = val(emp, "Cargo", "cargo") || "Colaborador";
+        const dateFormatted = formatDateUI(item.data);
+        const expectedText = item.previstoTexto
+          ? `${item.previstoTexto}`
+          : "—";
+
+        let statusMarkup = "";
+        let detailMarkup = "";
+        let actionMarkup = "";
+
+        if (item.justificado) {
+          const type = item.justificativaTipo || "Justificado";
+          const icon = type === "Atestado" ? "🩺" : "✓";
+          statusMarkup = `<span class="status approved" style="white-space:nowrap;">${icon} ${esc(type)}</span>`;
+          detailMarkup = esc(
+            item.justificativaObservacao ||
+              (type === "Atestado"
+                ? "Atestado médico aprovado"
+                : "Dispensado pelo gestor"),
+          );
+          actionMarkup = `<button class="btn btn-secondary btn-sm" data-action="clock-justify-day" data-employee="${esc(item.funcionarioId)}" data-date="${esc(item.data)}">Editar justificativa</button>`;
+        } else {
+          statusMarkup = `<span class="status rejected" style="white-space:nowrap;">🔴 Falta não justificada</span>`;
+          detailMarkup = `<span style="color:#ef4444;font-weight:600;">Saldo ${esc(item.saldoTexto || "negativo")}</span>`;
+          actionMarkup = `<button class="btn btn-primary btn-sm" data-action="clock-justify-day" data-employee="${esc(item.funcionarioId)}" data-date="${esc(item.data)}">Justificar ausência</button>`;
+        }
+
+        return `<tr>
+          <td>
+            <div class="person-cell">
+              <strong>${esc(item.nome)}</strong>
+              <span>${esc(role)}</span>
+            </div>
+          </td>
+          <td>${esc(storeName)}</td>
+          <td><strong>${esc(dateFormatted)}</strong></td>
+          <td>${esc(expectedText)}</td>
+          <td>${statusMarkup}</td>
+          <td>${detailMarkup}</td>
+          <td><div class="row-actions">${actionMarkup}</div></td>
+        </tr>`;
+      })
+      .join("");
   }
   async function punchClock(overrideAction) {
     const action =

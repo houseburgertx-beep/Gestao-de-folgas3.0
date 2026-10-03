@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.10.5" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.10.6" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.10.5-firebase-github" />
+    <meta name="app-version" content="6.10.6-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -15534,6 +15534,70 @@ tr:last-child td {
   }
 }
 
+/* --------------------------------------------------------------------------
+   GESTÃO DEDICADA DE AUSÊNCIAS & JUSTIFICATIVAS
+   -------------------------------------------------------------------------- */
+#view-absences .toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+#view-absences .toolbar-actions input,
+#view-absences .toolbar-actions select {
+  min-height: 42px;
+  min-width: 160px;
+}
+.absences-metrics .absences-card-pending {
+  border-top: 4px solid #EF4444 !important;
+}
+.absences-metrics .absences-card-pending strong {
+  color: #DC2626 !important;
+}
+.absences-metrics .absences-card-justified {
+  border-top: 4px solid #10B981 !important;
+}
+.absences-metrics .absences-card-justified strong {
+  color: #059669 !important;
+}
+.absences-metrics .absences-card-medical {
+  border-top: 4px solid #6366F1 !important;
+}
+.absences-metrics .absences-card-medical strong {
+  color: #4F46E5 !important;
+}
+.absences-metrics .absences-card-total {
+  border-top: 4px solid #3B82F6 !important;
+}
+.absences-metrics .absences-card-total strong {
+  color: #2563EB !important;
+}
+.btn-sm {
+  min-height: 36px !important;
+  padding: 6px 14px !important;
+  font-size: 12.5px !important;
+  border-radius: 9999px !important;
+}
+@media (max-width: 760px) {
+  #view-absences .toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+  #view-absences .toolbar-actions input,
+  #view-absences .toolbar-actions select,
+  #view-absences .toolbar-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+  .absences-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+
 
 </style>
   </head>
@@ -15752,6 +15816,7 @@ tr:last-child td {
             <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b>Início</b></button>
             <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
             <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
+            <button class="nav-item permission-manager" data-view="absences"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span><b>Ausências</b><em id="absencesBadge" class="nav-badge">0</em></button>
             <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
             <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg></span><b>Pendências</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
           </details>
@@ -16528,6 +16593,81 @@ tr:last-child td {
                     </tr>
                   </thead>
                   <tbody id="clockHistoryBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-absences" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">GESTÃO DE EQUIPE</span>
+                <h2>Ausências e Justificativas</h2>
+                <p>
+                  Acompanhe faltas operacionais, analise atestados médicos e lance justificativas para o banco de horas.
+                </p>
+              </div>
+              <div class="toolbar-actions permission-manager">
+                <input id="absencesMonth" type="month" aria-label="Mês de apuração das ausências" />
+                <select id="absencesStoreFilter" aria-label="Filtrar ausências por unidade">
+                  <option value="">Todas as unidades</option>
+                </select>
+                <select id="absencesStatusFilter" aria-label="Filtrar por status da ausência">
+                  <option value="all">Todas as ausências</option>
+                  <option value="pending" selected>Faltas a justificar</option>
+                  <option value="justified">Atestados e justificadas</option>
+                </select>
+                <button id="absencesRefreshBtn" class="btn btn-secondary" type="button" aria-label="Atualizar lista de ausências">
+                  ↻ Atualizar
+                </button>
+                <button id="absencesNewBtn" class="btn btn-primary" type="button">
+                  ＋ Nova justificativa
+                </button>
+              </div>
+            </div>
+            <div class="metric-grid absences-metrics">
+              <div class="metric-card absences-card-pending">
+                <span>Faltas a justificar</span>
+                <strong id="absencesPendingMetric">0</strong>
+                <small>Impactando saldo de horas</small>
+              </div>
+              <div class="metric-card absences-card-justified">
+                <span>Ausências justificadas</span>
+                <strong id="absencesJustifiedMetric">0</strong>
+                <small>Saldo zerado sem prejuízo</small>
+              </div>
+              <div class="metric-card absences-card-medical">
+                <span>Atestados médicos</span>
+                <strong id="absencesMedicalMetric">0</strong>
+                <small>Comprovados no período</small>
+              </div>
+              <div class="metric-card absences-card-total">
+                <span>Total de ausências</span>
+                <strong id="absencesTotalMetric">0</strong>
+                <small id="absencesPeriodSummary">No mês selecionado</small>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">HISTÓRICO OPERACIONAL</span>
+                  <h3 id="absencesListTitle">Faltas e justificativas apuradas</h3>
+                  <p id="absencesListSummary">Filtrando ausências do mês selecionado.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Colaborador</th>
+                      <th>Unidade</th>
+                      <th>Data da ausência</th>
+                      <th>Escala prevista</th>
+                      <th>Situação</th>
+                      <th>Motivo / Observação</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="absencesTableBody"></tbody>
                 </table>
               </div>
             </div>
@@ -17326,7 +17466,17 @@ tr:last-child td {
     <div class="dialog-body">
       <input id="clockJustificationEmployeeId" type="hidden" />
       <input id="clockJustificationDate" type="hidden" />
-      <p id="clockJustificationEmployee"></p>
+      <p id="clockJustificationEmployee" style="font-weight: 600; font-size: 15px; margin-bottom: 12px;"></p>
+      <div id="clockJustificationManualFields" class="dialog-grid hidden" style="margin-bottom: 14px;">
+        <label>Colaborador
+          <select id="clockJustificationEmployeeSelect">
+            <option value="">Selecione o colaborador...</option>
+          </select>
+        </label>
+        <label>Data da ausência
+          <input id="clockJustificationDateInput" type="date" />
+        </label>
+      </div>
       <div class="dialog-grid">
         <label>Motivo
           <select id="clockJustificationType" required>
@@ -18640,7 +18790,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.10.5"></script>
+<script type="module" src="./src/main.js?v=6.10.6"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -19682,6 +19832,11 @@ tr:last-child td {
     $("#clockDecisionForm").onsubmit = approveClockAdjustment;
     $("#clockDecisionReject").onclick = rejectClockAdjustment;
     $("#clockJustificationForm").onsubmit = saveClockJustification_;
+    $("#absencesMonth") && ($("#absencesMonth").onchange = () => loadAbsences_(true));
+    $("#absencesStoreFilter") && ($("#absencesStoreFilter").onchange = () => renderAbsences_());
+    $("#absencesStatusFilter") && ($("#absencesStatusFilter").onchange = () => renderAbsences_());
+    $("#absencesRefreshBtn") && ($("#absencesRefreshBtn").onclick = () => loadAbsences_(true));
+    $("#absencesNewBtn") && ($("#absencesNewBtn").onclick = () => openNewClockJustification_());
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
     $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
@@ -21444,6 +21599,7 @@ tr:last-child td {
     else if (view === "operations") loadOperationalRules();
     else if (view === "notifications") { loadNotifications(); window.dispatchEvent(new Event("gestao-notifications-open")); }
     else if (view === "timeclock") loadTimeClock();
+    else if (view === "absences") loadAbsences_();
     else if (view === "hour-balances") loadAdminHourBalances_();
     else if (view === "tasks") {
       window.__GESTAO_USER__ = state.user;
@@ -23797,6 +23953,10 @@ tr:last-child td {
       Date.now() - Number(state.timeClock._loadedAt || 0) < 30000
     ) {
       renderTimeClock();
+      updateAbsencesBadge_();
+      if (state.currentView === "absences") {
+        renderAbsences_();
+      }
       if ((state.timeClockBalance || {})._cacheKey !== cacheKey) {
         loadTimeClockBalance_(month, funcionarioId);
       }
@@ -23811,6 +23971,10 @@ tr:last-child td {
       d._loadedAt = Date.now();
       state.timeClock = d;
       renderTimeClock();
+      updateAbsencesBadge_();
+      if (state.currentView === "absences") {
+        renderAbsences_();
+      }
       loadTimeClockBalance_(month, funcionarioId);
       saveTurboShellCache_();
       return d;
@@ -24073,31 +24237,82 @@ tr:last-child td {
         String(item.funcionarioId) === String(employeeId) &&
         normalizeClockDay_(item.data) === normalizeClockDay_(date),
     );
-    if (!day) return toast("Jornada não encontrada.", true);
+    const emp = arr(state.employees).find(
+      (e) => String(idOf(e, "Funcionario")) === String(employeeId),
+    );
+    const empName = day?.nome || val(emp, "Nome", "nome") || "Colaborador";
     $("#clockJustificationForm").reset();
+    const manualFields = $("#clockJustificationManualFields");
+    if (manualFields) manualFields.classList.add("hidden");
     $("#clockJustificationEmployeeId").value = employeeId;
     $("#clockJustificationDate").value = normalizeClockDay_(date);
     $("#clockJustificationEmployee").textContent =
-      `${day.nome} · ${formatDateUI(day.data)}`;
-    $("#clockJustificationType").value = day.justificativaTipo || "Atestado";
+      `${empName} · ${formatDateUI(date)}`;
+    $("#clockJustificationType").value = day?.justificativaTipo || "Atestado";
     $("#clockJustificationObservation").value =
-      day.justificativaObservacao || "";
+      day?.justificativaObservacao || "";
     openDialog("clockJustificationDialog");
   }
+
+  function openNewClockJustification_() {
+    $("#clockJustificationForm").reset();
+    $("#clockJustificationEmployeeId").value = "";
+    $("#clockJustificationDate").value = "";
+    $("#clockJustificationEmployee").textContent = "";
+
+    const manualFields = $("#clockJustificationManualFields");
+    if (manualFields) manualFields.classList.remove("hidden");
+
+    const empSelect = $("#clockJustificationEmployeeSelect");
+    if (empSelect) {
+      empSelect.innerHTML =
+        '<option value="">Selecione o colaborador...</option>' +
+        arr(state.employees)
+          .filter((e) => bool(val(e, "Ativo", "ativo")))
+          .map((e) => {
+            const id = idOf(e, "Funcionario");
+            const name = val(e, "Nome", "nome");
+            const store = val(e, "NomeLoja", "nomeLoja") || "";
+            return `<option value="${esc(id)}">${esc(name)}${store ? " · " + esc(store) : ""}</option>`;
+          })
+          .join("");
+    }
+    const dateInput = $("#clockJustificationDateInput");
+    if (dateInput) {
+      const today = iso(new Date()).slice(0, 10);
+      dateInput.value = today;
+      dateInput.max = today;
+    }
+    $("#clockJustificationType").value = "Atestado";
+    $("#clockJustificationObservation").value = "";
+    openDialog("clockJustificationDialog");
+  }
+
   async function saveClockJustification_(event) {
     event.preventDefault();
     const form = event.currentTarget;
     setLoading(true);
     try {
+      const employeeId =
+        $("#clockJustificationEmployeeId").value ||
+        $("#clockJustificationEmployeeSelect")?.value;
+      const date =
+        $("#clockJustificationDate").value ||
+        $("#clockJustificationDateInput")?.value;
+      if (!employeeId) throw new Error("Selecione um colaborador.");
+      if (!date) throw new Error("Informe a data da ausência.");
       await call(FN.clockJustifyDay, {
-        funcionarioId: $("#clockJustificationEmployeeId").value,
-        data: $("#clockJustificationDate").value,
+        funcionarioId: employeeId,
+        data: date,
         tipo: $("#clockJustificationType").value,
         observacao: $("#clockJustificationObservation").value,
       });
       toast("Dia justificado sem gerar saldo negativo.");
       closeDialog("clockJustificationDialog");
       await loadTimeClock(true, true);
+      if (state.currentView === "absences") {
+        renderAbsences_();
+      }
     } catch (error) {
       toast(
         error?.message || "Não foi possível salvar a justificativa.",
@@ -24107,6 +24322,181 @@ tr:last-child td {
       setLoading(false);
       releaseFormSubmission_(form);
     }
+  }
+
+  function updateAbsencesBadge_() {
+    const badge = $("#absencesBadge");
+    if (!badge || !state.timeClock) return;
+    const allDays = arr((state.timeClock || {}).days);
+    const today = iso(new Date()).slice(0, 10);
+    const pendingCount = allDays.filter((day) => {
+      const wasScheduled =
+        Number(day.previstoMinutos) > 0 && !day.folga && !day.folgaFixa;
+      const didNotPunch = !day.trabalhou;
+      const isPastOrToday = normalizeClockDay_(day.data) <= today;
+      return (
+        wasScheduled &&
+        didNotPunch &&
+        isPastOrToday &&
+        !day.justificado &&
+        Number(day.saldoMinutos) < 0
+      );
+    }).length;
+    badge.textContent = pendingCount;
+    badge.classList.toggle("hidden", pendingCount === 0);
+  }
+
+  function populateAbsencesStoreFilter_() {
+    const select = $("#absencesStoreFilter");
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML =
+      '<option value="">Todas as unidades</option>' +
+      arr(state.stores)
+        .map((s) => {
+          const id = idOf(s, "Loja");
+          const name = val(s, "NomeLoja", "nomeLoja", "Nome", "nome");
+          return `<option value="${esc(id)}">${esc(name)}</option>`;
+        })
+        .join("");
+    if (current) select.value = current;
+  }
+
+  async function loadAbsences_(force = false) {
+    if (!sessionToken()) return;
+    const absencesMonthInput = $("#absencesMonth");
+    const month =
+      absencesMonthInput?.value || iso(new Date()).slice(0, 7);
+    if (absencesMonthInput && !absencesMonthInput.value) {
+      absencesMonthInput.value = month;
+    }
+    populateAbsencesStoreFilter_();
+    if ($("#clockMonth")) $("#clockMonth").value = month;
+    await loadTimeClock(false, force);
+    renderAbsences_();
+  }
+
+  function renderAbsences_() {
+    const tbody = $("#absencesTableBody");
+    if (!tbody) return;
+
+    const monthInput = $("#absencesMonth");
+    const month = monthInput?.value || iso(new Date()).slice(0, 7);
+    const selectedStore = $("#absencesStoreFilter")?.value || "";
+    const selectedStatus = $("#absencesStatusFilter")?.value || "pending";
+
+    const allDays = arr((state.timeClock || {}).days);
+    const employees = arr(state.employees);
+    const employeeMap = new Map(
+      employees.map((e) => [String(idOf(e, "Funcionario")), e]),
+    );
+
+    const today = iso(new Date()).slice(0, 10);
+
+    const rawAbsences = allDays.filter((day) => {
+      const emp = employeeMap.get(String(day.funcionarioId));
+      if (!emp) return false;
+      const empStore = String(val(emp, "LojaID", "lojaId") || "");
+      if (selectedStore && empStore !== String(selectedStore)) return false;
+
+      const wasScheduled =
+        Number(day.previstoMinutos) > 0 && !day.folga && !day.folgaFixa;
+      const didNotPunch = !day.trabalhou;
+      const isPastOrToday = normalizeClockDay_(day.data) <= today;
+      return (wasScheduled && didNotPunch && isPastOrToday) || day.justificado;
+    });
+
+    rawAbsences.sort((a, b) =>
+      String(b.data).localeCompare(String(a.data)),
+    );
+
+    const pendingList = rawAbsences.filter(
+      (a) => !a.justificado && Number(a.saldoMinutos) < 0,
+    );
+    const justifiedList = rawAbsences.filter((a) => a.justificado);
+    const medicalList = rawAbsences.filter(
+      (a) => a.justificado && a.justificativaTipo === "Atestado",
+    );
+
+    const pendingElem = $("#absencesPendingMetric");
+    if (pendingElem) pendingElem.textContent = pendingList.length;
+    const justifiedElem = $("#absencesJustifiedMetric");
+    if (justifiedElem) justifiedElem.textContent = justifiedList.length;
+    const medicalElem = $("#absencesMedicalMetric");
+    if (medicalElem) medicalElem.textContent = medicalList.length;
+    const totalElem = $("#absencesTotalMetric");
+    if (totalElem) totalElem.textContent = rawAbsences.length;
+
+    const badge = $("#absencesBadge");
+    if (badge) {
+      badge.textContent = pendingList.length;
+      badge.classList.toggle("hidden", pendingList.length === 0);
+    }
+
+    let displayList = rawAbsences;
+    if (selectedStatus === "pending") {
+      displayList = pendingList;
+    } else if (selectedStatus === "justified") {
+      displayList = justifiedList;
+    }
+
+    if (!displayList.length) {
+      const msg =
+        selectedStatus === "pending"
+          ? "Nenhuma falta pendente de justificativa neste período. Todas em dia!"
+          : "Nenhuma ausência encontrada para os filtros selecionados.";
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:36px 16px;color:var(--muted);"><span style="font-size:28px;display:block;margin-bottom:8px;">✓</span><strong>${msg}</strong></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = displayList
+      .map((item) => {
+        const emp = employeeMap.get(String(item.funcionarioId)) || {};
+        const storeName =
+          val(emp, "NomeLoja", "nomeLoja") || "Unidade não informada";
+        const role = val(emp, "Cargo", "cargo") || "Colaborador";
+        const dateFormatted = formatDateUI(item.data);
+        const expectedText = item.previstoTexto
+          ? `${item.previstoTexto}`
+          : "—";
+
+        let statusMarkup = "";
+        let detailMarkup = "";
+        let actionMarkup = "";
+
+        if (item.justificado) {
+          const type = item.justificativaTipo || "Justificado";
+          const icon = type === "Atestado" ? "🩺" : "✓";
+          statusMarkup = `<span class="status approved" style="white-space:nowrap;">${icon} ${esc(type)}</span>`;
+          detailMarkup = esc(
+            item.justificativaObservacao ||
+              (type === "Atestado"
+                ? "Atestado médico aprovado"
+                : "Dispensado pelo gestor"),
+          );
+          actionMarkup = `<button class="btn btn-secondary btn-sm" data-action="clock-justify-day" data-employee="${esc(item.funcionarioId)}" data-date="${esc(item.data)}">Editar justificativa</button>`;
+        } else {
+          statusMarkup = `<span class="status rejected" style="white-space:nowrap;">🔴 Falta não justificada</span>`;
+          detailMarkup = `<span style="color:#ef4444;font-weight:600;">Saldo ${esc(item.saldoTexto || "negativo")}</span>`;
+          actionMarkup = `<button class="btn btn-primary btn-sm" data-action="clock-justify-day" data-employee="${esc(item.funcionarioId)}" data-date="${esc(item.data)}">Justificar ausência</button>`;
+        }
+
+        return `<tr>
+          <td>
+            <div class="person-cell">
+              <strong>${esc(item.nome)}</strong>
+              <span>${esc(role)}</span>
+            </div>
+          </td>
+          <td>${esc(storeName)}</td>
+          <td><strong>${esc(dateFormatted)}</strong></td>
+          <td>${esc(expectedText)}</td>
+          <td>${statusMarkup}</td>
+          <td>${detailMarkup}</td>
+          <td><div class="row-actions">${actionMarkup}</div></td>
+        </tr>`;
+      })
+      .join("");
   }
   async function punchClock(overrideAction) {
     const action =

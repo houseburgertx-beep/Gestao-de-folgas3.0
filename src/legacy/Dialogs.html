@@ -90,7 +90,17 @@
     <div class="dialog-body">
       <input id="clockJustificationEmployeeId" type="hidden" />
       <input id="clockJustificationDate" type="hidden" />
-      <p id="clockJustificationEmployee"></p>
+      <p id="clockJustificationEmployee" style="font-weight: 600; font-size: 15px; margin-bottom: 12px;"></p>
+      <div id="clockJustificationManualFields" class="dialog-grid hidden" style="margin-bottom: 14px;">
+        <label>Colaborador
+          <select id="clockJustificationEmployeeSelect">
+            <option value="">Selecione o colaborador...</option>
+          </select>
+        </label>
+        <label>Data da ausência
+          <input id="clockJustificationDateInput" type="date" />
+        </label>
+      </div>
       <div class="dialog-grid">
         <label>Motivo
           <select id="clockJustificationType" required>
