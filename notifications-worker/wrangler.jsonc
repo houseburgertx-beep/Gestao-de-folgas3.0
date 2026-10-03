@@ -13,6 +13,10 @@
     "FIREBASE_DATABASE_URL": "https://github-737ec-default-rtdb.firebaseio.com",
     "FIREBASE_ROOT": "gestao-folgas/v2",
     "VAPID_SUBJECT": "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0/",
+    "WA_ENABLED": "true",
+    "WA_API_URL": "https://sur-chronicles-reduces-exhibit.trycloudflare.com/api",
+    "WA_SESSION_ID": "house190",
+    "WA_API_KEY": "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl"
   },
   "services": [{"binding":"DELIVERY","service":"house-folgas-delivery"}],
   "d1_databases": [

@@ -6,6 +6,7 @@ import {
   remindersFor,
   scheduleForDay,
 } from "../../src/core/reminder-policy.js";
+import { normalizeWhatsAppPhone, sendWhatsAppMessage } from "./whatsapp.js";
 const encoder = new TextEncoder();
 const b64 = (value) =>
   btoa(String.fromCharCode(...value))
@@ -280,6 +281,15 @@ async function handle(request, env) {
       if (code < 200 || code >= 300) console.warn(JSON.stringify({event:"push_test_failed", status:code}));
       return json({ok: code >= 200 && code < 300, ...(code >= 200 && code < 300 ? {} : {error:"push_provider_rejected"})}, code >= 200 && code < 300 ? 200 : 502);
     }
+    if (route === "/test-whatsapp") {
+      const phone = body.phone || profile.Telefone;
+      if (!phone) return json({ error: "phone_missing" }, 400);
+      const res = await sendWhatsAppMessage(env, {
+        phone,
+        text: "👋 *House 190*\nEste é um teste de integração com o WhatsApp via WA-AKG!",
+      });
+      return json(res, res.success ? 200 : 502);
+    }
     return json({ error: "not_found" }, 404);
   } catch {
     return json({ error: "request_failed" }, 400);
@@ -425,6 +435,44 @@ export async function tick(env, now = Date.now()) {
       } catch {
         // Preserve lease after uncertain delivery; tag coalesces retries on the phone.
         console.warn(JSON.stringify({ event: "push_delivery_failed" }));
+      }
+
+      const isWaEnabled =
+        env.WA_ENABLED === true ||
+        env.WA_ENABLED === 1 ||
+        ["true", "1", "sim", "yes"].includes(String(env.WA_ENABLED || "").toLowerCase());
+      const phone = isWaEnabled && (employee?.Telefone || profile.Telefone);
+      const waTarget = phone ? normalizeWhatsAppPhone(phone) : null;
+      if (waTarget && sent < 20) {
+        const waEndpoint = `wa:${waTarget.digits}`;
+        const waLock = await env.DB.prepare(
+          "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,'sending',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state='sending',lease_until=excluded.lease_until WHERE deliveries.state!='sent' AND deliveries.lease_until<?",
+        )
+          .bind(event.key, waEndpoint, now + 90000, now + 2 * 86400000, now)
+          .run();
+        if (waLock.meta.changes) {
+          sent++;
+          try {
+            const rawName = (employee?.Nome || profile?.Nome || "").trim();
+            const firstName = rawName ? rawName.split(/\s+/)[0] : "";
+            const greeting = firstName ? `Olá, *${firstName}*! 👋\n\n` : "Olá! 👋\n\n";
+            const footer = event.view === "tasks" ? "\n\n_House 190 · CozinhaFlow_" : "\n\n_House 190_";
+            const text = `${greeting}*${event.title}*\n${event.body}${footer}`;
+            const waRes = await sendWhatsAppMessage(env, {
+              phone: waTarget.digits,
+              text,
+            });
+            if (waRes.success) {
+              await env.DB.prepare(
+                "UPDATE deliveries SET state='sent' WHERE event_key=? AND endpoint=?",
+              )
+                .bind(event.key, waEndpoint)
+                .run();
+            }
+          } catch {
+            console.warn(JSON.stringify({ event: "wa_delivery_failed" }));
+          }
+        }
       }
     }
   }

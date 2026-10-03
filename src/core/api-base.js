@@ -658,6 +658,58 @@ export async function audit(action, module, recordId, details = {}) {
   });
 }
 
+export async function dispatchWhatsAppNotification({ employeeId = "", subject = "", message = "", type = "" }) {
+  if (!employeeId || typeof fetch === "undefined") return;
+  try {
+    const employees = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
+    const emp = employees.find(
+      (e) => String(e.FuncionarioID || e.funcionarioId || "") === String(employeeId)
+    );
+    if (!emp || !emp.Telefone) return;
+
+    let digits = String(emp.Telefone).replace(/\D/g, "");
+    if (digits.startsWith("0")) digits = digits.slice(1);
+    if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+    if (!digits.startsWith("55") || (digits.length !== 12 && digits.length !== 13)) {
+      if (digits.length < 10 || digits.length > 15) return;
+    }
+
+    const rawName = (emp.Nome || emp.nome || "").trim();
+    const firstName = rawName ? rawName.split(/\s+/)[0] : "";
+    const greeting = firstName ? `Olá, *${firstName}*! 👋\n\n` : "Olá! 👋\n\n";
+    const footer = (type === "Tarefa" || String(type || "").startsWith("TAREFA"))
+      ? "\n\n_House 190 · CozinhaFlow_"
+      : "\n\n_House 190_";
+    const text = `${greeting}*${subject}*\n${message}${footer}`;
+
+    const apiUrls = [
+      "https://sur-chronicles-reduces-exhibit.trycloudflare.com/api",
+      "http://localhost:3000/api",
+    ];
+
+    for (const baseUrl of apiUrls) {
+      try {
+        const endpoint = `${baseUrl}/messages/house190/${encodeURIComponent(digits + "@s.whatsapp.net")}/send`;
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl",
+          },
+          body: JSON.stringify({ message: { text } }),
+          signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
+        });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.status) break;
+        }
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.warn("Falha no disparo do WhatsApp:", err);
+  }
+}
+
 export async function createNotification({
   employeeId = "",
   email = "",
@@ -668,6 +720,8 @@ export async function createNotification({
   relatedId = "",
   severity = "info",
 }) {
+  dispatchWhatsAppNotification({ employeeId, subject, message, type }).catch(() => {});
+
   return runtime.upsert("Notificacoes", {
     NotificacaoID: uuid(),
     Destinatario: normalizeEmail(email),
