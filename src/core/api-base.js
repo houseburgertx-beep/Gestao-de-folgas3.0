@@ -683,7 +683,8 @@ export async function dispatchWhatsAppNotification({ employeeId = "", subject = 
     const text = `${greeting}*${subject}*\n${message}${footer}`;
 
     const apiUrls = [
-      "https://sur-chronicles-reduces-exhibit.trycloudflare.com/api",
+      "https://handed-behalf-functioning-hawk.trycloudflare.com/api",
+      "https://house190-wa.loca.lt/api",
       "http://localhost:3000/api",
     ];
 
@@ -695,6 +696,7 @@ export async function dispatchWhatsAppNotification({ employeeId = "", subject = 
           headers: {
             "Content-Type": "application/json",
             "X-API-Key": "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl",
+            "bypass-tunnel-reminder": "true",
           },
           body: JSON.stringify({ message: { text } }),
           signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
