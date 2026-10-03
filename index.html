@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.10.6" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.10.7" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.10.6-firebase-github" />
+    <meta name="app-version" content="6.10.7-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -18790,7 +18790,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.10.6"></script>
+<script type="module" src="./src/main.js?v=6.10.7"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21217,6 +21217,8 @@ tr:last-child td {
       state.livePresenceUpdatedAt = Date.now();
       state.livePresenceError = false;
       renderLivePresence_();
+      if (typeof updateAbsencesBadge_ === "function") updateAbsencesBadge_();
+      if (state.currentView === "absences" && typeof renderAbsences_ === "function") renderAbsences_();
       return data;
     } catch (e) {
       state.livePresenceError = true;
@@ -24309,10 +24311,14 @@ tr:last-child td {
       });
       toast("Dia justificado sem gerar saldo negativo.");
       closeDialog("clockJustificationDialog");
-      await loadTimeClock(true, true);
+      await Promise.allSettled([
+        loadTimeClock(true, true),
+        loadLivePresence_(true),
+      ]);
       if (state.currentView === "absences") {
         renderAbsences_();
       }
+      updateAbsencesBadge_();
     } catch (error) {
       toast(
         error?.message || "Não foi possível salvar a justificativa.",
@@ -24324,26 +24330,167 @@ tr:last-child td {
     }
   }
 
-  function updateAbsencesBadge_() {
-    const badge = $("#absencesBadge");
-    if (!badge || !state.timeClock) return;
-    const allDays = arr((state.timeClock || {}).days);
+  function getAbsencesData_(targetMonth, storeFilter = "") {
     const today = iso(new Date()).slice(0, 10);
-    const pendingCount = allDays.filter((day) => {
+    const month = targetMonth || today.slice(0, 7);
+    const isCurrentMonth = today.startsWith(month);
+
+    const allDays = arr((state.timeClock || {}).days);
+    const employees = arr(state.employees);
+    const employeeMap = new Map(
+      employees.map((e) => [String(idOf(e, "Funcionario")), e]),
+    );
+
+    const absenceMap = new Map();
+
+    // 1. Process days from timeClock.days
+    allDays.forEach((day) => {
+      const empId = String(day.funcionarioId);
+      const emp = employeeMap.get(empId);
+      if (!emp) return;
+      const empStore = String(val(emp, "LojaID", "lojaId") || "");
+      if (storeFilter && empStore !== String(storeFilter)) return;
+
+      const dayDate = normalizeClockDay_(day.data);
+      if (!dayDate || !dayDate.startsWith(month)) return;
+      if (dayDate > today) return;
+
       const wasScheduled =
         Number(day.previstoMinutos) > 0 && !day.folga && !day.folgaFixa;
       const didNotPunch = !day.trabalhou;
-      const isPastOrToday = normalizeClockDay_(day.data) <= today;
-      return (
-        wasScheduled &&
-        didNotPunch &&
-        isPastOrToday &&
-        !day.justificado &&
-        Number(day.saldoMinutos) < 0
-      );
-    }).length;
-    badge.textContent = pendingCount;
-    badge.classList.toggle("hidden", pendingCount === 0);
+      const hasNegativeBalance = Number(day.saldoMinutos) < 0;
+
+      const isAbsence =
+        day.justificado ||
+        (didNotPunch && !day.folga && !day.folgaFixa && (wasScheduled || dayDate < today)) ||
+        hasNegativeBalance;
+
+      if (isAbsence) {
+        const key = `${empId}__${dayDate}`;
+        absenceMap.set(key, {
+          funcionarioId: empId,
+          nome: day.nome || val(emp, "Nome", "nome") || "Colaborador",
+          data: dayDate,
+          previstoTexto: day.previstoTexto || (wasScheduled ? "Jornada prevista" : "—"),
+          saldoTexto: day.saldoTexto || (day.justificado ? "Justificado" : (dayDate === today ? "Sem entrada hoje" : "Falta")),
+          saldoMinutos: Number(day.saldoMinutos || 0),
+          trabalhou: !!day.trabalhou,
+          justificado: !!day.justificado,
+          justificativaId: day.justificativaId || "",
+          justificativaTipo: day.justificativaTipo || "",
+          justificativaObservacao: day.justificativaObservacao || "",
+          isToday: dayDate === today,
+        });
+      }
+    });
+
+    // 2. For TODAY (if current month): Ensure EVERY active employee who has not punched appears
+    if (isCurrentMonth) {
+      const liveList = arr((state.livePresenceData || {}).presence);
+      const liveMap = new Map(liveList.map((p) => [String(p.FuncionarioID), p]));
+
+      employees.forEach((emp) => {
+        if (!bool(val(emp, "Ativo", "ativo"))) return;
+        const empId = String(idOf(emp, "Funcionario"));
+        const empStore = String(val(emp, "LojaID", "lojaId") || "");
+        if (storeFilter && empStore !== String(storeFilter)) return;
+
+        const key = `${empId}__${today}`;
+        const existing = absenceMap.get(key);
+
+        const livePerson = liveMap.get(empId);
+        const isOffLive = livePerson && livePerson.status === "folga";
+        const isWorkingLive =
+          livePerson &&
+          (livePerson.status === "trabalhando" ||
+            livePerson.status === "intervalo" ||
+            livePerson.status === "concluido");
+
+        // If they clocked in today, remove from absences unless justified
+        if (isWorkingLive && existing && !existing.justificado && existing.trabalhou) {
+          absenceMap.delete(key);
+          return;
+        }
+
+        // If already justified for today, keep it
+        if (existing && existing.justificado) {
+          return;
+        }
+
+        // If on folga today, remove from absences
+        if (isOffLive) {
+          if (existing && !existing.justificado) absenceMap.delete(key);
+          return;
+        }
+
+        // Check if employee has clocked in today
+        let punchedToday = false;
+        if (livePerson) {
+          punchedToday = isWorkingLive;
+        } else {
+          const todayRec = arr((state.timeClock || {}).todayRecords).some(
+            (r) => String(r.FuncionarioID) === empId && r.Status !== "Substituído",
+          );
+          const dayRec = allDays.some(
+            (d) =>
+              String(d.funcionarioId) === empId &&
+              normalizeClockDay_(d.data) === today &&
+              d.trabalhou,
+          );
+          punchedToday = todayRec || dayRec;
+        }
+
+        if (!punchedToday) {
+          absenceMap.set(key, {
+            funcionarioId: empId,
+            nome:
+              val(emp, "Nome", "nome") ||
+              (livePerson ? livePerson.Nome : "Colaborador"),
+            data: today,
+            previstoTexto:
+              livePerson?.horarioEscala ||
+              existing?.previstoTexto ||
+              "Jornada prevista",
+            saldoTexto: "Sem entrada hoje",
+            saldoMinutos: 0,
+            trabalhou: false,
+            justificado: existing?.justificado || false,
+            justificativaId: existing?.justificativaId || "",
+            justificativaTipo: existing?.justificativaTipo || "",
+            justificativaObservacao: existing?.justificativaObservacao || "",
+            isToday: true,
+          });
+        }
+      });
+    }
+
+    const rawAbsences = Array.from(absenceMap.values());
+    rawAbsences.sort((a, b) => {
+      const cmpDate = String(b.data).localeCompare(String(a.data));
+      if (cmpDate !== 0) return cmpDate;
+      return String(a.nome).localeCompare(String(b.nome));
+    });
+
+    const pendingList = rawAbsences.filter((a) => !a.justificado);
+    const justifiedList = rawAbsences.filter((a) => a.justificado);
+    const medicalList = rawAbsences.filter(
+      (a) => a.justificado && a.justificativaTipo === "Atestado",
+    );
+
+    return {
+      rawAbsences,
+      pendingList,
+      justifiedList,
+      medicalList,
+    };
+  }
+
+  function updateAbsencesBadge_() {
+    const badge = $("#absencesBadge");
+    if (!badge) return;
+    const { pendingList } = getAbsencesData_();
+    badge.textContent = pendingList.length;
+    badge.classList.toggle("hidden", pendingList.length === 0);
   }
 
   function populateAbsencesStoreFilter_() {
@@ -24372,8 +24519,12 @@ tr:last-child td {
     }
     populateAbsencesStoreFilter_();
     if ($("#clockMonth")) $("#clockMonth").value = month;
-    await loadTimeClock(false, force);
+    await Promise.allSettled([
+      loadTimeClock(false, force),
+      loadLivePresence_(force),
+    ]);
     renderAbsences_();
+    updateAbsencesBadge_();
   }
 
   function renderAbsences_() {
@@ -24385,38 +24536,13 @@ tr:last-child td {
     const selectedStore = $("#absencesStoreFilter")?.value || "";
     const selectedStatus = $("#absencesStatusFilter")?.value || "pending";
 
-    const allDays = arr((state.timeClock || {}).days);
     const employees = arr(state.employees);
     const employeeMap = new Map(
       employees.map((e) => [String(idOf(e, "Funcionario")), e]),
     );
 
-    const today = iso(new Date()).slice(0, 10);
-
-    const rawAbsences = allDays.filter((day) => {
-      const emp = employeeMap.get(String(day.funcionarioId));
-      if (!emp) return false;
-      const empStore = String(val(emp, "LojaID", "lojaId") || "");
-      if (selectedStore && empStore !== String(selectedStore)) return false;
-
-      const wasScheduled =
-        Number(day.previstoMinutos) > 0 && !day.folga && !day.folgaFixa;
-      const didNotPunch = !day.trabalhou;
-      const isPastOrToday = normalizeClockDay_(day.data) <= today;
-      return (wasScheduled && didNotPunch && isPastOrToday) || day.justificado;
-    });
-
-    rawAbsences.sort((a, b) =>
-      String(b.data).localeCompare(String(a.data)),
-    );
-
-    const pendingList = rawAbsences.filter(
-      (a) => !a.justificado && Number(a.saldoMinutos) < 0,
-    );
-    const justifiedList = rawAbsences.filter((a) => a.justificado);
-    const medicalList = rawAbsences.filter(
-      (a) => a.justificado && a.justificativaTipo === "Atestado",
-    );
+    const { rawAbsences, pendingList, justifiedList, medicalList } =
+      getAbsencesData_(month, selectedStore);
 
     const pendingElem = $("#absencesPendingMetric");
     if (pendingElem) pendingElem.textContent = pendingList.length;
@@ -24452,10 +24578,18 @@ tr:last-child td {
     tbody.innerHTML = displayList
       .map((item) => {
         const emp = employeeMap.get(String(item.funcionarioId)) || {};
+        const store = arr(state.stores).find(
+          (s) => String(idOf(s, "Loja")) === String(val(emp, "LojaID", "lojaId")),
+        );
         const storeName =
-          val(emp, "NomeLoja", "nomeLoja") || "Unidade não informada";
+          val(store, "NomeLoja", "nomeLoja", "Nome", "nome") ||
+          val(emp, "NomeLoja", "nomeLoja") ||
+          "Unidade não informada";
         const role = val(emp, "Cargo", "cargo") || "Colaborador";
         const dateFormatted = formatDateUI(item.data);
+        const todayBadge = item.isToday
+          ? `<span class="badge" style="font-size:10px;background:var(--primary);color:#fff;padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:600;">Hoje</span>`
+          : "";
         const expectedText = item.previstoTexto
           ? `${item.previstoTexto}`
           : "—";
@@ -24475,6 +24609,10 @@ tr:last-child td {
                 : "Dispensado pelo gestor"),
           );
           actionMarkup = `<button class="btn btn-secondary btn-sm" data-action="clock-justify-day" data-employee="${esc(item.funcionarioId)}" data-date="${esc(item.data)}">Editar justificativa</button>`;
+        } else if (item.isToday) {
+          statusMarkup = `<span class="status warning" style="white-space:nowrap;background:rgba(239,68,68,0.12);color:#ef4444;font-weight:700;">⚠️ Sem entrada hoje</span>`;
+          detailMarkup = `<span style="color:#ef4444;font-weight:600;">Ausente / Sem batida</span>`;
+          actionMarkup = `<button class="btn btn-primary btn-sm" data-action="clock-justify-day" data-employee="${esc(item.funcionarioId)}" data-date="${esc(item.data)}">Justificar ausência</button>`;
         } else {
           statusMarkup = `<span class="status rejected" style="white-space:nowrap;">🔴 Falta não justificada</span>`;
           detailMarkup = `<span style="color:#ef4444;font-weight:600;">Saldo ${esc(item.saldoTexto || "negativo")}</span>`;
@@ -24489,7 +24627,7 @@ tr:last-child td {
             </div>
           </td>
           <td>${esc(storeName)}</td>
-          <td><strong>${esc(dateFormatted)}</strong></td>
+          <td><strong>${esc(dateFormatted)}</strong>${todayBadge}</td>
           <td>${esc(expectedText)}</td>
           <td>${statusMarkup}</td>
           <td>${detailMarkup}</td>

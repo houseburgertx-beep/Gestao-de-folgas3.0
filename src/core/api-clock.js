@@ -956,9 +956,13 @@ async function clockContext(filters = {}) {
       const trackingStart = trackingStartByEmployee.get(
         employee.FuncionarioID,
       );
-      // Sem batida não existe saldo a apurar. A admissão e o início da jornada
-      // não podem gerar horas negativas antes do primeiro registro real.
-      if (!trackingStart || dateKey < trackingStart) continue;
+      const hasJustification = justifications.some(
+        (item) =>
+          item.FuncionarioID === employee.FuncionarioID &&
+          normalizedDateKey(item.Data) === dateKey &&
+          item.Status === "Aprovada",
+      );
+      if ((!trackingStart || dateKey < trackingStart) && !hasJustification) continue;
       const schedule = scheduleFor(schedules, employee.FuncionarioID, dateKey);
       const rows = monthRecords.filter(
         (item) =>

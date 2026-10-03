@@ -2093,4 +2093,17 @@ test("CozinhaFlow 3.0: redesign da tela de login, modais de tarefa com comprova�
   assert.match(journeyJs, /getKitchenLevel/, "journey.js deve calcular nível da cozinha");
 });
 
+test("painel de ausências lista funcionários ativos sem batida no dia e faltas pendentes", async () => {
+  const client = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(client, /function getAbsencesData_\(/, "Deve definir a função getAbsencesData_");
+  assert.match(client, /isCurrentMonth/, "Deve checar o mês atual");
+  assert.match(client, /Sem entrada hoje/, "Deve indicar status de sem entrada hoje");
+  assert.match(client, /⚠️ Sem entrada hoje/, "Badge visual para ausentes hoje");
+  assert.match(client, /updateAbsencesBadge_\(\)/, "Badge de ausências no menu deve ser atualizado");
+  assert.match(client, /pendingList = rawAbsences\.filter\(\(a\) => !a\.justificado\)/, "Faltas pendentes devem incluir quem não bateu ponto hoje");
+});
+
 
