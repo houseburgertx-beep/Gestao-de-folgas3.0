@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.10.7";
+const CACHE_NAME = "house-folgas-v6.11.0";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.10.3",
+  "./manifest.webmanifest?v=6.11.0",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -33,23 +33,51 @@ self.addEventListener("activate", (event) => {
             .map((key) => caches.delete(key)),
         ),
       )
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(async () => {
+        const clients = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        clients.forEach((client) =>
+          client.postMessage({ type: "FORCE_UPDATE", version: "6.11.0" }),
+        );
+      }),
   );
 });
 
-const networkFirst = async (request) => {
+const staleWhileRevalidate = async (request) => {
   const cache = await caches.open(CACHE_NAME);
-  try {
-    const response = await fetch(request);
-    if (response.ok) await cache.put(request, response.clone());
-    return response;
-  } catch {
-    return (
-      (await cache.match(request)) ||
-      (await cache.match(new URL("./index.html", APP_BASE).href)) ||
-      (await cache.match(new URL("./", APP_BASE).href))
-    );
-  }
+  const cached = await cache.match(request);
+  const network = fetch(request)
+    .then(async (response) => {
+      if (response && response.ok) {
+        await cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => cached);
+
+  return cached || network;
+};
+
+const navigateHandler = async (request) => {
+  const cache = await caches.open(CACHE_NAME);
+  const cached =
+    (await cache.match(request)) ||
+    (await cache.match(new URL("./index.html", APP_BASE).href)) ||
+    (await cache.match(new URL("./", APP_BASE).href));
+
+  const network = fetch(request)
+    .then(async (response) => {
+      if (response && response.ok) {
+        await cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => cached);
+
+  return cached || network;
 };
 
 const cachedAsset = async (request) => {
@@ -74,12 +102,12 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request));
+    event.respondWith(navigateHandler(request));
     return;
   }
 
   if (["script", "style"].includes(request.destination)) {
-    event.respondWith(networkFirst(request));
+    event.respondWith(staleWhileRevalidate(request));
     return;
   }
 

@@ -2123,5 +2123,73 @@ test("otimização de ponto: geolocalização rápida com pré-aquecimento e val
   assert.match(clockApi, /safeAccuracy <= 350/, "Deve filtrar imprecisão excessiva");
 });
 
+test("persistência de login, atualização forçada do PWA e desativação de zoom automático mobile", async () => {
+  const [indexHtml, stylesHtml, scriptsHtml, runtimeJs, pwaJs, swJs] =
+    await Promise.all([
+      readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+      readFile(new URL("../src/legacy/Styles.html", import.meta.url), "utf8"),
+      readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+      readFile(new URL("../src/core/runtime.js", import.meta.url), "utf8"),
+      readFile(new URL("../src/pwa.js", import.meta.url), "utf8"),
+      readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+    ]);
+
+  // 1. Persistência de login
+  assert.match(
+    indexHtml,
+    /<input id="rememberLogin" type="checkbox" checked \/>/,
+    "Checkbox de lembrar login deve vir marcado por padrão",
+  );
+  assert.match(
+    runtimeJs,
+    /remember !== false \? browserLocalPersistence : browserSessionPersistence/,
+    "runtime.js deve utilizar browserLocalPersistence por padrão",
+  );
+  assert.match(
+    scriptsHtml,
+    /PERSISTENT_SESSION_MAX_MS_ = 180 \* 24 \* 60 \* 60 \* 1000/,
+    "Validade máxima da sessão persistida deve ser de 180 dias",
+  );
+  assert.match(
+    scriptsHtml,
+    /currentUser\.getIdToken\(\)/,
+    "DOMContentLoaded deve restaurar sessão automaticamente do Firebase Auth",
+  );
+
+  // 2. Desativação de zoom automático mobile
+  assert.match(
+    indexHtml,
+    /user-scalable=no/,
+    "Index.html deve conter user-scalable=no na meta viewport",
+  );
+  assert.match(
+    indexHtml,
+    /maximum-scale=1\.0/,
+    "Index.html deve conter maximum-scale=1.0 na meta viewport",
+  );
+  assert.match(
+    stylesHtml,
+    /touch-action:\s*manipulation;/,
+    "Styles.html deve conter touch-action: manipulation",
+  );
+  assert.match(
+    scriptsHtml,
+    /gesturestart/,
+    "Scripts.html deve interceptar gesturestart para eliminar zoom no iOS",
+  );
+
+  // 3. Atualização forçada do PWA
+  assert.match(
+    swJs,
+    /FORCE_UPDATE/,
+    "sw.js deve disparar mensagem FORCE_UPDATE para os clientes",
+  );
+  assert.match(
+    pwaJs,
+    /FORCE_UPDATE/,
+    "pwa.js deve escutar mensagem FORCE_UPDATE e recarregar a janela",
+  );
+});
+
 
 

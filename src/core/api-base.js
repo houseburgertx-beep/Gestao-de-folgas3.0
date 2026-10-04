@@ -1390,10 +1390,14 @@ export function createBaseHandlers() {
   return {
     async loginUser(args) {
       const payload = args[0] || {};
+      const shouldRemember =
+        payload.remember === undefined && payload.ManterConectado === undefined
+          ? true
+          : asBoolean(payload.remember || payload.ManterConectado);
       const user = await runtime.login(
         payload.email || payload.Email,
         payload.senha || payload.password || payload.Senha,
-        asBoolean(payload.remember || payload.ManterConectado),
+        shouldRemember,
       );
       const data = await bootstrap();
       const token = await user.getIdToken();
@@ -1402,13 +1406,9 @@ export function createBaseHandlers() {
           token,
           sessionToken: token,
           user: data.user,
-          rememberPersisted: asBoolean(
-            payload.remember || payload.ManterConectado,
-          ),
-          rememberExpiresAt: asBoolean(
-            payload.remember || payload.ManterConectado,
-          )
-            ? Date.now() + 7 * 24 * 60 * 60 * 1000
+          rememberPersisted: shouldRemember,
+          rememberExpiresAt: shouldRemember
+            ? Date.now() + 180 * 24 * 60 * 60 * 1000
             : 0,
           bootstrap: data,
         },

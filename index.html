@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#365cf5" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.10.7" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.11.0" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.10.7-firebase-github" />
+    <meta name="app-version" content="6.11.0-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -76,12 +76,15 @@
       sans-serif;
     background: var(--bg);
     color: var(--text);
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
   }
   button,
   input,
   select,
   textarea {
     font: inherit;
+    touch-action: manipulation;
   }
   button {
     cursor: pointer;
@@ -2524,13 +2527,16 @@
   @media (max-width: 900px) {
     input,
     select,
-    textarea {
-      font-size: 16px !important;
-    }
-    .login-card input[type="email"],
-    .login-card input[type="password"],
+    textarea,
+    .section-toolbar input,
+    .section-toolbar select,
+    .form-grid input,
+    .form-grid select,
+    .search-input,
+    .login-card input,
     .password-field input {
       font-size: 16px !important;
+      touch-action: manipulation;
     }
     .login-screen,
     .login-form-panel,
@@ -15692,8 +15698,8 @@ tr:last-child td {
             </label>
             <div class="login-options-row">
               <label class="custom-check">
-                <input id="rememberLogin" type="checkbox" />
-                <span>Manter conectado por 7 dias</span>
+                <input id="rememberLogin" type="checkbox" checked />
+                <span>Manter conectado</span>
               </label>
               <button id="forgotPasswordBtn" type="button" class="btn-link">
                 Esqueci a senha
@@ -18790,7 +18796,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.10.7"></script>
+<script type="module" src="./src/main.js?v=6.11.0"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -18801,7 +18807,7 @@ tr:last-child td {
       "gf-turbo-shell-" +
       APP_CLIENT_VERSION_.replace(/[^A-Za-z0-9_-]/g, "_"),
     PERSISTENT_SESSION_KEY_ = "gf-session-persistent-v2",
-    PERSISTENT_SESSION_MAX_MS_ = 7 * 24 * 60 * 60 * 1000;
+    PERSISTENT_SESSION_MAX_MS_ = 180 * 24 * 60 * 60 * 1000;
   const state = {
     bootstrap: null,
     user: null,
@@ -19314,7 +19320,26 @@ tr:last-child td {
       bindUI();
       installStartupSafety_();
       await waitForPortalApi_();
-      const token = sessionToken();
+      let token = sessionToken();
+      if (!token) {
+        const firebaseRuntime = window.__GESTAO_FIREBASE__?.runtime;
+        if (firebaseRuntime) {
+          try {
+            await firebaseRuntime.ready();
+            const currentUser = firebaseRuntime.auth?.currentUser;
+            if (currentUser) {
+              token = await currentUser.getIdToken();
+              storeSessionToken_(
+                token,
+                true,
+                Date.now() + PERSISTENT_SESSION_MAX_MS_,
+              );
+            }
+          } catch (recoveryErr) {
+            console.warn("Recuperação de sessão do Firebase:", recoveryErr);
+          }
+        }
+      }
       if (!token) {
         setLoading(false);
         showLogin();
@@ -19360,6 +19385,27 @@ tr:last-child td {
       console.error("Promessa rejeitada:", event.reason);
       setLoading(false);
     });
+    // Remove o zoom automático por pinça e duplo toque em celulares
+    document.addEventListener("gesturestart", (e) => e.preventDefault(), {
+      passive: false,
+    });
+    let lastTapTime = 0;
+    document.addEventListener(
+      "touchend",
+      (e) => {
+        const now = Date.now();
+        if (now - lastTapTime <= 300) {
+          if (
+            e.target &&
+            !["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)
+          ) {
+            e.preventDefault();
+          }
+        }
+        lastTapTime = now;
+      },
+      { passive: false },
+    );
     setTimeout(() => {
       const overlay = $("#loadingOverlay");
       if (overlay && !overlay.classList.contains("hidden")) {
@@ -20714,7 +20760,7 @@ tr:last-child td {
         !cached ||
         !cached.user ||
         cached.version !== APP_CLIENT_VERSION_ ||
-        Date.now() - Number(cached.savedAt || 0) > 12 * 60 * 60 * 1000
+        Date.now() - Number(cached.savedAt || 0) > 30 * 24 * 60 * 60 * 1000
       )
         return false;
       state.user = cached.user;
@@ -23816,20 +23862,17 @@ tr:last-child td {
     }
     return legacy;
   }
-  function storeSessionToken_(token, remember, expiresAt) {
+  function storeSessionToken_(token, remember = true, expiresAt) {
     const value = String(token || "");
     sessionStorage.removeItem("gf-session-token");
     localStorage.removeItem("gf-session-token");
     localStorage.removeItem(PERSISTENT_SESSION_KEY_);
     if (!value) return;
     sessionStorage.setItem("gf-session-token", value);
-    const expiry = Number(expiresAt || 0),
-      now = Date.now();
-    if (
-      remember &&
-      expiry > now &&
-      expiry <= now + PERSISTENT_SESSION_MAX_MS_ + 60000
-    ) {
+    const now = Date.now(),
+      expiry = Number(expiresAt || 0) || now + PERSISTENT_SESSION_MAX_MS_;
+    const shouldRemember = remember !== false;
+    if (shouldRemember && expiry > now) {
       localStorage.setItem(
         PERSISTENT_SESSION_KEY_,
         JSON.stringify({ token: value, expiresAt: expiry }),
@@ -23843,11 +23886,7 @@ tr:last-child td {
       const saved = JSON.parse(raw),
         expiry = Number(saved?.expiresAt || 0),
         token = String(saved?.token || "");
-      if (
-        !token ||
-        expiry <= Date.now() ||
-        expiry > Date.now() + PERSISTENT_SESSION_MAX_MS_ + 60000
-      ) {
+      if (!token || (expiry > 0 && expiry <= Date.now())) {
         localStorage.removeItem(PERSISTENT_SESSION_KEY_);
         return "";
       }

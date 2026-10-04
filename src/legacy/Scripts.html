@@ -8,7 +8,7 @@
       "gf-turbo-shell-" +
       APP_CLIENT_VERSION_.replace(/[^A-Za-z0-9_-]/g, "_"),
     PERSISTENT_SESSION_KEY_ = "gf-session-persistent-v2",
-    PERSISTENT_SESSION_MAX_MS_ = 7 * 24 * 60 * 60 * 1000;
+    PERSISTENT_SESSION_MAX_MS_ = 180 * 24 * 60 * 60 * 1000;
   const state = {
     bootstrap: null,
     user: null,
@@ -521,7 +521,26 @@
       bindUI();
       installStartupSafety_();
       await waitForPortalApi_();
-      const token = sessionToken();
+      let token = sessionToken();
+      if (!token) {
+        const firebaseRuntime = window.__GESTAO_FIREBASE__?.runtime;
+        if (firebaseRuntime) {
+          try {
+            await firebaseRuntime.ready();
+            const currentUser = firebaseRuntime.auth?.currentUser;
+            if (currentUser) {
+              token = await currentUser.getIdToken();
+              storeSessionToken_(
+                token,
+                true,
+                Date.now() + PERSISTENT_SESSION_MAX_MS_,
+              );
+            }
+          } catch (recoveryErr) {
+            console.warn("Recuperação de sessão do Firebase:", recoveryErr);
+          }
+        }
+      }
       if (!token) {
         setLoading(false);
         showLogin();
@@ -567,6 +586,27 @@
       console.error("Promessa rejeitada:", event.reason);
       setLoading(false);
     });
+    // Remove o zoom automático por pinça e duplo toque em celulares
+    document.addEventListener("gesturestart", (e) => e.preventDefault(), {
+      passive: false,
+    });
+    let lastTapTime = 0;
+    document.addEventListener(
+      "touchend",
+      (e) => {
+        const now = Date.now();
+        if (now - lastTapTime <= 300) {
+          if (
+            e.target &&
+            !["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)
+          ) {
+            e.preventDefault();
+          }
+        }
+        lastTapTime = now;
+      },
+      { passive: false },
+    );
     setTimeout(() => {
       const overlay = $("#loadingOverlay");
       if (overlay && !overlay.classList.contains("hidden")) {
@@ -1921,7 +1961,7 @@
         !cached ||
         !cached.user ||
         cached.version !== APP_CLIENT_VERSION_ ||
-        Date.now() - Number(cached.savedAt || 0) > 12 * 60 * 60 * 1000
+        Date.now() - Number(cached.savedAt || 0) > 30 * 24 * 60 * 60 * 1000
       )
         return false;
       state.user = cached.user;
@@ -5023,20 +5063,17 @@
     }
     return legacy;
   }
-  function storeSessionToken_(token, remember, expiresAt) {
+  function storeSessionToken_(token, remember = true, expiresAt) {
     const value = String(token || "");
     sessionStorage.removeItem("gf-session-token");
     localStorage.removeItem("gf-session-token");
     localStorage.removeItem(PERSISTENT_SESSION_KEY_);
     if (!value) return;
     sessionStorage.setItem("gf-session-token", value);
-    const expiry = Number(expiresAt || 0),
-      now = Date.now();
-    if (
-      remember &&
-      expiry > now &&
-      expiry <= now + PERSISTENT_SESSION_MAX_MS_ + 60000
-    ) {
+    const now = Date.now(),
+      expiry = Number(expiresAt || 0) || now + PERSISTENT_SESSION_MAX_MS_;
+    const shouldRemember = remember !== false;
+    if (shouldRemember && expiry > now) {
       localStorage.setItem(
         PERSISTENT_SESSION_KEY_,
         JSON.stringify({ token: value, expiresAt: expiry }),
@@ -5050,11 +5087,7 @@
       const saved = JSON.parse(raw),
         expiry = Number(saved?.expiresAt || 0),
         token = String(saved?.token || "");
-      if (
-        !token ||
-        expiry <= Date.now() ||
-        expiry > Date.now() + PERSISTENT_SESSION_MAX_MS_ + 60000
-      ) {
+      if (!token || (expiry > 0 && expiry <= Date.now())) {
         localStorage.removeItem(PERSISTENT_SESSION_KEY_);
         return "";
       }

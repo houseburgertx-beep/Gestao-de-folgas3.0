@@ -286,10 +286,10 @@ export class FirebaseRuntime {
     return profile;
   }
 
-  async login(email, password, remember) {
+  async login(email, password, remember = true) {
     await setPersistence(
       this.auth,
-      remember ? browserLocalPersistence : browserSessionPersistence,
+      remember !== false ? browserLocalPersistence : browserSessionPersistence,
     );
     const credential = await signInWithEmailAndPassword(
       this.auth,

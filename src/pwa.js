@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = "6.10.7";
+const SERVICE_WORKER_VERSION = "6.11.0";
 
 let registrationPromise;
 const registerServiceWorker = () => registrationPromise ||= registerOnce();
@@ -11,6 +11,12 @@ const registerOnce = async () => {
       if (!hadController || refreshing) return;
       refreshing = true;
       window.location.reload();
+    });
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type === "FORCE_UPDATE" && !refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
     const registration = await navigator.serviceWorker.register(
       `./sw.js?v=${SERVICE_WORKER_VERSION}`,

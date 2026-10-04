@@ -44,12 +44,15 @@
       sans-serif;
     background: var(--bg);
     color: var(--text);
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
   }
   button,
   input,
   select,
   textarea {
     font: inherit;
+    touch-action: manipulation;
   }
   button {
     cursor: pointer;
@@ -2492,13 +2495,16 @@
   @media (max-width: 900px) {
     input,
     select,
-    textarea {
-      font-size: 16px !important;
-    }
-    .login-card input[type="email"],
-    .login-card input[type="password"],
+    textarea,
+    .section-toolbar input,
+    .section-toolbar select,
+    .form-grid input,
+    .form-grid select,
+    .search-input,
+    .login-card input,
     .password-field input {
       font-size: 16px !important;
+      touch-action: manipulation;
     }
     .login-screen,
     .login-form-panel,
