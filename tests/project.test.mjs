@@ -2106,4 +2106,22 @@ test("painel de ausências lista funcionários ativos sem batida no dia e faltas
   assert.match(client, /pendingList = rawAbsences\.filter\(\(a\) => !a\.justificado\)/, "Faltas pendentes devem incluir quem não bateu ponto hoje");
 });
 
+test("otimização de ponto: geolocalização rápida com pré-aquecimento e validação justa de raio", async () => {
+  const [client, clockApi] = await Promise.all([
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8"),
+  ]);
+
+  // Frontend: pré-aquecimento e cache de GPS
+  assert.match(client, /warmClockLocation_\(\)/, "renderTimeClock deve pré-aquecer geolocalização");
+  assert.match(client, /CLOCK_CACHED_POSITION_/, "Deve manter cache da última posição obtida");
+  assert.match(client, /updateClockLocationStatus_/, "Deve atualizar status da localização na tela da selfie");
+
+  // Backend: validação de raio sem penalizar imprecisão indoor
+  assert.match(clockApi, /const withinStore =/, "api-clock deve ter validação justa de geofence");
+  assert.match(clockApi, /Math\.max\(150,\s*configuredRadius\)/, "Raio deve possuir piso seguro de 150m");
+  assert.match(clockApi, /safeAccuracy <= 350/, "Deve filtrar imprecisão excessiva");
+});
+
+
 

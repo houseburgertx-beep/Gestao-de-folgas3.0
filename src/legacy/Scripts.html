@@ -127,6 +127,8 @@
   let CLOCK_SELFIE_DATA_ = "";
   let CLOCK_SELFIE_ENCODING_ID_ = 0;
   let CLOCK_POSITION_PROMISE_ = null;
+  let CLOCK_CACHED_POSITION_ = null;
+  let CLOCK_CACHED_AT_ = 0;
   let CLOCK_EXPECTED_ACTION_ = "";
   let CLOCK_PUNCH_REQUEST_ID_ = "";
   let CLOCK_QUICK_PROMISE_ = null;
@@ -5261,6 +5263,7 @@
   }
   function renderTimeClock() {
     publishJourney_();
+    warmClockLocation_();
     const d = state.timeClock || {},
       summary = d.summary || {},
       accumulated = state.timeClockBalance || {},
@@ -6078,25 +6081,92 @@
       toast(error?.message || "Não foi possível preparar a selfie.", true);
     }
   }
+  function updateClockLocationStatus_(pos) {
+    if (!pos?.coords) return;
+    const acc = Math.round(pos.coords.accuracy || 0);
+    const status = $("#clockSelfieStatus");
+    if (status && !CLOCK_SELFIE_DATA_) {
+      status.textContent = acc
+        ? `Localização confirmada (±${acc}m). Centralize o rosto e capture a selfie.`
+        : "Localização confirmada. Centralize o rosto e capture a selfie.";
+    }
+  }
+  function warmClockLocation_() {
+    if (!navigator.geolocation) return;
+    call(FN.clockSelfieWarm).catch(() => {});
+    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 45000) return;
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          CLOCK_CACHED_POSITION_ = pos;
+          CLOCK_CACHED_AT_ = Date.now();
+          updateClockLocationStatus_(pos);
+        },
+        () => {},
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 },
+      );
+    } catch (_) {}
+  }
   function getClockPosition_() {
+    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 75000) {
+      return Promise.resolve(CLOCK_CACHED_POSITION_);
+    }
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         return reject(new Error("Este aparelho não disponibiliza localização."));
       }
+      let resolved = false;
+      const onDone = (pos) => {
+        if (resolved) return;
+        resolved = true;
+        CLOCK_CACHED_POSITION_ = pos;
+        CLOCK_CACHED_AT_ = Date.now();
+        updateClockLocationStatus_(pos);
+        resolve(pos);
+      };
+
+      // Dispara fallback de rede rapidamente (após 3.5s) para não travar em ambientes fechados (cozinhas)
+      const fastFallbackTimer = setTimeout(() => {
+        if (!resolved) {
+          navigator.geolocation.getCurrentPosition(
+            onDone,
+            () => {},
+            { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 },
+          );
+        }
+      }, 3500);
+
       navigator.geolocation.getCurrentPosition(
-        resolve,
+        (pos) => {
+          clearTimeout(fastFallbackTimer);
+          onDone(pos);
+        },
         (err) => {
+          clearTimeout(fastFallbackTimer);
+          if (resolved) return;
           if (err && (err.code === 2 || err.code === 3)) {
             console.warn(
               "[ponto] Falha de alta precisão GPS indoors, alternando para triangulação de rede:",
               err,
             );
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: false,
-              timeout: 12000,
-              maximumAge: 30000,
-            });
+            navigator.geolocation.getCurrentPosition(
+              onDone,
+              (finalErr) => {
+                if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 180000) {
+                  return onDone(CLOCK_CACHED_POSITION_);
+                }
+                reject(finalErr || err);
+              },
+              {
+                enableHighAccuracy: false,
+                timeout: 12000,
+                maximumAge: 30000,
+              },
+            );
           } else {
+            if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 180000) {
+              return onDone(CLOCK_CACHED_POSITION_);
+            }
             reject(err);
           }
         },

@@ -1385,12 +1385,26 @@ export function createClockHandlers() {
           Number(location.Longitude),
         ),
       );
-      const radius = Number(location.RaioMetros || 150);
+      const configuredRadius = Number(location.RaioMetros || 150);
+      const radius = Math.max(150, configuredRadius);
+      const safeAccuracy = Math.ceil(Math.max(0, accuracy));
+
       assert(
-        distance + Math.ceil(Math.max(0, accuracy)) <= radius,
-        `Você está a ${distance} m da loja (precisão ±${Math.ceil(
-          accuracy,
-        )} m), fora do raio de ${radius} m.`,
+        safeAccuracy <= 350,
+        `Sinal de localização muito impreciso (±${safeAccuracy} m). Ative o Wi-Fi ou aproxime-se de uma área aberta para calibrar o GPS.`,
+      );
+
+      // Validação justa e robusta de geofence:
+      // 1. Se a distância calculada está dentro do raio (distance <= radius), o funcionário está fisicamente no local.
+      // 2. Se a distância estimada estiver ligeiramente fora devido a drift em ambiente fechado,
+      //    concede tolerância segura se o círculo de incerteza alcançar a loja.
+      const withinStore =
+        distance <= radius ||
+        (distance - Math.min(safeAccuracy * 0.5, 60) <= radius && safeAccuracy <= 200);
+
+      assert(
+        withinStore,
+        `Você está a ${distance} m da loja (precisão ±${safeAccuracy} m), fora do raio de ${radius} m.`,
       );
       const records = allRecords.filter(
         (item) =>
