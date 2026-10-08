@@ -256,6 +256,7 @@
             <button class="nav-item permission-manager" data-view="absences"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span><b>Ausências</b><em id="absencesBadge" class="nav-badge">0</em></button>
             <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
             <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg></span><b>Pendências</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
+            <button class="nav-item" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b id="takeatCreditNavLabel">Contas a Prazo</b></button>
           </details>
           <details class="nav-group" open>
             <summary><span>▦</span>Escalas</summary>
@@ -268,7 +269,6 @@
             <summary><span>♙</span>Pessoas</summary>
             <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
             <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
-            <button class="nav-item permission-manager" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b>Contas a Prazo</b></button>
             <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
           </details>
           <details class="nav-group" open>
@@ -1160,9 +1160,9 @@
           <section id="view-takeat-credit" class="view">
             <div class="section-toolbar">
               <div>
-                <span class="eyebrow">TAKEAT · CONSUMO INTERNO</span>
-                <h2>Contas a Prazo &amp; Vales</h2>
-                <p>Acompanhe o saldo devedor, limites de crédito e consumo dos colaboradores nas 3 lojas em tempo real.</p>
+                <span class="eyebrow" id="takeatViewEyebrow">TAKEAT · CONSUMO INTERNO</span>
+                <h2 id="takeatViewTitle">Contas a Prazo &amp; Vales</h2>
+                <p id="takeatViewSubtitle">Acompanhe o saldo devedor, limites de crédito e consumo dos colaboradores nas 3 lojas em tempo real.</p>
               </div>
               <div class="toolbar-actions">
                 <select id="takeatStoreFilter">
@@ -1177,25 +1177,25 @@
             </div>
             <div class="metric-grid">
               <div class="metric-card">
-                <span>Total Devedor em Aberto</span>
+                <span id="takeatMetric1Label">Total Devedor em Aberto</span>
                 <strong id="takeatTotalDebtMetric" style="color: #ef4444;">R$ 0,00</strong>
               </div>
               <div class="metric-card">
-                <span>Contas com Débito Ativo</span>
+                <span id="takeatMetric2Label">Contas com Débito Ativo</span>
                 <strong id="takeatCountWithDebtMetric">0</strong>
               </div>
               <div class="metric-card">
-                <span>Limite Total Cadastrado</span>
+                <span id="takeatMetric3Label">Limite Total Cadastrado</span>
                 <strong id="takeatTotalLimitMetric">R$ 0,00</strong>
               </div>
               <div class="metric-card">
-                <span>Status da Integração</span>
+                <span id="takeatMetric4Label">Status da Integração</span>
                 <strong id="takeatSyncStatusMetric" style="color: #10b981;">Online</strong>
               </div>
             </div>
             <div class="panel table-panel">
               <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
-                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                <div id="takeatFilterControls" style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
                   <input id="takeatCreditSearch" class="search-input" placeholder="Pesquisar por colaborador, conta ou telefone…" style="min-width:240px;" />
                   <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:13px; cursor:pointer; margin:0;">
                     <input type="checkbox" id="takeatOnlyDebtCheckbox" checked /> Apenas com débito
@@ -1209,7 +1209,7 @@
                     <tr>
                       <th>Conta / Colaborador</th>
                       <th>Unidade</th>
-                      <th>Vínculo no Folgas 3.0</th>
+                      <th id="takeatMappingTh">Vínculo no Folgas 3.0</th>
                       <th>Limite</th>
                       <th>Saldo Devedor</th>
                       <th>Uso do Limite</th>

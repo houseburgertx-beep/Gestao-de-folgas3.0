@@ -2191,5 +2191,52 @@ test("persistência de login, atualização forçada do PWA e desativação de z
   );
 });
 
+test("módulo Takeat de Contas a Prazo é acessível para funcionários e gerentes", async () => {
+  const indexHtml = await readFile(
+    new URL("../src/legacy/Index.html", import.meta.url),
+    "utf8",
+  );
+  const scriptsHtml = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+
+  // 1. Botão no menu sem a classe permission-manager
+  assert.match(
+    indexHtml,
+    /<button class="nav-item"[^>]*data-view="takeat-credit">/,
+    "O botão de navegação para takeat-credit não deve ter classe permission-manager",
+  );
+
+  // 2. Não pode estar restrito no managerViews
+  assert.doesNotMatch(
+    scriptsHtml,
+    /const managerViews\s*=\s*\[[^\]]*"takeat-credit"[^\]]*\]/,
+    "takeat-credit não deve estar na lista managerViews que bloqueia funcionários",
+  );
+
+  // 3. hydrateUser adapta o rótulo para funcionários
+  assert.match(
+    scriptsHtml,
+    /takeatLabel\.textContent\s*=\s*employeeMode\s*\?\s*"Meu consumo"\s*:\s*"Contas a Prazo"/,
+    "hydrateUser deve alterar o texto do menu para 'Meu consumo' quando for funcionário",
+  );
+
+  // 4. computeCards inclui o card de consumo para funcionários
+  assert.match(
+    scriptsHtml,
+    /consumoPrazo:\s*consumoVal/,
+    "computeCards deve calcular consumoPrazo para o perfil de funcionário",
+  );
+
+  // 5. Carga secundária em segundo plano
+  assert.match(
+    scriptsHtml,
+    /scheduleIdleTask_\(\(\)\s*=>\s*loadTakeatCreditData\(false,\s*true\)/,
+    "scheduleSecondaryLoads_ deve agendar loadTakeatCreditData silencioso",
+  );
+});
+
+
 
 

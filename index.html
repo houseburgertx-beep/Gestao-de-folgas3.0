@@ -15850,6 +15850,7 @@ tr:last-child td {
             <button class="nav-item permission-manager" data-view="absences"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span><b>Ausências</b><em id="absencesBadge" class="nav-badge">0</em></button>
             <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
             <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg></span><b>Pendências</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
+            <button class="nav-item" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b id="takeatCreditNavLabel">Contas a Prazo</b></button>
           </details>
           <details class="nav-group" open>
             <summary><span>▦</span>Escalas</summary>
@@ -15862,7 +15863,6 @@ tr:last-child td {
             <summary><span>♙</span>Pessoas</summary>
             <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
             <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
-            <button class="nav-item permission-manager" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b>Contas a Prazo</b></button>
             <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
           </details>
           <details class="nav-group" open>
@@ -16754,9 +16754,9 @@ tr:last-child td {
           <section id="view-takeat-credit" class="view">
             <div class="section-toolbar">
               <div>
-                <span class="eyebrow">TAKEAT · CONSUMO INTERNO</span>
-                <h2>Contas a Prazo &amp; Vales</h2>
-                <p>Acompanhe o saldo devedor, limites de crédito e consumo dos colaboradores nas 3 lojas em tempo real.</p>
+                <span class="eyebrow" id="takeatViewEyebrow">TAKEAT · CONSUMO INTERNO</span>
+                <h2 id="takeatViewTitle">Contas a Prazo &amp; Vales</h2>
+                <p id="takeatViewSubtitle">Acompanhe o saldo devedor, limites de crédito e consumo dos colaboradores nas 3 lojas em tempo real.</p>
               </div>
               <div class="toolbar-actions">
                 <select id="takeatStoreFilter">
@@ -16771,25 +16771,25 @@ tr:last-child td {
             </div>
             <div class="metric-grid">
               <div class="metric-card">
-                <span>Total Devedor em Aberto</span>
+                <span id="takeatMetric1Label">Total Devedor em Aberto</span>
                 <strong id="takeatTotalDebtMetric" style="color: #ef4444;">R$ 0,00</strong>
               </div>
               <div class="metric-card">
-                <span>Contas com Débito Ativo</span>
+                <span id="takeatMetric2Label">Contas com Débito Ativo</span>
                 <strong id="takeatCountWithDebtMetric">0</strong>
               </div>
               <div class="metric-card">
-                <span>Limite Total Cadastrado</span>
+                <span id="takeatMetric3Label">Limite Total Cadastrado</span>
                 <strong id="takeatTotalLimitMetric">R$ 0,00</strong>
               </div>
               <div class="metric-card">
-                <span>Status da Integração</span>
+                <span id="takeatMetric4Label">Status da Integração</span>
                 <strong id="takeatSyncStatusMetric" style="color: #10b981;">Online</strong>
               </div>
             </div>
             <div class="panel table-panel">
               <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
-                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                <div id="takeatFilterControls" style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
                   <input id="takeatCreditSearch" class="search-input" placeholder="Pesquisar por colaborador, conta ou telefone…" style="min-width:240px;" />
                   <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:13px; cursor:pointer; margin:0;">
                     <input type="checkbox" id="takeatOnlyDebtCheckbox" checked /> Apenas com débito
@@ -16803,7 +16803,7 @@ tr:last-child td {
                     <tr>
                       <th>Conta / Colaborador</th>
                       <th>Unidade</th>
-                      <th>Vínculo no Folgas 3.0</th>
+                      <th id="takeatMappingTh">Vínculo no Folgas 3.0</th>
                       <th>Limite</th>
                       <th>Saldo Devedor</th>
                       <th>Uso do Limite</th>
@@ -20794,6 +20794,7 @@ tr:last-child td {
     scheduleIdleTask_(() => loadNotifications(), 6000);
     scheduleIdleTask_(() => initNotificationMonitor_(), 7000);
     scheduleIdleTask_(() => loadHourBalance(), 10000);
+    scheduleIdleTask_(() => loadTakeatCreditData(false, true), 12000);
   }
 
   function isMobileClient_() {
@@ -21555,6 +21556,11 @@ tr:last-child td {
       pendingLabel.textContent = employeeMode
         ? "Minhas solicitações"
         : "Pendências";
+    const takeatLabel = $('.nav-item[data-view="takeat-credit"] b');
+    if (takeatLabel)
+      takeatLabel.textContent = employeeMode
+        ? "Meu consumo"
+        : "Contas a Prazo";
     $("#dashboardNewTimeOff").textContent = employeeMode
       ? "＋ Pedir folga"
       : "＋ Criar folga";
@@ -21712,7 +21718,7 @@ tr:last-child td {
       state.pendingCenter.filter = legacyPendingViews[view];
       view = "pending-center";
     }
-    const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports", "takeat-credit"];
+    const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports"];
     const adminViews = ["access", "governance", "audit", "hour-balances"];
     if ((managerViews.includes(view) && !isManager()) || (adminViews.includes(view) && !isAdmin())) {
       toast("Esta área está disponível apenas para o perfil autorizado.", true);
@@ -21818,15 +21824,35 @@ tr:last-child td {
         folgasAprovadas: "Folgas aprovadas",
         pedidosPendentes: "Pedidos pendentes",
         saldoHoras: "Saldo de horas",
-      };
+        consumoPrazo: "Meu consumo",
+      },
+      accentColors = ["#7b68ee", "#3788e5", "#20a06b", "#f0a020", "#e5484d", "#14b8a6", "#ec4899"];
     $("#cards").innerHTML = Object.entries(cards)
       .map(
-        ([k, v], i) =>
-          `<article class="metric-card" data-metric="${esc(k)}" style="--accent:${["#7b68ee", "#3788e5", "#20a06b", "#f0a020", "#e5484d", "#14b8a6"][i]}"><span>${labels[k]}</span><strong${k === "saldoHoras" ? cardValueStyle(v) : ""}>${esc(v)}</strong><small>${k === "saldoHoras" ? esc(hourBalanceSubtitle()) : "Somente seus dados"}</small></article>`,
+        ([k, v], i) => {
+          let sub = "Somente seus dados";
+          if (k === "saldoHoras") sub = hourBalanceSubtitle();
+          else if (k === "consumoPrazo") sub = employeeTakeatSubtitle_();
+          const isFormatted = k === "saldoHoras" || k === "consumoPrazo";
+          const clickAttr = k === "consumoPrazo" ? ` style="--accent:${accentColors[i] || '#ec4899'}; cursor:pointer;" onclick="switchView('takeat-credit')"` : ` style="--accent:${accentColors[i] || '#ec4899'}"`;
+          return `<article class="metric-card" data-metric="${esc(k)}"${clickAttr}><span>${labels[k] || k}</span><strong${isFormatted ? cardValueStyle(v) : ""}>${esc(v)}</strong><small>${esc(sub)}</small></article>`;
+        }
       )
       .join("");
     $("#storeChart")?.closest(".panel")?.classList.add("hidden");
     renderEmployeeClockDashboard();
+  }
+  function employeeTakeatSubtitle_() {
+    if (!state.takeatCredit?.loaded) return "Carregando Takeat…";
+    const myAccs = typeof getEmployeeTakeatAccounts_ === "function" ? getEmployeeTakeatAccounts_() : [];
+    if (myAccs.length === 0) return "Sem débito ativo";
+    const myDebt = myAccs.reduce((acc, c) => acc + (c.debt || 0), 0);
+    const myLimit = myAccs.reduce((acc, c) => acc + (c.totalLimit || 0), 0);
+    if (myLimit > 0) {
+      const disp = Math.max(0, myLimit - myDebt);
+      return `Disp: R$ ${disp.toFixed(2).replace(".", ",")}`;
+    }
+    return myDebt > 0 ? "Débito em aberto" : "Conta em dia";
   }
   function hourBalanceSubtitle() {
     const d = state.hourBalance;
@@ -21871,6 +21897,7 @@ tr:last-child td {
             folgasAprovadas: "…",
             pedidosPendentes: "…",
             saldoHoras: "…",
+            consumoPrazo: "…",
           }
         : {
             totalFuncionariosAtivos: "…",
@@ -21903,6 +21930,12 @@ tr:last-child td {
             iso(val(x, "DataInicio", "dataInicio")) >= today &&
             timeOffStatus(x) === "approved",
         ).length;
+      let consumoVal = "…";
+      if (state.takeatCredit?.loaded) {
+        const myAccs = typeof getEmployeeTakeatAccounts_ === "function" ? getEmployeeTakeatAccounts_() : [];
+        const myDebt = myAccs.reduce((acc, c) => acc + (c.debt || 0), 0);
+        consumoVal = myDebt > 0 ? "- R$ " + myDebt.toFixed(2).replace(".", ",") : "R$ 0,00";
+      }
       return {
         saldoFolgas: val(me, "SaldoFolgas", "saldoFolgas") || 0,
         folgaFixa:
@@ -21912,6 +21945,7 @@ tr:last-child td {
         folgasAprovadas: approved,
         pedidosPendentes: pending,
         saldoHoras: hourBalanceText,
+        consumoPrazo: consumoVal,
       };
     }
     const activeE = state.employees.filter((x) =>
@@ -22382,6 +22416,9 @@ tr:last-child td {
   }
 
   function renderEmployees() {
+    if (!state.takeatCredit?.loaded && !state.takeatCredit?.loading && typeof loadTakeatCreditData === "function") {
+      loadTakeatCreditData(false, true).catch(() => {});
+    }
     const q = $("#employeeSearch").value.toLowerCase(),
       store = $("#employeeStoreFilter").value;
     const rows = state.employees.filter(
@@ -27313,6 +27350,7 @@ tr:last-child td {
   }
 
   function openTakeatMappingModal_(accountKey, accountName, storeName, currentVal) {
+    if (!isManager()) return;
     $("#takeatMappingAccountKey").value = accountKey || "";
     $("#takeatMappingAccountName").value = `${accountName} (${storeName})`;
 
@@ -27326,8 +27364,8 @@ tr:last-child td {
           const store =
             state.stores.find((s) => String(s.LojaID) === String(emp.LojaID))
               ?.NomeLoja ||
-            emp.NomeLoja ||
-            "";
+              emp.NomeLoja ||
+              "";
           const label = `${emp.Nome || emp.nome}${emp.Cargo ? ` · ${emp.Cargo}` : ""}${store ? ` (${store})` : ""}`;
           return `<option value="${esc(emp.FuncionarioID)}">${esc(label)}</option>`;
         })
@@ -27342,19 +27380,51 @@ tr:last-child td {
     openDialog("takeatMappingDialog");
   }
 
-  async function loadTakeatCreditData(forceRefresh = false) {
+  function getEmployeeTakeatAccounts_() {
+    if (!state.takeatCredit || !state.takeatCredit.items) return [];
+    const currentEmpId = String(
+      val(state.user, "funcionarioId", "FuncionarioID", "id") ||
+      (state.employees && state.employees[0] ? val(state.employees[0], "FuncionarioID", "id") : "") ||
+      ""
+    );
+    const currentEmpName = (
+      val(state.user, "nome", "Nome") ||
+      (state.employees && state.employees[0] ? val(state.employees[0], "Nome", "nome") : "") ||
+      ""
+    ).trim().toLowerCase();
+
+    return (state.takeatCredit.items || []).filter((item) => {
+      if (item.matchedEmployee) {
+        if (item.matchedEmployee.isIgnored) return false;
+        const mId = String(item.matchedEmployee.FuncionarioID || item.matchedEmployee.id || "");
+        if (currentEmpId && mId && mId === currentEmpId) return true;
+        const mName = (item.matchedEmployee.Nome || item.matchedEmployee.nome || "").trim().toLowerCase();
+        if (currentEmpName && mName && mName === currentEmpName) return true;
+      }
+      if (currentEmpName && item.name) {
+        const cleanAcc = item.name.trim().toLowerCase();
+        if (cleanAcc === currentEmpName) return true;
+      }
+      return false;
+    });
+  }
+
+  async function loadTakeatCreditData(forceRefresh = false, silent = false) {
     initTakeatCreditEvents_();
 
     const service = window.__GESTAO_TAKEAT_CREDIT__;
     if (!service) {
-      toast("Módulo Takeat ainda não inicializado. Tente novamente.", true);
+      if (!silent) toast("Módulo Takeat ainda não inicializado. Tente novamente.", true);
       return;
     }
 
     if (!forceRefresh && state.takeatCredit.loaded && state.takeatCredit.items.length > 0) {
-      renderTakeatCreditView();
+      if (state.currentView === "takeat-credit") renderTakeatCreditView();
       return;
     }
+
+    if (state.takeatCredit.loading) return;
+    state.takeatCredit.loading = true;
 
     const refreshBtn = $("#takeatCreditRefreshBtn");
     if (refreshBtn) {
@@ -27363,14 +27433,15 @@ tr:last-child td {
     }
 
     const statusMetric = $("#takeatSyncStatusMetric");
-    if (statusMetric) {
+    if (statusMetric && state.currentView === "takeat-credit") {
       statusMetric.textContent = "Conectando…";
       statusMetric.style.color = "var(--primary, #6366f1)";
     }
 
     const tbody = $("#takeatCreditBody");
-    if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">Sincronizando contas com a Takeat…</td></tr>';
+    if (tbody && state.currentView === "takeat-credit") {
+      const isEmp = isEmployee();
+      tbody.innerHTML = `<tr><td colspan="${isEmp ? 6 : 7}" style="text-align:center; padding:2rem; color:var(--text-muted);">Sincronizando contas com a Takeat…</td></tr>`;
     }
 
     try {
@@ -27397,21 +27468,31 @@ tr:last-child td {
       state.takeatCredit.loaded = true;
       state.takeatCredit.lastSync = new Date();
 
-      if (statusMetric) {
+      if (statusMetric && state.currentView === "takeat-credit") {
         statusMetric.textContent = `Online (${items.length} contas)`;
         statusMetric.style.color = "#10b981";
       }
 
-      renderTakeatCreditView();
-      toast(`Takeat sincronizado: ${items.length} contas carregadas.`);
+      if (state.currentView === "takeat-credit") {
+        renderTakeatCreditView();
+      }
+      if (isEmployee() && state.currentView === "dashboard") {
+        renderEmployeeDashboardCards();
+      }
+      if (isManager() && state.currentView === "employees") {
+        renderEmployees();
+      }
+
+      if (!silent) toast(`Takeat sincronizado: ${items.length} contas carregadas.`);
     } catch (err) {
       console.error("Erro Takeat:", err);
-      if (statusMetric) {
+      if (statusMetric && state.currentView === "takeat-credit") {
         statusMetric.textContent = "Erro na sincronização";
         statusMetric.style.color = "#ef4444";
       }
-      toast(err.message || "Erro ao conectar com a Takeat.", true);
+      if (!silent) toast(err.message || "Erro ao conectar com a Takeat.", true);
     } finally {
+      state.takeatCredit.loading = false;
       if (refreshBtn) {
         refreshBtn.disabled = false;
         refreshBtn.textContent = "↻ Sincronizar Takeat";
@@ -27422,50 +27503,152 @@ tr:last-child td {
   function renderTakeatCreditView() {
     initTakeatCreditEvents_();
 
+    const isEmp = isEmployee();
     const items = state.takeatCredit.items || [];
-    const query = state.takeatCredit.searchQuery || "";
-    const onlyDebt = state.takeatCredit.onlyDebt;
 
-    const filtered = items.filter((item) => {
-      if (onlyDebt && item.debt <= 0) return false;
-      if (query) {
-        const target = `${item.name} ${item.phone} ${item.storeName} ${item.matchedEmployee?.Nome || ""}`.toLowerCase();
-        if (!target.includes(query)) return false;
-      }
-      return true;
-    });
+    // Adaptar cabeçalho e controles conforme perfil
+    const eyebrowEl = $("#takeatViewEyebrow");
+    if (eyebrowEl) eyebrowEl.textContent = isEmp ? "MEU CONSUMO · TAKEAT" : "TAKEAT · CONSUMO INTERNO";
 
-    const totalDebt = filtered.reduce((acc, curr) => acc + (curr.debt || 0), 0);
-    const countDebt = filtered.filter((x) => x.debt > 0).length;
-    const totalLimit = filtered.reduce((acc, curr) => acc + (curr.totalLimit || 0), 0);
+    const titleEl = $("#takeatViewTitle");
+    if (titleEl) titleEl.textContent = isEmp ? "Meu Consumo Takeat" : "Contas a Prazo & Vales";
+
+    const subtitleEl = $("#takeatViewSubtitle");
+    if (subtitleEl) subtitleEl.textContent = isEmp
+      ? "Consulte seu saldo devedor atual, limite de crédito disponível e consumo nas unidades do Grupo House 190."
+      : "Acompanhe o saldo devedor, limites de crédito e consumo dos colaboradores nas 3 lojas em tempo real.";
+
+    const storeFilter = $("#takeatStoreFilter");
+    if (storeFilter) storeFilter.style.display = isEmp ? "none" : "";
+
+    const exportBtn = $("#takeatCreditExportBtn");
+    if (exportBtn) exportBtn.style.display = isEmp ? "none" : "";
+
+    const filterControls = $("#takeatFilterControls");
+    if (filterControls) filterControls.style.display = isEmp ? "none" : "flex";
+
+    // Mapear rótulos das métricas
+    const m1Label = $("#takeatMetric1Label");
+    if (m1Label) m1Label.textContent = isEmp ? "Meu Saldo Devedor" : "Total Devedor em Aberto";
+
+    const m2Label = $("#takeatMetric2Label");
+    if (m2Label) m2Label.textContent = isEmp ? "Meu Limite Total" : "Contas com Débito Ativo";
+
+    const m3Label = $("#takeatMetric3Label");
+    if (m3Label) m3Label.textContent = isEmp ? "Limite Disponível" : "Limite Total Cadastrado";
+
+    const m4Label = $("#takeatMetric4Label");
+    if (m4Label) m4Label.textContent = isEmp ? "Situação" : "Status da Integração";
 
     const fmtBRL = (num) => "R$ " + Number(num || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    const debtMetric = $("#takeatTotalDebtMetric");
-    if (debtMetric) debtMetric.textContent = totalDebt > 0 ? "- " + fmtBRL(totalDebt) : fmtBRL(0);
+    let displayItems = [];
 
-    const countMetric = $("#takeatCountWithDebtMetric");
-    if (countMetric) countMetric.textContent = String(countDebt);
+    if (isEmp) {
+      displayItems = getEmployeeTakeatAccounts_();
+      const myDebt = displayItems.reduce((acc, curr) => acc + (curr.debt || 0), 0);
+      const myLimit = displayItems.reduce((acc, curr) => acc + (curr.totalLimit || 0), 0);
+      const myAvailable = Math.max(0, myLimit - myDebt);
 
-    const limitMetric = $("#takeatTotalLimitMetric");
-    if (limitMetric) limitMetric.textContent = fmtBRL(totalLimit);
+      const debtMetric = $("#takeatTotalDebtMetric");
+      if (debtMetric) {
+        debtMetric.textContent = myDebt > 0 ? "- " + fmtBRL(myDebt) : fmtBRL(0);
+        debtMetric.style.color = myDebt > 0 ? "#ef4444" : "#10b981";
+      }
+
+      const countMetric = $("#takeatCountWithDebtMetric");
+      if (countMetric) countMetric.textContent = myLimit > 0 ? fmtBRL(myLimit) : "Sem limite";
+
+      const limitMetric = $("#takeatTotalLimitMetric");
+      if (limitMetric) {
+        limitMetric.textContent = myLimit > 0 ? fmtBRL(myAvailable) : "—";
+        limitMetric.style.color = myAvailable <= 0 && myLimit > 0 ? "#ef4444" : "#10b981";
+      }
+
+      const statusMetric = $("#takeatSyncStatusMetric");
+      if (statusMetric) {
+        if (displayItems.length === 0) {
+          statusMetric.textContent = "Sem cadastro";
+          statusMetric.style.color = "var(--text-muted, #64748b)";
+        } else if (myLimit > 0 && myDebt > myLimit) {
+          statusMetric.textContent = "Limite Excedido";
+          statusMetric.style.color = "#ef4444";
+        } else if (myDebt > 0) {
+          statusMetric.textContent = "Débito Ativo";
+          statusMetric.style.color = "#f59e0b";
+        } else {
+          statusMetric.textContent = "Em Dia";
+          statusMetric.style.color = "#10b981";
+        }
+      }
+    } else {
+      // Perfil Gestor / Admin
+      const query = state.takeatCredit.searchQuery || "";
+      const onlyDebt = state.takeatCredit.onlyDebt;
+
+      displayItems = items.filter((item) => {
+        if (onlyDebt && item.debt <= 0) return false;
+        if (query) {
+          const target = `${item.name} ${item.phone} ${item.storeName} ${item.matchedEmployee?.Nome || ""}`.toLowerCase();
+          if (!target.includes(query)) return false;
+        }
+        return true;
+      });
+
+      const totalDebt = displayItems.reduce((acc, curr) => acc + (curr.debt || 0), 0);
+      const countDebt = displayItems.filter((x) => x.debt > 0).length;
+      const totalLimit = displayItems.reduce((acc, curr) => acc + (curr.totalLimit || 0), 0);
+
+      const debtMetric = $("#takeatTotalDebtMetric");
+      if (debtMetric) {
+        debtMetric.textContent = totalDebt > 0 ? "- " + fmtBRL(totalDebt) : fmtBRL(0);
+        debtMetric.style.color = "#ef4444";
+      }
+
+      const countMetric = $("#takeatCountWithDebtMetric");
+      if (countMetric) countMetric.textContent = String(countDebt);
+
+      const limitMetric = $("#takeatTotalLimitMetric");
+      if (limitMetric) {
+        limitMetric.textContent = fmtBRL(totalLimit);
+        limitMetric.style.color = "";
+      }
+
+      const statusMetric = $("#takeatSyncStatusMetric");
+      if (statusMetric && state.takeatCredit.loaded) {
+        statusMetric.textContent = `Online (${items.length} contas)`;
+        statusMetric.style.color = "#10b981";
+      }
+    }
 
     const syncTime = $("#takeatLastSyncTime");
     if (syncTime && state.takeatCredit.lastSync) {
       syncTime.textContent = "Última sincronização: " + state.takeatCredit.lastSync.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
+    // Ajustar cabeçalho da tabela se funcionário vs gestor
+    const mappingHeaderTh = $("#takeatMappingTh");
+    if (mappingHeaderTh) mappingHeaderTh.style.display = isEmp ? "none" : "";
+
     const tbody = $("#takeatCreditBody");
     if (!tbody) return;
 
-    if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">' +
-        (items.length === 0 ? 'Nenhuma conta encontrada na Takeat.' : 'Nenhuma conta encontrada com os filtros selecionados.') +
-        '</td></tr>';
+    if (displayItems.length === 0) {
+      if (isEmp) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:3rem 1.5rem; color:var(--text-muted);">' +
+          '<div style="font-size:28px; margin-bottom:0.5rem;">💳</div>' +
+          '<strong>Nenhuma conta vinculada encontrada.</strong><br>' +
+          '<span style="font-size:13px; margin-top:0.35rem; display:inline-block;">Se você consome a prazo na loja, solicite ao gerente da unidade para vincular sua conta no sistema.</span>' +
+          '</td></tr>';
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">' +
+          (items.length === 0 ? 'Nenhuma conta encontrada na Takeat.' : 'Nenhuma conta encontrada com os filtros selecionados.') +
+          '</td></tr>';
+      }
       return;
     }
 
-    tbody.innerHTML = filtered.map((item) => {
+    tbody.innerHTML = displayItems.map((item) => {
       const debtText = item.debt > 0
         ? `<strong style="color: #ef4444; font-size:14px;">- ${fmtBRL(item.debt)}</strong>`
         : `<span style="color: #10b981; font-weight:500;">R$ 0,00</span>`;
@@ -27499,43 +27682,48 @@ tr:last-child td {
         statusBadge = '<span class="status approved" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0;">Em Dia</span>';
       }
 
-      const accountKey = `${item.storeKey}_${item.id}`;
-      const currentVal = item.matchedEmployee?.isIgnored
-        ? "ignored"
-        : item.matchedEmployee?.FuncionarioID || "";
+      let mappingTd = '';
+      if (!isEmp) {
+        const accountKey = `${item.storeKey}_${item.id}`;
+        const currentVal = item.matchedEmployee?.isIgnored
+          ? "ignored"
+          : item.matchedEmployee?.FuncionarioID || "";
 
-      let matchDisplay = '';
-      if (item.matchedEmployee?.isIgnored) {
-        matchDisplay = '<span class="status" style="background:#f1f5f9; color:#64748b; font-size:11px;">🚫 Desconsiderado</span>';
-      } else if (item.matchedEmployee) {
-        matchDisplay = `
-          <div style="display:flex; align-items:center; gap:0.35rem;">
-            <span style="color:#059669; font-weight:700;">✓</span>
-            <div>
-              <strong style="color:var(--text-primary); font-size:13px;">${esc(item.matchedEmployee.Nome || item.matchedEmployee.nome)}</strong>
-              ${item.isManualMatch ? '<span style="font-size:10px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:600;">Manual</span>' : ''}
-              ${item.matchedEmployee.Cargo ? `<br><small style="color:var(--text-muted); font-size:11px;">${esc(item.matchedEmployee.Cargo)}</small>` : ''}
+        let matchDisplay = '';
+        if (item.matchedEmployee?.isIgnored) {
+          matchDisplay = '<span class="status" style="background:#f1f5f9; color:#64748b; font-size:11px;">🚫 Desconsiderado</span>';
+        } else if (item.matchedEmployee) {
+          matchDisplay = `
+            <div style="display:flex; align-items:center; gap:0.35rem;">
+              <span style="color:#059669; font-weight:700;">✓</span>
+              <div>
+                <strong style="color:var(--text-primary); font-size:13px;">${esc(item.matchedEmployee.Nome || item.matchedEmployee.nome)}</strong>
+                ${item.isManualMatch ? '<span style="font-size:10px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:600;">Manual</span>' : ''}
+                ${item.matchedEmployee.Cargo ? `<br><small style="color:var(--text-muted); font-size:11px;">${esc(item.matchedEmployee.Cargo)}</small>` : ''}
+              </div>
             </div>
-          </div>
-        `;
-      } else {
-        matchDisplay = '<span style="color:var(--text-muted); font-size:12px;">Não vinculado</span>';
-      }
+          `;
+        } else {
+          matchDisplay = '<span style="color:var(--text-muted); font-size:12px;">Não vinculado</span>';
+        }
 
-      const matchMarkup = `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
-          <div>${matchDisplay}</div>
-          <button type="button" class="btn btn-secondary" data-action="edit-takeat-mapping"
-            data-account-key="${esc(accountKey)}"
-            data-account-name="${esc(item.name)}"
-            data-store-name="${esc(item.storeName)}"
-            data-current-val="${esc(currentVal)}"
-            style="padding:3px 8px; font-size:11px; white-space:nowrap; border-radius:6px; cursor:pointer;"
-            title="Editar vínculo do colaborador">
-            ✎ Vincular
-          </button>
-        </div>
-      `;
+        mappingTd = `
+          <td>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+              <div>${matchDisplay}</div>
+              <button type="button" class="btn btn-secondary" data-action="edit-takeat-mapping"
+                data-account-key="${esc(accountKey)}"
+                data-account-name="${esc(item.name)}"
+                data-store-name="${esc(item.storeName)}"
+                data-current-val="${esc(currentVal)}"
+                style="padding:3px 8px; font-size:11px; white-space:nowrap; border-radius:6px; cursor:pointer;"
+                title="Editar vínculo do colaborador">
+                ✎ Vincular
+              </button>
+            </div>
+          </td>
+        `;
+      }
 
       return `
         <tr>
@@ -27546,7 +27734,7 @@ tr:last-child td {
           <td>
             <span class="status" style="font-size:12px; font-weight:500;">${esc(item.storeName)}</span>
           </td>
-          <td>${matchMarkup}</td>
+          ${mappingTd}
           <td>${limitText}</td>
           <td>${debtText}</td>
           <td style="min-width:130px;">${usageMarkup}</td>
