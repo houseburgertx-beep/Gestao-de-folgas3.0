@@ -2339,6 +2339,27 @@ test("Takeat Credit: separação por compra e detalhes da comanda com olho minim
   );
 });
 
+test("dock mobile contém apenas os 5 botões solicitados: início, ponto, tarefas, folgas e consumo", async () => {
+  const indexHtml = await readFile(
+    new URL("../src/legacy/Index.html", import.meta.url),
+    "utf8",
+  );
+  const dockMatch = indexHtml.match(/<nav class="mobile-dock"[^>]*>([\s\S]*?)<\/nav>/);
+  assert.ok(dockMatch, "Index.html deve conter <nav class=\"mobile-dock\">");
+  const dockHtml = dockMatch[1];
 
+  // Extrai todos os data-view-target dos botões da dock
+  const targets = [...dockHtml.matchAll(/data-view-target="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(targets, [
+    "dashboard",
+    "timeclock",
+    "tasks",
+    "timeoff",
+    "takeat-credit",
+  ]);
 
-
+  // Garante que escala, equipe e pendências não estão na dock
+  assert.doesNotMatch(dockHtml, /data-view-target="shift-plan"/);
+  assert.doesNotMatch(dockHtml, /data-view-target="live-team"/);
+  assert.doesNotMatch(dockHtml, /data-view-target="pending-center"/);
+});
