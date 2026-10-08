@@ -376,6 +376,64 @@ export async function fetchCreditRegisterSummary(storeKey, creditRegisterId, for
 }
 
 /**
+ * Filtra as compras que compõem o saldo em aberto atual (ciclo ativo/liberado),
+ * desconsiderando comandas de faturas anteriores que já foram quitadas.
+ */
+export function filterOpenPurchases(summaryList, accountDebt = null) {
+  if (!Array.isArray(summaryList) || summaryList.length === 0) return [];
+
+  const hasDebtParam = accountDebt !== null && accountDebt !== undefined;
+  const debt = hasDebtParam ? parseFloat(accountDebt) : null;
+
+  // Se o saldo devedor for zero ou negativo, não há compras pendentes em aberto
+  if (hasDebtParam && !isNaN(debt) && debt <= 0.01) {
+    return [];
+  }
+
+  // 1. Identifica o índice do pagamento mais recente
+  const lastPaymentIdx = summaryList.findIndex(
+    (item) =>
+      item.rawValue > 0 ||
+      (item.status && item.status.toLowerCase().includes("pagamento"))
+  );
+
+  // Itens ocorridos após o último pagamento
+  let candidateItems = lastPaymentIdx === -1
+    ? summaryList
+    : summaryList.slice(0, lastPaymentIdx);
+
+  // Filtra apenas consumos válidos
+  let openPurchases = candidateItems.filter(
+    (item) => item.isConsumption && item.value > 0
+  );
+
+  // 2. Se a Takeat fornecer o campo "serie", filtra pela série mais recente do ciclo ativo
+  if (openPurchases.length > 0 && openPurchases[0].serie !== null && openPurchases[0].serie !== undefined) {
+    const currentSerie = openPurchases[0].serie;
+    const sameSerie = openPurchases.filter((item) => item.serie === currentSerie);
+    if (sameSerie.length > 0) {
+      openPurchases = sameSerie;
+    }
+  }
+
+  // 3. Validação de segurança com o saldo devedor:
+  if (hasDebtParam && !isNaN(debt) && debt > 0.01 && openPurchases.length > 0) {
+    let runningSum = 0;
+    const matched = [];
+    for (const p of openPurchases) {
+      matched.push(p);
+      runningSum += p.value;
+      if (runningSum >= debt - 0.05) break;
+    }
+    if (runningSum >= debt - 0.05) {
+      openPurchases = matched;
+    }
+  }
+
+  return openPurchases;
+}
+
+/**
  * Busca os detalhes e itens consumidos de uma comanda / sessão específica
  */
 export async function fetchTableSessionDetails(storeKey, sessionId) {

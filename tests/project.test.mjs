@@ -2325,6 +2325,18 @@ test("Takeat Credit: separação por compra e detalhes da comanda com olho minim
     /data-action="view-takeat-account-comandas"/,
     "Scripts.html deve conter botão para o gestor visualizar compras da conta",
   );
+
+  // 6. filterOpenPurchases deve ser exportada e utilizada para filtrar apenas ciclo ativo
+  assert.match(
+    coreTakeat,
+    /export function filterOpenPurchases/,
+    "takeat-credit.js deve exportar a função filterOpenPurchases",
+  );
+  assert.match(
+    scriptsHtml,
+    /filterOpenPurchases/,
+    "Scripts.html deve chamar filterOpenPurchases para mostrar apenas compras em aberto",
+  );
 });
 
 

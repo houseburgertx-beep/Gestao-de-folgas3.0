@@ -8496,7 +8496,47 @@
     openDialog("takeatMappingDialog");
   }
 
-  async function loadTakeatAccountPurchases_(storeKey, creditRegisterId) {
+  function renderTakeatPurchasesItems_(items, storeKey, isPaid = false) {
+    return items.map((p) => {
+      const dateStr = formatTakeatDateTimeBR_(p.createdAt);
+      const comandaNum = p.sessionNumber || (p.sessionId ? `#${p.sessionId}` : "—");
+      const hasSession = Boolean(p.sessionId);
+
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.75rem; background:var(--bg-card-alt, #f8fafc); border:1px solid var(--border-color, #e2e8f0); border-radius:8px; gap:0.5rem; ${isPaid ? 'opacity:0.8;' : ''}">
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+              <span style="font-size:12px; font-weight:700; color:var(--text-primary, #0f172a);">Comanda ${esc(comandaNum)}</span>
+              ${isPaid ? '<span style="font-size:10px; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:1px 5px; border-radius:4px; font-weight:600;">✓ Quitada</span>' : ''}
+              <span style="font-size:10px; color:var(--text-muted, #64748b);">${esc(dateStr)}</span>
+            </div>
+            <div style="display:flex; align-items:baseline; gap:0.5rem; margin-top:2px;">
+              <span style="font-size:13px; font-weight:700; color:${isPaid ? 'var(--text-primary)' : '#ef4444'};">${isPaid ? '' : '- '}${fmtTakeatBRL_(p.value)}</span>
+              <span style="font-size:11px; font-weight:600; color:#059669;">c/ 20%: ${isPaid ? '' : '- '}${fmtTakeatBRL_(p.discountedValue)}</span>
+            </div>
+          </div>
+          ${hasSession ? `
+            <button type="button"
+              data-action="view-takeat-comanda"
+              data-store-key="${esc(storeKey)}"
+              data-session-id="${esc(p.sessionId)}"
+              data-session-number="${esc(comandaNum)}"
+              data-purchase-value="${p.value.toFixed(2)}"
+              data-purchase-date="${esc(dateStr)}"
+              title="Ver o que foi pego nesta comanda"
+              style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; min-width:34px; border-radius:8px; border:1px solid var(--border-color, #cbd5e1); background:var(--bg-card, #ffffff); cursor:pointer; color:var(--text-secondary, #475569); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition:all 0.15s ease;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function loadTakeatAccountPurchases_(storeKey, creditRegisterId, debt = null) {
     const listEl = $(`#takeatPurchasesList_${storeKey}_${creditRegisterId}`);
     const countEl = $(`#takeatPurchasesCount_${storeKey}_${creditRegisterId}`);
     if (!listEl) return;
@@ -8506,57 +8546,59 @@
 
     try {
       const summary = await service.fetchCreditRegisterSummary(storeKey, creditRegisterId);
-      const purchases = (summary || []).filter((item) => item.isConsumption && item.value > 0);
+      const openPurchases = typeof service.filterOpenPurchases === "function"
+        ? service.filterOpenPurchases(summary, debt)
+        : (summary || []).filter((item) => item.isConsumption && item.value > 0);
+
+      const allPurchases = (summary || []).filter((item) => item.isConsumption && item.value > 0);
+      const paidPurchases = allPurchases.filter((p) => !openPurchases.some((op) => op.id === p.id));
 
       if (countEl) {
-        countEl.textContent = purchases.length === 1 ? "1 compra" : `${purchases.length} compras`;
+        countEl.textContent = openPurchases.length === 1 ? "1 compra em aberto" : `${openPurchases.length} compras em aberto`;
       }
 
-      if (purchases.length === 0) {
-        listEl.innerHTML = `
+      if (openPurchases.length === 0) {
+        let emptyHtml = `
           <div style="padding:0.65rem 0.75rem; text-align:center; font-size:12px; color:var(--text-muted, #64748b); background:var(--bg-card-alt, #f8fafc); border-radius:8px; border:1px dashed var(--border-color, #e2e8f0);">
-            Nenhuma compra em aberto nesta unidade.
+            Nenhuma compra em aberto nesta unidade. ${debt > 0 ? '' : '(Débito quitado)'}
           </div>
         `;
+        if (paidPurchases.length > 0) {
+          emptyHtml += `
+            <div style="margin-top:0.4rem; text-align:center;">
+              <button type="button"
+                onclick="const el = document.getElementById('takeatPaidHistory_${esc(storeKey)}_${esc(creditRegisterId)}'); if (el) { const hidden = el.style.display === 'none'; el.style.display = hidden ? 'flex' : 'none'; this.textContent = hidden ? 'Ocultar compras quitadas' : 'Ver compras anteriores quitadas (${paidPurchases.length})'; }"
+                style="font-size:11px; color:var(--text-muted, #64748b); background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px 8px;">
+                Ver compras anteriores quitadas (${paidPurchases.length})
+              </button>
+              <div id="takeatPaidHistory_${esc(storeKey)}_${esc(creditRegisterId)}" style="display:none; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                ${renderTakeatPurchasesItems_(paidPurchases, storeKey, true)}
+              </div>
+            </div>
+          `;
+        }
+        listEl.innerHTML = emptyHtml;
         return;
       }
 
-      listEl.innerHTML = purchases.map((p) => {
-        const dateStr = formatTakeatDateTimeBR_(p.createdAt);
-        const comandaNum = p.sessionNumber || (p.sessionId ? `#${p.sessionId}` : "—");
-        const hasSession = Boolean(p.sessionId);
+      let openHtml = renderTakeatPurchasesItems_(openPurchases, storeKey, false);
 
-        return `
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.75rem; background:var(--bg-card-alt, #f8fafc); border:1px solid var(--border-color, #e2e8f0); border-radius:8px; gap:0.5rem;">
-            <div style="min-width:0; flex:1;">
-              <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
-                <span style="font-size:12px; font-weight:700; color:var(--text-primary, #0f172a);">Comanda ${esc(comandaNum)}</span>
-                <span style="font-size:10px; color:var(--text-muted, #64748b);">${esc(dateStr)}</span>
-              </div>
-              <div style="display:flex; align-items:baseline; gap:0.5rem; margin-top:2px;">
-                <span style="font-size:13px; font-weight:700; color:#ef4444;">- ${fmtTakeatBRL_(p.value)}</span>
-                <span style="font-size:11px; font-weight:600; color:#059669;">c/ 20%: - ${fmtTakeatBRL_(p.discountedValue)}</span>
-              </div>
+      if (paidPurchases.length > 0) {
+        openHtml += `
+          <div style="margin-top:0.4rem; text-align:center;">
+            <button type="button"
+              onclick="const el = document.getElementById('takeatPaidHistory_${esc(storeKey)}_${esc(creditRegisterId)}'); if (el) { const hidden = el.style.display === 'none'; el.style.display = hidden ? 'flex' : 'none'; this.textContent = hidden ? 'Ocultar compras quitadas' : 'Ver compras anteriores quitadas (${paidPurchases.length})'; }"
+              style="font-size:11px; color:var(--text-muted, #64748b); background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px 8px;">
+              Ver compras anteriores quitadas (${paidPurchases.length})
+            </button>
+            <div id="takeatPaidHistory_${esc(storeKey)}_${esc(creditRegisterId)}" style="display:none; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+              ${renderTakeatPurchasesItems_(paidPurchases, storeKey, true)}
             </div>
-            ${hasSession ? `
-              <button type="button"
-                data-action="view-takeat-comanda"
-                data-store-key="${esc(storeKey)}"
-                data-session-id="${esc(p.sessionId)}"
-                data-session-number="${esc(comandaNum)}"
-                data-purchase-value="${p.value.toFixed(2)}"
-                data-purchase-date="${esc(dateStr)}"
-                title="Ver o que foi pego nesta comanda"
-                style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; min-width:34px; border-radius:8px; border:1px solid var(--border-color, #cbd5e1); background:var(--bg-card, #ffffff); cursor:pointer; color:var(--text-secondary, #475569); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition:all 0.15s ease;">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-              </button>
-            ` : ''}
           </div>
         `;
-      }).join("");
+      }
+
+      listEl.innerHTML = openHtml;
     } catch (err) {
       console.error("Erro ao buscar compras da conta:", err);
       if (listEl) {
@@ -8725,65 +8767,66 @@
 
     try {
       const summary = await service.fetchCreditRegisterSummary(storeKey, creditRegisterId);
-      const purchases = (summary || []).filter((item) => item.isConsumption && item.value > 0);
+      const numDebt = parseFloat(debt || "0") || 0;
+      const openPurchases = typeof service.filterOpenPurchases === "function"
+        ? service.filterOpenPurchases(summary, numDebt)
+        : (summary || []).filter((item) => item.isConsumption && item.value > 0);
 
-      if (purchases.length === 0) {
-        if (bodyEl) {
-          bodyEl.innerHTML = `
-            <div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted, #64748b);">
-              <div style="font-size:28px; margin-bottom:0.5rem;">🧾</div>
-              <strong style="color:var(--text-primary, #0f172a); font-size:14px; display:block;">Nenhuma compra em aberto</strong>
-              <span style="font-size:12px;">Não há lançamentos de consumo ativos para esta conta.</span>
+      const allPurchases = (summary || []).filter((item) => item.isConsumption && item.value > 0);
+      const paidPurchases = allPurchases.filter((p) => !openPurchases.some((op) => op.id === p.id));
+
+      if (openPurchases.length === 0) {
+        let emptyHtml = `
+          <div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted, #64748b);">
+            <div style="font-size:28px; margin-bottom:0.5rem;">🧾</div>
+            <strong style="color:var(--text-primary, #0f172a); font-size:14px; display:block;">Nenhuma compra em aberto</strong>
+            <span style="font-size:12px;">Não há lançamentos de consumo ativos ou pendentes para esta conta no momento.</span>
+          </div>
+        `;
+        if (paidPurchases.length > 0) {
+          emptyHtml += `
+            <div style="margin-top:0.75rem; text-align:center; border-top:1px solid var(--border-color, #e2e8f0); padding-top:0.75rem;">
+              <button type="button"
+                onclick="const el = document.getElementById('takeatManagerPaidHistory'); if (el) { const hidden = el.style.display === 'none'; el.style.display = hidden ? 'flex' : 'none'; this.textContent = hidden ? 'Ocultar compras quitadas' : 'Ver compras anteriores quitadas (${paidPurchases.length})'; }"
+                style="font-size:12px; color:var(--primary, #6366f1); background:none; border:none; cursor:pointer; text-decoration:underline; font-weight:600;">
+                Ver compras anteriores quitadas (${paidPurchases.length})
+              </button>
+              <div id="takeatManagerPaidHistory" style="display:none; flex-direction:column; gap:0.6rem; margin-top:0.75rem; text-align:left;">
+                ${renderTakeatPurchasesItems_(paidPurchases, storeKey, true)}
+              </div>
             </div>
           `;
         }
+        if (bodyEl) bodyEl.innerHTML = emptyHtml;
         return;
       }
 
       if (bodyEl) {
-        bodyEl.innerHTML = `
+        let modalHtml = `
           <div style="display:flex; flex-direction:column; gap:0.6rem;">
             <div style="font-size:12px; color:var(--text-muted, #64748b); margin-bottom:2px;">
-              Clique no <strong>olho minimalista</strong> para abrir os itens de qualquer comanda:
+              Exibindo apenas as <strong>${openPurchases.length} compras do saldo em aberto</strong>. Clique no olho para abrir os itens:
             </div>
-            ${purchases.map((p) => {
-              const dateStr = formatTakeatDateTimeBR_(p.createdAt);
-              const comandaNum = p.sessionNumber || (p.sessionId ? `#${p.sessionId}` : "—");
-              const hasSession = Boolean(p.sessionId);
-
-              return `
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.85rem; background:var(--bg-card-alt, #f8fafc); border:1px solid var(--border-color, #e2e8f0); border-radius:10px; gap:0.5rem;">
-                  <div style="min-width:0; flex:1;">
-                    <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
-                      <span style="font-size:13px; font-weight:700; color:var(--text-primary, #0f172a);">Comanda ${esc(comandaNum)}</span>
-                      <span style="font-size:11px; color:var(--text-muted, #64748b);">${esc(dateStr)}</span>
-                    </div>
-                    <div style="display:flex; align-items:baseline; gap:0.5rem; margin-top:2px;">
-                      <span style="font-size:13px; font-weight:700; color:#ef4444;">- ${fmtTakeatBRL_(p.value)}</span>
-                      <span style="font-size:11px; font-weight:600; color:#059669;">c/ 20%: - ${fmtTakeatBRL_(p.discountedValue)}</span>
-                    </div>
-                  </div>
-                  ${hasSession ? `
-                    <button type="button"
-                      data-action="view-takeat-comanda"
-                      data-store-key="${esc(storeKey)}"
-                      data-session-id="${esc(p.sessionId)}"
-                      data-session-number="${esc(comandaNum)}"
-                      data-purchase-value="${p.value.toFixed(2)}"
-                      data-purchase-date="${esc(dateStr)}"
-                      title="Ver o que foi pego nesta comanda"
-                      style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; min-width:34px; border-radius:8px; border:1px solid var(--border-color, #cbd5e1); background:var(--bg-card, #ffffff); cursor:pointer; color:var(--text-secondary, #475569); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition:all 0.15s ease;">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    </button>
-                  ` : ''}
-                </div>
-              `;
-            }).join("")}
+            ${renderTakeatPurchasesItems_(openPurchases, storeKey, false)}
           </div>
         `;
+
+        if (paidPurchases.length > 0) {
+          modalHtml += `
+            <div style="margin-top:0.75rem; text-align:center; border-top:1px solid var(--border-color, #e2e8f0); padding-top:0.75rem;">
+              <button type="button"
+                onclick="const el = document.getElementById('takeatManagerPaidHistory'); if (el) { const hidden = el.style.display === 'none'; el.style.display = hidden ? 'flex' : 'none'; this.textContent = hidden ? 'Ocultar compras quitadas' : 'Ver compras anteriores quitadas (${paidPurchases.length})'; }"
+                style="font-size:12px; color:var(--text-muted, #64748b); background:none; border:none; cursor:pointer; text-decoration:underline; padding:4px 8px;">
+                Ver compras anteriores quitadas (${paidPurchases.length})
+              </button>
+              <div id="takeatManagerPaidHistory" style="display:none; flex-direction:column; gap:0.6rem; margin-top:0.75rem; text-align:left;">
+                ${renderTakeatPurchasesItems_(paidPurchases, storeKey, true)}
+              </div>
+            </div>
+          `;
+        }
+
+        bodyEl.innerHTML = modalHtml;
       }
     } catch (err) {
       console.error("Erro ao buscar compras da conta:", err);
@@ -9168,7 +9211,7 @@
           }).join("");
 
           displayItems.forEach((item) => {
-            loadTakeatAccountPurchases_(item.storeKey, item.id);
+            loadTakeatAccountPurchases_(item.storeKey, item.id, item.debt);
           });
         }
       }
