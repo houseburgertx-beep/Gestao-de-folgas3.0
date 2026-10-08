@@ -1076,6 +1076,10 @@ export class FirebaseRuntime {
     this.recordKeys.delete(this.recordCacheKey(table, id));
   }
 
+  async remove(table, id) {
+    return this.delete(table, id);
+  }
+
   async saveBlob(category, id, value) {
     await set(
       this.appRef(`blobs/${pathKey(category)}/${pathKey(id)}`),

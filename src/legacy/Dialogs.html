@@ -1395,4 +1395,41 @@
   </div>
 </dialog>
 
+<dialog id="takeatMappingDialog">
+  <form id="takeatMappingForm">
+    <div class="dialog-head">
+      <h3 id="takeatMappingDialogTitle">Vincular Conta Takeat</h3>
+      <button type="button" class="icon-btn" data-close="takeatMappingDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <input id="takeatMappingAccountKey" type="hidden" />
+      <div class="dialog-grid">
+        <label class="full">
+          Conta na Takeat
+          <input id="takeatMappingAccountName" type="text" readonly style="font-weight:bold; background:var(--surface-sunken, #f8fafc);" />
+        </label>
+        <label class="full">
+          Colaborador no Gestão de Folgas 3.0
+          <select id="takeatMappingEmployeeSelect" required style="width:100%;">
+            <option value="">-- Selecione o colaborador --</option>
+            <option value="ignored">🚫 Desconsiderar conta (Despesa Operacional / Outros)</option>
+            <optgroup label="Colaboradores Cadastrados" id="takeatMappingEmployeeOptgroup">
+            </optgroup>
+          </select>
+        </label>
+      </div>
+      <p style="font-size:12px; color:var(--text-muted, #64748b); margin-top:0.75rem;">
+        💡 Ao salvar, o vínculo fica gravado no sistema e o débito deste colaborador será reconhecido automaticamente em todas as telas e no fechamento mensal.
+      </p>
+    </div>
+    <div class="dialog-foot">
+      <button type="button" class="btn btn-ghost" id="takeatMappingClearBtn" style="margin-right:auto; color:#ef4444;">
+        Remover vínculo manual
+      </button>
+      <button type="button" class="btn btn-secondary" data-close="takeatMappingDialog">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Salvar Vínculo</button>
+    </div>
+  </form>
+</dialog>
+
 

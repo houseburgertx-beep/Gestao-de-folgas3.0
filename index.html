@@ -10832,6 +10832,31 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   color: var(--rt-primary, #2563eb);
 }
 
+.routine-check-direct-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--rt-radius-md);
+  border: 1.5px solid var(--rt-border, #cbd5e1);
+  background: var(--rt-surface, #ffffff);
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.routine-check-direct-btn.checked {
+  background: var(--rt-success, #10b981);
+  border-color: var(--rt-success, #10b981);
+  color: #ffffff;
+}
+
+.routine-check-direct-btn:active {
+  transform: scale(0.92);
+}
+
 .routine-progress-track {
   width: 100%;
   height: 2.5px;
@@ -15837,6 +15862,7 @@ tr:last-child td {
             <summary><span>♙</span>Pessoas</summary>
             <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
             <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
+            <button class="nav-item permission-manager" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b>Contas a Prazo</b></button>
             <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
           </details>
           <details class="nav-group" open>
@@ -16721,6 +16747,72 @@ tr:last-child td {
                     <th>Funcionário</th><th>Loja</th><th>Trabalhado</th><th>Previsto</th><th>Ajustes</th><th>Pendências</th><th>Saldo</th><th></th>
                   </tr></thead>
                   <tbody id="adminHourBalanceBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-takeat-credit" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">TAKEAT · CONSUMO INTERNO</span>
+                <h2>Contas a Prazo &amp; Vales</h2>
+                <p>Acompanhe o saldo devedor, limites de crédito e consumo dos colaboradores nas 3 lojas em tempo real.</p>
+              </div>
+              <div class="toolbar-actions">
+                <select id="takeatStoreFilter">
+                  <option value="all">Todas as unidades</option>
+                  <option value="teixeira">House 190 Teixeira</option>
+                  <option value="eunapolis">House 190 Eunápolis</option>
+                  <option value="foodpark">House Foodpark</option>
+                </select>
+                <button id="takeatCreditRefreshBtn" class="btn btn-secondary" type="button">↻ Sincronizar Takeat</button>
+                <button id="takeatCreditExportBtn" class="btn btn-primary" type="button">📥 Exportar CSV</button>
+              </div>
+            </div>
+            <div class="metric-grid">
+              <div class="metric-card">
+                <span>Total Devedor em Aberto</span>
+                <strong id="takeatTotalDebtMetric" style="color: #ef4444;">R$ 0,00</strong>
+              </div>
+              <div class="metric-card">
+                <span>Contas com Débito Ativo</span>
+                <strong id="takeatCountWithDebtMetric">0</strong>
+              </div>
+              <div class="metric-card">
+                <span>Limite Total Cadastrado</span>
+                <strong id="takeatTotalLimitMetric">R$ 0,00</strong>
+              </div>
+              <div class="metric-card">
+                <span>Status da Integração</span>
+                <strong id="takeatSyncStatusMetric" style="color: #10b981;">Online</strong>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                  <input id="takeatCreditSearch" class="search-input" placeholder="Pesquisar por colaborador, conta ou telefone…" style="min-width:240px;" />
+                  <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:13px; cursor:pointer; margin:0;">
+                    <input type="checkbox" id="takeatOnlyDebtCheckbox" checked /> Apenas com débito
+                  </label>
+                </div>
+                <div id="takeatLastSyncTime" style="font-size:12px; color:var(--text-muted, #64748b);"></div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Conta / Colaborador</th>
+                      <th>Unidade</th>
+                      <th>Vínculo no Folgas 3.0</th>
+                      <th>Limite</th>
+                      <th>Saldo Devedor</th>
+                      <th>Uso do Limite</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="takeatCreditBody">
+                    <tr><td colspan="7" style="text-align:center; padding:2rem;">Carregando contas a prazo da Takeat…</td></tr>
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -18777,6 +18869,43 @@ tr:last-child td {
   </div>
 </dialog>
 
+<dialog id="takeatMappingDialog">
+  <form id="takeatMappingForm">
+    <div class="dialog-head">
+      <h3 id="takeatMappingDialogTitle">Vincular Conta Takeat</h3>
+      <button type="button" class="icon-btn" data-close="takeatMappingDialog">✕</button>
+    </div>
+    <div class="dialog-body">
+      <input id="takeatMappingAccountKey" type="hidden" />
+      <div class="dialog-grid">
+        <label class="full">
+          Conta na Takeat
+          <input id="takeatMappingAccountName" type="text" readonly style="font-weight:bold; background:var(--surface-sunken, #f8fafc);" />
+        </label>
+        <label class="full">
+          Colaborador no Gestão de Folgas 3.0
+          <select id="takeatMappingEmployeeSelect" required style="width:100%;">
+            <option value="">-- Selecione o colaborador --</option>
+            <option value="ignored">🚫 Desconsiderar conta (Despesa Operacional / Outros)</option>
+            <optgroup label="Colaboradores Cadastrados" id="takeatMappingEmployeeOptgroup">
+            </optgroup>
+          </select>
+        </label>
+      </div>
+      <p style="font-size:12px; color:var(--text-muted, #64748b); margin-top:0.75rem;">
+        💡 Ao salvar, o vínculo fica gravado no sistema e o débito deste colaborador será reconhecido automaticamente em todas as telas e no fechamento mensal.
+      </p>
+    </div>
+    <div class="dialog-foot">
+      <button type="button" class="btn btn-ghost" id="takeatMappingClearBtn" style="margin-right:auto; color:#ef4444;">
+        Remover vínculo manual
+      </button>
+      <button type="button" class="btn btn-secondary" data-close="takeatMappingDialog">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Salvar Vínculo</button>
+    </div>
+  </form>
+</dialog>
+
 
 
     <script>
@@ -18846,6 +18975,16 @@ tr:last-child td {
     usersLoaded: false,
     usersLoading: false,
     secondaryStarted: false,
+    takeatCredit: {
+      items: [],
+      mappings: {},
+      loaded: false,
+      loading: false,
+      lastSync: null,
+      storeFilter: "all",
+      searchQuery: "",
+      onlyDebt: true,
+    },
   };
   const FN = {
     login: "loginUser",
@@ -21573,7 +21712,7 @@ tr:last-child td {
       state.pendingCenter.filter = legacyPendingViews[view];
       view = "pending-center";
     }
-    const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports"];
+    const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports", "takeat-credit"];
     const adminViews = ["access", "governance", "audit", "hour-balances"];
     if ((managerViews.includes(view) && !isManager()) || (adminViews.includes(view) && !isAdmin())) {
       toast("Esta área está disponível apenas para o perfil autorizado.", true);
@@ -21651,6 +21790,7 @@ tr:last-child td {
     else if (view === "timeclock") loadTimeClock();
     else if (view === "absences") loadAbsences_();
     else if (view === "hour-balances") loadAdminHourBalances_();
+    else if (view === "takeat-credit") loadTakeatCreditData();
     else if (view === "tasks") {
       window.__GESTAO_USER__ = state.user;
       window.__GESTAO_IS_MANAGER__ = isManager();
@@ -22259,7 +22399,17 @@ tr:last-child td {
             fixed =
               val(x, "DiaFolgaPreferencial", "diaFolgaPreferencial") || "—";
           const active = bool(val(x, "Ativo", "ativo"));
-          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
+          const takeatDebt = state.takeatCredit?.items?.find(
+            (tc) =>
+              tc.matchedEmployee &&
+              (String(tc.matchedEmployee.FuncionarioID) === String(id) ||
+                tc.matchedEmployee.Nome === val(x, "Nome", "nome")),
+          )?.debt;
+          const debtTag =
+            takeatDebt > 0
+              ? `<span title="Débito em aberto no Takeat" style="display:inline-block; margin-top:3px; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">Prazo: - R$ ${takeatDebt.toFixed(2).replace(".", ",")}</span>`
+              : "";
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -27038,6 +27188,418 @@ tr:last-child td {
       "Delegação criada.",
     );
     e.target.reset();
+  }
+
+  /* =========================================================
+   * MÓDULO TAKEAT - CONTAS A PRAZO & VALES DE CONSUMO
+   * ========================================================= */
+
+  let TAKEAT_CREDIT_EVENTS_BOUND_ = false;
+
+  function initTakeatCreditEvents_() {
+    if (TAKEAT_CREDIT_EVENTS_BOUND_) return;
+    TAKEAT_CREDIT_EVENTS_BOUND_ = true;
+
+    const refreshBtn = $("#takeatCreditRefreshBtn");
+    if (refreshBtn) {
+      refreshBtn.onclick = () => loadTakeatCreditData(true);
+    }
+
+    const exportBtn = $("#takeatCreditExportBtn");
+    if (exportBtn) {
+      exportBtn.onclick = () => exportTakeatCreditCSV();
+    }
+
+    const storeFilter = $("#takeatStoreFilter");
+    if (storeFilter) {
+      storeFilter.onchange = (e) => {
+        state.takeatCredit.storeFilter = e.target.value;
+        loadTakeatCreditData(true);
+      };
+    }
+
+    const searchInput = $("#takeatCreditSearch");
+    if (searchInput) {
+      searchInput.oninput = (e) => {
+        state.takeatCredit.searchQuery = e.target.value.trim().toLowerCase();
+        renderTakeatCreditView();
+      };
+    }
+
+    const onlyDebtCheckbox = $("#takeatOnlyDebtCheckbox");
+    if (onlyDebtCheckbox) {
+      onlyDebtCheckbox.onchange = (e) => {
+        state.takeatCredit.onlyDebt = e.target.checked;
+        renderTakeatCreditView();
+      };
+    }
+
+    // Modal de Edição de Vínculo
+    const mappingForm = $("#takeatMappingForm");
+    if (mappingForm) {
+      mappingForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const key = $("#takeatMappingAccountKey").value;
+        const empId = $("#takeatMappingEmployeeSelect").value;
+        if (!key) return;
+
+        const service = window.__GESTAO_TAKEAT_CREDIT__;
+        if (service) {
+          try {
+            const mappings = await service.saveMapping(key, empId);
+            state.takeatCredit.mappings = mappings;
+
+            // Re-resolve vínculos
+            const employees = state.employees || [];
+            state.takeatCredit.items.forEach((item) => {
+              const res = service.resolveAccountMatch(item, employees, mappings);
+              item.matchedEmployee = res.matchedEmployee;
+              item.isManualMatch = res.isManual;
+            });
+
+            renderTakeatCreditView();
+            renderEmployees();
+            closeDialog("takeatMappingDialog");
+            toast("Vínculo atualizado com sucesso!");
+          } catch (err) {
+            toast(err.message || "Erro ao salvar vínculo.", true);
+          }
+        }
+      };
+    }
+
+    const clearMappingBtn = $("#takeatMappingClearBtn");
+    if (clearMappingBtn) {
+      clearMappingBtn.onclick = async () => {
+        const key = $("#takeatMappingAccountKey").value;
+        if (!key) return;
+
+        const service = window.__GESTAO_TAKEAT_CREDIT__;
+        if (service) {
+          try {
+            const mappings = await service.saveMapping(key, null);
+            state.takeatCredit.mappings = mappings;
+
+            const employees = state.employees || [];
+            state.takeatCredit.items.forEach((item) => {
+              const res = service.resolveAccountMatch(item, employees, mappings);
+              item.matchedEmployee = res.matchedEmployee;
+              item.isManualMatch = res.isManual;
+            });
+
+            renderTakeatCreditView();
+            renderEmployees();
+            closeDialog("takeatMappingDialog");
+            toast("Vínculo manual removido. Revertido para correspondência automática.");
+          } catch (err) {
+            toast(err.message || "Erro ao remover vínculo.", true);
+          }
+        }
+      };
+    }
+
+    // Clique no botão [data-action="edit-takeat-mapping"]
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('[data-action="edit-takeat-mapping"]');
+      if (btn) {
+        openTakeatMappingModal_(
+          btn.dataset.accountKey,
+          btn.dataset.accountName,
+          btn.dataset.storeName,
+          btn.dataset.currentVal,
+        );
+      }
+    });
+  }
+
+  function openTakeatMappingModal_(accountKey, accountName, storeName, currentVal) {
+    $("#takeatMappingAccountKey").value = accountKey || "";
+    $("#takeatMappingAccountName").value = `${accountName} (${storeName})`;
+
+    const optgroup = $("#takeatMappingEmployeeOptgroup");
+    if (optgroup) {
+      const sorted = [...(state.employees || [])].sort((a, b) =>
+        (a.Nome || "").localeCompare(b.Nome || ""),
+      );
+      optgroup.innerHTML = sorted
+        .map((emp) => {
+          const store =
+            state.stores.find((s) => String(s.LojaID) === String(emp.LojaID))
+              ?.NomeLoja ||
+            emp.NomeLoja ||
+            "";
+          const label = `${emp.Nome || emp.nome}${emp.Cargo ? ` · ${emp.Cargo}` : ""}${store ? ` (${store})` : ""}`;
+          return `<option value="${esc(emp.FuncionarioID)}">${esc(label)}</option>`;
+        })
+        .join("");
+    }
+
+    const select = $("#takeatMappingEmployeeSelect");
+    if (select) {
+      select.value = currentVal || "";
+    }
+
+    openDialog("takeatMappingDialog");
+  }
+
+  async function loadTakeatCreditData(forceRefresh = false) {
+    initTakeatCreditEvents_();
+
+    const service = window.__GESTAO_TAKEAT_CREDIT__;
+    if (!service) {
+      toast("Módulo Takeat ainda não inicializado. Tente novamente.", true);
+      return;
+    }
+
+    if (!forceRefresh && state.takeatCredit.loaded && state.takeatCredit.items.length > 0) {
+      renderTakeatCreditView();
+      return;
+    }
+
+    const refreshBtn = $("#takeatCreditRefreshBtn");
+    if (refreshBtn) {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = "Sincronizando…";
+    }
+
+    const statusMetric = $("#takeatSyncStatusMetric");
+    if (statusMetric) {
+      statusMetric.textContent = "Conectando…";
+      statusMetric.style.color = "var(--primary, #6366f1)";
+    }
+
+    const tbody = $("#takeatCreditBody");
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">Sincronizando contas com a Takeat…</td></tr>';
+    }
+
+    try {
+      const storeFilter = state.takeatCredit.storeFilter || "all";
+      const [result, mappings] = await Promise.all([
+        service.fetchAllTakeatCredit(storeFilter),
+        service.loadMappings(),
+      ]);
+
+      state.takeatCredit.mappings = mappings || {};
+
+      // Associa as contas com os colaboradores do Folgas 3.0 considerando mapeamentos manuais
+      const employees = state.employees || [];
+      const items = (result.items || []).map((item) => {
+        const resolved = service.resolveAccountMatch(item, employees, state.takeatCredit.mappings);
+        return {
+          ...item,
+          matchedEmployee: resolved.matchedEmployee,
+          isManualMatch: resolved.isManual,
+        };
+      });
+
+      state.takeatCredit.items = items;
+      state.takeatCredit.loaded = true;
+      state.takeatCredit.lastSync = new Date();
+
+      if (statusMetric) {
+        statusMetric.textContent = `Online (${items.length} contas)`;
+        statusMetric.style.color = "#10b981";
+      }
+
+      renderTakeatCreditView();
+      toast(`Takeat sincronizado: ${items.length} contas carregadas.`);
+    } catch (err) {
+      console.error("Erro Takeat:", err);
+      if (statusMetric) {
+        statusMetric.textContent = "Erro na sincronização";
+        statusMetric.style.color = "#ef4444";
+      }
+      toast(err.message || "Erro ao conectar com a Takeat.", true);
+    } finally {
+      if (refreshBtn) {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = "↻ Sincronizar Takeat";
+      }
+    }
+  }
+
+  function renderTakeatCreditView() {
+    initTakeatCreditEvents_();
+
+    const items = state.takeatCredit.items || [];
+    const query = state.takeatCredit.searchQuery || "";
+    const onlyDebt = state.takeatCredit.onlyDebt;
+
+    const filtered = items.filter((item) => {
+      if (onlyDebt && item.debt <= 0) return false;
+      if (query) {
+        const target = `${item.name} ${item.phone} ${item.storeName} ${item.matchedEmployee?.Nome || ""}`.toLowerCase();
+        if (!target.includes(query)) return false;
+      }
+      return true;
+    });
+
+    const totalDebt = filtered.reduce((acc, curr) => acc + (curr.debt || 0), 0);
+    const countDebt = filtered.filter((x) => x.debt > 0).length;
+    const totalLimit = filtered.reduce((acc, curr) => acc + (curr.totalLimit || 0), 0);
+
+    const fmtBRL = (num) => "R$ " + Number(num || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const debtMetric = $("#takeatTotalDebtMetric");
+    if (debtMetric) debtMetric.textContent = totalDebt > 0 ? "- " + fmtBRL(totalDebt) : fmtBRL(0);
+
+    const countMetric = $("#takeatCountWithDebtMetric");
+    if (countMetric) countMetric.textContent = String(countDebt);
+
+    const limitMetric = $("#takeatTotalLimitMetric");
+    if (limitMetric) limitMetric.textContent = fmtBRL(totalLimit);
+
+    const syncTime = $("#takeatLastSyncTime");
+    if (syncTime && state.takeatCredit.lastSync) {
+      syncTime.textContent = "Última sincronização: " + state.takeatCredit.lastSync.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    const tbody = $("#takeatCreditBody");
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">' +
+        (items.length === 0 ? 'Nenhuma conta encontrada na Takeat.' : 'Nenhuma conta encontrada com os filtros selecionados.') +
+        '</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map((item) => {
+      const debtText = item.debt > 0
+        ? `<strong style="color: #ef4444; font-size:14px;">- ${fmtBRL(item.debt)}</strong>`
+        : `<span style="color: #10b981; font-weight:500;">R$ 0,00</span>`;
+
+      const limitText = item.totalLimit > 0
+        ? fmtBRL(item.totalLimit)
+        : '<span style="color:var(--text-muted);">Sem limite</span>';
+
+      let usageMarkup = '<span style="color:var(--text-muted);">—</span>';
+      if (item.totalLimit > 0) {
+        const pct = Math.round(item.percentUsed);
+        const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#3b82f6';
+        usageMarkup = `
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div style="flex:1; height:6px; background:rgba(0,0,0,0.06); border-radius:3px; overflow:hidden; min-width:60px;">
+              <div style="width:${Math.min(100, pct)}%; height:100%; background:${barColor};"></div>
+            </div>
+            <small style="font-weight:600; font-size:11px; color:${barColor}; min-width:32px;">${pct}%</small>
+          </div>
+        `;
+      }
+
+      let statusBadge = '';
+      if (item.percentUsed >= 100) {
+        statusBadge = '<span class="status rejected" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">Limite Excedido</span>';
+      } else if (item.percentUsed >= 80) {
+        statusBadge = '<span class="status pending" style="background:#fffbeb; color:#d97706; border:1px solid #fde68a;">Perto do Limite</span>';
+      } else if (item.debt > 0) {
+        statusBadge = '<span class="status pending" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe;">Débito Ativo</span>';
+      } else {
+        statusBadge = '<span class="status approved" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0;">Em Dia</span>';
+      }
+
+      const accountKey = `${item.storeKey}_${item.id}`;
+      const currentVal = item.matchedEmployee?.isIgnored
+        ? "ignored"
+        : item.matchedEmployee?.FuncionarioID || "";
+
+      let matchDisplay = '';
+      if (item.matchedEmployee?.isIgnored) {
+        matchDisplay = '<span class="status" style="background:#f1f5f9; color:#64748b; font-size:11px;">🚫 Desconsiderado</span>';
+      } else if (item.matchedEmployee) {
+        matchDisplay = `
+          <div style="display:flex; align-items:center; gap:0.35rem;">
+            <span style="color:#059669; font-weight:700;">✓</span>
+            <div>
+              <strong style="color:var(--text-primary); font-size:13px;">${esc(item.matchedEmployee.Nome || item.matchedEmployee.nome)}</strong>
+              ${item.isManualMatch ? '<span style="font-size:10px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:600;">Manual</span>' : ''}
+              ${item.matchedEmployee.Cargo ? `<br><small style="color:var(--text-muted); font-size:11px;">${esc(item.matchedEmployee.Cargo)}</small>` : ''}
+            </div>
+          </div>
+        `;
+      } else {
+        matchDisplay = '<span style="color:var(--text-muted); font-size:12px;">Não vinculado</span>';
+      }
+
+      const matchMarkup = `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+          <div>${matchDisplay}</div>
+          <button type="button" class="btn btn-secondary" data-action="edit-takeat-mapping"
+            data-account-key="${esc(accountKey)}"
+            data-account-name="${esc(item.name)}"
+            data-store-name="${esc(item.storeName)}"
+            data-current-val="${esc(currentVal)}"
+            style="padding:3px 8px; font-size:11px; white-space:nowrap; border-radius:6px; cursor:pointer;"
+            title="Editar vínculo do colaborador">
+            ✎ Vincular
+          </button>
+        </div>
+      `;
+
+      return `
+        <tr>
+          <td>
+            <strong>${esc(item.name)}</strong>
+            ${item.phone ? `<br><small style="color:var(--text-muted);">${esc(item.phone)}</small>` : ''}
+          </td>
+          <td>
+            <span class="status" style="font-size:12px; font-weight:500;">${esc(item.storeName)}</span>
+          </td>
+          <td>${matchMarkup}</td>
+          <td>${limitText}</td>
+          <td>${debtText}</td>
+          <td style="min-width:130px;">${usageMarkup}</td>
+          <td>${statusBadge}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function exportTakeatCreditCSV() {
+    const items = state.takeatCredit.items || [];
+    if (items.length === 0) {
+      toast("Nenhuma conta carregada para exportação.", true);
+      return;
+    }
+
+    const onlyDebt = state.takeatCredit.onlyDebt;
+    const query = state.takeatCredit.searchQuery || "";
+
+    const filtered = items.filter(item => {
+      if (onlyDebt && item.debt <= 0) return false;
+      if (query) {
+        const target = `${item.name} ${item.phone} ${item.storeName} ${item.matchedEmployee?.Nome || ""}`.toLowerCase();
+        if (!target.includes(query)) return false;
+      }
+      return true;
+    });
+
+    const headers = ["Conta/Colaborador", "Telefone", "Loja", "Funcionario Folgas 3.0", "Cargo", "Limite (R$)", "Saldo Devedor (R$)", "% Uso", "Status"];
+    const rows = filtered.map(item => [
+      `"${(item.name || "").replace(/"/g, '""')}"`,
+      `"${(item.phone || "").replace(/"/g, '""')}"`,
+      `"${(item.storeName || "").replace(/"/g, '""')}"`,
+      `"${(item.matchedEmployee?.Nome || "").replace(/"/g, '""')}"`,
+      `"${(item.matchedEmployee?.Cargo || "").replace(/"/g, '""')}"`,
+      (item.totalLimit || 0).toFixed(2).replace('.', ','),
+      (item.debt || 0).toFixed(2).replace('.', ','),
+      Math.round(item.percentUsed || 0) + "%",
+      item.debt > 0 ? "Com débito" : "Quitado"
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.join(";"))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `takeat-contas-a-prazo-${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast("Relatório CSV gerado com sucesso.");
   }
 </script>
 

@@ -268,6 +268,7 @@
             <summary><span>♙</span>Pessoas</summary>
             <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
             <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
+            <button class="nav-item permission-manager" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b>Contas a Prazo</b></button>
             <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
           </details>
           <details class="nav-group" open>
@@ -1152,6 +1153,72 @@
                     <th>Funcionário</th><th>Loja</th><th>Trabalhado</th><th>Previsto</th><th>Ajustes</th><th>Pendências</th><th>Saldo</th><th></th>
                   </tr></thead>
                   <tbody id="adminHourBalanceBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section id="view-takeat-credit" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">TAKEAT · CONSUMO INTERNO</span>
+                <h2>Contas a Prazo &amp; Vales</h2>
+                <p>Acompanhe o saldo devedor, limites de crédito e consumo dos colaboradores nas 3 lojas em tempo real.</p>
+              </div>
+              <div class="toolbar-actions">
+                <select id="takeatStoreFilter">
+                  <option value="all">Todas as unidades</option>
+                  <option value="teixeira">House 190 Teixeira</option>
+                  <option value="eunapolis">House 190 Eunápolis</option>
+                  <option value="foodpark">House Foodpark</option>
+                </select>
+                <button id="takeatCreditRefreshBtn" class="btn btn-secondary" type="button">↻ Sincronizar Takeat</button>
+                <button id="takeatCreditExportBtn" class="btn btn-primary" type="button">📥 Exportar CSV</button>
+              </div>
+            </div>
+            <div class="metric-grid">
+              <div class="metric-card">
+                <span>Total Devedor em Aberto</span>
+                <strong id="takeatTotalDebtMetric" style="color: #ef4444;">R$ 0,00</strong>
+              </div>
+              <div class="metric-card">
+                <span>Contas com Débito Ativo</span>
+                <strong id="takeatCountWithDebtMetric">0</strong>
+              </div>
+              <div class="metric-card">
+                <span>Limite Total Cadastrado</span>
+                <strong id="takeatTotalLimitMetric">R$ 0,00</strong>
+              </div>
+              <div class="metric-card">
+                <span>Status da Integração</span>
+                <strong id="takeatSyncStatusMetric" style="color: #10b981;">Online</strong>
+              </div>
+            </div>
+            <div class="panel table-panel">
+              <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                  <input id="takeatCreditSearch" class="search-input" placeholder="Pesquisar por colaborador, conta ou telefone…" style="min-width:240px;" />
+                  <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:13px; cursor:pointer; margin:0;">
+                    <input type="checkbox" id="takeatOnlyDebtCheckbox" checked /> Apenas com débito
+                  </label>
+                </div>
+                <div id="takeatLastSyncTime" style="font-size:12px; color:var(--text-muted, #64748b);"></div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Conta / Colaborador</th>
+                      <th>Unidade</th>
+                      <th>Vínculo no Folgas 3.0</th>
+                      <th>Limite</th>
+                      <th>Saldo Devedor</th>
+                      <th>Uso do Limite</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="takeatCreditBody">
+                    <tr><td colspan="7" style="text-align:center; padding:2rem;">Carregando contas a prazo da Takeat…</td></tr>
+                  </tbody>
                 </table>
               </div>
             </div>

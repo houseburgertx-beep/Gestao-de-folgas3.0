@@ -29,6 +29,15 @@ export const sessionUser = (profile) => ({
   cargo: profile.Cargo || "",
   fotoPerfil: "",
   ativo: asBoolean(profile.Ativo),
+  UsuarioID: profile.UsuarioID,
+  FuncionarioID: profile.FuncionarioID || "",
+  Nome: profile.Nome || "",
+  Email: profile.Email || "",
+  Perfil: profile.Perfil || "",
+  LojaID: profile.LojaID || "",
+  NomeLoja: profile.NomeLoja || "",
+  Cargo: profile.Cargo || "",
+  Ativo: asBoolean(profile.Ativo),
 });
 
 const dropClientToken = (args) => {

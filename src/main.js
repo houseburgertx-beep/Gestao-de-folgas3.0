@@ -9,9 +9,11 @@ import {
   firebaseConfigurationProblems,
   runtime,
 } from "./core/runtime.js";
+import * as takeatCredit from "./core/takeat-credit.js";
 
 const api = createApi();
 window.__GESTAO_FIREBASE__ = { runtime, api };
+window.__GESTAO_TAKEAT_CREDIT__ = takeatCredit;
 
 const signalApiReady = () => {
   window.__GESTAO_API_STATUS__ = "ready";
