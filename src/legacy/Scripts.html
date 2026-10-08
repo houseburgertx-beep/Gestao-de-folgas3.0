@@ -2633,6 +2633,9 @@
       takeatLabel.textContent = employeeMode
         ? "Meu consumo"
         : "Contas a Prazo";
+    const dockTakeat = $("#dockTakeatLabel");
+    if (dockTakeat)
+      dockTakeat.textContent = employeeMode ? "Consumo" : "Prazo";
     $("#dashboardNewTimeOff").textContent = employeeMode
       ? "＋ Pedir folga"
       : "＋ Criar folga";
