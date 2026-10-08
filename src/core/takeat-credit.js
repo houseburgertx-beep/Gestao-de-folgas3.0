@@ -302,3 +302,149 @@ export function resolveAccountMatch(item, employees = [], mappings = {}) {
     isIgnored: false,
   };
 }
+
+const summaryCache = new Map();
+const sessionDetailsCache = new Map();
+
+export function clearTakeatSummaryCache() {
+  summaryCache.clear();
+  sessionDetailsCache.clear();
+}
+
+/**
+ * Busca o extrato de compras e pagamentos de uma conta a prazo específica
+ */
+export async function fetchCreditRegisterSummary(storeKey, creditRegisterId, forceRefresh = false) {
+  const cacheKey = `${storeKey}_${creditRegisterId}`;
+  if (!forceRefresh && summaryCache.has(cacheKey)) {
+    return summaryCache.get(cacheKey);
+  }
+
+  const store = TAKEEAT_STORES[storeKey];
+  if (!store) throw new Error(`Unidade inválida: ${storeKey}`);
+
+  let token = await getTakeatToken(storeKey);
+  let res = await fetch(`${BASE_URL}/restaurants/credit-register/summary/${creditRegisterId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (res.status === 401) {
+    tokenCache.delete(storeKey);
+    try { sessionStorage.removeItem(`takeat_token_${storeKey}`); } catch {}
+    token = await getTakeatToken(storeKey);
+    res = await fetch(`${BASE_URL}/restaurants/credit-register/summary/${creditRegisterId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+  }
+
+  if (!res.ok) {
+    throw new Error(`Erro ao buscar extrato da conta #${creditRegisterId} (${store.name}): HTTP ${res.status}`);
+  }
+
+  const list = await res.json();
+  if (!Array.isArray(list)) return [];
+
+  const parsed = list.map((item) => {
+    const rawVal = parseFloat(item.value || "0") || 0;
+    const isConsumption = rawVal < 0 || (item.status && item.status.toLowerCase().includes("consumo"));
+    const value = Math.abs(rawVal);
+    const discountedValue = value * 0.8;
+
+    return {
+      id: item.id,
+      rawValue: rawVal,
+      value,
+      discountedValue,
+      isConsumption,
+      sessionId: item.session_id || null,
+      sessionNumber: item.session_number || null,
+      serie: item.serie ?? null,
+      createdAt: item.created_at || null,
+      total: parseFloat(item.total || "0") || 0,
+      status: item.status || (isConsumption ? "Consumo" : "Pagamento"),
+    };
+  });
+
+  summaryCache.set(cacheKey, parsed);
+  return parsed;
+}
+
+/**
+ * Busca os detalhes e itens consumidos de uma comanda / sessão específica
+ */
+export async function fetchTableSessionDetails(storeKey, sessionId) {
+  if (!sessionId) return null;
+  const cacheKey = `${storeKey}_${sessionId}`;
+  if (sessionDetailsCache.has(cacheKey)) {
+    return sessionDetailsCache.get(cacheKey);
+  }
+
+  const store = TAKEEAT_STORES[storeKey];
+  if (!store) throw new Error(`Unidade inválida: ${storeKey}`);
+
+  let token = await getTakeatToken(storeKey);
+  let res = await fetch(`${BASE_URL}/restaurants/table-sessions/${sessionId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (res.status === 401) {
+    tokenCache.delete(storeKey);
+    try { sessionStorage.removeItem(`takeat_token_${storeKey}`); } catch {}
+    token = await getTakeatToken(storeKey);
+    res = await fetch(`${BASE_URL}/restaurants/table-sessions/${sessionId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+  }
+
+  if (!res.ok) {
+    throw new Error(`Erro ao consultar comanda #${sessionId}: HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  const tableSession = data.tableSession || {};
+  const bill = tableSession.bills?.[0] || {};
+  const rawOrders = bill.order_baskets?.flatMap((b) => b.orders || []) || [];
+
+  const orders = rawOrders.map((o) => {
+    const complements =
+      o.complement_categories
+        ?.flatMap((cc) => cc.order_complements?.map((oc) => oc.complement?.name).filter(Boolean))
+        .filter(Boolean) || [];
+
+    return {
+      id: o.id,
+      productName: o.product?.name || "Item",
+      amount: o.amount || 1,
+      price: parseFloat(o.price || o.total_price || "0") || 0,
+      totalPrice: parseFloat(o.total_price || o.price || "0") || 0,
+      details: (o.details || "").trim(),
+      complements,
+    };
+  });
+
+  const details = {
+    sessionId: tableSession.id || sessionId,
+    sessionNumber: tableSession.session_number || null,
+    attendancePassword: tableSession.attendance_password || null,
+    totalPrice: parseFloat(tableSession.total_price || "0") || 0,
+    startTime: bill.start_time || tableSession.start_time || tableSession.createdAt,
+    buyerName: bill.buyer?.name || null,
+    buyerPhone: bill.buyer?.phone || null,
+    orders,
+  };
+
+  sessionDetailsCache.set(cacheKey, details);
+  return details;
+}

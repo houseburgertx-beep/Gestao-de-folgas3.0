@@ -2262,6 +2262,71 @@ test("módulo Takeat de Contas a Prazo é acessível para funcionários e gerent
   );
 });
 
+test("Takeat Credit: separação por compra e detalhes da comanda com olho minimalista", async () => {
+  const dialogsHtml = await readFile(
+    new URL("../src/legacy/Dialogs.html", import.meta.url),
+    "utf8",
+  );
+  const scriptsHtml = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  const coreTakeat = await readFile(
+    new URL("../src/core/takeat-credit.js", import.meta.url),
+    "utf8",
+  );
+
+  // 1. Dialog para itens da comanda
+  assert.match(
+    dialogsHtml,
+    /id="takeatComandaDetailsDialog"/,
+    "Dialogs.html deve conter o modal takeatComandaDetailsDialog",
+  );
+
+  // 2. Funções core exportadas
+  assert.match(
+    coreTakeat,
+    /export async function fetchCreditRegisterSummary/,
+    "takeat-credit.js deve exportar fetchCreditRegisterSummary",
+  );
+  assert.match(
+    coreTakeat,
+    /export async function fetchTableSessionDetails/,
+    "takeat-credit.js deve exportar fetchTableSessionDetails",
+  );
+
+  // 3. Funções no Scripts.html
+  assert.match(
+    scriptsHtml,
+    /loadTakeatAccountPurchases_/,
+    "Scripts.html deve conter a função loadTakeatAccountPurchases_",
+  );
+  assert.match(
+    scriptsHtml,
+    /showTakeatComandaDetails_/,
+    "Scripts.html deve conter a função showTakeatComandaDetails_",
+  );
+  assert.match(
+    scriptsHtml,
+    /openTakeatManagerComandasModal_/,
+    "Scripts.html deve conter a função openTakeatManagerComandasModal_",
+  );
+
+  // 4. Botão com olho minimalista (data-action="view-takeat-comanda")
+  assert.match(
+    scriptsHtml,
+    /data-action="view-takeat-comanda"/,
+    "Scripts.html deve renderizar o botão com olho minimalista para abrir comanda",
+  );
+
+  // 5. Botão de compras do gestor
+  assert.match(
+    scriptsHtml,
+    /data-action="view-takeat-account-comandas"/,
+    "Scripts.html deve conter botão para o gestor visualizar compras da conta",
+  );
+});
+
 
 
 
