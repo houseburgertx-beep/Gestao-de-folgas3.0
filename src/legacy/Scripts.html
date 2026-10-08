@@ -2922,12 +2922,11 @@
     const myAccs = typeof getEmployeeTakeatAccounts_ === "function" ? getEmployeeTakeatAccounts_() : [];
     if (myAccs.length === 0) return "Sem débito ativo";
     const myDebt = myAccs.reduce((acc, c) => acc + (c.debt || 0), 0);
-    const myLimit = myAccs.reduce((acc, c) => acc + (c.totalLimit || 0), 0);
-    if (myLimit > 0) {
-      const disp = Math.max(0, myLimit - myDebt);
-      return `Disp: R$ ${disp.toFixed(2).replace(".", ",")}`;
+    if (myDebt > 0) {
+      const discounted = myDebt * 0.8;
+      return `Com 20% desc: - R$ ${discounted.toFixed(2).replace(".", ",")}`;
     }
-    return myDebt > 0 ? "Débito em aberto" : "Conta em dia";
+    return "Conta em dia";
   }
   function hourBalanceSubtitle() {
     const d = state.hourBalance;
@@ -8610,7 +8609,7 @@
     if (m2Label) m2Label.textContent = isEmp ? "Meu Limite Total" : "Contas com Débito Ativo";
 
     const m3Label = $("#takeatMetric3Label");
-    if (m3Label) m3Label.textContent = isEmp ? "Limite Disponível" : "Limite Total Cadastrado";
+    if (m3Label) m3Label.textContent = isEmp ? "Com 20% de Desconto" : "Limite Total Cadastrado";
 
     const m4Label = $("#takeatMetric4Label");
     if (m4Label) m4Label.textContent = isEmp ? "Situação" : "Status da Integração";
@@ -8624,6 +8623,8 @@
       const myDebt = displayItems.reduce((acc, curr) => acc + (curr.debt || 0), 0);
       const myLimit = displayItems.reduce((acc, curr) => acc + (curr.totalLimit || 0), 0);
       const myAvailable = Math.max(0, myLimit - myDebt);
+      const discountedDebt = myDebt * 0.8;
+      const mySavings = myDebt * 0.2;
 
       const debtMetric = $("#takeatTotalDebtMetric");
       if (debtMetric) {
@@ -8636,8 +8637,14 @@
 
       const limitMetric = $("#takeatTotalLimitMetric");
       if (limitMetric) {
-        limitMetric.textContent = myLimit > 0 ? fmtBRL(myAvailable) : "—";
-        limitMetric.style.color = myAvailable <= 0 && myLimit > 0 ? "#ef4444" : "#10b981";
+        limitMetric.textContent = discountedDebt > 0 ? "- " + fmtBRL(discountedDebt) : fmtBRL(0);
+        limitMetric.style.color = discountedDebt > 0 ? "#059669" : "#10b981";
+      }
+
+      const m3Sub = $("#takeatMetric3Sub");
+      if (m3Sub) {
+        m3Sub.textContent = myDebt > 0 ? `Economia de ${fmtBRL(mySavings)} (-20%)` : "Sem débito ativo";
+        m3Sub.style.display = "block";
       }
 
       const statusMetric = $("#takeatSyncStatusMetric");
@@ -8689,6 +8696,9 @@
         limitMetric.style.color = "";
       }
 
+      const m3Sub = $("#takeatMetric3Sub");
+      if (m3Sub) m3Sub.style.display = "none";
+
       const statusMetric = $("#takeatSyncStatusMetric");
       if (statusMetric && state.takeatCredit.loaded) {
         statusMetric.textContent = `Online (${items.length} contas)`;
@@ -8701,31 +8711,128 @@
       syncTime.textContent = "Última sincronização: " + state.takeatCredit.lastSync.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
-    // Ajustar cabeçalho da tabela se funcionário vs gestor
+    // Alternar entre cards mobile para funcionário e tabela para gestor
+    const cardsContainer = $("#takeatEmployeeCardsContainer");
+    const tableWrap = $("#takeatTableWrap");
+
+    if (isEmp) {
+      if (cardsContainer) cardsContainer.style.display = "flex";
+      if (tableWrap) tableWrap.style.display = "none";
+
+      if (cardsContainer) {
+        if (displayItems.length === 0) {
+          cardsContainer.innerHTML = `
+            <div style="text-align:center; padding:3rem 1.5rem; color:var(--text-muted); background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:12px;">
+              <div style="font-size:32px; margin-bottom:0.75rem;">💳</div>
+              <strong style="font-size:15px; color:var(--text-primary, #0f172a); display:block; margin-bottom:0.35rem;">Nenhuma conta vinculada encontrada</strong>
+              <span style="font-size:13px; line-height:1.5; display:inline-block; max-width:320px;">Se você consome a prazo na loja, solicite ao gerente da sua unidade para vincular sua conta no sistema.</span>
+            </div>
+          `;
+        } else {
+          cardsContainer.innerHTML = displayItems.map((item) => {
+            const debt = item.debt || 0;
+            const limit = item.totalLimit || 0;
+            const discounted = debt * 0.8;
+            const savings = debt * 0.2;
+            const available = Math.max(0, limit - debt);
+            const pct = Math.round(item.percentUsed || 0);
+
+            let statusBadge = '';
+            if (item.percentUsed >= 100) {
+              statusBadge = '<span class="status rejected" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Limite Excedido</span>';
+            } else if (item.percentUsed >= 80) {
+              statusBadge = '<span class="status pending" style="background:#fffbeb; color:#d97706; border:1px solid #fde68a; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Perto do Limite</span>';
+            } else if (debt > 0) {
+              statusBadge = '<span class="status pending" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Débito Ativo</span>';
+            } else {
+              statusBadge = '<span class="status approved" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Em Dia</span>';
+            }
+
+            const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#3b82f6';
+
+            return `
+              <div style="background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:12px; padding:1.15rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:0.9rem;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
+                  <div>
+                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted, #64748b); letter-spacing:0.04em; margin-bottom:2px;">Unidade / Loja</div>
+                    <strong style="font-size:15px; color:var(--text-primary, #0f172a);">${esc(item.storeName)}</strong>
+                    ${item.name ? `<div style="font-size:12px; color:var(--text-muted, #64748b); margin-top:2px;">Conta: ${esc(item.name)}</div>` : ''}
+                  </div>
+                  <div>${statusBadge}</div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; background:var(--bg-card-alt, #f8fafc); padding:0.85rem; border-radius:10px; border:1px solid var(--border-color-subtle, #f1f5f9);">
+                  <div>
+                    <span style="font-size:11px; color:var(--text-muted, #64748b); display:block; margin-bottom:2px;">Saldo Devedor Bruto</span>
+                    <strong style="font-size:15px; color:${debt > 0 ? '#ef4444' : '#10b981'};">
+                      ${debt > 0 ? '- ' + fmtBRL(debt) : fmtBRL(0)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style="font-size:11px; color:#059669; font-weight:600; display:block; margin-bottom:2px;">Com 20% de Desconto</span>
+                    <strong style="font-size:15px; color:#059669;">
+                      ${discounted > 0 ? '- ' + fmtBRL(discounted) : fmtBRL(0)}
+                    </strong>
+                  </div>
+                  <div style="border-top:1px dashed var(--border-color, #e2e8f0); padding-top:0.5rem;">
+                    <span style="font-size:11px; color:var(--text-muted, #64748b); display:block; margin-bottom:2px;">Limite Total</span>
+                    <span style="font-size:13px; font-weight:600; color:var(--text-primary, #0f172a);">${limit > 0 ? fmtBRL(limit) : 'Sem limite'}</span>
+                  </div>
+                  <div style="border-top:1px dashed var(--border-color, #e2e8f0); padding-top:0.5rem;">
+                    <span style="font-size:11px; color:var(--text-muted, #64748b); display:block; margin-bottom:2px;">Limite Disponível</span>
+                    <span style="font-size:13px; font-weight:600; color:${available <= 0 && limit > 0 ? '#ef4444' : '#10b981'};">${limit > 0 ? fmtBRL(available) : '—'}</span>
+                  </div>
+                </div>
+
+                ${limit > 0 ? `
+                  <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:4px;">
+                      <span style="color:var(--text-muted, #64748b);">Consumo do Limite</span>
+                      <strong style="color:${barColor};">${pct}% (${fmtBRL(debt)} de ${fmtBRL(limit)})</strong>
+                    </div>
+                    <div style="width:100%; height:7px; background:rgba(0,0,0,0.06); border-radius:4px; overflow:hidden;">
+                      <div style="width:${Math.min(100, pct)}%; height:100%; background:${barColor}; border-radius:4px;"></div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${debt > 0 ? `
+                  <div style="font-size:11px; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:6px 10px; border-radius:6px; display:flex; align-items:center; gap:6px;">
+                    <span>🏷️</span>
+                    <span>Sua economia com o desconto de colaborador (20%) é de <strong>${fmtBRL(savings)}</strong>.</span>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join("");
+        }
+      }
+      return;
+    }
+
+    if (cardsContainer) cardsContainer.style.display = "none";
+    if (tableWrap) tableWrap.style.display = "block";
+
     const mappingHeaderTh = $("#takeatMappingTh");
-    if (mappingHeaderTh) mappingHeaderTh.style.display = isEmp ? "none" : "";
+    if (mappingHeaderTh) mappingHeaderTh.style.display = "";
 
     const tbody = $("#takeatCreditBody");
     if (!tbody) return;
 
     if (displayItems.length === 0) {
-      if (isEmp) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:3rem 1.5rem; color:var(--text-muted);">' +
-          '<div style="font-size:28px; margin-bottom:0.5rem;">💳</div>' +
-          '<strong>Nenhuma conta vinculada encontrada.</strong><br>' +
-          '<span style="font-size:13px; margin-top:0.35rem; display:inline-block;">Se você consome a prazo na loja, solicite ao gerente da unidade para vincular sua conta no sistema.</span>' +
-          '</td></tr>';
-      } else {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">' +
-          (items.length === 0 ? 'Nenhuma conta encontrada na Takeat.' : 'Nenhuma conta encontrada com os filtros selecionados.') +
-          '</td></tr>';
-      }
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--text-muted);">' +
+        (items.length === 0 ? 'Nenhuma conta encontrada na Takeat.' : 'Nenhuma conta encontrada com os filtros selecionados.') +
+        '</td></tr>';
       return;
     }
 
     tbody.innerHTML = displayItems.map((item) => {
       const debtText = item.debt > 0
         ? `<strong style="color: #ef4444; font-size:14px;">- ${fmtBRL(item.debt)}</strong>`
+        : `<span style="color: #10b981; font-weight:500;">R$ 0,00</span>`;
+
+      const discountedDebtText = item.debt > 0
+        ? `<strong style="color: #059669; font-size:13px;">- ${fmtBRL(item.debt * 0.8)}</strong>`
         : `<span style="color: #10b981; font-weight:500;">R$ 0,00</span>`;
 
       const limitText = item.totalLimit > 0
@@ -8757,48 +8864,45 @@
         statusBadge = '<span class="status approved" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0;">Em Dia</span>';
       }
 
-      let mappingTd = '';
-      if (!isEmp) {
-        const accountKey = `${item.storeKey}_${item.id}`;
-        const currentVal = item.matchedEmployee?.isIgnored
-          ? "ignored"
-          : item.matchedEmployee?.FuncionarioID || "";
+      const accountKey = `${item.storeKey}_${item.id}`;
+      const currentVal = item.matchedEmployee?.isIgnored
+        ? "ignored"
+        : item.matchedEmployee?.FuncionarioID || "";
 
-        let matchDisplay = '';
-        if (item.matchedEmployee?.isIgnored) {
-          matchDisplay = '<span class="status" style="background:#f1f5f9; color:#64748b; font-size:11px;">🚫 Desconsiderado</span>';
-        } else if (item.matchedEmployee) {
-          matchDisplay = `
-            <div style="display:flex; align-items:center; gap:0.35rem;">
-              <span style="color:#059669; font-weight:700;">✓</span>
-              <div>
-                <strong style="color:var(--text-primary); font-size:13px;">${esc(item.matchedEmployee.Nome || item.matchedEmployee.nome)}</strong>
-                ${item.isManualMatch ? '<span style="font-size:10px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:600;">Manual</span>' : ''}
-                ${item.matchedEmployee.Cargo ? `<br><small style="color:var(--text-muted); font-size:11px;">${esc(item.matchedEmployee.Cargo)}</small>` : ''}
-              </div>
+      let matchDisplay = '';
+      if (item.matchedEmployee?.isIgnored) {
+        matchDisplay = '<span class="status" style="background:#f1f5f9; color:#64748b; font-size:11px;">🚫 Desconsiderado</span>';
+      } else if (item.matchedEmployee) {
+        matchDisplay = `
+          <div style="display:flex; align-items:center; gap:0.35rem;">
+            <span style="color:#059669; font-weight:700;">✓</span>
+            <div>
+              <strong style="color:var(--text-primary); font-size:13px;">${esc(item.matchedEmployee.Nome || item.matchedEmployee.nome)}</strong>
+              ${item.isManualMatch ? '<span style="font-size:10px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:600;">Manual</span>' : ''}
+              ${item.matchedEmployee.Cargo ? `<br><small style="color:var(--text-muted); font-size:11px;">${esc(item.matchedEmployee.Cargo)}</small>` : ''}
             </div>
-          `;
-        } else {
-          matchDisplay = '<span style="color:var(--text-muted); font-size:12px;">Não vinculado</span>';
-        }
-
-        mappingTd = `
-          <td>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
-              <div>${matchDisplay}</div>
-              <button type="button" class="btn btn-secondary" data-action="edit-takeat-mapping"
-                data-account-key="${esc(accountKey)}"
-                data-account-name="${esc(item.name)}"
-                data-store-name="${esc(item.storeName)}"
-                data-current-val="${esc(currentVal)}"
-                style="padding:3px 8px; font-size:11px; white-space:nowrap; border-radius:6px; cursor:pointer;"
-                title="Editar vínculo do colaborador">
-                ✎ Vincular
-              </button>
-            </div>
-          </td>
+          </div>
         `;
+      } else {
+        matchDisplay = '<span style="color:var(--text-muted); font-size:12px;">Não vinculado</span>';
       }
+
+      const mappingTd = `
+        <td>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+            <div>${matchDisplay}</div>
+            <button type="button" class="btn btn-secondary" data-action="edit-takeat-mapping"
+              data-account-key="${esc(accountKey)}"
+              data-account-name="${esc(item.name)}"
+              data-store-name="${esc(item.storeName)}"
+              data-current-val="${esc(currentVal)}"
+              style="padding:3px 8px; font-size:11px; white-space:nowrap; border-radius:6px; cursor:pointer;"
+              title="Editar vínculo do colaborador">
+              ✎ Vincular
+            </button>
+          </div>
+        </td>
+      `;
 
       return `
         <tr>
@@ -8812,6 +8916,7 @@
           ${mappingTd}
           <td>${limitText}</td>
           <td>${debtText}</td>
+          <td>${discountedDebtText}</td>
           <td style="min-width:130px;">${usageMarkup}</td>
           <td>${statusBadge}</td>
         </tr>
@@ -8838,7 +8943,7 @@
       return true;
     });
 
-    const headers = ["Conta/Colaborador", "Telefone", "Loja", "Funcionario Folgas 3.0", "Cargo", "Limite (R$)", "Saldo Devedor (R$)", "% Uso", "Status"];
+    const headers = ["Conta/Colaborador", "Telefone", "Loja", "Funcionario Folgas 3.0", "Cargo", "Limite (R$)", "Saldo Devedor (R$)", "Com 20% Desc. (R$)", "% Uso", "Status"];
     const rows = filtered.map(item => [
       `"${(item.name || "").replace(/"/g, '""')}"`,
       `"${(item.phone || "").replace(/"/g, '""')}"`,
@@ -8847,8 +8952,9 @@
       `"${(item.matchedEmployee?.Cargo || "").replace(/"/g, '""')}"`,
       (item.totalLimit || 0).toFixed(2).replace('.', ','),
       (item.debt || 0).toFixed(2).replace('.', ','),
+      ((item.debt || 0) * 0.8).toFixed(2).replace('.', ','),
       Math.round(item.percentUsed || 0) + "%",
-      item.debt > 0 ? "Com débito" : "Quitado"
+      `"${(item.percentUsed >= 100 ? 'Limite Excedido' : item.percentUsed >= 80 ? 'Perto do Limite' : item.debt > 0 ? 'Débito Ativo' : 'Em Dia')}"`
     ]);
 
     const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(r => r.join(";"))].join("\r\n");

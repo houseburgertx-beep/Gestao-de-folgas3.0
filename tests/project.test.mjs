@@ -2235,6 +2235,31 @@ test("módulo Takeat de Contas a Prazo é acessível para funcionários e gerent
     /scheduleIdleTask_\(\(\)\s*=>\s*loadTakeatCreditData\(false,\s*true\)/,
     "scheduleSecondaryLoads_ deve agendar loadTakeatCreditData silencioso",
   );
+
+  // 6. Cards mobile para funcionário e 20% de desconto
+  assert.match(
+    indexHtml,
+    /id="takeatEmployeeCardsContainer"/,
+    "Index.html deve possuir container de cards mobile para funcionários",
+  );
+
+  assert.match(
+    scriptsHtml,
+    /takeatMetric3Label[\s\S]*?Com 20% de Desconto/,
+    "Card 3 deve exibir 'Com 20% de Desconto' para funcionários",
+  );
+
+  assert.match(
+    scriptsHtml,
+    /discountedDebt\s*=\s*myDebt\s*\*\s*0\.8/,
+    "Scripts.html deve calcular o valor do consumo com 20% de desconto (myDebt * 0.8)",
+  );
+
+  assert.match(
+    scriptsHtml,
+    /Com 20% desc:/,
+    "employeeTakeatSubtitle_ deve exibir o valor com 20% de desconto",
+  );
 });
 
 
