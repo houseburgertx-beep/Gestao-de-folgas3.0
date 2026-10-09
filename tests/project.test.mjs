@@ -2547,4 +2547,52 @@ test("Takeat Consumo: Hero Card sem confete, cabeçalho compacto e recuo superio
   );
 });
 
+test("Takeat cards: design estilo iOS com bordas generosamente arredondadas e sombras em camadas com profundidade", async () => {
+  const [redesignCss, scriptsHtml] = await Promise.all([
+    readFile(new URL("../src/redesign.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    redesignCss,
+    /\.takeat-ios-hero-card\s*\{[\s\S]*?border-radius:\s*22px/i,
+    "Hero Card deve ter bordas arredondadas de 22px estilo iOS",
+  );
+  assert.match(
+    redesignCss,
+    /\.takeat-ios-store-card\s*\{[\s\S]*?border-radius:\s*22px/i,
+    "Store Card expandido deve ter bordas arredondadas de 22px estilo iOS",
+  );
+  assert.match(
+    redesignCss,
+    /\.takeat-ios-collapsed-card\s*\{[\s\S]*?border-radius:\s*20px/i,
+    "Store Card colapsado deve ter bordas arredondadas de 20px estilo iOS",
+  );
+  assert.match(
+    redesignCss,
+    /\.takeat-ios-comanda-item\s*\{[\s\S]*?border-radius:\s*16px/i,
+    "Itens de comanda devem ter bordas arredondadas de 16px estilo iOS",
+  );
+  assert.match(
+    redesignCss,
+    /\.takeat-ios-hero-card[\s\S]*?box-shadow:\s*0 10px 28px/i,
+    "Hero Card deve ter sombra profunda em camadas estilo iOS",
+  );
+  assert.match(
+    scriptsHtml,
+    /takeat-ios-hero-card/,
+    "Scripts.html deve aplicar takeat-ios-hero-card",
+  );
+  assert.match(
+    scriptsHtml,
+    /takeat-ios-store-card/,
+    "Scripts.html deve aplicar takeat-ios-store-card",
+  );
+  assert.match(
+    scriptsHtml,
+    /takeat-ios-comanda-item/,
+    "Scripts.html deve aplicar takeat-ios-comanda-item",
+  );
+});
+
 
