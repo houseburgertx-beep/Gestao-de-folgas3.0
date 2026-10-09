@@ -336,6 +336,44 @@ dialog#documentSignDialog .dialog-actions {
   box-sizing: border-box !important;
 }
 
+dialog.document-modal select,
+dialog#documentUploadDialog select,
+dialog#documentSignDialog select {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 14px !important;
+  min-height: 44px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+dialog.document-modal select option,
+dialog#documentUploadDialog select option,
+dialog#documentSignDialog select option {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+dialog.document-modal input[type="text"],
+dialog.document-modal input[type="month"],
+dialog#documentUploadDialog input[type="text"],
+dialog#documentUploadDialog input[type="month"] {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 14px !important;
+  min-height: 44px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
 .doc-modal-shell {
   display: flex;
   flex-direction: column;

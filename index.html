@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.1" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.2" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.16.1-firebase-github" />
+    <meta name="app-version" content="6.16.2-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -16131,6 +16131,44 @@ dialog#documentSignDialog .dialog-actions {
   box-sizing: border-box !important;
 }
 
+dialog.document-modal select,
+dialog#documentUploadDialog select,
+dialog#documentSignDialog select {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 14px !important;
+  min-height: 44px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+dialog.document-modal select option,
+dialog#documentUploadDialog select option,
+dialog#documentSignDialog select option {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+dialog.document-modal input[type="text"],
+dialog.document-modal input[type="month"],
+dialog#documentUploadDialog input[type="text"],
+dialog#documentUploadDialog input[type="month"] {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 14px !important;
+  min-height: 44px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
 .doc-modal-shell {
   display: flex;
   flex-direction: column;
@@ -19681,7 +19719,7 @@ dialog#documentSignDialog .dialog-actions {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.1"></script>
+<script type="module" src="./src/main.js?v=6.16.2"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];

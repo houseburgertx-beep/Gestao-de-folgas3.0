@@ -20,6 +20,13 @@ const esc = (text) =>
       }[c]),
   );
 
+const storeName = (s) => String(s?.NomeLoja || s?.nomeLoja || s?.Nome || s?.nome || "").trim();
+const storeId = (s) => String(s?.LojaID || s?.id || s?.Loja || s?.Loja_ID || "").trim();
+const empName = (e) => String(e?.Nome || e?.NomeFuncionario || e?.nome || "").trim();
+const empId = (e) => String(e?.FuncionarioID || e?.id || e?.Funcionario || "").trim();
+const empStoreId = (e) => String(e?.LojaID || e?.lojaId || e?.Loja || "").trim();
+const empCpf = (e) => String(e?.CPF || e?.cpf || "").trim();
+
 let state = {
   documents: [],
   stores: [],
@@ -74,9 +81,9 @@ async function callApi(method, ...args) {
  * Inicializador público do módulo
  */
 export async function initDocumentsModule(context = {}) {
-  state.user = context.user || window.__GESTAO_USER__ || null;
-  state.stores = context.stores || [];
-  state.employees = context.employees || [];
+  state.user = context.user || window.__GESTAO_USER__ || window.state?.user || null;
+  state.stores = (context.stores && context.stores.length) ? context.stores : (window.state?.stores || []);
+  state.employees = (context.employees && context.employees.length) ? context.employees : (window.state?.employees || []);
   state.isManager = Boolean(context.isManager || window.__GESTAO_IS_MANAGER__);
   state.isAdmin = Boolean(
     context.isAdmin ||
@@ -223,12 +230,17 @@ function renderManagerView() {
   const assinados = state.documents.filter((d) => d.Status === "Assinado").length;
   const compliance = total > 0 ? Math.round((assinados / total) * 100) : 100;
 
+  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+  state.stores = storesList;
+
   // Opções de Lojas
   const storeOptions = [
     `<option value="all">Todas as Lojas</option>`,
-    ...state.stores.map(
-      (s) => `<option value="${esc(s.LojaID)}" ${state.storeFilter === s.LojaID ? "selected" : ""}>${esc(s.Nome)}</option>`,
-    ),
+    ...storesList.map((s) => {
+      const id = storeId(s);
+      const name = storeName(s) || id || "Unidade";
+      return `<option value="${esc(id)}" ${state.storeFilter === id ? "selected" : ""}>${esc(name)}</option>`;
+    }),
   ].join("");
 
   // Tabela de Documentos
@@ -779,22 +791,36 @@ export function openUploadDialog() {
   const dialog = $("#documentUploadDialog");
   if (!dialog) return;
 
-  const storeOptions = state.stores
-    .map((s) => `<option value="${esc(s.LojaID)}">${esc(s.Nome)}</option>`)
+  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+  const employeesList = (state.employees && state.employees.length) ? state.employees : (window.state?.employees || []);
+  state.stores = storesList;
+  state.employees = employeesList;
+
+  const storeOptions = storesList
+    .map((s) => {
+      const id = storeId(s);
+      const name = storeName(s) || id || "Unidade";
+      return `<option value="${esc(id)}">${esc(name)}</option>`;
+    })
     .join("");
 
   // Colaboradores da primeira loja
   const getEmpOptions = (lojaId) => {
-    const list = state.employees.filter(
-      (e) => !lojaId || String(e.LojaID || "").trim() === String(lojaId).trim(),
+    const list = employeesList.filter(
+      (e) => !lojaId || empStoreId(e) === String(lojaId).trim(),
     );
-    return list
-      .map(
-        (e) =>
-          `<option value="${esc(e.FuncionarioID)}" data-name="${esc(e.Nome)}" data-cpf="${esc(e.CPF || "")}">${esc(e.Nome)} (CPF: ${esc(e.CPF || "---")})</option>`,
-      )
+    const effectiveList = list.length > 0 ? list : employeesList;
+    return effectiveList
+      .map((e) => {
+        const id = empId(e);
+        const name = empName(e) || "Colaborador";
+        const cpf = empCpf(e);
+        return `<option value="${esc(id)}" data-name="${esc(name)}" data-cpf="${esc(cpf)}" data-loja="${esc(empStoreId(e))}">${esc(name)}${cpf ? ` (CPF: ${esc(cpf)})` : ""}</option>`;
+      })
       .join("");
   };
+
+  const initialLojaId = storeId(storesList[0]);
 
   dialog.innerHTML = `
     <div class="dialog-head">
@@ -822,7 +848,7 @@ export function openUploadDialog() {
         <div>
           <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--muted, #64748b);">Colaborador Destinatário</label>
           <select id="docNewEmpSelect" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;">
-            ${getEmpOptions(state.stores[0]?.LojaID)}
+            ${getEmpOptions(initialLojaId)}
           </select>
         </div>
       </div>
@@ -912,20 +938,41 @@ function setupUploadDialogEvents(dialog) {
   const templateSelect = $("#docTemplateSelect");
   const templateText = $("#docTemplateText");
 
+  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+  const employeesList = (state.employees && state.employees.length) ? state.employees : (window.state?.employees || []);
+
+  const getEmpOptions = (lojaId) => {
+    const list = employeesList.filter(
+      (e) => !lojaId || empStoreId(e) === String(lojaId).trim(),
+    );
+    const effectiveList = list.length > 0 ? list : employeesList;
+    return effectiveList
+      .map((e) => {
+        const id = empId(e);
+        const name = empName(e) || "Colaborador";
+        const cpf = empCpf(e);
+        return `<option value="${esc(id)}" data-name="${esc(name)}" data-cpf="${esc(cpf)}" data-loja="${esc(empStoreId(e))}">${esc(name)}${cpf ? ` (CPF: ${esc(cpf)})` : ""}</option>`;
+      })
+      .join("");
+  };
+
   // Troca de Loja filtra colaboradores
   lojaSelect?.addEventListener("change", () => {
     const lojaId = lojaSelect.value;
-    const filtered = state.employees.filter(
-      (e) => !lojaId || String(e.LojaID || "").trim() === String(lojaId).trim(),
-    );
     if (empSelect) {
-      empSelect.innerHTML = filtered
-        .map(
-          (e) =>
-            `<option value="${esc(e.FuncionarioID)}" data-name="${esc(e.Nome)}" data-cpf="${esc(e.CPF || "")}">${esc(e.Nome)} (CPF: ${esc(e.CPF || "---")})</option>`,
-        )
-        .join("");
+      empSelect.innerHTML = getEmpOptions(lojaId);
     }
+    updateSuggestedTitle();
+  });
+
+  // Troca de Colaborador sincroniza Loja
+  empSelect?.addEventListener("change", () => {
+    const selectedEmpId = empSelect.value;
+    const emp = employeesList.find((e) => empId(e) === String(selectedEmpId));
+    if (emp && empStoreId(emp) && lojaSelect && lojaSelect.value !== empStoreId(emp)) {
+      lojaSelect.value = empStoreId(emp);
+    }
+    if (currentMode === "template") loadTemplateContent();
     updateSuggestedTitle();
   });
 
@@ -1051,11 +1098,16 @@ function setupUploadDialogEvents(dialog) {
     submitBtn.innerHTML = "Emitindo documento...";
 
     try {
+      const targetEmp = employeesList.find((e) => empId(e) === String(funcId));
+      const targetStore = storesList.find((s) => storeId(s) === String(lojaId));
       const payload = {
         Titulo: titulo,
         Tipo: tipo,
-        LojaID: lojaId,
+        LojaID: lojaId || (targetEmp ? empStoreId(targetEmp) : ""),
+        NomeLoja: targetStore ? storeName(targetStore) : (targetEmp?.NomeLoja || ""),
         FuncionarioID: funcId,
+        NomeFuncionario: targetEmp ? empName(targetEmp) : "",
+        CPFFuncionario: targetEmp ? empCpf(targetEmp) : "",
         MesReferencia: mesRef,
         OrigemTipo: currentMode === "pdf" ? "PDF_IMPORTADO" : "TEXTO_SISTEMA",
         ArquivoOriginalBase64: currentMode === "pdf" ? selectedFileBase64 : "",

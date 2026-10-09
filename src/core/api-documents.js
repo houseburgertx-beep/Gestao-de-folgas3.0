@@ -827,7 +827,9 @@ export function createDocumentsHandlers() {
 
       const stores = await runtime.list("Lojas", { profile });
       const targetStore = stores.find(
-        (s) => String(s.LojaID || "").trim() === String(targetEmp.LojaID || payload.LojaID).trim(),
+        (s) =>
+          String(s.LojaID || s.id || s.Loja || "").trim() ===
+          String(targetEmp.LojaID || payload.LojaID).trim(),
       );
 
       const docId =
@@ -863,7 +865,7 @@ export function createDocumentsHandlers() {
         CPFFuncionario: String(targetEmp.CPF || payload.CPFFuncionario || "").trim(),
         CargoFuncionario: String(targetEmp.Cargo || "").trim(),
         LojaID: String(targetEmp.LojaID || payload.LojaID || "").trim(),
-        NomeLoja: String(targetStore?.Nome || payload.NomeLoja || "").trim(),
+        NomeLoja: String(targetStore?.NomeLoja || targetStore?.nomeLoja || targetStore?.Nome || payload.NomeLoja || "").trim(),
         MesReferencia: String(payload.MesReferencia || "").trim(),
         Status: "Pendente",
         OrigemTipo: payload.OrigemTipo || "PDF_IMPORTADO",
