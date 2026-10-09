@@ -2363,3 +2363,54 @@ test("dock mobile contém apenas os 5 botões solicitados: início, ponto, taref
   assert.doesNotMatch(dockHtml, /data-view-target="live-team"/);
   assert.doesNotMatch(dockHtml, /data-view-target="pending-center"/);
 });
+
+test("Takeat Credit UX: hero card consolidado, lojas zeradas colapsaveis, comanda com valor riscado e padding mobile", async () => {
+  const indexHtml = await readFile(
+    new URL("../src/legacy/Index.html", import.meta.url),
+    "utf8",
+  );
+  const scriptsHtml = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+
+  // 1. Container possui padding de respiro para dock mobile
+  assert.match(
+    indexHtml,
+    /id="takeatEmployeeCardsContainer"[^>]*padding:1rem 1rem 6rem;/,
+    "Container de cards de consumo deve possuir padding inferior de respiro para a dock mobile",
+  );
+
+  // 2. Hero card no Scripts.html
+  assert.match(
+    scriptsHtml,
+    /A pagar no fechamento/,
+    "Scripts.html deve exibir 'A pagar no fechamento' no Hero Card do colaborador",
+  );
+
+  // 3. Economia destacada com 20%
+  assert.match(
+    scriptsHtml,
+    /Economia de.*?\${fmtBRL\(totalSavings\)}/,
+    "Scripts.html deve exibir economia calculada do desconto de 20%",
+  );
+
+  // 4. Lojas zeradas em formato colapsavel com badge Em Dia
+  assert.match(
+    scriptsHtml,
+    /Em Dia[\s\S]*?data-chv/,
+    "Lojas com débito zerado devem ser colapsáveis com indicador chevron",
+  );
+
+  // 5. Comandas com valor original tachado e valor com desconto destacado
+  assert.match(
+    scriptsHtml,
+    /text-decoration:line-through;[\s\S]*?fmtTakeatBRL_\(p\.value\)/,
+    "Comanda deve exibir valor original tachado",
+  );
+  assert.match(
+    scriptsHtml,
+    />-20%<\/span>/,
+    "Comanda deve exibir badge de -20%",
+  );
+});

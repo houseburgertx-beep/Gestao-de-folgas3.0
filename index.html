@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.14.2" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.14.3" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.14.2-firebase-github" />
+    <meta name="app-version" content="6.14.3-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -16798,7 +16798,7 @@ tr:last-child td {
                 </div>
                 <div id="takeatLastSyncTime" style="font-size:12px; color:var(--text-muted, #64748b);"></div>
               </div>
-              <div id="takeatEmployeeCardsContainer" style="display:none; padding:1rem; flex-direction:column; gap:0.85rem;"></div>
+              <div id="takeatEmployeeCardsContainer" style="display:none; padding:1rem 1rem 6rem; flex-direction:column; gap:0.85rem;"></div>
               <div id="takeatTableWrap" class="table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
                 <table style="min-width:760px;">
                   <thead>
@@ -18946,7 +18946,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.14.2"></script>
+<script type="module" src="./src/main.js?v=6.14.3"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -27448,20 +27448,23 @@ tr:last-child td {
   function renderTakeatPurchasesItems_(items, storeKey, isPaid = false) {
     return items.map((p) => {
       const dateStr = formatTakeatDateTimeBR_(p.createdAt);
+      const shortDate = dateStr.replace(/\/\d{4}/, '');
       const comandaNum = p.sessionNumber || (p.sessionId ? `#${p.sessionId}` : "—");
       const hasSession = Boolean(p.sessionId);
 
       return `
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.75rem; background:var(--bg-card-alt, #f8fafc); border:1px solid var(--border-color, #e2e8f0); border-radius:8px; gap:0.5rem; ${isPaid ? 'opacity:0.8;' : ''}">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.85rem; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:10px; gap:0.5rem; ${isPaid ? 'opacity:0.55;' : ''}">
           <div style="min-width:0; flex:1;">
-            <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
-              <span style="font-size:12px; font-weight:700; color:var(--text-primary, #0f172a);">Comanda ${esc(comandaNum)}</span>
-              ${isPaid ? '<span style="font-size:10px; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:1px 5px; border-radius:4px; font-weight:600;">✓ Quitada</span>' : ''}
-              <span style="font-size:10px; color:var(--text-muted, #64748b);">${esc(dateStr)}</span>
+            <div style="display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+              <span style="font-size:13px; font-weight:700; color:var(--text-primary, #0f172a);">Comanda ${esc(comandaNum)}</span>
+              ${isPaid ? '<span style="font-size:9px; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:1px 5px; border-radius:4px; font-weight:600;">✓ Quitada</span>' : ''}
+              <span style="font-size:10px; color:var(--text-muted, #94a3b8);">· ${esc(shortDate)}</span>
             </div>
-            <div style="display:flex; align-items:baseline; gap:0.5rem; margin-top:2px;">
-              <span style="font-size:13px; font-weight:700; color:${isPaid ? 'var(--text-primary)' : '#ef4444'};">${isPaid ? '' : '- '}${fmtTakeatBRL_(p.value)}</span>
-              <span style="font-size:11px; font-weight:600; color:#059669;">c/ 20%: ${isPaid ? '' : '- '}${fmtTakeatBRL_(p.discountedValue)}</span>
+            <div style="display:flex; align-items:baseline; gap:0.35rem; margin-top:3px;">
+              <span style="font-size:12px; color:var(--text-muted, #94a3b8); text-decoration:line-through;">${fmtTakeatBRL_(p.value)}</span>
+              <span style="font-size:10px; color:var(--text-muted, #b0b8c4);">→</span>
+              <span style="font-size:14px; font-weight:700; color:var(--text-primary, #0f172a);">${fmtTakeatBRL_(p.discountedValue)}</span>
+              ${!isPaid ? '<span style="font-size:9px; font-weight:700; color:#059669; background:#ecfdf5; padding:1px 5px; border-radius:4px;">-20%</span>' : ''}
             </div>
           </div>
           ${hasSession ? `
@@ -27472,8 +27475,8 @@ tr:last-child td {
               data-session-number="${esc(comandaNum)}"
               data-purchase-value="${p.value.toFixed(2)}"
               data-purchase-date="${esc(dateStr)}"
-              title="Ver o que foi pego nesta comanda"
-              style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; min-width:34px; border-radius:8px; border:1px solid var(--border-color, #cbd5e1); background:var(--bg-card, #ffffff); cursor:pointer; color:var(--text-secondary, #475569); box-shadow:0 1px 2px rgba(0,0,0,0.04); transition:all 0.15s ease;">
+              title="Ver itens desta comanda"
+              style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; min-width:34px; border-radius:9px; border:1px solid var(--border-color, #e2e8f0); background:var(--bg-card-alt, #f8fafc); cursor:pointer; color:var(--text-secondary, #64748b); transition:all 0.15s ease;">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
@@ -28055,6 +28058,18 @@ tr:last-child td {
       if (cardsContainer) cardsContainer.style.display = "flex";
       if (tableWrap) tableWrap.style.display = "none";
 
+      // Esconder metric-grid para funcionário (hero card substitui)
+      const metricGrid = document.querySelector('#view-takeat-credit .metric-grid');
+      if (metricGrid) metricGrid.style.display = 'none';
+
+      // Botão sync compacto para funcionário
+      const refreshBtn = $("#takeatCreditRefreshBtn");
+      if (refreshBtn) {
+        refreshBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.52-6.25"/><path d="M21 3v5h-5"/></svg>';
+        refreshBtn.title = "Sincronizar Takeat";
+        Object.assign(refreshBtn.style, { width: '38px', height: '38px', minWidth: '38px', padding: '0', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
+      }
+
       if (cardsContainer) {
         if (displayItems.length === 0) {
           cardsContainer.innerHTML = `
@@ -28065,99 +28080,168 @@ tr:last-child td {
             </div>
           `;
         } else {
-          cardsContainer.innerHTML = displayItems.map((item) => {
+          // ─── Calcular totais para o Hero Card ───
+          const totalDebt = displayItems.reduce((acc, c) => acc + (c.debt || 0), 0);
+          const totalLimit = displayItems.reduce((acc, c) => acc + (c.totalLimit || 0), 0);
+          const totalDiscounted = totalDebt * 0.8;
+          const totalSavings = totalDebt * 0.2;
+          const totalAvailable = Math.max(0, totalLimit - totalDebt);
+          const totalPct = totalLimit > 0 ? Math.round((totalDebt / totalLimit) * 100) : 0;
+          const heroBarColor = totalPct >= 100 ? '#ef4444' : totalPct >= 80 ? '#f59e0b' : '#3b82f6';
+
+          let heroBadgeLabel, heroBadgeColor, heroBadgeBg, heroBadgeBorder;
+          if (totalLimit > 0 && totalDebt > totalLimit) {
+            heroBadgeLabel = 'Limite Excedido'; heroBadgeColor = '#dc2626'; heroBadgeBg = '#fef2f2'; heroBadgeBorder = '#fecaca';
+          } else if (totalDebt > 0) {
+            heroBadgeLabel = 'Débito Ativo'; heroBadgeColor = '#d97706'; heroBadgeBg = '#fffbeb'; heroBadgeBorder = '#fde68a';
+          } else {
+            heroBadgeLabel = 'Em Dia'; heroBadgeColor = '#059669'; heroBadgeBg = '#ecfdf5'; heroBadgeBorder = '#a7f3d0';
+          }
+
+          // ─── Hero Card ───
+          const heroHtml = `
+            <div style="background:linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border:1px solid var(--border-color, #e2e8f0); border-radius:16px; padding:1.25rem 1.15rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <span style="font-size:11px; font-weight:600; color:var(--text-muted, #94a3b8); text-transform:uppercase; letter-spacing:0.06em;">A pagar no fechamento</span>
+                  <div style="font-size:30px; font-weight:800; color:var(--text-primary, #0f172a); line-height:1.2; margin-top:4px;">
+                    ${totalDiscounted > 0 ? fmtBRL(totalDiscounted) : fmtBRL(0)}
+                  </div>
+                  ${totalDebt > 0 ? `
+                    <div style="font-size:12px; color:var(--text-muted, #94a3b8); margin-top:5px;">
+                      De <span style="text-decoration:line-through;">${fmtBRL(totalDebt)}</span> · Economia de <strong style="color:#059669;">${fmtBRL(totalSavings)}</strong> 🎉
+                    </div>
+                  ` : `
+                    <div style="font-size:12px; color:#059669; margin-top:5px; font-weight:500;">Nenhum débito em aberto</div>
+                  `}
+                </div>
+                <span style="padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; color:${heroBadgeColor}; background:${heroBadgeBg}; border:1px solid ${heroBadgeBorder}; white-space:nowrap;">${heroBadgeLabel}</span>
+              </div>
+              ${totalLimit > 0 ? `
+                <div style="margin-top:1rem; padding-top:0.85rem; border-top:1px dashed var(--border-color, #e2e8f0);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:6px;">
+                    <span style="color:var(--text-muted, #94a3b8);">${fmtBRL(totalAvailable)} disponíveis de ${fmtBRL(totalLimit)}</span>
+                    <strong style="color:${heroBarColor};">${totalPct}% usado</strong>
+                  </div>
+                  <div style="width:100%; height:8px; background:rgba(0,0,0,0.06); border-radius:4px; overflow:hidden;">
+                    <div style="width:${Math.min(100, totalPct)}%; height:100%; background:${heroBarColor}; border-radius:4px; transition:width 0.5s ease;"></div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+
+          // ─── Cards por Loja ───
+          const storeCardsHtml = displayItems.map((item) => {
             const debt = item.debt || 0;
             const limit = item.totalLimit || 0;
             const discounted = debt * 0.8;
-            const savings = debt * 0.2;
             const available = Math.max(0, limit - debt);
             const pct = Math.round(item.percentUsed || 0);
+            const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#3b82f6';
+            const storeId = `takeatStore_${esc(item.storeKey)}_${esc(item.id)}`;
 
-            let statusBadge = '';
-            if (item.percentUsed >= 100) {
-              statusBadge = '<span class="status rejected" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Limite Excedido</span>';
-            } else if (item.percentUsed >= 80) {
-              statusBadge = '<span class="status pending" style="background:#fffbeb; color:#d97706; border:1px solid #fde68a; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Perto do Limite</span>';
-            } else if (debt > 0) {
-              statusBadge = '<span class="status pending" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Débito Ativo</span>';
-            } else {
-              statusBadge = '<span class="status approved" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; font-size:11px; padding:3px 8px; border-radius:12px; font-weight:600;">Em Dia</span>';
+            // ─── Loja zerada → card colapsável compacto ───
+            if (debt <= 0) {
+              return `
+                <div id="${storeId}_wrap">
+                  <div onclick="var d=document.getElementById('${storeId}_detail'),a=this.querySelector('[data-chv]');if(d){var h=d.style.display==='none';d.style.display=h?'flex':'none';if(a)a.style.transform=h?'rotate(90deg)':'';}"
+                       style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1rem; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:12px; transition:background 0.15s;">
+                    <div style="display:flex; align-items:center; gap:0.65rem; min-width:0;">
+                      <div style="width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg, #ecfdf5, #d1fae5); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 2-6h14l2 6M3 9v3h18V9M5 12v9h14v-9M9 21v-6h6v6"/></svg>
+                      </div>
+                      <div style="min-width:0;">
+                        <strong style="font-size:14px; color:var(--text-primary, #0f172a); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(item.storeName)}</strong>
+                        ${item.name ? `<span style="font-size:11px; color:var(--text-muted, #94a3b8);">${esc(item.name)}</span>` : ''}
+                      </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">
+                      <span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; font-size:11px; padding:3px 8px; border-radius:20px; font-weight:600;">✓ Em Dia</span>
+                      <svg data-chv width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                  </div>
+                  <div id="${storeId}_detail" style="display:none; flex-direction:column; gap:0.5rem; padding:0.75rem 1rem; margin-top:-1px; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-top:1px dashed var(--border-color, #e2e8f0); border-radius:0 0 12px 12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:12px;">
+                      <span style="color:var(--text-muted);">Limite Total</span>
+                      <strong>${limit > 0 ? fmtBRL(limit) : 'Sem limite'}</strong>
+                    </div>
+                    ${limit > 0 ? `<div style="display:flex; justify-content:space-between; font-size:12px;">
+                      <span style="color:var(--text-muted);">Disponível</span>
+                      <strong style="color:#10b981;">${fmtBRL(available)}</strong>
+                    </div>` : ''}
+                    <div style="border-top:1px solid var(--border-color, #e2e8f0); padding-top:0.5rem; margin-top:0.25rem;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                        <span style="font-size:11px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.03em;">Compras & Comandas</span>
+                        <span id="takeatPurchasesCount_${esc(item.storeKey)}_${esc(item.id)}" style="font-size:11px; font-weight:600; color:var(--text-muted);"></span>
+                      </div>
+                      <div id="takeatPurchasesList_${esc(item.storeKey)}_${esc(item.id)}" style="display:flex; flex-direction:column; gap:0.4rem;">
+                        <div style="padding:0.5rem; text-align:center; font-size:12px; color:var(--text-muted); background:var(--bg-card-alt, #f8fafc); border-radius:8px;">Buscando…</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
             }
 
-            const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#3b82f6';
-
+            // ─── Loja com débito → card expandido moderno ───
             return `
-              <div style="background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:12px; padding:1.15rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:0.9rem;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
-                  <div>
-                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted, #64748b); letter-spacing:0.04em; margin-bottom:2px;">Unidade / Loja</div>
-                    <strong style="font-size:15px; color:var(--text-primary, #0f172a);">${esc(item.storeName)}</strong>
-                    ${item.name ? `<div style="font-size:12px; color:var(--text-muted, #64748b); margin-top:2px;">Conta: ${esc(item.name)}</div>` : ''}
+              <div style="background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:14px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="padding:1rem 1.15rem; display:flex; justify-content:space-between; align-items:center;">
+                  <div style="display:flex; align-items:center; gap:0.65rem;">
+                    <div style="width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg, #fef2f2, #fecaca); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 2-6h14l2 6M3 9v3h18V9M5 12v9h14v-9M9 21v-6h6v6"/></svg>
+                    </div>
+                    <div>
+                      <strong style="font-size:15px; color:var(--text-primary, #0f172a);">${esc(item.storeName)}</strong>
+                      ${item.name ? `<div style="font-size:12px; color:var(--text-muted, #94a3b8); margin-top:1px;">${esc(item.name)}</div>` : ''}
+                    </div>
                   </div>
-                  <div>${statusBadge}</div>
+                  ${pct >= 100
+                    ? '<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; font-size:11px; padding:3px 8px; border-radius:20px; font-weight:600;">Limite Excedido</span>'
+                    : '<span style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:11px; padding:3px 8px; border-radius:20px; font-weight:600;">Débito Ativo</span>'
+                  }
                 </div>
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; background:var(--bg-card-alt, #f8fafc); padding:0.85rem; border-radius:10px; border:1px solid var(--border-color-subtle, #f1f5f9);">
-                  <div>
-                    <span style="font-size:11px; color:var(--text-muted, #64748b); display:block; margin-bottom:2px;">Saldo Devedor Bruto</span>
-                    <strong style="font-size:15px; color:${debt > 0 ? '#ef4444' : '#10b981'};">
-                      ${debt > 0 ? '- ' + fmtBRL(debt) : fmtBRL(0)}
-                    </strong>
+                <div style="padding:0 1.15rem; display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                  <div style="background:var(--bg-card-alt, #f8fafc); padding:0.75rem; border-radius:10px; border:1px solid var(--border-color-subtle, #f1f5f9);">
+                    <span style="font-size:11px; color:var(--text-muted, #94a3b8); display:block; margin-bottom:3px;">A pagar (c/ desc.)</span>
+                    <strong style="font-size:17px; color:var(--text-primary, #0f172a);">${fmtBRL(discounted)}</strong>
+                    <div style="font-size:10px; color:var(--text-muted, #94a3b8); margin-top:2px;">Bruto: <span style="text-decoration:line-through;">${fmtBRL(debt)}</span></div>
                   </div>
-                  <div>
-                    <span style="font-size:11px; color:#059669; font-weight:600; display:block; margin-bottom:2px;">Com 20% de Desconto</span>
-                    <strong style="font-size:15px; color:#059669;">
-                      ${discounted > 0 ? '- ' + fmtBRL(discounted) : fmtBRL(0)}
-                    </strong>
-                  </div>
-                  <div style="border-top:1px dashed var(--border-color, #e2e8f0); padding-top:0.5rem;">
-                    <span style="font-size:11px; color:var(--text-muted, #64748b); display:block; margin-bottom:2px;">Limite Total</span>
-                    <span style="font-size:13px; font-weight:600; color:var(--text-primary, #0f172a);">${limit > 0 ? fmtBRL(limit) : 'Sem limite'}</span>
-                  </div>
-                  <div style="border-top:1px dashed var(--border-color, #e2e8f0); padding-top:0.5rem;">
-                    <span style="font-size:11px; color:var(--text-muted, #64748b); display:block; margin-bottom:2px;">Limite Disponível</span>
-                    <span style="font-size:13px; font-weight:600; color:${available <= 0 && limit > 0 ? '#ef4444' : '#10b981'};">${limit > 0 ? fmtBRL(available) : '—'}</span>
+                  <div style="background:var(--bg-card-alt, #f8fafc); padding:0.75rem; border-radius:10px; border:1px solid var(--border-color-subtle, #f1f5f9);">
+                    <span style="font-size:11px; color:var(--text-muted, #94a3b8); display:block; margin-bottom:3px;">Disponível</span>
+                    <strong style="font-size:17px; color:${available <= 0 && limit > 0 ? '#ef4444' : '#10b981'};">${limit > 0 ? fmtBRL(available) : '—'}</strong>
+                    <div style="font-size:10px; color:var(--text-muted, #94a3b8); margin-top:2px;">de ${limit > 0 ? fmtBRL(limit) : 'Sem limite'}</div>
                   </div>
                 </div>
 
                 ${limit > 0 ? `
-                  <div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:4px;">
-                      <span style="color:var(--text-muted, #64748b);">Consumo do Limite</span>
-                      <strong style="color:${barColor};">${pct}% (${fmtBRL(debt)} de ${fmtBRL(limit)})</strong>
+                  <div style="padding:0.6rem 1.15rem 0;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                      <span style="color:var(--text-muted, #94a3b8);">Uso do limite</span>
+                      <strong style="color:${barColor};">${pct}%</strong>
                     </div>
-                    <div style="width:100%; height:7px; background:rgba(0,0,0,0.06); border-radius:4px; overflow:hidden;">
-                      <div style="width:${Math.min(100, pct)}%; height:100%; background:${barColor}; border-radius:4px;"></div>
+                    <div style="width:100%; height:6px; background:rgba(0,0,0,0.06); border-radius:3px; overflow:hidden;">
+                      <div style="width:${Math.min(100, pct)}%; height:100%; background:${barColor}; border-radius:3px; transition:width 0.5s ease;"></div>
                     </div>
                   </div>
                 ` : ''}
 
-                ${debt > 0 ? `
-                  <div style="font-size:11px; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:6px 10px; border-radius:6px; display:flex; align-items:center; gap:6px;">
-                    <span>🏷️</span>
-                    <span>Sua economia com o desconto de colaborador (20%) é de <strong>${fmtBRL(savings)}</strong>.</span>
-                  </div>
-                ` : ''}
-
-                <!-- Extrato de Compras Detalhado -->
-                <div style="border-top:1px solid var(--border-color, #e2e8f0); padding-top:0.85rem; margin-top:0.25rem;">
+                <div style="padding:1rem 1.15rem; margin-top:0.5rem; border-top:1px solid var(--border-color, #e2e8f0);">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
-                    <span style="font-size:12px; font-weight:700; color:var(--text-primary, #0f172a); text-transform:uppercase; letter-spacing:0.03em;">
-                      Compras & Comandas
-                    </span>
-                    <span id="takeatPurchasesCount_${esc(item.storeKey)}_${esc(item.id)}" style="font-size:11px; font-weight:600; color:var(--text-muted, #64748b);">
-                      Carregando compras…
-                    </span>
+                    <span style="font-size:12px; font-weight:700; color:var(--text-primary, #0f172a); text-transform:uppercase; letter-spacing:0.03em;">Compras & Comandas</span>
+                    <span id="takeatPurchasesCount_${esc(item.storeKey)}_${esc(item.id)}" style="font-size:11px; font-weight:600; color:var(--text-muted, #94a3b8);">Carregando…</span>
                   </div>
-                  <div id="takeatPurchasesList_${esc(item.storeKey)}_${esc(item.id)}" style="display:flex; flex-direction:column; gap:0.5rem;">
-                    <div style="padding:0.75rem; text-align:center; font-size:12px; color:var(--text-muted, #64748b); background:var(--bg-card-alt, #f8fafc); border-radius:8px;">
-                      Buscando extrato detalhado de compras…
-                    </div>
+                  <div id="takeatPurchasesList_${esc(item.storeKey)}_${esc(item.id)}" style="display:flex; flex-direction:column; gap:0.45rem;">
+                    <div style="padding:0.65rem; text-align:center; font-size:12px; color:var(--text-muted, #94a3b8); background:var(--bg-card-alt, #f8fafc); border-radius:8px;">Buscando extrato…</div>
                   </div>
                 </div>
               </div>
             `;
           }).join("");
+
+          cardsContainer.innerHTML = heroHtml + storeCardsHtml;
 
           displayItems.forEach((item) => {
             loadTakeatAccountPurchases_(item.storeKey, item.id, item.debt);
@@ -28169,6 +28253,16 @@ tr:last-child td {
 
     if (cardsContainer) cardsContainer.style.display = "none";
     if (tableWrap) tableWrap.style.display = "block";
+
+    // Restaurar metric-grid e botão sync para o gestor
+    const metricGrid = document.querySelector('#view-takeat-credit .metric-grid');
+    if (metricGrid) metricGrid.style.display = '';
+
+    const refreshBtn = $("#takeatCreditRefreshBtn");
+    if (refreshBtn) {
+      refreshBtn.textContent = "↻ Sincronizar Takeat";
+      refreshBtn.style.cssText = '';
+    }
 
     const mappingHeaderTh = $("#takeatMappingTh");
     if (mappingHeaderTh) mappingHeaderTh.style.display = "";
