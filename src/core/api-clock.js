@@ -2108,7 +2108,16 @@ export function createClockHandlers() {
       const payload = values[0] || {};
       const storeId = String(payload.lojaId || payload.LojaID || "").trim();
       assert(storeId, "Selecione a loja para zerar os saldos.");
-      const store = await runtime.getById("Lojas", storeId);
+      let store = await runtime.getById("Lojas", storeId);
+      if (!store) {
+        const stores = await runtime.list("Lojas", { profile });
+        store = stores.find(
+          (s) =>
+            String(s.LojaID || s.lojaId || s.id || s.Id || "") === storeId ||
+            String(s.NomeLoja || s.nomeLoja || s.Nome || "").trim().toLowerCase() ===
+              storeId.toLowerCase(),
+        );
+      }
       assert(store, "Loja não encontrada.");
       const mode = String(payload.modo || payload.tipo || "ambos").toLowerCase();
       const reason = String(payload.motivo || "").trim();
@@ -2119,9 +2128,13 @@ export function createClockHandlers() {
 
       const currentDay = todayIso();
       const currentMonth = currentDay.slice(0, 7);
-      const targetMonth = /^\d{4}-\d{2}$/.test(String(params.month || ""))
-        ? String(params.month)
+      const targetMonth = /^\d{4}-\d{2}$/.test(
+        String(payload.month || payload.mes || ""),
+      )
+        ? String(payload.month || payload.mes)
         : currentMonth;
+      const movementDate =
+        targetMonth < currentMonth ? lastDateOfMonth(targetMonth) : currentDay;
 
       const [employees, records, schedules, timeOff, justifications, movements] =
         await Promise.all([
@@ -2133,9 +2146,21 @@ export function createClockHandlers() {
           runtime.list("BancoHorasMovimentos", { profile }),
         ]);
 
-      const storeEmployees = employees.filter(
-        (e) => String(e.LojaID || e.Loja || "") === storeId,
-      );
+      const storeName = String(
+        store.NomeLoja || store.nomeLoja || store.Nome || "",
+      )
+        .trim()
+        .toLowerCase();
+      const actualStoreId = String(store.LojaID || store.lojaId || storeId).trim();
+      const storeEmployees = employees.filter((e) => {
+        const empLojaId = String(e.LojaID || e.lojaId || "").trim();
+        const empLoja = String(e.Loja || e.NomeLoja || "").trim().toLowerCase();
+        return (
+          (empLojaId && (empLojaId === storeId || empLojaId === actualStoreId)) ||
+          (storeName && empLoja === storeName) ||
+          (empLoja && (empLoja === storeId.toLowerCase() || empLoja === actualStoreId.toLowerCase()))
+        );
+      });
       assert(
         storeEmployees.length > 0,
         "Nenhum colaborador encontrado vinculado a esta loja.",
@@ -2180,7 +2205,7 @@ export function createClockHandlers() {
               NomeFuncionario: empName,
               LojaID: storeId,
               NomeLoja: store.NomeLoja || store.Nome || "",
-              Data: currentDay,
+              Data: movementDate,
               HorasTrabalhadas: 0,
               JornadaContratual: 0,
               SaldoMinutos: -currentBalance,
@@ -2231,6 +2256,7 @@ export function createClockHandlers() {
               LojaID: storeId,
               Tipo: "Zerar saldo de folgas da loja",
               Competencia: targetMonth,
+              Data: movementDate,
               DataCriacao: timestamp,
               CriadoPor: profile.Email,
               Observacao: reason,

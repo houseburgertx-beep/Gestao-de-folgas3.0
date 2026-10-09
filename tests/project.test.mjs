@@ -1944,6 +1944,15 @@ test("o administrador possui opcao de zerar saldos de loja e trocar/redefinir se
     /accumulatedHourBalance\(\{[\s\S]*?movements,/,
     "resetStoreBalances deve repassar movements corretamente para o cálculo de saldo",
   );
+  assert.ok(
+    !apiClock.includes("params."),
+    "apiClock não deve conter referências a 'params' indefinido",
+  );
+  assert.match(
+    apiClock,
+    /payload\.month \|\| payload\.mes/,
+    "resetStoreBalances deve extrair a competência a partir de payload.month",
+  );
 });
 
 
