@@ -109,44 +109,73 @@ async function callApi(name, args = []) {
 // DATA LOADING
 // ==========================================================================
 
-async function loadData() {
+let _loadDataPromise = null;
+let _lastDataLoadedAt = 0;
+const TASKS_CACHE_TTL = 60000;
+
+export async function loadData(force = false) {
   const hasAuth = !!(state.user || window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser || window.google?.script?.run);
   if (!hasAuth) {
     renderApp();
     return;
   }
-  try {
-    state.loading = true;
-    const [tasksRes, catalogRes, redemptionsRes, adjustsRes, missionsRes, teamRes] = await Promise.all([
-      callApi('cozinhaTasksList'),
-      callApi('cozinhaPointCatalog'),
-      callApi('cozinhaPointRedemptions'),
-      callApi('cozinhaPointAdjustments'),
-      callApi('cozinhaPointWeeklyMissions'),
-      callApi('cozinhaTeamMetrics'),
-    ]);
 
-    state.tasks = tasksRes?.data || [];
-    state.catalog = catalogRes?.data || [];
-    state.redemptions = redemptionsRes?.data || [];
-    state.adjustments = adjustsRes?.data || [];
-    state.missions = missionsRes?.data || [];
-    state.teamMetrics = teamRes?.data || [];
-
-    if (isUserAdmin()) {
-      const assigneesRes = await callApi('cozinhaTasksAssignees');
-      state.assignees = assigneesRes?.data || [];
-    }
-  } catch (err) {
-    console.error("Erro ao carregar dados do CozinhaFlow:", err);
-  } finally {
-    state.loading = false;
+  // Se já temos dados frescos e não é forçado, renderiza instantaneamente em 0ms
+  const isFresh = !force && state.initialized && (Date.now() - _lastDataLoadedAt < TASKS_CACHE_TTL);
+  if (isFresh) {
     renderApp();
-    try {
-      const balance = computeUserBalance();
-      window.dispatchEvent(new CustomEvent('cozinha-tasks-updated', { detail: balance }));
-    } catch (_) {}
+    return;
   }
+
+  // Stale-While-Revalidate: se já há dados em cache, renderiza de imediato para abrir a aba em 0ms
+  if (state.initialized) {
+    renderApp();
+  }
+
+  // Coalescing: evita disparar múltiplas requisições paralelas idênticas
+  if (_loadDataPromise) {
+    return _loadDataPromise;
+  }
+
+  _loadDataPromise = (async () => {
+    try {
+      state.loading = true;
+      const [tasksRes, catalogRes, redemptionsRes, adjustsRes, missionsRes, teamRes] = await Promise.all([
+        callApi('cozinhaTasksList'),
+        callApi('cozinhaPointCatalog'),
+        callApi('cozinhaPointRedemptions'),
+        callApi('cozinhaPointAdjustments'),
+        callApi('cozinhaPointWeeklyMissions'),
+        callApi('cozinhaTeamMetrics'),
+      ]);
+
+      state.tasks = tasksRes?.data || [];
+      state.catalog = catalogRes?.data || [];
+      state.redemptions = redemptionsRes?.data || [];
+      state.adjustments = adjustsRes?.data || [];
+      state.missions = missionsRes?.data || [];
+      state.teamMetrics = teamRes?.data || [];
+
+      if (isUserAdmin()) {
+        const assigneesRes = await callApi('cozinhaTasksAssignees');
+        state.assignees = assigneesRes?.data || [];
+      }
+      state.initialized = true;
+      _lastDataLoadedAt = Date.now();
+    } catch (err) {
+      console.error("Erro ao carregar dados do CozinhaFlow:", err);
+    } finally {
+      state.loading = false;
+      _loadDataPromise = null;
+      renderApp();
+      try {
+        const balance = computeUserBalance();
+        window.dispatchEvent(new CustomEvent('cozinha-tasks-updated', { detail: balance }));
+      } catch (_) {}
+    }
+  })();
+
+  return _loadDataPromise;
 }
 
 // ==========================================================================
@@ -980,7 +1009,7 @@ async function handleTaskStart(taskId) {
     btnLoading(true);
     await callApi('cozinhaTasksStart', [taskId]);
     toast("Tarefa iniciada!");
-    await loadData();
+    await loadData(true);
   } catch (err) {
     alert(err.message || "Erro ao iniciar tarefa.");
   } finally {
@@ -993,7 +1022,7 @@ async function handleTaskApprove(taskId) {
     btnLoading(true);
     const res = await callApi('cozinhaTasksApprove', [taskId]);
     toast(res?.message || "Tarefa aprovada e pontos concedidos!");
-    await loadData();
+    await loadData(true);
   } catch (err) {
     alert(err.message || "Erro ao aprovar tarefa.");
   } finally {
@@ -1006,7 +1035,7 @@ async function handleTaskReopen(taskId) {
     btnLoading(true);
     await callApi('cozinhaTasksReopen', [taskId]);
     toast("Tarefa reaberta!");
-    await loadData();
+    await loadData(true);
   } catch (err) {
     alert(err.message || "Erro ao reabrir tarefa.");
   } finally {
@@ -1026,7 +1055,7 @@ async function handleRewardRedeem(rewardId) {
     btnLoading(true);
     const res = await callApi('cozinhaPointRedeem', [{ rewardId }]);
     toast(res?.message || "Resgate solicitado com sucesso!");
-    await loadData();
+    await loadData(true);
   } catch (err) {
     alert(err.message || "Erro ao resgatar produto.");
   } finally {
@@ -1041,7 +1070,7 @@ async function handleDeliverReward(redemptionId) {
     btnLoading(true);
     await callApi('cozinhaPointDeliver', [{ id: redemptionId }]);
     toast("Recompensa entregue!");
-    await loadData();
+    await loadData(true);
   } catch (err) {
     alert(err.message || "Erro ao marcar entrega.");
   } finally {
@@ -1137,7 +1166,7 @@ function openNewTaskModal() {
       await callApi('cozinhaTasksSave', [data]);
       modal.remove();
       toast("Tarefa criada e atribuída com sucesso!");
-      await loadData();
+      await loadData(true);
     } catch (err) {
       alert(err.message || "Erro ao salvar tarefa.");
     } finally {
@@ -1228,7 +1257,7 @@ function openEditTaskModal(taskId) {
       await callApi('cozinhaTasksSave', [data]);
       modal.remove();
       toast("Tarefa atualizada com sucesso!");
-      await loadData();
+      await loadData(true);
     } catch (err) {
       alert(err.message || "Erro ao salvar.");
     } finally {
@@ -1366,7 +1395,7 @@ function openCompleteModal(taskId) {
       }]);
 
       modal.remove();
-      await loadData();
+      await loadData(true);
       const updatedBalance = computeUserBalance();
       showTaskCelebration({
         task,
@@ -1488,7 +1517,7 @@ function openRejectModal(taskId) {
       await callApi('cozinhaTasksReject', [{ taskId, reason }]);
       modal.remove();
       toast("Tarefa devolvida com sucesso.");
-      await loadData();
+      await loadData(true);
     } catch (err) {
       alert(err.message || "Erro ao devolver tarefa.");
     } finally {
@@ -1527,7 +1556,7 @@ function openCancelModal(taskId) {
       await callApi('cozinhaTasksCancel', [{ taskId, reason, points }]);
       modal.remove();
       toast("Tarefa cancelada.");
-      await loadData();
+      await loadData(true);
     } catch (err) {
       alert(err.message || "Erro ao cancelar tarefa.");
     } finally {
@@ -1604,7 +1633,7 @@ function openPenaltyModal() {
       await callApi('cozinhaPointPenalize', [{ userId, points, reason }]);
       modal.remove();
       toast("Penalidade aplicada com sucesso.");
-      await loadData();
+      await loadData(true);
     } catch (err) {
       alert(err.message || "Erro ao aplicar penalidade.");
     } finally {
@@ -1758,7 +1787,7 @@ export function initTasksModule(options = {}) {
     state.user = window.__GESTAO_FIREBASE__.runtime.profile;
     state.isManager = isUserAdmin();
   }
-  loadData();
+  return loadData(false);
 }
 
 window.initTasksModule = initTasksModule;
@@ -1774,7 +1803,9 @@ window.addEventListener('house-journey', (e) => {
   state.isManager = isUserAdmin();
   const container = $('#tasksApp');
   if (container && $('#view-tasks')?.classList.contains('active')) {
-    loadData();
+    if (!state.initialized || Date.now() - _lastDataLoadedAt >= TASKS_CACHE_TTL) {
+      loadData(false);
+    }
   }
 });
 

@@ -2881,8 +2881,9 @@
       window.__GESTAO_IS_MANAGER__ = isManager();
       if (typeof window.initTasksModule === "function") {
         window.initTasksModule({ user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() });
+      } else {
+        window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
       }
-      window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
     }
     else if (
       [
@@ -5265,18 +5266,25 @@
       cacheKey = month + "|" + funcionarioId;
     $("#clockMonth").value = month;
     syncClockDayToMonth_(month);
-    if (
-      !force &&
-      state.timeClock &&
-      !state.timeClock._quick &&
-      state.timeClock._cacheKey === cacheKey &&
-      Date.now() - Number(state.timeClock._loadedAt || 0) < 30000
-    ) {
+
+    // Se já temos dados em memória (inclusive _quick), renderiza IMEDIATAMENTE (0ms)
+    const hasData = state.timeClock && (state.timeClock._cacheKey === cacheKey || !state.timeClock._cacheKey);
+    if (hasData) {
       renderTimeClock();
       updateAbsencesBadge_();
       if (state.currentView === "absences") {
         renderAbsences_();
       }
+    }
+
+    const isFresh =
+      !force &&
+      state.timeClock &&
+      !state.timeClock._quick &&
+      state.timeClock._cacheKey === cacheKey &&
+      Date.now() - Number(state.timeClock._loadedAt || 0) < 30000;
+
+    if (isFresh) {
       if ((state.timeClockBalance || {})._cacheKey !== cacheKey) {
         loadTimeClockBalance_(month, funcionarioId);
       }
@@ -5299,7 +5307,7 @@
       saveTurboShellCache_();
       return d;
     } catch (e) {
-      if (showError) toast(e.message, true);
+      if (showError && !hasData) toast(e.message, true);
       else console.warn("Ponto:", e.message);
       return null;
     }
@@ -5981,6 +5989,10 @@
       return toast("Este aparelho não disponibiliza localização.", true);
     if (!expectedAction) {
       expectedAction = String((state.timeClock || {}).nextAction || "");
+    }
+    if (!expectedAction && !state.timeClock) {
+      const tc = await loadTimeClock(false, false);
+      expectedAction = String((tc || {}).nextAction || "");
     }
     if (!expectedAction)
       return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
@@ -8898,7 +8910,7 @@
       return;
     }
 
-    if (!forceRefresh && state.takeatCredit.loaded && state.takeatCredit.items.length > 0) {
+    if (!forceRefresh && state.takeatCredit.loaded) {
       if (state.currentView === "takeat-credit") renderTakeatCreditView();
       return;
     }

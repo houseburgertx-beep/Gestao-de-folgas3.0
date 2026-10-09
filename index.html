@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.15.5" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.15.6" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.15.5-firebase-github" />
+    <meta name="app-version" content="6.15.6-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -19108,7 +19108,7 @@ tr:last-child td {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.15.5"></script>
+<script type="module" src="./src/main.js?v=6.15.6"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21992,8 +21992,9 @@ tr:last-child td {
       window.__GESTAO_IS_MANAGER__ = isManager();
       if (typeof window.initTasksModule === "function") {
         window.initTasksModule({ user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() });
+      } else {
+        window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
       }
-      window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
     }
     else if (
       [
@@ -24376,18 +24377,25 @@ tr:last-child td {
       cacheKey = month + "|" + funcionarioId;
     $("#clockMonth").value = month;
     syncClockDayToMonth_(month);
-    if (
-      !force &&
-      state.timeClock &&
-      !state.timeClock._quick &&
-      state.timeClock._cacheKey === cacheKey &&
-      Date.now() - Number(state.timeClock._loadedAt || 0) < 30000
-    ) {
+
+    // Se já temos dados em memória (inclusive _quick), renderiza IMEDIATAMENTE (0ms)
+    const hasData = state.timeClock && (state.timeClock._cacheKey === cacheKey || !state.timeClock._cacheKey);
+    if (hasData) {
       renderTimeClock();
       updateAbsencesBadge_();
       if (state.currentView === "absences") {
         renderAbsences_();
       }
+    }
+
+    const isFresh =
+      !force &&
+      state.timeClock &&
+      !state.timeClock._quick &&
+      state.timeClock._cacheKey === cacheKey &&
+      Date.now() - Number(state.timeClock._loadedAt || 0) < 30000;
+
+    if (isFresh) {
       if ((state.timeClockBalance || {})._cacheKey !== cacheKey) {
         loadTimeClockBalance_(month, funcionarioId);
       }
@@ -24410,7 +24418,7 @@ tr:last-child td {
       saveTurboShellCache_();
       return d;
     } catch (e) {
-      if (showError) toast(e.message, true);
+      if (showError && !hasData) toast(e.message, true);
       else console.warn("Ponto:", e.message);
       return null;
     }
@@ -25092,6 +25100,10 @@ tr:last-child td {
       return toast("Este aparelho não disponibiliza localização.", true);
     if (!expectedAction) {
       expectedAction = String((state.timeClock || {}).nextAction || "");
+    }
+    if (!expectedAction && !state.timeClock) {
+      const tc = await loadTimeClock(false, false);
+      expectedAction = String((tc || {}).nextAction || "");
     }
     if (!expectedAction)
       return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
@@ -28009,7 +28021,7 @@ tr:last-child td {
       return;
     }
 
-    if (!forceRefresh && state.takeatCredit.loaded && state.takeatCredit.items.length > 0) {
+    if (!forceRefresh && state.takeatCredit.loaded) {
       if (state.currentView === "takeat-credit") renderTakeatCreditView();
       return;
     }

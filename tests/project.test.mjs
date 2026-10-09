@@ -2595,4 +2595,46 @@ test("Takeat cards: design estilo iOS com bordas generosamente arredondadas e so
   );
 });
 
+test("Auditoria do ponto e performance: fallback de jornada padrão, idempotência, cache do tarefas e transição 0ms de abas", async () => {
+  const [apiClock, tasksJs, scriptsHtml] = await Promise.all([
+    readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/tasks.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+  ]);
+
+  // 1. api-clock.js: Fallback para jornada padrão caso o colaborador não tenha jornada cadastrada
+  assert.match(apiClock, /const defaultScheduleFor =/);
+  assert.match(apiClock, /defaultScheduleFor\(empId/);
+  assert.match(apiClock, /CargaDiariaMinutos:\s*440/);
+  assert.match(apiClock, /DuracaoIntervaloMinutos:\s*60/);
+
+  // 2. api-clock.js: Normalização de IDs para evitar falhas por tipos divergentes (string vs number)
+  assert.match(apiClock, /String\(item\.FuncionarioID \?\? ""\)\.trim\(\) === normId/);
+
+  // 3. api-clock.js: Idempotência de registro já efetuado sem erro de tela desatualizada
+  assert.match(apiClock, /alreadyDoneExpected/);
+  assert.match(apiClock, /`Ponto já registrado: \$\{alreadyDoneExpected\.TipoMarcacao\}\.`/);
+
+  // 4. tasks.js: Cache TTL de 60s, deduplicação de chamadas concorrentes (_loadDataPromise) e Stale-While-Revalidate
+  assert.match(tasksJs, /let _loadDataPromise = null;/);
+  assert.match(tasksJs, /const TASKS_CACHE_TTL = 60000;/);
+  assert.match(tasksJs, /const isFresh = !force && state\.initialized/);
+  assert.match(tasksJs, /if \(state\.initialized\)\s*\{\s*renderApp\(\);/);
+  assert.match(tasksJs, /await loadData\(true\);/);
+
+  // 5. Scripts.html: Não duplicar gestao-tasks-open se initTasksModule estiver disponível
+  assert.match(scriptsHtml, /if \(typeof window\.initTasksModule === "function"\) \{/);
+  assert.match(scriptsHtml, /window\.initTasksModule\(.*?\);\s*\} else \{\s*window\.dispatchEvent\(new CustomEvent\("gestao-tasks-open"/);
+
+  // 6. Scripts.html: Transição instantânea (0ms) na aba ponto se houver dados em cache
+  assert.match(scriptsHtml, /const hasData = state\.timeClock && \(state\.timeClock\._cacheKey === cacheKey/);
+
+  // 7. Scripts.html: startClockPunch_ busca status se expectedAction estiver vazio
+  assert.match(scriptsHtml, /if \(!expectedAction && !state\.timeClock\) \{\s*const tc = await loadTimeClock\(false, false\);/);
+
+  // 8. Scripts.html: Consumo Takeat abre sem requisição repetida para colaboradores com 0 contas
+  assert.match(scriptsHtml, /if \(!forceRefresh && state\.takeatCredit\.loaded\) \{\s*if \(state\.currentView === "takeat-credit"\) renderTakeatCreditView\(\);/);
+});
+
+
 

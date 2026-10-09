@@ -296,11 +296,33 @@ const isScheduledWorkday = (schedule, employee, weekday) => {
   return workdayIndexes(schedule).includes(weekday);
 };
 
+const defaultScheduleFor = (employeeId, storeId = "", email = "") => ({
+  JornadaPontoID: `default-${String(employeeId || "padrao")}`,
+  FuncionarioID: employeeId,
+  EmailFuncionario: email,
+  LojaID: storeId,
+  TipoJornada: "Padrão",
+  CargaDiariaMinutos: 440,
+  CargaSemanalMinutos: 2640,
+  HoraEntrada: "08:00",
+  HoraSaidaIntervalo: "12:00",
+  HoraRetornoIntervalo: "13:00",
+  HoraSaida: "16:20",
+  DuracaoIntervaloMinutos: 60,
+  DiasTrabalho: "0,1,2,3,4,5,6",
+  ToleranciaMinutos: 15,
+  BancoHorasAtivo: true,
+  Ativa: true,
+  VigenteDe: "2020-01-01",
+  VigenteAte: "",
+});
+
 const scheduleFor = (schedules, employeeId, dateKey = todayIso()) => {
-  const candidates = schedules
+  const normId = String(employeeId ?? "").trim();
+  const candidates = (schedules || [])
     .filter(
       (item) =>
-        item.FuncionarioID === employeeId &&
+        String(item.FuncionarioID ?? "").trim() === normId &&
         asBoolean(item.Ativa) &&
         (!item.VigenteDe || normalizedDateKey(item.VigenteDe) <= dateKey) &&
         (!item.VigenteAte || normalizedDateKey(item.VigenteAte) >= dateKey),
@@ -348,10 +370,11 @@ const operationalDayFor = (
 ) => {
   const currentDay = todayIso(now);
   const previousDay = previousDateKey(currentDay);
-  const previousRecords = records
+  const normId = String(employeeId ?? "").trim();
+  const previousRecords = (records || [])
     .filter(
       (item) =>
-        item.FuncionarioID === employeeId &&
+        String(item.FuncionarioID ?? "").trim() === normId &&
         normalizedDateKey(item.Data) === previousDay &&
         item.Status !== "Substituído",
     )
@@ -369,7 +392,7 @@ const operationalDayFor = (
     now.getTime() - lastTimestamp >= 0 &&
     now.getTime() - lastTimestamp <= 18 * 60 * 60 * 1000;
   return withinSameShift &&
-    scheduleFor(schedules, employeeId, previousDay)
+    (scheduleFor(schedules, employeeId, previousDay) || defaultScheduleFor(employeeId))
     ? previousDay
     : currentDay;
 };
@@ -929,8 +952,9 @@ async function clockContext(filters = {}) {
       (normalizedDateKey(item.Data).slice(0, 7) === month ||
         item.Status === "Pendente"),
   );
+  const normProfileEmpId = String(profile.FuncionarioID ?? "").trim();
   const ownEmployee = allowed.find(
-    (item) => item.FuncionarioID === profile.FuncionarioID,
+    (item) => String(item.FuncionarioID ?? "").trim() === normProfileEmpId,
   );
   const operationalDay = ownEmployee
     ? operationalDayFor(
@@ -940,13 +964,14 @@ async function clockContext(filters = {}) {
       )
     : todayIso();
   const ownSchedule = ownEmployee
-    ? scheduleFor(schedules, ownEmployee.FuncionarioID, operationalDay)
+    ? (scheduleFor(schedules, ownEmployee.FuncionarioID, operationalDay) ||
+       defaultScheduleFor(ownEmployee.FuncionarioID, ownEmployee.LojaID, ownEmployee.Email))
     : null;
   const todayRecords = ownEmployee
     ? records
         .filter(
           (item) =>
-            item.FuncionarioID === ownEmployee.FuncionarioID &&
+            String(item.FuncionarioID ?? "").trim() === String(ownEmployee.FuncionarioID ?? "").trim() &&
             normalizedDateKey(item.Data) === operationalDay &&
             item.Status !== "Substituído",
         )
@@ -1154,27 +1179,32 @@ async function quickClockContext() {
     runtime.list("JornadasPonto", { profile }),
     runtime.list("Folgas", { profile }),
   ]);
+  const empId = String(employee.FuncionarioID ?? "").trim();
   const operationalDay = operationalDayFor(
     records,
     schedules,
-    employee.FuncionarioID,
+    empId,
   );
-  const schedule = scheduleFor(
+  const foundSchedule = scheduleFor(
     schedules,
-    employee.FuncionarioID,
+    empId,
     operationalDay,
   );
+  const schedule =
+    foundSchedule && asBoolean(foundSchedule.Ativa)
+      ? foundSchedule
+      : defaultScheduleFor(empId, employee.LojaID, employee.Email);
   const todayRecords = records
     .filter(
       (item) =>
-        item.FuncionarioID === employee.FuncionarioID &&
+        String(item.FuncionarioID ?? "").trim() === empId &&
         normalizedDateKey(item.Data) === operationalDay &&
         item.Status !== "Substituído",
     )
     .sort(compareRecordsByDateTime);
   const approvedOff = timeOff.find(
     (item) =>
-      item.FuncionarioID === employee.FuncionarioID &&
+      String(item.FuncionarioID ?? "").trim() === empId &&
       ["Aprovada", "Concluída"].includes(item.Status) &&
       normalizedDateKey(item.DataInicio) <= operationalDay &&
       (item.DataFim
@@ -1381,17 +1411,21 @@ export function createClockHandlers() {
         "O funcionário está vinculado a outra loja. Atualize o acesso.",
       );
       assert(location && asBoolean(location.Ativo), "Configure o local do ponto.");
+      const empId = String(employee.FuncionarioID ?? "").trim();
       const day = operationalDayFor(
         allRecords,
         schedules,
-        employee.FuncionarioID,
+        empId,
       );
-      const schedule = scheduleFor(
+      const foundSchedule = scheduleFor(
         schedules,
-        employee.FuncionarioID,
+        empId,
         day,
       );
-      assert(schedule && asBoolean(schedule.Ativa), "Configure a jornada.");
+      const schedule =
+        foundSchedule && asBoolean(foundSchedule.Ativa)
+          ? foundSchedule
+          : defaultScheduleFor(empId, employee.LojaID, employee.Email);
       const latitude = Number(payload.latitude);
       const longitude = Number(payload.longitude);
       const accuracy = Number(payload.accuracy);
@@ -1432,7 +1466,7 @@ export function createClockHandlers() {
       );
       const records = allRecords.filter(
         (item) =>
-          item.FuncionarioID === employee.FuncionarioID &&
+          String(item.FuncionarioID ?? "").trim() === empId &&
           normalizedDateKey(item.Data) === day &&
           item.Status !== "Substituído",
       );
@@ -1452,9 +1486,29 @@ export function createClockHandlers() {
       }
       const next = nextClockAction(records, schedule);
       const expected = String(payload.expectedAction || next).toUpperCase();
+
+      // Idempotência inteligente: se a ação esperada já foi gravada hoje (ex: duplo toque ou retry após timeout):
+      const alreadyDoneExpected = records.find(
+        (item) => item.TipoMarcacao === expected && item.Status !== "Substituído",
+      );
+      if (alreadyDoneExpected && expected !== next) {
+        return success(
+          {
+            ...alreadyDoneExpected,
+            ProximaMarcacao: next,
+          },
+          `Ponto já registrado: ${alreadyDoneExpected.TipoMarcacao}.`,
+        );
+      }
+
       let type = next;
       if (expected === "SEM_DESCANSO" && next === "SAIDA_INTERVALO") {
         type = "SEM_DESCANSO";
+      } else if (expected === next) {
+        type = next;
+      } else if (next && sequenceFor(schedule).includes(next)) {
+        // Se a tela enviou ação defasada mas a próxima marcação necessária é válida, registra o próximo passo da jornada com segurança:
+        type = next;
       } else {
         assert(expected === next, "A tela estava desatualizada. Atualize o ponto.");
       }
@@ -1501,6 +1555,7 @@ export function createClockHandlers() {
       let saved;
       try {
         saved = await runtime.create("RegistrosPonto", record);
+        runtime.invalidateTableCache?.("RegistrosPonto");
       } catch (error) {
         const existing = await runtime.getById("RegistrosPonto", requestId);
         if (existing?.RequestID !== requestId) throw error;
