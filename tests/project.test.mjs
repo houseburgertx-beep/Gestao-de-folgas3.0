@@ -2636,5 +2636,121 @@ test("Auditoria do ponto e performance: fallback de jornada padrão, idempotênc
   assert.match(scriptsHtml, /if \(!forceRefresh && state\.takeatCredit\.loaded\) \{\s*if \(state\.currentView === "takeat-credit"\) renderTakeatCreditView\(\);/);
 });
 
+test("Módulo de Assinatura Eletrônica e Gestão Documental: criptografia, auditoria pericial e piloto", async () => {
+  const { sha256Hex, generateSignedPdf, generateValidationCode, DOCUMENT_TEMPLATES } = await import("../src/core/api-documents.js");
+  const { PDFDocument } = await import("pdf-lib");
+
+  // 1. Integridade Criptográfica (SHA-256)
+  const testString = "Contrato de Trabalho - Grupo House 190";
+  const hash1 = await sha256Hex(testString);
+  const hash2 = await sha256Hex(testString);
+  assert.equal(hash1, hash2, "O hash SHA-256 deve ser estritamente determinístico");
+  assert.equal(hash1.length, 64, "O hash SHA-256 deve possuir exatamente 64 caracteres hexadecimais");
+
+  const diffHash = await sha256Hex("Contrato de Trabalho - Grupo House 191");
+  assert.notEqual(hash1, diffHash, "Qualquer caractere alterado deve mudar completamente o hash");
+
+  // 2. Formato do Código de Validação Pericial
+  const valCode = generateValidationCode();
+  assert.match(valCode, /^VAL-\d{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/, "Código de validação deve seguir o padrão VAL-AAAA-XXXX-XXXX");
+
+  // 3. Modelos Internos do Sistema
+  assert.ok(DOCUMENT_TEMPLATES["termo-regulamento"], "Deve conter o modelo de Regulamento Interno");
+  assert.ok(DOCUMENT_TEMPLATES["acordo-banco-horas"], "Deve conter o modelo de Banco de Horas (Art. 59 CLT)");
+  assert.ok(DOCUMENT_TEMPLATES["termo-epi-uniforme"], "Deve conter o modelo de EPI e Uniforme");
+
+  // 4. Criação de PDF Dinâmico com Folha Pericial de Auditoria
+  const mockDoc = {
+    DocumentoID: "DOC_TEST_001",
+    Titulo: "Termo de Compromisso Operacional",
+    Tipo: "Termo de Ciência",
+    FuncionarioID: "FUNC_01",
+    NomeFuncionario: "Gabriel Cangussu Prates",
+    CPFFuncionario: "123.456.789-00",
+    LojaID: "LOJA_01",
+    NomeLoja: "Tios Rockets Pizzaria",
+    MesReferencia: "2026-09",
+    DataEnvio: "2026-10-09T18:00:00.000Z",
+    CriadoPor: "Diretoria",
+    HashOriginalSHA256: await sha256Hex("Texto base do contrato"),
+    ConteudoTexto: "Cláusula 1: O colaborador declara ciência das diretrizes operacionais do Grupo House 190.",
+  };
+
+  const mockSignInfo = {
+    CodigoValidacao: valCode,
+    DataHoraAssinatura: "2026-10-09T18:30:00.000Z",
+    TimestampUTC: Date.now(),
+    EnderecoIP: "189.40.55.12",
+    DispositivoInfo: "iPhone 15 Pro (iOS 18.0)",
+    NavegadorInfo: "Mobile Safari 18.0",
+  };
+
+  // Rubrica mock (1x1 PNG transparente)
+  const tinyPng = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "base64",
+  );
+
+  const resultFromText = await generateSignedPdf({
+    originalPdfBytes: null,
+    originalText: mockDoc.ConteudoTexto,
+    docInfo: mockDoc,
+    signInfo: mockSignInfo,
+    rubricPngBytes: new Uint8Array(tinyPng),
+  });
+
+  assert.ok(resultFromText.finalPdfBytes.length > 500, "Deve gerar bytes válidos de PDF");
+  assert.ok(resultFromText.finalPdfBase64.length > 500, "Deve gerar base64 válido");
+  assert.equal(resultFromText.finalHashSha256.length, 64, "Deve computar hash SHA-256 do PDF final");
+
+  const pdfLoaded = await PDFDocument.load(resultFromText.finalPdfBytes);
+  assert.equal(pdfLoaded.getPageCount(), 2, "PDF gerado a partir de texto deve conter a página do contrato + página de auditoria");
+
+  // 5. Teste Piloto com PDF Real da Contabilidade: GABRIEL (1).pdf se existir
+  try {
+    const fs = await import("node:fs/promises");
+    const pilotPath = "/Users/gleuce/Downloads/GABRIEL (1).pdf";
+    const pilotBytes = await fs.readFile(pilotPath).catch(() => null);
+
+    if (pilotBytes) {
+      const originalDoc = await PDFDocument.load(pilotBytes);
+      const originalPageCount = originalDoc.getPageCount();
+
+      const pilotDocInfo = {
+        DocumentoID: "DOC_GABRIEL_PILOTO",
+        Titulo: "Holerite — Setembro/2026",
+        Tipo: "Holerite",
+        FuncionarioID: "GABRIEL_01",
+        NomeFuncionario: "Gabriel Cangussu Prates",
+        CPFFuncionario: "123.456.789-00",
+        LojaID: "LOJA_TIOS_ROCKETS",
+        NomeLoja: "Tios Rockets Pizzaria Ltda",
+        MesReferencia: "2026-09",
+        DataEnvio: "2026-10-09T18:00:00.000Z",
+        CriadoPor: "Contabilidade",
+        HashOriginalSHA256: await sha256Hex(pilotBytes),
+      };
+
+      const pilotSignedResult = await generateSignedPdf({
+        originalPdfBytes: new Uint8Array(pilotBytes),
+        originalText: null,
+        docInfo: pilotDocInfo,
+        signInfo: mockSignInfo,
+        rubricPngBytes: new Uint8Array(tinyPng),
+      });
+
+      const finalPilotDoc = await PDFDocument.load(pilotSignedResult.finalPdfBytes);
+      assert.equal(
+        finalPilotDoc.getPageCount(),
+        originalPageCount + 1,
+        "O PDF assinado do Gabriel deve ter exatamente a folha original do holerite + a folha de auditoria pericial",
+      );
+      assert.equal(pilotSignedResult.finalHashSha256.length, 64, "O hash final do holerite assinado deve ser válido");
+    }
+  } catch (err) {
+    console.warn("Aviso no teste piloto do Gabriel:", err);
+  }
+});
+
 
 

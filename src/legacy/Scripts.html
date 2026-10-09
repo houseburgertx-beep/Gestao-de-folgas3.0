@@ -132,6 +132,12 @@
     vacations: "listarSolicitacoesFerias",
     vacationDecision: "decidirFerias",
     vacationCancel: "cancelarFerias",
+    documentsList: "documentsList",
+    documentsGet: "documentsGet",
+    documentsSave: "documentsSave",
+    documentsSign: "documentsSign",
+    documentsDelete: "documentsDelete",
+    documentsVerify: "documentsVerify",
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
@@ -2876,6 +2882,15 @@
     else if (view === "absences") loadAbsences_();
     else if (view === "hour-balances") loadAdminHourBalances_();
     else if (view === "takeat-credit") loadTakeatCreditData();
+    else if (view === "documents") {
+      window.__GESTAO_USER__ = state.user;
+      window.__GESTAO_IS_MANAGER__ = isManager();
+      if (typeof window.initDocumentsModule === "function") {
+        window.initDocumentsModule({ user: state.user, stores: state.stores, employees: state.employees, isManager: isManager(), isAdmin: isAdmin() });
+      } else {
+        window.dispatchEvent(new CustomEvent("gestao-documents-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager(), isAdmin: isAdmin() } }));
+      }
+    }
     else if (view === "tasks") {
       window.__GESTAO_USER__ = state.user;
       window.__GESTAO_IS_MANAGER__ = isManager();

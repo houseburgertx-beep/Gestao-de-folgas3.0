@@ -18,15 +18,16 @@ const [template, styles, dialogs, scripts] = await Promise.all([
   readLegacy("Scripts.html"),
 ]);
 
-const [redesign, cozinhaflow] = await Promise.all([
+const [redesign, cozinhaflow, documentsCss] = await Promise.all([
   readFile(path.join(projectDir, "src", "redesign.css"), "utf8"),
   readFile(path.join(projectDir, "src", "cozinhaflow.css"), "utf8"),
+  readFile(path.join(projectDir, "src", "documents.css"), "utf8"),
 ]);
 
 let html = template
   .replace(
     /<meta\s+name="app-version"\s+content="[\s\S]*?"\s*\/>/,
-    '<meta name="app-version" content="6.15.6-firebase-github" />',
+    '<meta name="app-version" content="6.16.0-firebase-github" />',
   )
   .replace(
     /<title>[\s\S]*?<\/title>/,
@@ -34,7 +35,7 @@ let html = template
   )
   // Use callbacks so JavaScript replacement tokens such as "$$" are copied
   // verbatim instead of being collapsed to a single "$".
-  .replace("<?!= include_('Styles'); ?>", () => styles + `<style>${redesign}\n${cozinhaflow}</style>`)
+  .replace("<?!= include_('Styles'); ?>", () => styles + `<style>${redesign}\n${cozinhaflow}\n${documentsCss}</style>`)
   .replace("<?!= include_('Dialogs'); ?>", () => dialogs)
   .replace(
     "<?!= include_('Scripts'); ?>",
@@ -56,7 +57,7 @@ let html = template
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.15.6"></script>
+<script type="module" src="./src/main.js?v=6.16.0"></script>
 ` + scripts,
   )
   .replace(/<base\s+target="_top"\s*\/>/, '<base target="_self" />');

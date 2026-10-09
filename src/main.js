@@ -1,6 +1,7 @@
 import "./brand.js";
 import "./journey.js";
 import "./tasks.js";
+import "./documents.js";
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
 import "./pwa.js";
