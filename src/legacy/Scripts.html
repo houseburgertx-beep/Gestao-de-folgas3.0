@@ -2449,12 +2449,15 @@
 
     setLoading(true);
     try {
+      const month = $("#adminHourBalanceMonth")?.value || "";
       const res = await call(FN.resetStoreBalances, sessionToken(), {
         lojaId: storeId,
         modo: mode,
         motivo: reason,
+        month,
       });
       closeDialog("resetStoreBalancesDialog");
+      state.adminHourBalances = null;
       state.hourBalance = null;
       state.timeClockBalance = null;
       toast(res?.message || "Saldos da loja zerados com sucesso!");
@@ -8905,7 +8908,11 @@
     const refreshBtn = $("#takeatCreditRefreshBtn");
     if (refreshBtn) {
       refreshBtn.disabled = true;
-      refreshBtn.textContent = "Sincronizando…";
+      if (isEmployee()) {
+        refreshBtn.innerHTML = '<svg class="takeat-spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.52-6.25"/><path d="M21 3v5h-5"/></svg>';
+      } else {
+        refreshBtn.textContent = "Sincronizando…";
+      }
     }
 
     const statusMetric = $("#takeatSyncStatusMetric");
@@ -8971,7 +8978,11 @@
       state.takeatCredit.loading = false;
       if (refreshBtn) {
         refreshBtn.disabled = false;
-        refreshBtn.textContent = "↻ Sincronizar Takeat";
+        if (isEmployee()) {
+          refreshBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.52-6.25"/><path d="M21 3v5h-5"/></svg>';
+        } else {
+          refreshBtn.textContent = "↻ Sincronizar Takeat";
+        }
       }
     }
   }
@@ -9168,6 +9179,9 @@
       syncTime.textContent = "Última sincronização: " + state.takeatCredit.lastSync.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
+    const viewTakeat = $("#view-takeat-credit");
+    if (viewTakeat) viewTakeat.classList.toggle("is-employee", isEmp);
+
     // Alternar entre cards mobile para funcionário e tabela para gestor
     const cardsContainer = $("#takeatEmployeeCardsContainer");
     const tableWrap = $("#takeatTableWrap");
@@ -9184,6 +9198,7 @@
 
       // Esconder wrapper e cabeçalho do panel para não criar borda dupla e recuo desnecessário
       if (tablePanel) {
+        tablePanel.style.display = "none";
         tablePanel.style.background = "transparent";
         tablePanel.style.border = "none";
         tablePanel.style.boxShadow = "none";
@@ -9201,7 +9216,7 @@
         refreshBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.52-6.25"/><path d="M21 3v5h-5"/></svg>';
         refreshBtn.title = "Sincronizar Takeat";
         refreshBtn.className = "btn";
-        refreshBtn.style.cssText = "width:36px !important; min-width:36px !important; max-width:36px !important; height:36px !important; padding:0 !important; border-radius:50% !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; flex:none !important; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.06); cursor:pointer;";
+        refreshBtn.style.cssText = "width:36px !important; min-width:36px !important; max-width:36px !important; height:36px !important; padding:0 !important; border-radius:50% !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; flex:none !important; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); box-shadow:0 1px 3px rgba(0,0,0,0.06); cursor:pointer; color:var(--text-primary, #0f172a);";
       }
 
       if (cardsContainer) {
@@ -9234,7 +9249,8 @@
 
           // ─── Hero Card ───
           const heroHtml = `
-            <div style="background:linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border:1px solid var(--border-color, #e2e8f0); border-radius:16px; padding:1.15rem 1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:16px; padding:1.2rem 1.1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:relative; overflow:hidden;">
+              <div style="position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg, #3b82f6, #6366f1);"></div>
               <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
                 <div>
                   <span style="font-size:11px; font-weight:700; color:var(--text-muted, #64748b); text-transform:uppercase; letter-spacing:0.06em;">A pagar no fechamento</span>
@@ -9391,11 +9407,14 @@
     if (cardsContainer) cardsContainer.style.display = "none";
     if (tableWrap) tableWrap.style.display = "block";
 
+    if (viewTakeat) viewTakeat.classList.remove("is-employee");
+
     // Restaurar metric-grid, panel e botão sync para o gestor
     const metricGrid = document.querySelector('#view-takeat-credit .metric-grid');
     if (metricGrid) metricGrid.style.display = '';
 
     if (tablePanel) {
+      tablePanel.style.display = "";
       tablePanel.style.background = "";
       tablePanel.style.border = "";
       tablePanel.style.boxShadow = "";

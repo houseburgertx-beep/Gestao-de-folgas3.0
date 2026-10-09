@@ -2119,13 +2119,14 @@ export function createClockHandlers() {
 
       const currentDay = todayIso();
       const currentMonth = currentDay.slice(0, 7);
-      const prevMonth = previousDateKey(currentDay).slice(0, 7);
-      const periods = [currentMonth, prevMonth];
+      const targetMonth = /^\d{4}-\d{2}$/.test(String(params.month || ""))
+        ? String(params.month)
+        : currentMonth;
 
       const [employees, records, schedules, timeOff, justifications, movements] =
         await Promise.all([
           runtime.list("Funcionarios", { profile }),
-          runtime.listPeriods("RegistrosPonto", periods, { profile }),
+          runtime.list("RegistrosPonto", { profile }),
           runtime.list("JornadasPonto", { profile }),
           runtime.list("Folgas", { profile }),
           runtime.list("JustificativasPonto", { profile }),
@@ -2133,11 +2134,11 @@ export function createClockHandlers() {
         ]);
 
       const storeEmployees = employees.filter(
-        (e) => String(e.LojaID || "") === storeId && asBoolean(e.Ativo),
+        (e) => String(e.LojaID || e.Loja || "") === storeId,
       );
       assert(
         storeEmployees.length > 0,
-        "Nenhum colaborador ativo encontrado nesta loja.",
+        "Nenhum colaborador encontrado vinculado a esta loja.",
       );
 
       const resetBank = mode === "banco_horas" || mode === "ambos";
@@ -2145,24 +2146,29 @@ export function createClockHandlers() {
       const results = [];
       const timestamp = nowIso();
 
+      // Calcular o saldo acumulado exato de todos os colaboradores da loja
+      const overview = accumulatedHourBalance({
+        employees: storeEmployees,
+        records,
+        schedules,
+        timeOff,
+        justifications,
+        movements,
+        throughMonth: targetMonth,
+        currentDate: currentDay,
+      });
+
+      const overviewByEmp = new Map(
+        (overview.employees || []).map((e) => [String(e.FuncionarioID || ""), e]),
+      );
+
       for (const employee of storeEmployees) {
         const empId = String(employee.FuncionarioID || "");
         const empName = employee.Nome || "Colaborador";
 
         let bankResetMinutes = 0;
         if (resetBank) {
-          const overview = accumulatedHourBalance({
-            employees: [employee],
-            records,
-            schedules,
-            timeOff,
-            justifications,
-            bankMovements: movements,
-            employeeId: empId,
-            currentDate: currentDay,
-            throughMonth: currentMonth,
-          });
-          const empOverview = overview.employees[0];
+          const empOverview = overviewByEmp.get(empId);
           const currentBalance = Number(empOverview?.saldoMinutos || 0);
           if (currentBalance !== 0) {
             bankResetMinutes = currentBalance;
@@ -2178,7 +2184,7 @@ export function createClockHandlers() {
               HorasTrabalhadas: 0,
               JornadaContratual: 0,
               SaldoMinutos: -currentBalance,
-              SaldoDia: -currentBalance / 60,
+              SaldoDia: Number((-currentBalance / 60).toFixed(2)),
               SaldoAcumulado: 0,
               Origem: "Zerar saldos da loja pelo administrador",
               Observacao: `Zerar saldo da loja ${store.NomeLoja || storeId}: ${reason}`,
@@ -2200,15 +2206,23 @@ export function createClockHandlers() {
           if (currentLeaves !== 0) {
             leaveResetUnits = currentLeaves;
             const movementKey = `reset-folgas-loja-${storeId}-${empId}-${Date.now()}`;
-            await runtime.applyEmployeeLeaveBalance({
-              employeeId: empId,
-              movementKey,
-              desiredDelta: -currentLeaves,
-              metadata: {
-                Tipo: "Zerar saldo de folgas da loja",
-                LojaID: storeId,
-                Motivo: reason,
-              },
+            try {
+              await runtime.applyEmployeeLeaveBalance({
+                employeeId: empId,
+                movementKey,
+                desiredDelta: -currentLeaves,
+                metadata: {
+                  Tipo: "Zerar saldo de folgas da loja",
+                  LojaID: storeId,
+                  Motivo: reason,
+                },
+              });
+            } catch (err) {
+              console.warn("[resetStoreBalances] applyEmployeeLeaveBalance fallback:", err);
+            }
+            // Força a gravação direta do zeramento no cadastro do funcionário
+            await runtime.patch("Funcionarios", empId, {
+              SaldoFolgas: 0,
             });
             await runtime.upsert("MovimentosSaldoFolgas", {
               MovimentoID: movementKey,
@@ -2216,10 +2230,14 @@ export function createClockHandlers() {
               NomeFuncionario: empName,
               LojaID: storeId,
               Tipo: "Zerar saldo de folgas da loja",
-              Competencia: currentMonth,
+              Competencia: targetMonth,
               DataCriacao: timestamp,
               CriadoPor: profile.Email,
               Observacao: reason,
+            });
+          } else {
+            await runtime.patch("Funcionarios", empId, {
+              SaldoFolgas: 0,
             });
           }
         }
@@ -2231,6 +2249,12 @@ export function createClockHandlers() {
           folgasZeradas: leaveResetUnits,
         });
       }
+
+      // Invalidar caches em memória para que todas as telas reflitam os saldos zerados
+      runtime.invalidateTableCache("BancoHorasMovimentos");
+      runtime.invalidateTableCache("Funcionarios");
+      runtime.invalidateTableCache("MovimentosSaldoFolgas");
+      runtime.invalidateTableCache("RegistrosPonto");
 
       await audit(
         "Zerar saldos da loja",

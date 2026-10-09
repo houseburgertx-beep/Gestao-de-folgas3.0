@@ -2744,3 +2744,46 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   border-color: #3f3f46;
 }
 
+/* ==========================================================================
+   Takeat Mobile Employee View - Layout Limpo e Botão Compacto
+   ========================================================================== */
+#view-takeat-credit.is-employee .section-toolbar {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 6px 0 10px 0 !important;
+  margin-bottom: 2px !important;
+  width: 100% !important;
+}
+
+#view-takeat-credit.is-employee .section-toolbar > div:first-child {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+#view-takeat-credit.is-employee .section-toolbar h2 {
+  font-size: 24px !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+}
+
+#view-takeat-credit.is-employee .toolbar-actions {
+  width: auto !important;
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+@keyframes takeatSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.takeat-spin {
+  animation: takeatSpin 0.75s linear infinite !important;
+}
+

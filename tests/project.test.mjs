@@ -1934,6 +1934,16 @@ test("o administrador possui opcao de zerar saldos de loja e trocar/redefinir se
   assert.match(index, /id="adminResetStoreBalancesBtn"/);
   assert.match(scripts, /openResetStoreBalancesDialog_/);
   assert.match(scripts, /reset-employee-pwd/);
+  assert.match(
+    apiClock,
+    /runtime\.list\("RegistrosPonto"/,
+    "resetStoreBalances deve listar todos os registros de ponto para zerar saldo efetivamente",
+  );
+  assert.match(
+    apiClock,
+    /accumulatedHourBalance\(\{[\s\S]*?movements,/,
+    "resetStoreBalances deve repassar movements corretamente para o cálculo de saldo",
+  );
 });
 
 
@@ -2511,6 +2521,20 @@ test("Takeat Consumo: Hero Card sem confete, cabeçalho compacto e recuo superio
     scriptsHtml,
     /tablePanel\.style\.background\s*=\s*"transparent"/,
     "tablePanel deve ter background transparente para funcionário",
+  );
+
+  // 5. Botão de sincronização não sobrescreve SVG com texto em mobile
+  assert.match(
+    scriptsHtml,
+    /takeat-spin/,
+    "loadTakeatCreditData deve usar ícone animado takeat-spin sem quebrar o botão mobile",
+  );
+
+  // 6. Hero Card com background padronizado do tema e sem gradiente estranho
+  assert.match(
+    scriptsHtml,
+    /background:var\(--bg-card,\s*#ffffff\)/,
+    "Hero Card deve usar background do card limpo alinhado com o design system",
   );
 });
 
