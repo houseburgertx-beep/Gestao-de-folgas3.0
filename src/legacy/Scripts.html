@@ -1863,10 +1863,11 @@
     /* As cargas abaixo enriquecem a tela, mas não são necessárias para abrir
        nem para bater ponto. Rodam quando o navegador estiver ocioso e nunca
        disputam conexão/CPU com o caminho crítico. */
-    scheduleIdleTask_(() => loadNotifications(), 6000);
-    scheduleIdleTask_(() => initNotificationMonitor_(), 7000);
-    scheduleIdleTask_(() => loadHourBalance(), 10000);
-    scheduleIdleTask_(() => loadTakeatCreditData(false, true), 12000);
+    const baseDelay = isMobileClient_() ? 8000 : 5000;
+    scheduleIdleTask_(() => loadNotifications(), baseDelay);
+    scheduleIdleTask_(() => initNotificationMonitor_(), baseDelay + 4000);
+    scheduleIdleTask_(() => loadHourBalance(), baseDelay + 9000);
+    scheduleIdleTask_(() => loadTakeatCreditData(false, true), baseDelay + 14000);
   }
 
   function isMobileClient_() {
@@ -3055,10 +3056,22 @@
     }
     return d.totalTexto || "+0h 00min";
   }
+  let PUBLISH_JOURNEY_PENDING_ = false;
   function publishJourney_() {
-    window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches}}));
+    if (PUBLISH_JOURNEY_PENDING_) return;
+    PUBLISH_JOURNEY_PENDING_ = true;
+    const dispatch = () => {
+      PUBLISH_JOURNEY_PENDING_ = false;
+      window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches}}));
+    };
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(dispatch);
+    } else {
+      setTimeout(dispatch, 0);
+    }
   }
   function renderDashboard() {
+    window.dispatchEvent(new Event("gestao-dashboard-active"));
     publishJourney_();
     const cards = Object.assign({}, state.dashboard.cards || computeCards(), {
         conferenciaPonto: state.incompletePunches ? state.incompletePunches.length : "—",
@@ -5331,7 +5344,6 @@
         state.timeClock = data;
         renderTimeClock();
         renderEmployeeDashboardCards();
-        if (state.currentView === "dashboard") loadTimeClock(false);
         saveTurboShellCache_();
         console.info("[performance] ponto imediato pronto", {
           elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
@@ -6187,7 +6199,7 @@
   function warmClockLocation_() {
     if (!navigator.geolocation) return;
     call(FN.clockSelfieWarm).catch(() => {});
-    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 45000) return;
+    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 120000) return;
     try {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -6196,12 +6208,12 @@
           updateClockLocationStatus_(pos);
         },
         () => {},
-        { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 },
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 120000 },
       );
     } catch (_) {}
   }
   function getClockPosition_() {
-    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 75000) {
+    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 120000) {
       return Promise.resolve(CLOCK_CACHED_POSITION_);
     }
     return new Promise((resolve, reject) => {

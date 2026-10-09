@@ -83,37 +83,50 @@ const uploadClockSelfieToDrive = async ({
   );
   const user = runtime.auth?.currentUser;
   assert(user, "Sua sessão expirou. Entre novamente.");
-  const idToken = await user.getIdToken();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000);
+  const performUpload = async (timeoutMs) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(selfieDriveEndpoint(), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        redirect: "follow",
+        credentials: "omit",
+        signal: controller.signal,
+        body: JSON.stringify({
+          action: "uploadClockSelfie",
+          idToken,
+          requestId,
+          day,
+          clockType: type,
+          selfieDataUrl: selfie,
+        }),
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
   let response;
   try {
-    response = await fetch(selfieDriveEndpoint(), {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      redirect: "follow",
-      credentials: "omit",
-      signal: controller.signal,
-      body: JSON.stringify({
-        action: "uploadClockSelfie",
-        idToken,
-        requestId,
-        day,
-        clockType: type,
-        selfieDataUrl: selfie,
-      }),
-    });
-  } catch (error) {
-    if (error?.name === "AbortError") {
+    response = await performUpload(20000);
+  } catch (firstError) {
+    console.warn(
+      "[ponto] Primeira tentativa de envio ao Google Drive falhou, tentando novamente:",
+      firstError?.message || firstError,
+    );
+    try {
+      response = await performUpload(25000);
+    } catch (secondError) {
+      if (secondError?.name === "AbortError" || firstError?.name === "AbortError") {
+        throw new Error(
+          "O Google Drive demorou demais para responder. Tente novamente; a selfie não será duplicada.",
+        );
+      }
       throw new Error(
-        "O Google Drive demorou demais para responder. Tente novamente; a selfie não será duplicada.",
+        "Não foi possível enviar a selfie ao Google Drive. Verifique a internet e tente novamente.",
       );
     }
-    throw new Error(
-      "Não foi possível enviar a selfie ao Google Drive. Verifique a internet e tente novamente.",
-    );
-  } finally {
-    clearTimeout(timeout);
   }
   const text = await response.text();
   let result;
@@ -1400,7 +1413,7 @@ export function createClockHandlers() {
       //    concede tolerância segura se o círculo de incerteza alcançar a loja.
       const withinStore =
         distance <= radius ||
-        (distance - Math.min(safeAccuracy * 0.5, 60) <= radius && safeAccuracy <= 200);
+        (distance - Math.min(safeAccuracy * 0.6, 90) <= radius && safeAccuracy <= 350);
 
       assert(
         withinStore,

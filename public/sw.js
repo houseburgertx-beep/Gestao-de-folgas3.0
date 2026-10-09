@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.14.3";
+const CACHE_NAME = "house-folgas-v6.15.0";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.14.3",
+  "./manifest.webmanifest?v=6.15.0",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -40,7 +40,7 @@ self.addEventListener("activate", (event) => {
           includeUncontrolled: true,
         });
         clients.forEach((client) =>
-          client.postMessage({ type: "FORCE_UPDATE", version: "6.14.3" }),
+          client.postMessage({ type: "FORCE_UPDATE", version: "6.15.0" }),
         );
       }),
   );
@@ -99,7 +99,16 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  const isGstaticFirebase =
+    url.origin === "https://www.gstatic.com" &&
+    url.pathname.includes("/firebasejs/");
+
+  if (url.origin !== self.location.origin && !isGstaticFirebase) return;
+
+  if (isGstaticFirebase) {
+    event.respondWith(staleWhileRevalidate(request));
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(navigateHandler(request));

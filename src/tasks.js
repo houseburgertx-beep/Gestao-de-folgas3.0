@@ -1773,7 +1773,7 @@ window.addEventListener('house-journey', (e) => {
   if (detail.user) state.user = detail.user;
   state.isManager = isUserAdmin();
   const container = $('#tasksApp');
-  if (container && (!container.innerHTML.trim() || $('#view-tasks')?.classList.contains('active'))) {
+  if (container && $('#view-tasks')?.classList.contains('active')) {
     loadData();
   }
 });

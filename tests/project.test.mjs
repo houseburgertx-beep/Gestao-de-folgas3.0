@@ -2414,3 +2414,63 @@ test("Takeat Credit UX: hero card consolidado, lojas zeradas colapsaveis, comand
     "Comanda deve exibir badge de -20%",
   );
 });
+
+test("Otimização de performance: cache em memória no runtime, resiliência do ponto e cache do service worker", async () => {
+  const runtimeJs = await readFile(
+    new URL("../src/core/runtime.js", import.meta.url),
+    "utf8",
+  );
+  const apiClockJs = await readFile(
+    new URL("../src/core/api-clock.js", import.meta.url),
+    "utf8",
+  );
+  const swJs = await readFile(
+    new URL("../public/sw.js", import.meta.url),
+    "utf8",
+  );
+  const journeyJs = await readFile(
+    new URL("../src/journey.js", import.meta.url),
+    "utf8",
+  );
+
+  // 1. Runtime possui queryCache e método de invalidação
+  assert.match(
+    runtimeJs,
+    /this\.queryCache\s*=\s*new Map\(\)/,
+    "FirebaseRuntime deve inicializar queryCache",
+  );
+  assert.match(
+    runtimeJs,
+    /invalidateTableCache\(table\s*=\s*""\)/,
+    "FirebaseRuntime deve ter método invalidateTableCache",
+  );
+
+  // 2. Upload de selfie tem retry automático
+  assert.match(
+    apiClockJs,
+    /performUpload\(20000\)[\s\S]*?performUpload\(25000\)/,
+    "uploadClockSelfieToDrive deve possuir retry automático contra falha de cold start",
+  );
+
+  // 3. Tolerância de geofence calibrada para ambientes fechados
+  assert.match(
+    apiClockJs,
+    /safeAccuracy\s*<=\s*350/,
+    "Geofence deve permitir precisão típica de cozinhas e ambientes fechados",
+  );
+
+  // 4. Service Worker faz cache do Firebase SDK do gstatic
+  assert.match(
+    swJs,
+    /gstatic\.com[\s\S]*?firebasejs/,
+    "Service Worker deve permitir cache para scripts do Firebase SDK",
+  );
+
+  // 5. Journey evita re-renderização se o dashboard não estiver ativo
+  assert.match(
+    journeyJs,
+    /journeyDirty/,
+    "journey.js deve ter flag dirty para evitar re-renderização quando em outras abas",
+  );
+});
+

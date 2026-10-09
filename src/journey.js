@@ -180,15 +180,26 @@ function renderSchedule() {
  $('#journeySchedule').innerHTML=`<div class="j-page-head"><div><span class="eyebrow">SEU PRÓXIMO PASSO</span><h2>Escala</h2><p>Jornadas cadastradas e folgas aprovadas</p></div>${unitSelect()}</div><div class="w-date-nav"><button class="btn btn-secondary" data-j-period="-1" aria-label="Período anterior">←</button><button class="btn btn-ghost" data-j-period="today">Hoje</button><strong>${esc(dateLabel(start))} — ${esc(dateLabel(shiftDate(start,count-1)))}</strong><button class="btn btn-secondary" data-j-period="1" aria-label="Próximo período">→</button></div><div class="j-chips">${['dia','semana','mês'].map(k=>`<button data-j-mode="${k}" aria-pressed="${mode===k}">${k}</button>`).join('')}</div><div class="j-schedule-grid">${data.schedules?blocks:'<p class="j-empty">Carregando jornadas…</p>'}</div><button class="btn btn-secondary" data-view-target="calendar">Consultar e gerenciar folgas →</button>`;
 }
 
-function render() {
+let journeyDirty = false;
+function render(force = false) {
  if(!$('#journeyHome'))return;
+ const dashView = $('#view-dashboard');
+ const isDashActive = typeof dashView?.classList?.contains === 'function'
+   ? (!dashView.classList.contains('view') || dashView.classList.contains('active'))
+   : true;
+ if (!force && !isDashActive) {
+   journeyDirty = true;
+   return;
+ }
+ journeyDirty = false;
  $('#journeyHome').innerHTML=`${workspaceHero()}${data.manager?operation():personal()}`;
- $('#view-dashboard').classList.toggle('j-unit-filtered',!!unit);
+ dashView?.classList.toggle('j-unit-filtered',!!unit);
  $('#journeyHome').classList.toggle('v-personal-home',!data.manager);
  renderTeam();renderSchedule();tick();
 }
 function tick(){const now=new Date();document.querySelectorAll('[data-live-clock]').forEach(e=>e.textContent=now.toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}));document.querySelectorAll('[data-live-date]').forEach(e=>e.textContent=now.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'long',day:'2-digit',month:'short',year:'numeric'}));}
 window.addEventListener('house-journey',e=>{const next=e.detail || {};if(String(next.user?.email || next.user?.Email || '')!==String(data.user?.email || data.user?.Email || '')){unit='';search='';teamFilter='todos';}data=next;if(unit && !stores().some(s=>storeId(s)===unit))unit='';render()});
+window.addEventListener('gestao-dashboard-active', () => { if (journeyDirty) render(true); });
 window.addEventListener('cozinha-tasks-updated', () => render());
 document.addEventListener('change',e=>{if(e.target.matches('[data-j-unit]')){unit=e.target.value;render();}});
 document.addEventListener('input',e=>{if(e.target.matches('[data-j-search]')){search=e.target.value;const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));$('#journeyTeamRows').innerHTML=teamResults(r);}});

@@ -194,6 +194,20 @@ export class FirebaseRuntime {
     this.readyPromise = Promise.resolve(null);
     this.periodIndexMigrationPromise = null;
     this.recordKeys = new Map();
+    this.queryCache = new Map();
+  }
+
+  invalidateTableCache(table = "") {
+    if (!table) {
+      this.queryCache.clear();
+      return;
+    }
+    const prefix = `${table}:`;
+    for (const key of this.queryCache.keys()) {
+      if (key.startsWith(prefix)) {
+        this.queryCache.delete(key);
+      }
+    }
   }
 
   initialize() {
@@ -530,7 +544,22 @@ export class FirebaseRuntime {
     });
   }
 
-  async scopedRows(table, profile) {
+  async scopedRows(table, profile, forceRefresh = false) {
+    const role = roleName(profile);
+    const storeId = String(profile?.LojaID || "");
+    const employeeId = String(profile?.FuncionarioID || "");
+    const cacheKey = `${table}:${role}:${storeId}:${employeeId}`;
+    const cached = this.queryCache.get(cacheKey);
+    const ttl = ["RegistrosPonto", "Notificacoes"].includes(table) ? 15000 : 45000;
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < ttl) {
+      return clone(cached.data);
+    }
+    const rows = await this.fetchScopedRows_(table, profile);
+    this.queryCache.set(cacheKey, { timestamp: Date.now(), data: clone(rows) });
+    return rows;
+  }
+
+  async fetchScopedRows_(table, profile) {
     const tableRef = this.appRef(`tables/${table}`);
     if (isAdminProfile(profile) || PUBLIC_AUTH_TABLES.has(table)) {
       return this.recordsFromSnapshot(table, await get(tableRef));
@@ -641,7 +670,7 @@ export class FirebaseRuntime {
 
   async list(table, options = {}) {
     const profile = options.profile || (await this.requireProfile());
-    return this.scopedRows(table, profile);
+    return this.scopedRows(table, profile, Boolean(options.forceRefresh));
   }
 
   async resolveEmployeeEntry(reference = {}, options = {}) {
@@ -806,6 +835,17 @@ export class FirebaseRuntime {
   async getById(table, id) {
     if (!id) return null;
     const normalizedId = String(id);
+    const idField = ID_FIELDS[table];
+    if (idField) {
+      for (const [key, cache] of this.queryCache.entries()) {
+        if (key.startsWith(`${table}:`) && Array.isArray(cache.data)) {
+          const match = cache.data.find(
+            (item) => String(item?.[idField] || "") === normalizedId,
+          );
+          if (match) return clone(match);
+        }
+      }
+    }
     const cachedKey = this.recordKeys.get(
       this.recordCacheKey(table, normalizedId),
     );
@@ -895,6 +935,7 @@ export class FirebaseRuntime {
     const storageKey = await this.resolveStorageKey(table, id);
     await set(this.appRef(`tables/${table}/${storageKey}`), normalized);
     this.recordKeys.set(this.recordCacheKey(table, id), storageKey);
+    this.invalidateTableCache(table);
     return clone(normalized);
   }
 
@@ -910,6 +951,7 @@ export class FirebaseRuntime {
     const storageKey = pathKey(id);
     await set(this.appRef(`tables/${table}/${storageKey}`), normalized);
     this.recordKeys.set(this.recordCacheKey(table, id), storageKey);
+    this.invalidateTableCache(table);
     return clone(normalized);
   }
 
@@ -926,6 +968,7 @@ export class FirebaseRuntime {
   async patchMany(items = []) {
     const changes = {};
     const output = [];
+    const modifiedTables = new Set();
     for (const item of items) {
       const {
         table,
@@ -934,6 +977,7 @@ export class FirebaseRuntime {
         createIfMissing = false,
         record = {},
       } = item;
+      modifiedTables.add(table);
       const current = await this.getById(table, id);
       if (!current && !createIfMissing) {
         throw new Error("Registro não encontrado.");
@@ -956,6 +1000,7 @@ export class FirebaseRuntime {
       output.push(clone(normalized));
     }
     if (Object.keys(changes).length) await update(this.appRef(), changes);
+    modifiedTables.forEach((t) => this.invalidateTableCache(t));
     return output;
   }
 
@@ -1067,6 +1112,7 @@ export class FirebaseRuntime {
         ),
       };
     }
+    this.invalidateTableCache("Funcionarios");
     return outcome;
   }
 
@@ -1074,6 +1120,7 @@ export class FirebaseRuntime {
     const storageKey = await this.resolveStorageKey(table, id);
     await remove(this.appRef(`tables/${table}/${storageKey}`));
     this.recordKeys.delete(this.recordCacheKey(table, id));
+    this.invalidateTableCache(table);
   }
 
   async remove(table, id) {
