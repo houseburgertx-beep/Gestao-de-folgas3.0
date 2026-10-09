@@ -83,6 +83,8 @@ const uploadClockSelfieToDrive = async ({
   );
   const user = runtime.auth?.currentUser;
   assert(user, "Sua sessão expirou. Entre novamente.");
+  let idToken = await user.getIdToken();
+  assert(idToken, "Não foi possível validar sua sessão. Entre novamente.");
   const performUpload = async (timeoutMs) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -116,8 +118,17 @@ const uploadClockSelfieToDrive = async ({
       firstError?.message || firstError,
     );
     try {
+      try {
+        idToken = await user.getIdToken(true);
+      } catch {
+        // Mantém o token existente se a renovação pela rede falhar
+      }
       response = await performUpload(25000);
     } catch (secondError) {
+      console.error(
+        "[ponto] Falha definitiva no envio da selfie ao Google Drive:",
+        secondError?.message || secondError,
+      );
       if (secondError?.name === "AbortError" || firstError?.name === "AbortError") {
         throw new Error(
           "O Google Drive demorou demais para responder. Tente novamente; a selfie não será duplicada.",

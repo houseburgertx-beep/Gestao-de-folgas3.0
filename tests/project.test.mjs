@@ -2445,7 +2445,12 @@ test("Otimização de performance: cache em memória no runtime, resiliência do
     "FirebaseRuntime deve ter método invalidateTableCache",
   );
 
-  // 2. Upload de selfie tem retry automático
+  // 2. Upload de selfie tem idToken válido e retry automático
+  assert.match(
+    apiClockJs,
+    /idToken\s*=\s*await\s+user\.getIdToken\(\)/,
+    "uploadClockSelfieToDrive deve obter o idToken do usuário autenticado",
+  );
   assert.match(
     apiClockJs,
     /performUpload\(20000\)[\s\S]*?performUpload\(25000\)/,
