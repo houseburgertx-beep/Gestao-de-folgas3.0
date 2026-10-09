@@ -239,15 +239,109 @@
   padding-top: 0.85rem;
 }
 
-/* Modal de Visualização & Assinatura */
+/* ==========================================================================
+   MODAIS DE DOCUMENTOS (Upload, Assinatura e Auditoria)
+   Design System Grupo House 190 — Estilo iOS com fundo opaco e profundidade
+   ========================================================================== */
+
+dialog.document-modal,
+dialog#documentUploadDialog,
+dialog#documentSignDialog {
+  background: var(--surface, #ffffff) !important;
+  color: var(--text, #1e293b) !important;
+  border: 1px solid var(--line, #e2e8f0) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28), 0 10px 30px rgba(99, 64, 216, 0.12) !important;
+  padding: 0 !important;
+  width: min(720px, calc(100vw - 32px)) !important;
+  max-width: 720px !important;
+  max-height: min(92vh, 880px) !important;
+  margin: auto !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+dialog.document-modal[open],
+dialog#documentUploadDialog[open],
+dialog#documentSignDialog[open] {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+dialog.document-modal::backdrop,
+dialog#documentUploadDialog::backdrop,
+dialog#documentSignDialog::backdrop {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+dialog.document-modal::before,
+dialog#documentUploadDialog::before,
+dialog#documentSignDialog::before {
+  display: none !important;
+}
+
+dialog.document-modal .dialog-head,
+dialog#documentUploadDialog .dialog-head,
+dialog#documentSignDialog .dialog-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 18px 24px !important;
+  background: var(--surface, #ffffff) !important;
+  border-bottom: 1px solid var(--line, #e2e8f0) !important;
+  flex-shrink: 0 !important;
+  position: static !important;
+  box-sizing: border-box !important;
+}
+
+dialog.document-modal .dialog-head h3,
+dialog#documentUploadDialog .dialog-head h3,
+dialog#documentSignDialog .dialog-head h3 {
+  margin: 0 !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text, #1e293b) !important;
+}
+
+dialog.document-modal .dialog-body,
+dialog#documentUploadDialog .dialog-body,
+dialog#documentSignDialog .dialog-body {
+  padding: 20px 24px !important;
+  background: var(--surface, #ffffff) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.15rem !important;
+}
+
+dialog.document-modal .dialog-actions,
+dialog#documentUploadDialog .dialog-actions,
+dialog#documentSignDialog .dialog-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 16px 24px !important;
+  background: var(--surface, #ffffff) !important;
+  border-top: 1px solid var(--line, #e2e8f0) !important;
+  flex-shrink: 0 !important;
+  position: static !important;
+  box-sizing: border-box !important;
+}
+
 .doc-modal-shell {
-  max-width: 820px;
-  width: 95vw;
-  max-height: 90vh;
-  border-radius: 24px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-viewer-container {
@@ -399,8 +493,47 @@
   user-select: all;
 }
 
-/* Responsividade Mobile */
-@media (max-width: 640px) {
+/* Responsividade Mobile e Bottom Sheets */
+@media (max-width: 759px) {
+  dialog.document-modal,
+  dialog#documentUploadDialog,
+  dialog#documentSignDialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: auto 0 0 0 !important;
+    border-radius: 28px 28px 0 0 !important;
+    max-height: 92vh !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding: 0 !important;
+  }
+
+  dialog.document-modal .dialog-head,
+  dialog#documentUploadDialog .dialog-head,
+  dialog#documentSignDialog .dialog-head {
+    padding: 16px 20px !important;
+  }
+
+  dialog.document-modal .dialog-body,
+  dialog#documentUploadDialog .dialog-body,
+  dialog#documentSignDialog .dialog-body {
+    padding: 16px 20px !important;
+  }
+
+  dialog.document-modal .dialog-actions,
+  dialog#documentUploadDialog .dialog-actions,
+  dialog#documentSignDialog .dialog-actions {
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 16px)) 20px !important;
+  }
+
+  dialog.document-modal .dialog-actions .btn,
+  dialog#documentUploadDialog .dialog-actions .btn,
+  dialog#documentSignDialog .dialog-actions .btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+
   .doc-hero-card {
     padding: 1.15rem;
   }
@@ -419,3 +552,4 @@
     justify-content: center;
   }
 }
+

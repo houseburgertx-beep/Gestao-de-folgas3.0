@@ -547,62 +547,60 @@ export async function openSignDialog(docId) {
   }
 
   dialog.innerHTML = `
-    <div class="doc-modal-shell" role="document">
-      <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; padding:1.25rem 1.5rem; border-bottom:1px solid #e2e8f0;">
-        <div>
-          <span class="eyebrow" style="color:#6340d8;">ASSINATURA ELETRÔNICA AVANÇADA</span>
-          <h2 style="margin:0; font-size:1.2rem;">${esc(doc.Titulo)}</h2>
-        </div>
-        <button id="docSignCloseBtn" class="icon-btn" aria-label="Fechar">✕</button>
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color:#6340d8; font-weight:700; font-size:11px; letter-spacing:0.05em; text-transform:uppercase;">ASSINATURA ELETRÔNICA AVANÇADA</span>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">${esc(doc.Titulo)}</h3>
+      </div>
+      <button type="button" class="icon-btn" id="docSignCloseBtn" data-close="documentSignDialog" aria-label="Fechar">✕</button>
+    </div>
+
+    <div class="dialog-body">
+      <div style="font-size:12.5px; color:var(--muted, #64748b); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span>Colaborador: <strong>${esc(doc.NomeFuncionario)}</strong> (CPF: ${esc(doc.CPFFuncionario || "---")})</span>
+        <span>Unidade: <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
       </div>
 
-      <div style="padding:1.25rem 1.5rem; overflow-y:auto; display:flex; flex-direction:column; gap:1rem;">
-        <div style="font-size:12.5px; color:var(--muted, #64748b); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-          <span>Colaborador: <strong>${esc(doc.NomeFuncionario)}</strong> (CPF: ${esc(doc.CPFFuncionario || "---")})</span>
-          <span>Unidade: <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
-        </div>
+      ${viewerHtml}
 
-        ${viewerHtml}
-
-        <div id="docScrollLockBanner" class="doc-scroll-lock-banner">
-          <span id="docScrollLockMsg">⬇ Por favor, role até o final do documento para liberar a assinatura.</span>
-          <div class="doc-scroll-progress-bar">
-            <div id="docScrollProgressFill" class="doc-scroll-progress-fill"></div>
-          </div>
-        </div>
-
-        <div id="docSignatureSection" class="doc-signature-box disabled">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <strong style="font-size:13px; color:#1e293b;">Desenhe sua Rubrica no quadro abaixo:</strong>
-            <button id="docClearCanvasBtn" class="btn btn-ghost btn-sm" type="button">Limpar</button>
-          </div>
-
-          <div class="doc-canvas-wrap">
-            <canvas id="docSignCanvas"></canvas>
-            <div class="doc-canvas-baseline">
-              <span>Rubrica Manuscreve</span>
-              <span>Assinatura Digital</span>
-            </div>
-          </div>
-
-          <label class="doc-legal-declaration">
-            <input type="checkbox" id="docAffirmationCheck" />
-            <span>Declaro sob as penas da lei que li atentamente a integralidade deste documento, concordo com seus termos e manifesto minha vontade expressa e irrevogável de assinar eletronicamente.</span>
-          </label>
-
-          <div style="background:#f8fafc; border-radius:10px; padding:10px; font-size:11.5px; color:#64748b; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-            <span>IP: <strong>${esc(ip)}</strong></span>
-            <span>Segurança: <strong>SHA-256 + Lei 14.063/2020</strong></span>
-          </div>
+      <div id="docScrollLockBanner" class="doc-scroll-lock-banner">
+        <span id="docScrollLockMsg">⬇ Por favor, role até o final do documento para liberar a assinatura.</span>
+        <div class="doc-scroll-progress-bar">
+          <div id="docScrollProgressFill" class="doc-scroll-progress-fill"></div>
         </div>
       </div>
 
-      <div class="panel-foot" style="display:flex; justify-content:flex-end; gap:0.75rem; padding:1rem 1.5rem; border-top:1px solid #e2e8f0; background:#f8fafc;">
-        <button id="docSignCancelBtn" class="btn btn-secondary" type="button">Cancelar</button>
-        <button id="docSignConfirmBtn" class="btn btn-primary" type="button" disabled>
-          Confirmar e Assinar
-        </button>
+      <div id="docSignatureSection" class="doc-signature-box disabled">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:13px; color:#1e293b;">Desenhe sua Rubrica no quadro abaixo:</strong>
+          <button id="docClearCanvasBtn" class="btn btn-ghost btn-sm" type="button">Limpar</button>
+        </div>
+
+        <div class="doc-canvas-wrap">
+          <canvas id="docSignCanvas"></canvas>
+          <div class="doc-canvas-baseline">
+            <span>Rubrica Manuscreve</span>
+            <span>Assinatura Digital</span>
+          </div>
+        </div>
+
+        <label class="doc-legal-declaration">
+          <input type="checkbox" id="docAffirmationCheck" />
+          <span>Declaro sob as penas da lei que li atentamente a integralidade deste documento, concordo com seus termos e manifesto minha vontade expressa e irrevogável de assinar eletronicamente.</span>
+        </label>
+
+        <div style="background:#f8fafc; border-radius:10px; padding:10px; font-size:11.5px; color:#64748b; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+          <span>IP: <strong>${esc(ip)}</strong></span>
+          <span>Segurança: <strong>SHA-256 + Lei 14.063/2020</strong></span>
+        </div>
       </div>
+    </div>
+
+    <div class="dialog-actions">
+      <button id="docSignCancelBtn" class="btn btn-secondary" type="button" data-close="documentSignDialog">Cancelar</button>
+      <button id="docSignConfirmBtn" class="btn btn-primary" type="button" disabled>
+        Confirmar e Assinar
+      </button>
     </div>
   `;
 
@@ -799,91 +797,89 @@ export function openUploadDialog() {
   };
 
   dialog.innerHTML = `
-    <div class="doc-modal-shell" role="document">
-      <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; padding:1.25rem 1.5rem; border-bottom:1px solid #e2e8f0;">
-        <div>
-          <span class="eyebrow" style="color:#6340d8;">EMISSÃO DE DOCUMENTO</span>
-          <h2 style="margin:0; font-size:1.2rem;">Novo Documento para Assinatura</h2>
-        </div>
-        <button id="docUploadCloseBtn" class="icon-btn" aria-label="Fechar">✕</button>
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color:#6340d8; font-weight:700; font-size:11px; letter-spacing:0.05em; text-transform:uppercase;">EMISSÃO DE DOCUMENTO</span>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Novo Documento para Assinatura</h3>
+      </div>
+      <button type="button" class="icon-btn" id="docUploadCloseBtn" data-close="documentUploadDialog" aria-label="Fechar">✕</button>
+    </div>
+
+    <div class="dialog-body">
+      <div class="doc-nav-tabs" style="align-self:flex-start; margin-bottom:0;">
+        <button type="button" class="doc-tab-btn active" id="docTabModePdf">Upload PDF Contabilidade</button>
+        <button type="button" class="doc-tab-btn" id="docTabModeTemplate">Gerar de Modelo Interno</button>
       </div>
 
-      <div style="padding:1.25rem 1.5rem; overflow-y:auto; display:flex; flex-direction:column; gap:1.2rem;">
-        <div class="doc-nav-tabs" style="align-self:flex-start;">
-          <button type="button" class="doc-tab-btn active" id="docTabModePdf">Upload PDF Contabilidade</button>
-          <button type="button" class="doc-tab-btn" id="docTabModeTemplate">Gerar de Modelo Interno</button>
-        </div>
-
-        <!-- Campos em Comum -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
-          <div>
-            <label class="form-label" style="font-size:12.5px; font-weight:600;">Unidade / Loja</label>
-            <select id="docNewLojaSelect" style="width:100%; border-radius:10px; padding:9px;">
-              ${storeOptions}
-            </select>
-          </div>
-          <div>
-            <label class="form-label" style="font-size:12.5px; font-weight:600;">Colaborador Destinatário</label>
-            <select id="docNewEmpSelect" style="width:100%; border-radius:10px; padding:9px;">
-              ${getEmpOptions(state.stores[0]?.LojaID)}
-            </select>
-          </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
-          <div>
-            <label class="form-label" style="font-size:12.5px; font-weight:600;">Tipo do Documento</label>
-            <select id="docNewTipoSelect" style="width:100%; border-radius:10px; padding:9px;">
-              <option value="Holerite">Holerite / Contracheque</option>
-              <option value="Termo de Ciência">Termo de Ciência</option>
-              <option value="Acordo Banco de Horas">Acordo Banco de Horas</option>
-              <option value="Entrega de EPI">Entrega de EPI</option>
-              <option value="Contrato">Contrato de Trabalho</option>
-              <option value="Outro">Outro Documento</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label" style="font-size:12.5px; font-weight:600;">Mês de Referência (opcional)</label>
-            <input type="month" id="docNewMesRef" style="width:100%; border-radius:10px; padding:9px;" value="${new Date().toISOString().slice(0, 7)}" />
-          </div>
-        </div>
-
+      <!-- Campos em Comum -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; box-sizing:border-box;">
         <div>
-          <label class="form-label" style="font-size:12.5px; font-weight:600;">Título do Documento</label>
-          <input type="text" id="docNewTitulo" style="width:100%; border-radius:10px; padding:9px;" placeholder="Ex: Holerite — Setembro/2026" />
-        </div>
-
-        <!-- Seção Modo PDF -->
-        <div id="docModePdfSection" style="display:flex; flex-direction:column; gap:0.75rem;">
-          <label class="form-label" style="font-size:12.5px; font-weight:600;">Selecione o Arquivo PDF</label>
-          <div style="border:2px dashed #cbd5e1; border-radius:14px; padding:2rem 1rem; text-align:center; background:#f8fafc; cursor:pointer;" id="docDropZone">
-            <input type="file" id="docFileInput" accept="application/pdf" style="display:none;" />
-            <div style="font-size:1.8rem; margin-bottom:0.5rem;">📄</div>
-            <strong id="docFileLabel" style="color:#6340d8;">Toque para selecionar o PDF (Holerite)</strong>
-            <p style="margin:4px 0 0; font-size:12px; color:#64748b;">Suporta PDF de holerites da contabilidade (até 10 MB)</p>
-          </div>
-          <div id="docSha256Preview" style="display:none; font-size:11.5px; background:#eef2ff; padding:8px 12px; border-radius:8px; color:#312e81;"></div>
-        </div>
-
-        <!-- Seção Modo Modelo Interno -->
-        <div id="docModeTemplateSection" style="display:none; flex-direction:column; gap:0.75rem;">
-          <label class="form-label" style="font-size:12.5px; font-weight:600;">Modelo Predefinido</label>
-          <select id="docTemplateSelect" style="width:100%; border-radius:10px; padding:9px;">
-            <option value="termo-regulamento">Termo de Ciência — Regulamento Interno</option>
-            <option value="acordo-banco-horas">Acordo de Banco de Horas (Art. 59 CLT)</option>
-            <option value="termo-epi-uniforme">Termo de Recebimento de EPI e Uniforme</option>
+          <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--muted, #64748b);">Unidade / Loja</label>
+          <select id="docNewLojaSelect" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;">
+            ${storeOptions}
           </select>
-          <label class="form-label" style="font-size:12.5px; font-weight:600;">Conteúdo do Termo</label>
-          <textarea id="docTemplateText" rows="6" style="width:100%; border-radius:10px; padding:10px; font-family:monospace; font-size:12px;"></textarea>
+        </div>
+        <div>
+          <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--muted, #64748b);">Colaborador Destinatário</label>
+          <select id="docNewEmpSelect" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;">
+            ${getEmpOptions(state.stores[0]?.LojaID)}
+          </select>
         </div>
       </div>
 
-      <div class="panel-foot" style="display:flex; justify-content:flex-end; gap:0.75rem; padding:1rem 1.5rem; border-top:1px solid #e2e8f0; background:#f8fafc;">
-        <button id="docUploadCancelBtn" class="btn btn-secondary" type="button">Cancelar</button>
-        <button id="docUploadSubmitBtn" class="btn btn-primary" type="button">
-          Enviar para Assinatura
-        </button>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; box-sizing:border-box;">
+        <div>
+          <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--muted, #64748b);">Tipo do Documento</label>
+          <select id="docNewTipoSelect" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;">
+            <option value="Holerite">Holerite / Contracheque</option>
+            <option value="Termo de Ciência">Termo de Ciência</option>
+            <option value="Acordo Banco de Horas">Acordo Banco de Horas</option>
+            <option value="Entrega de EPI">Entrega de EPI</option>
+            <option value="Contrato">Contrato de Trabalho</option>
+            <option value="Outro">Outro Documento</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--muted, #64748b);">Mês de Referência (opcional)</label>
+          <input type="month" id="docNewMesRef" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;" value="${new Date().toISOString().slice(0, 7)}" />
+        </div>
       </div>
+
+      <div>
+        <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--muted, #64748b);">Título do Documento</label>
+        <input type="text" id="docNewTitulo" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;" placeholder="Ex: Holerite — Setembro/2026" />
+      </div>
+
+      <!-- Seção Modo PDF -->
+      <div id="docModePdfSection" style="display:flex; flex-direction:column; gap:0.75rem;">
+        <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:4px; color:var(--muted, #64748b);">Selecione o Arquivo PDF</label>
+        <div style="border:2px dashed #cbd5e1; border-radius:16px; padding:2rem 1.25rem; text-align:center; background:#f8fafc; cursor:pointer; transition:all 0.2s;" id="docDropZone">
+          <input type="file" id="docFileInput" accept="application/pdf" style="display:none;" />
+          <div style="font-size:2rem; margin-bottom:0.4rem;">📄</div>
+          <strong id="docFileLabel" style="color:#6340d8; font-size:14px; display:block;">Toque para selecionar o PDF (Holerite)</strong>
+          <p style="margin:4px 0 0; font-size:12px; color:#64748b;">Suporta PDF de holerites da contabilidade (até 10 MB)</p>
+        </div>
+        <div id="docSha256Preview" style="display:none; font-size:11.5px; background:#eef2ff; padding:8px 12px; border-radius:10px; color:#312e81; word-break:break-all;"></div>
+      </div>
+
+      <!-- Seção Modo Modelo Interno -->
+      <div id="docModeTemplateSection" style="display:none; flex-direction:column; gap:0.75rem;">
+        <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:4px; color:var(--muted, #64748b);">Modelo Predefinido</label>
+        <select id="docTemplateSelect" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;">
+          <option value="termo-regulamento">Termo de Ciência — Regulamento Interno</option>
+          <option value="acordo-banco-horas">Acordo de Banco de Horas (Art. 59 CLT)</option>
+          <option value="termo-epi-uniforme">Termo de Recebimento de EPI e Uniforme</option>
+        </select>
+        <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:4px; color:var(--muted, #64748b);">Conteúdo do Termo</label>
+        <textarea id="docTemplateText" rows="6" style="width:100%; border-radius:12px; padding:12px; font-family:monospace; font-size:12px; box-sizing:border-box;"></textarea>
+      </div>
+    </div>
+
+    <div class="dialog-actions">
+      <button id="docUploadCancelBtn" class="btn btn-secondary" type="button" data-close="documentUploadDialog">Cancelar</button>
+      <button id="docUploadSubmitBtn" class="btn btn-primary" type="button">
+        Enviar para Assinatura
+      </button>
     </div>
   `;
 
@@ -1091,58 +1087,56 @@ export async function openAuditDialog(docId) {
   if (!dialog) return;
 
   dialog.innerHTML = `
-    <div class="doc-modal-shell" role="document">
-      <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; padding:1.25rem 1.5rem; border-bottom:1px solid #e2e8f0;">
-        <div>
-          <span class="eyebrow" style="color:#059669;">EVIDÊNCIA PERICIAL JURÍDICA</span>
-          <h2 style="margin:0; font-size:1.2rem;">Certificado de Autenticidade e Auditoria</h2>
-        </div>
-        <button id="docAuditCloseBtn" class="icon-btn" aria-label="Fechar">✕</button>
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color:#059669; font-weight:700; font-size:11px; letter-spacing:0.05em; text-transform:uppercase;">EVIDÊNCIA PERICIAL JURÍDICA</span>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Certificado de Autenticidade e Auditoria</h3>
       </div>
+      <button type="button" class="icon-btn" id="docAuditCloseBtn" data-close="documentSignDialog" aria-label="Fechar">✕</button>
+    </div>
 
-      <div style="padding:1.5rem; overflow-y:auto; display:flex; flex-direction:column; gap:1.25rem;">
-        <div class="doc-audit-metadata-grid">
-          <div>
-            <span style="color:#64748b;">Código Verificador:</span><br/>
-            <strong style="font-size:14px; color:#1e293b;">${esc(doc.CodigoValidacao || "VAL-2026-N/A")}</strong>
-          </div>
-          <div>
-            <span style="color:#64748b;">Signatário:</span><br/>
-            <strong>${esc(doc.NomeFuncionario)}</strong> (CPF: ${esc(doc.CPFFuncionario || "---")})
-          </div>
-          <div>
-            <span style="color:#64748b;">Data e Hora da Assinatura:</span><br/>
-            <strong>${formatDate(doc.DataAssinatura)}</strong>
-          </div>
-          <div>
-            <span style="color:#64748b;">Status Probatório:</span><br/>
-            <span style="color:#059669; font-weight:700;">✓ Assinatura Eletrônica Avançada (Íntegro)</span>
-          </div>
-        </div>
-
+    <div class="dialog-body">
+      <div class="doc-audit-metadata-grid">
         <div>
-          <label style="font-size:12px; font-weight:600; color:#475569;">Hash SHA-256 do Documento Original:</label>
-          <div class="doc-hash-badge">${esc(doc.HashOriginalSHA256 || "---")}</div>
+          <span style="color:#64748b;">Código Verificador:</span><br/>
+          <strong style="font-size:14px; color:#1e293b;">${esc(doc.CodigoValidacao || "VAL-2026-N/A")}</strong>
         </div>
-
         <div>
-          <label style="font-size:12px; font-weight:600; color:#475569;">Hash SHA-256 do Documento Final (Com Auditoria):</label>
-          <div class="doc-hash-badge" style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534;">
-            ${esc(doc.HashDocumentoFinalSHA256 || "---")}
-          </div>
+          <span style="color:#64748b;">Signatário:</span><br/>
+          <strong>${esc(doc.NomeFuncionario)}</strong> (CPF: ${esc(doc.CPFFuncionario || "---")})
         </div>
-
-        <div style="background:#f8fafc; border-radius:12px; padding:12px; font-size:12px; color:#64748b; line-height:1.4;">
-          <strong>Enquadramento Legal:</strong> Este certificado assegura autoria e integridade nos termos da Lei nº 14.063/2020, MP 2.200-2/2001 e Artigo 464 da CLT. Qualquer modificação posterior invalida matematicamente os hashes acima.
+        <div>
+          <span style="color:#64748b;">Data e Hora da Assinatura:</span><br/>
+          <strong>${formatDate(doc.DataAssinatura)}</strong>
+        </div>
+        <div>
+          <span style="color:#64748b;">Status Probatório:</span><br/>
+          <span style="color:#059669; font-weight:700;">✓ Assinatura Eletrônica Avançada (Íntegro)</span>
         </div>
       </div>
 
-      <div class="panel-foot" style="display:flex; justify-content:flex-end; gap:0.75rem; padding:1rem 1.5rem; border-top:1px solid #e2e8f0; background:#f8fafc;">
-        <button id="docAuditDoneBtn" class="btn btn-secondary" type="button">Fechar</button>
-        <button id="docAuditDownloadBtn" class="btn btn-primary" type="button">
-          📥 Baixar PDF com Certificado
-        </button>
+      <div>
+        <label style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">Hash SHA-256 do Documento Original:</label>
+        <div class="doc-hash-badge">${esc(doc.HashOriginalSHA256 || "---")}</div>
       </div>
+
+      <div>
+        <label style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">Hash SHA-256 do Documento Final (Com Auditoria):</label>
+        <div class="doc-hash-badge" style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534;">
+          ${esc(doc.HashDocumentoFinalSHA256 || "---")}
+        </div>
+      </div>
+
+      <div style="background:#f8fafc; border-radius:12px; padding:12px; font-size:12px; color:#64748b; line-height:1.4;">
+        <strong>Enquadramento Legal:</strong> Este certificado assegura autoria e integridade nos termos da Lei nº 14.063/2020, MP 2.200-2/2001 e Artigo 464 da CLT. Qualquer modificação posterior invalida matematicamente os hashes acima.
+      </div>
+    </div>
+
+    <div class="dialog-actions">
+      <button id="docAuditDoneBtn" class="btn btn-secondary" type="button" data-close="documentSignDialog">Fechar</button>
+      <button id="docAuditDownloadBtn" class="btn btn-primary" type="button">
+        📥 Baixar PDF com Certificado
+      </button>
     </div>
   `;
 

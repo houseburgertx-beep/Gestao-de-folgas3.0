@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = "6.16.0";
+const SERVICE_WORKER_VERSION = "6.16.1";
 
 let registrationPromise;
 const registerServiceWorker = () => registrationPromise ||= registerOnce();
