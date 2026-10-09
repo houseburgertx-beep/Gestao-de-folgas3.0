@@ -2474,3 +2474,39 @@ test("Otimização de performance: cache em memória no runtime, resiliência do
   );
 });
 
+test("Takeat Consumo: Hero Card sem confete, cabeçalho compacto e recuo superior otimizado", async () => {
+  const scriptsHtml = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+
+  // 1. Emoji de confete removido
+  assert.doesNotMatch(
+    scriptsHtml,
+    /Economia de.*?🎉/,
+    "Hero Card do Takeat não deve conter emoji de confete 🎉",
+  );
+
+  // 2. Badge de -20% com design limpo
+  assert.match(
+    scriptsHtml,
+    /Economia de.*?-20%/,
+    "Hero Card deve exibir Economia com badge de -20%",
+  );
+
+  // 3. Otimização de recuo: container de cards sem padding superior redundante
+  assert.match(
+    scriptsHtml,
+    /cardsContainer\.style\.padding\s*=\s*"0\.25rem 0 6rem 0"/,
+    "Container de cards do funcionário deve ter padding superior compacto",
+  );
+
+  // 4. Panel wrapper em transparente para evitar borda dupla e recuo
+  assert.match(
+    scriptsHtml,
+    /tablePanel\.style\.background\s*=\s*"transparent"/,
+    "tablePanel deve ter background transparente para funcionário",
+  );
+});
+
+
