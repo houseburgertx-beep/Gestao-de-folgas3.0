@@ -2752,5 +2752,73 @@ test("Módulo de Assinatura Eletrônica e Gestão Documental: criptografia, audi
   }
 });
 
+test("Acessibilidade de Documentos para colaboradores no menu, início, jornada e pendências", async () => {
+  const indexHtml = await readFile(
+    new URL("../src/legacy/Index.html", import.meta.url),
+    "utf8",
+  );
+  const scriptsHtml = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  const journeyJs = await readFile(
+    new URL("../src/journey.js", import.meta.url),
+    "utf8",
+  );
+  const documentsJs = await readFile(
+    new URL("../src/documents.js", import.meta.url),
+    "utf8",
+  );
+
+  // 1. Sidebar nav item existe e applyPermissions_ inclui 'documents' para colaboradores e chefes de cozinha
+  assert.ok(
+    indexHtml.includes('data-view="documents"'),
+    "Index.html deve conter botão com data-view=\"documents\"",
+  );
+  assert.match(
+    scriptsHtml,
+    /employeeViews\s*=\s*\[[\s\S]*?"documents"[\s\S]*?\]/,
+    "employeeViews deve conter 'documents'",
+  );
+  assert.match(
+    scriptsHtml,
+    /kitchenChiefViews\s*=\s*\[[\s\S]*?"documents"[\s\S]*?\]/,
+    "kitchenChiefViews deve conter 'documents'",
+  );
+  assert.match(
+    scriptsHtml,
+    /documentsNavLabel\.textContent\s*=\s*employeeMode\s*\?\s*"Meus Documentos"\s*:\s*"Documentos"/,
+    "Label do menu deve alternar entre 'Meus Documentos' e 'Documentos'",
+  );
+
+  // 2. Atalho de documentos disponível nas ações principais da Home / Dashboard
+  assert.match(
+    indexHtml,
+    /home-primary-actions[\s\S]*?data-view-target="documents"/,
+    "Home primary actions deve conter atalho para Meus Documentos",
+  );
+
+  // 3. Central de pendências contém seção de documentos & assinaturas
+  assert.match(
+    indexHtml,
+    /data-pending-category="documents"[\s\S]*?data-view-target="documents"/,
+    "Central de pendências deve conter seção de documentos",
+  );
+
+  // 4. Cartão pessoal da jornada (Bento) possui ação de Meus Documentos
+  assert.match(
+    journeyJs,
+    /data-view-target="documents"/,
+    "Jornada pessoal deve conter atalho para Meus Documentos",
+  );
+
+  // 5. Inicialização automática em Meus Documentos para colaboradores
+  assert.match(
+    documentsJs,
+    /state\.activeTab\s*=\s*\(state\.isManager\s*\|\|\s*state\.isAdmin\)\s*\?\s*"gestao"\s*:\s*"minhas"/,
+    "Colaborador deve iniciar automaticamente na aba 'minhas' (Meus Documentos)",
+  );
+});
+
 
 

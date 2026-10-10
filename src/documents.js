@@ -92,10 +92,8 @@ export async function initDocumentsModule(context = {}) {
         .includes("admin"),
   );
 
-  // Por padrão: se for gerente, começa na aba de gestão; se for colaborador, em Meus Documentos
-  if (!state.activeTab) {
-    state.activeTab = state.isManager || state.isAdmin ? "gestao" : "minhas";
-  }
+  // Por padrão: se for gerente/admin, começa na aba de gestão; se for colaborador, em Meus Documentos
+  state.activeTab = (state.isManager || state.isAdmin) ? "gestao" : "minhas";
 
   setupEventListeners();
   await loadDocuments();

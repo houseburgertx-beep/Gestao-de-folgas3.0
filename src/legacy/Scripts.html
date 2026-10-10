@@ -2643,6 +2643,11 @@
       takeatLabel.textContent = employeeMode
         ? "Meu consumo"
         : "Contas a Prazo";
+    const documentsNavLabel = $('.nav-item[data-view="documents"] b');
+    if (documentsNavLabel)
+      documentsNavLabel.textContent = employeeMode
+        ? "Meus Documentos"
+        : "Documentos";
     const dockTakeat = $("#dockTakeatLabel");
     if (dockTakeat)
       dockTakeat.textContent = employeeMode ? "Consumo" : "Prazo";
@@ -2658,6 +2663,21 @@
     $("#view-timeoff h2").textContent = employeeMode
       ? "Minhas folgas"
       : "Folgas";
+    const docEyebrow = $("#docViewEyebrow");
+    if (docEyebrow)
+      docEyebrow.textContent = employeeMode
+        ? "MINHA ÁREA JURÍDICA"
+        : "GESTÃO DOCUMENTAL & ASSINATURA ELETRÔNICA";
+    const docTitle = $("#docViewTitle");
+    if (docTitle)
+      docTitle.textContent = employeeMode
+        ? "Meus Documentos & Holerites"
+        : "Documentos & Holerites";
+    const docSubtitle = $("#docViewSubtitle");
+    if (docSubtitle)
+      docSubtitle.textContent = employeeMode
+        ? "Consulte, leia e assine eletronicamente seus contracheques, termos e contratos com segurança e validade jurídica."
+        : "Assinatura eletrônica avançada de contracheques, termos e contratos com validade jurídica pericial (Lei nº 14.063/2020 e Art. 464 da CLT).";
     $("#pendingCenterEyebrow").textContent = employeeMode
       ? "MINHA CENTRAL"
       : "CENTRAL OPERACIONAL";
@@ -2715,6 +2735,8 @@
         "shift-plan",
         "communication",
         "tasks",
+        "documents",
+        "takeat-credit",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -2733,6 +2755,8 @@
         "shift-plan",
         "communication",
         "tasks",
+        "documents",
+        "takeat-credit",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -3464,7 +3488,7 @@
   }
 
   function setPendingCenterFilter_(filter, silent) {
-    const allowed = ["all", "timeoff", "clock", "swaps"];
+    const allowed = ["all", "timeoff", "clock", "swaps", "documents", "onboarding"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
     $$("[data-pending-filter]").forEach((button) => {

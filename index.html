@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.2" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.3" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.16.2-firebase-github" />
+    <meta name="app-version" content="6.16.3-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -16783,7 +16783,7 @@ dialog#documentUploadDialog input[type="month"] {
               <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
             </div>
             <div id="cards" class="metric-grid"></div>
-            <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="tasks">CozinhaFlow &amp; Loja</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button></div><div id="proxima-folga"></div>
+            <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="tasks">CozinhaFlow &amp; Loja</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button><button class="btn btn-secondary" data-view-target="documents">📄 Meus Documentos</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
               <div class="panel-head" style="margin-bottom: 12px;">
                 <div>
@@ -17255,6 +17255,32 @@ dialog#documentUploadDialog input[type="month"] {
                       </div>
                     </div>
                   </details>
+                </div>
+              </section>
+              <section
+                class="pending-category"
+                data-pending-category="documents"
+              >
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon" style="background: rgba(99,102,241,0.15); color: #6366f1;">📄</span>
+                    <div>
+                      <span class="eyebrow">DOCUMENTOS E ASSINATURAS</span>
+                      <h3 id="pendingDocumentsSignTitle">Meus Documentos &amp; Holerites</h3>
+                      <p id="pendingDocumentsSignDesc">
+                        Consulte e assine eletronicamente seus contratos, termos e holerites.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="pending-category-actions">
+                    <button
+                      class="btn btn-secondary"
+                      data-view-target="documents"
+                      type="button"
+                    >
+                      Acessar Documentos ↗
+                    </button>
+                  </div>
                 </div>
               </section>
             </div>
@@ -19719,7 +19745,7 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.2"></script>
+<script type="module" src="./src/main.js?v=6.16.3"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22365,6 +22391,11 @@ dialog#documentUploadDialog input[type="month"] {
       takeatLabel.textContent = employeeMode
         ? "Meu consumo"
         : "Contas a Prazo";
+    const documentsNavLabel = $('.nav-item[data-view="documents"] b');
+    if (documentsNavLabel)
+      documentsNavLabel.textContent = employeeMode
+        ? "Meus Documentos"
+        : "Documentos";
     const dockTakeat = $("#dockTakeatLabel");
     if (dockTakeat)
       dockTakeat.textContent = employeeMode ? "Consumo" : "Prazo";
@@ -22380,6 +22411,21 @@ dialog#documentUploadDialog input[type="month"] {
     $("#view-timeoff h2").textContent = employeeMode
       ? "Minhas folgas"
       : "Folgas";
+    const docEyebrow = $("#docViewEyebrow");
+    if (docEyebrow)
+      docEyebrow.textContent = employeeMode
+        ? "MINHA ÁREA JURÍDICA"
+        : "GESTÃO DOCUMENTAL & ASSINATURA ELETRÔNICA";
+    const docTitle = $("#docViewTitle");
+    if (docTitle)
+      docTitle.textContent = employeeMode
+        ? "Meus Documentos & Holerites"
+        : "Documentos & Holerites";
+    const docSubtitle = $("#docViewSubtitle");
+    if (docSubtitle)
+      docSubtitle.textContent = employeeMode
+        ? "Consulte, leia e assine eletronicamente seus contracheques, termos e contratos com segurança e validade jurídica."
+        : "Assinatura eletrônica avançada de contracheques, termos e contratos com validade jurídica pericial (Lei nº 14.063/2020 e Art. 464 da CLT).";
     $("#pendingCenterEyebrow").textContent = employeeMode
       ? "MINHA CENTRAL"
       : "CENTRAL OPERACIONAL";
@@ -22437,6 +22483,8 @@ dialog#documentUploadDialog input[type="month"] {
         "shift-plan",
         "communication",
         "tasks",
+        "documents",
+        "takeat-credit",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -22455,6 +22503,8 @@ dialog#documentUploadDialog input[type="month"] {
         "shift-plan",
         "communication",
         "tasks",
+        "documents",
+        "takeat-credit",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -23186,7 +23236,7 @@ dialog#documentUploadDialog input[type="month"] {
   }
 
   function setPendingCenterFilter_(filter, silent) {
-    const allowed = ["all", "timeoff", "clock", "swaps"];
+    const allowed = ["all", "timeoff", "clock", "swaps", "documents", "onboarding"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
     $$("[data-pending-filter]").forEach((button) => {
