@@ -2239,6 +2239,48 @@
     }
   }
 
+  async function checkPendingDocuments_() {
+    const alertEl = $("#docHomeAlertBanner");
+    const myId = String(state.user?.FuncionarioID || state.user?.funcionarioId || state.user?.id || "").trim();
+    if (!state.user || !window.__GESTAO_FIREBASE__?.api?.invoke) {
+      if (alertEl) alertEl.classList.add("hidden");
+      return;
+    }
+    try {
+      const res = await window.__GESTAO_FIREBASE__.api.invoke("documentsList", ["", "Pendente", myId]);
+      const docs = res?.documents || res?.data?.documents || (Array.isArray(res?.data) ? res.data : []);
+      const myPending = Array.isArray(docs)
+        ? docs.filter((d) => d.Status === "Pendente" && (!myId || String(d.FuncionarioID || "").trim() === myId)).length
+        : 0;
+      const navBadge = $("#documentsNavBadge");
+      if (navBadge) {
+        if (myPending > 0) {
+          navBadge.textContent = myPending;
+          navBadge.classList.remove("hidden");
+        } else {
+          navBadge.classList.add("hidden");
+        }
+      }
+      if (alertEl) {
+        if (myPending > 0) {
+          const titleEl = $("#docHomeAlertTitle");
+          const descEl = $("#docHomeAlertDesc");
+          if (titleEl) {
+            titleEl.textContent = `${myPending} documento${myPending > 1 ? "s" : ""} aguardando sua assinatura`;
+          }
+          if (descEl) {
+            descEl.textContent = "Seus holerites ou termos estão prontos para leitura e assinatura eletrônica pelo celular.";
+          }
+          alertEl.classList.remove("hidden");
+        } else {
+          alertEl.classList.add("hidden");
+        }
+      }
+    } catch (e) {
+      if (alertEl) alertEl.classList.add("hidden");
+    }
+  }
+
   function openQuickFixPunchesDialog_() {
     const list = arr(state.incompletePunches);
     if (!list.length) return toast("Nenhuma saída pendente no momento.");
@@ -3189,6 +3231,7 @@
     renderPendingCenterSummary_();
     if (typeof renderProximaFolga === "function") renderProximaFolga();
     checkIncompletePunches_();
+    checkPendingDocuments_();
     loadLivePresence_();
   }
   function activity(x) {

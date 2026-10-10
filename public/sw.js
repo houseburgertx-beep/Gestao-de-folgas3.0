@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.16.3";
+const CACHE_NAME = "house-folgas-v6.16.4";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.16.3",
+  "./manifest.webmanifest?v=6.16.4",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -40,7 +40,7 @@ self.addEventListener("activate", (event) => {
           includeUncontrolled: true,
         });
         clients.forEach((client) =>
-          client.postMessage({ type: "FORCE_UPDATE", version: "6.16.3" }),
+          client.postMessage({ type: "FORCE_UPDATE", version: "6.16.4" }),
         );
       }),
   );

@@ -27,6 +27,9 @@ const empId = (e) => String(e?.FuncionarioID || e?.id || e?.Funcionario || "").t
 const empStoreId = (e) => String(e?.LojaID || e?.lojaId || e?.Loja || "").trim();
 const empCpf = (e) => String(e?.CPF || e?.cpf || "").trim();
 
+const userFuncId = (u) => String(u?.FuncionarioID || u?.funcionarioId || u?.id || "").trim();
+const userLojaId = (u) => String(u?.LojaID || u?.lojaId || "").trim();
+
 let state = {
   documents: [],
   stores: [],
@@ -112,7 +115,7 @@ export async function loadDocuments() {
   try {
     const targetStore = state.storeFilter === "all" ? "" : state.storeFilter;
     const targetStatus = state.statusFilter === "all" ? "" : state.statusFilter;
-    const targetFunc = state.activeTab === "minhas" ? (state.user?.FuncionarioID || "") : "";
+    const targetFunc = state.activeTab === "minhas" ? userFuncId(state.user) : "";
     const targetMonth = state.monthFilter === "all" ? "" : state.monthFilter;
 
     const res = await callApi(
@@ -122,13 +125,15 @@ export async function loadDocuments() {
       targetFunc,
       targetMonth,
     );
-    state.documents = res?.documents || [];
+    const docs = res?.documents || res?.data?.documents || res?.data || (Array.isArray(res) ? res : []);
+    state.documents = Array.isArray(docs) ? docs : [];
 
     // Atualiza contadores e badge do menu
+    const myId = userFuncId(state.user);
     const myPending = state.documents.filter(
       (d) =>
         d.Status === "Pendente" &&
-        String(d.FuncionarioID || "").trim() === String(state.user?.FuncionarioID || "").trim(),
+        (!myId || String(d.FuncionarioID || "").trim() === myId),
     ).length;
 
     const navBadge = $("#documentsNavBadge");
@@ -369,10 +374,10 @@ function renderManagerView() {
  * Renderiza Visão do Colaborador ("Meus Documentos")
  */
 function renderEmployeeView() {
-  const userFuncId = String(state.user?.FuncionarioID || "").trim();
-  const myDocs = state.documents.filter(
-    (d) => String(d.FuncionarioID || "").trim() === userFuncId,
-  );
+  const myId = userFuncId(state.user);
+  const myDocs = (!state.isManager && !state.isAdmin)
+    ? state.documents
+    : (myId ? state.documents.filter((d) => String(d.FuncionarioID || "").trim() === myId) : state.documents);
 
   const pending = myDocs.filter((d) => d.Status === "Pendente");
   const signed = myDocs.filter((d) => d.Status === "Assinado");
@@ -457,10 +462,15 @@ function renderEmployeeView() {
   `;
 }
 
+let listenersInitialized = false;
+
 /**
  * Event Listeners e Delegação de Cliques
  */
 function setupEventListeners() {
+  if (listenersInitialized) return;
+  listenersInitialized = true;
+
   // Listener global de abas
   document.addEventListener("click", async (e) => {
     const tabBtn = e.target.closest(".doc-tab-btn");
@@ -1096,16 +1106,21 @@ function setupUploadDialogEvents(dialog) {
     submitBtn.innerHTML = "Emitindo documento...";
 
     try {
+      const empOption = empSelect?.selectedOptions[0];
       const targetEmp = employeesList.find((e) => empId(e) === String(funcId));
       const targetStore = storesList.find((s) => storeId(s) === String(lojaId));
+      const resolvedLojaId = lojaId || (targetEmp ? empStoreId(targetEmp) : empOption?.getAttribute("data-loja") || "");
+      const resolvedEmpName = (targetEmp ? empName(targetEmp) : empOption?.getAttribute("data-name")) || "Colaborador";
+      const resolvedEmpCpf = (targetEmp ? empCpf(targetEmp) : empOption?.getAttribute("data-cpf")) || "";
       const payload = {
         Titulo: titulo,
         Tipo: tipo,
-        LojaID: lojaId || (targetEmp ? empStoreId(targetEmp) : ""),
-        NomeLoja: targetStore ? storeName(targetStore) : (targetEmp?.NomeLoja || ""),
+        LojaID: resolvedLojaId,
+        NomeLoja: targetStore ? storeName(targetStore) : (targetEmp?.NomeLoja || lojaSelect?.selectedOptions[0]?.textContent || ""),
         FuncionarioID: funcId,
-        NomeFuncionario: targetEmp ? empName(targetEmp) : "",
-        CPFFuncionario: targetEmp ? empCpf(targetEmp) : "",
+        NomeFuncionario: resolvedEmpName,
+        CPFFuncionario: resolvedEmpCpf,
+        CargoFuncionario: targetEmp?.Cargo || "",
         MesReferencia: mesRef,
         OrigemTipo: currentMode === "pdf" ? "PDF_IMPORTADO" : "TEXTO_SISTEMA",
         ArquivoOriginalBase64: currentMode === "pdf" ? selectedFileBase64 : "",
@@ -1116,6 +1131,10 @@ function setupUploadDialogEvents(dialog) {
       await callApi("documentsSave", payload);
       close();
       alert("✓ Documento emitido com sucesso e disponibilizado para o colaborador!");
+      // Posiciona na aba de gestão e redefine filtros para visualização imediata do documento recém-criado
+      state.activeTab = "gestao";
+      state.storeFilter = "all";
+      state.statusFilter = "all";
       await loadDocuments();
     } catch (err) {
       console.error("[documents] Falha ao emitir:", err);

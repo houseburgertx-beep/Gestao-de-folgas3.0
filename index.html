@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.3" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.4" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.16.3-firebase-github" />
+    <meta name="app-version" content="6.16.4-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -16782,6 +16782,16 @@ dialog#documentUploadDialog input[type="month"] {
               </div>
               <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
             </div>
+            <div id="docHomeAlertBanner" class="incomplete-punches-alert hidden" style="border-left-color: #6366f1; background: rgba(99, 102, 241, 0.08);">
+              <div class="incomplete-alert-content">
+                <span class="incomplete-alert-icon" style="color: #6366f1;"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+                <div class="incomplete-alert-text">
+                  <strong id="docHomeAlertTitle" style="color: #4338ca;">Documentos aguardando assinatura</strong>
+                  <p id="docHomeAlertDesc">Consulte e assine seus documentos pelo celular com segurança jurídica.</p>
+                </div>
+              </div>
+              <button type="button" class="incomplete-alert-btn" style="background: #4f46e5; color: #fff;" data-view-target="documents">Assinar agora</button>
+            </div>
             <div id="cards" class="metric-grid"></div>
             <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="tasks">CozinhaFlow &amp; Loja</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button><button class="btn btn-secondary" data-view-target="documents">📄 Meus Documentos</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
@@ -19745,7 +19755,7 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.3"></script>
+<script type="module" src="./src/main.js?v=6.16.4"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21987,6 +21997,48 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }
 
+  async function checkPendingDocuments_() {
+    const alertEl = $("#docHomeAlertBanner");
+    const myId = String(state.user?.FuncionarioID || state.user?.funcionarioId || state.user?.id || "").trim();
+    if (!state.user || !window.__GESTAO_FIREBASE__?.api?.invoke) {
+      if (alertEl) alertEl.classList.add("hidden");
+      return;
+    }
+    try {
+      const res = await window.__GESTAO_FIREBASE__.api.invoke("documentsList", ["", "Pendente", myId]);
+      const docs = res?.documents || res?.data?.documents || (Array.isArray(res?.data) ? res.data : []);
+      const myPending = Array.isArray(docs)
+        ? docs.filter((d) => d.Status === "Pendente" && (!myId || String(d.FuncionarioID || "").trim() === myId)).length
+        : 0;
+      const navBadge = $("#documentsNavBadge");
+      if (navBadge) {
+        if (myPending > 0) {
+          navBadge.textContent = myPending;
+          navBadge.classList.remove("hidden");
+        } else {
+          navBadge.classList.add("hidden");
+        }
+      }
+      if (alertEl) {
+        if (myPending > 0) {
+          const titleEl = $("#docHomeAlertTitle");
+          const descEl = $("#docHomeAlertDesc");
+          if (titleEl) {
+            titleEl.textContent = `${myPending} documento${myPending > 1 ? "s" : ""} aguardando sua assinatura`;
+          }
+          if (descEl) {
+            descEl.textContent = "Seus holerites ou termos estão prontos para leitura e assinatura eletrônica pelo celular.";
+          }
+          alertEl.classList.remove("hidden");
+        } else {
+          alertEl.classList.add("hidden");
+        }
+      }
+    } catch (e) {
+      if (alertEl) alertEl.classList.add("hidden");
+    }
+  }
+
   function openQuickFixPunchesDialog_() {
     const list = arr(state.incompletePunches);
     if (!list.length) return toast("Nenhuma saída pendente no momento.");
@@ -22937,6 +22989,7 @@ dialog#documentUploadDialog input[type="month"] {
     renderPendingCenterSummary_();
     if (typeof renderProximaFolga === "function") renderProximaFolga();
     checkIncompletePunches_();
+    checkPendingDocuments_();
     loadLivePresence_();
   }
   function activity(x) {

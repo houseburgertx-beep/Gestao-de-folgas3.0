@@ -649,6 +649,28 @@ export class FirebaseRuntime {
       }
     }
 
+    if (table === "Documentos" || table === "DocumentosAssinaturas") {
+      if (isAdminProfile(profile) || isStoreReaderProfile(profile)) {
+        try {
+          return this.recordsFromSnapshot(table, await get(tableRef));
+        } catch (error) {
+          if (storeId) {
+            try {
+              return this.recordsFromSnapshot(
+                table,
+                await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
+              );
+            } catch (e) {
+              if (isPermissionDenied(e)) return [];
+              throw e;
+            }
+          }
+          if (isPermissionDenied(error)) return [];
+          throw error;
+        }
+      }
+    }
+
     const storeField = STORE_SCOPED_FIELDS[table];
     if (isStoreReaderProfile(profile) && storeId && storeField) {
       return this.recordsFromSnapshot(

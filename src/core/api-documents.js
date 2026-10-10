@@ -725,7 +725,7 @@ export function createDocumentsHandlers() {
 
         // Se for gerente de loja, restringe à sua própria loja por padrão se não especificada
         if (!isUserAdmin && isUserManager) {
-          if (docLojaId !== userLojaId && docFuncId !== userFuncId) {
+          if (userLojaId && docLojaId !== userLojaId && docFuncId !== userFuncId) {
             return false;
           }
         }
@@ -763,12 +763,20 @@ export function createDocumentsHandlers() {
       const pendingCount = filtered.filter((d) => d.Status === "Pendente").length;
       const signedCount = filtered.filter((d) => d.Status === "Assinado").length;
 
-      return success({
+      return {
+        success: true,
+        message: "",
+        data: {
+          documents: filtered,
+          pendingCount,
+          signedCount,
+          totalCount: filtered.length,
+        },
         documents: filtered,
         pendingCount,
         signedCount,
         totalCount: filtered.length,
-      });
+      };
     },
 
     /**
@@ -819,17 +827,21 @@ export function createDocumentsHandlers() {
       );
 
       // Resolução do funcionário para dados cadastrais
-      const employees = await runtime.list("Funcionarios", { profile });
+      const employees = await runtime.list("Funcionarios", { profile }).catch(() => []);
       const targetEmp = employees.find(
-        (e) => String(e.FuncionarioID || "").trim() === String(payload.FuncionarioID).trim(),
+        (e) => String(e.FuncionarioID || e.id || e.Funcionario || "").trim() === String(payload.FuncionarioID).trim(),
       );
-      assert(targetEmp, "Colaborador selecionado não encontrado no cadastro.");
 
-      const stores = await runtime.list("Lojas", { profile });
+      const empIdVal = String(targetEmp?.FuncionarioID || payload.FuncionarioID).trim();
+      const empNome = String(targetEmp?.Nome || payload.NomeFuncionario || "Colaborador").trim();
+      const empCpf = String(targetEmp?.CPF || payload.CPFFuncionario || "").trim();
+      const empCargo = String(targetEmp?.Cargo || payload.CargoFuncionario || "").trim();
+      const lojaIdVal = String(targetEmp?.LojaID || payload.LojaID || profile.LojaID || "").trim();
+
+      const stores = await runtime.list("Lojas", { profile }).catch(() => []);
       const targetStore = stores.find(
         (s) =>
-          String(s.LojaID || s.id || s.Loja || "").trim() ===
-          String(targetEmp.LojaID || payload.LojaID).trim(),
+          String(s.LojaID || s.id || s.Loja || "").trim() === lojaIdVal,
       );
 
       const docId =
@@ -860,11 +872,11 @@ export function createDocumentsHandlers() {
         Titulo: String(payload.Titulo).trim(),
         Tipo: String(payload.Tipo || "Holerite").trim(),
         Descricao: String(payload.Descricao || "").trim(),
-        FuncionarioID: String(targetEmp.FuncionarioID).trim(),
-        NomeFuncionario: String(targetEmp.Nome || payload.NomeFuncionario || "").trim(),
-        CPFFuncionario: String(targetEmp.CPF || payload.CPFFuncionario || "").trim(),
-        CargoFuncionario: String(targetEmp.Cargo || "").trim(),
-        LojaID: String(targetEmp.LojaID || payload.LojaID || "").trim(),
+        FuncionarioID: empIdVal,
+        NomeFuncionario: empNome,
+        CPFFuncionario: empCpf,
+        CargoFuncionario: empCargo,
+        LojaID: lojaIdVal,
         NomeLoja: String(targetStore?.NomeLoja || targetStore?.nomeLoja || targetStore?.Nome || payload.NomeLoja || "").trim(),
         MesReferencia: String(payload.MesReferencia || "").trim(),
         Status: "Pendente",
@@ -881,17 +893,23 @@ export function createDocumentsHandlers() {
       // Notificação ao colaborador
       try {
         await createNotification({
-          destinatarioId: record.FuncionarioID,
-          lojaId: record.LojaID,
-          tipo: "documentos",
-          assunto: "Novo Documento para Assinar",
-          mensagem: `Você recebeu o documento "${record.Titulo}". Acesse a aba Documentos para ler e assinar.`,
+          employeeId: record.FuncionarioID,
+          storeId: record.LojaID,
+          type: "Documentos",
+          subject: "Novo Documento para Assinar",
+          message: `Você recebeu o documento "${record.Titulo}". Acesse a aba Documentos para ler e assinar.`,
+          relatedId: record.DocumentoID,
         });
       } catch (err) {
         console.warn("[documents] Falha ao disparar notificação:", err);
       }
 
-      return success(saved);
+      return {
+        success: true,
+        message: "Documento emitido com sucesso.",
+        data: saved,
+        document: saved,
+      };
     },
 
     /**
@@ -985,10 +1003,11 @@ export function createDocumentsHandlers() {
       // Notifica o gestor / RH
       try {
         await createNotification({
-          lojaId: doc.LojaID,
-          tipo: "documentos",
-          assunto: "Documento Assinado",
-          mensagem: `${doc.NomeFuncionario} assinou eletronicamente o documento "${doc.Titulo}".`,
+          storeId: doc.LojaID,
+          type: "Documentos",
+          subject: "Documento Assinado",
+          message: `${doc.NomeFuncionario} assinou eletronicamente o documento "${doc.Titulo}".`,
+          relatedId: doc.DocumentoID,
         });
       } catch (err) {
         console.warn("[documents] Falha ao notificar gestor:", err);
