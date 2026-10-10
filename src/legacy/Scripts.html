@@ -2706,20 +2706,30 @@
       ? "Minhas folgas"
       : "Folgas";
     const docEyebrow = $("#docViewEyebrow");
-    if (docEyebrow)
-      docEyebrow.textContent = employeeMode
-        ? "MINHA ÁREA JURÍDICA"
-        : "GESTÃO DOCUMENTAL & ASSINATURA ELETRÔNICA";
+    if (docEyebrow) {
+      if (employeeMode) {
+        docEyebrow.classList.add("hidden");
+        docEyebrow.textContent = "";
+      } else {
+        docEyebrow.classList.remove("hidden");
+        docEyebrow.textContent = "GESTÃO DOCUMENTAL";
+      }
+    }
     const docTitle = $("#docViewTitle");
     if (docTitle)
       docTitle.textContent = employeeMode
-        ? "Meus Documentos & Holerites"
-        : "Documentos & Holerites";
+        ? "Meus Documentos"
+        : "Documentos";
     const docSubtitle = $("#docViewSubtitle");
-    if (docSubtitle)
-      docSubtitle.textContent = employeeMode
-        ? "Consulte, leia e assine eletronicamente seus contracheques, termos e contratos com segurança e validade jurídica."
-        : "Assinatura eletrônica avançada de contracheques, termos e contratos com validade jurídica pericial (Lei nº 14.063/2020 e Art. 464 da CLT).";
+    if (docSubtitle) {
+      if (employeeMode) {
+        docSubtitle.classList.add("hidden");
+        docSubtitle.textContent = "";
+      } else {
+        docSubtitle.classList.remove("hidden");
+        docSubtitle.textContent = "Emissão, acompanhamento e assinatura eletrônica com validade jurídica.";
+      }
+    }
     $("#pendingCenterEyebrow").textContent = employeeMode
       ? "MINHA CENTRAL"
       : "CENTRAL OPERACIONAL";

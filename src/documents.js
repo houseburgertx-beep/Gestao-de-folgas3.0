@@ -382,29 +382,24 @@ function renderEmployeeView() {
   const pending = myDocs.filter((d) => d.Status === "Pendente");
   const signed = myDocs.filter((d) => d.Status === "Assinado");
 
-  let heroCardHtml = "";
-  if (pending.length > 0) {
-    heroCardHtml = `
-      <div class="doc-hero-card">
-        <div class="doc-hero-copy">
-          <h3>Você possui ${pending.length} documento(s) aguardando assinatura</h3>
-          <p>Seus holerites e termos jurídicos estão disponíveis para leitura integral e assinatura eletrônica pelo celular.</p>
-        </div>
-        <div class="doc-hero-action">
-          <button class="btn" data-action="sign" data-id="${esc(pending[0].DocumentoID)}">
-            Ler e Assinar Agora ›
-          </button>
-        </div>
-      </div>
-    `;
+  // Atualiza chip de pendências no topo de forma sutil
+  const pendingChip = $("#docPendingCounterChip");
+  if (pendingChip) {
+    if (pending.length > 0) {
+      pendingChip.textContent = `${pending.length} ${pending.length === 1 ? "pendente" : "pendentes"}`;
+      pendingChip.classList.remove("hidden");
+    } else {
+      pendingChip.classList.add("hidden");
+    }
   }
 
   let cardsHtml = "";
   if (myDocs.length === 0) {
     cardsHtml = `
-      <div class="panel" style="padding: 3rem 1.5rem; text-align: center; color: var(--muted, #64748b);">
-        <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.35rem;">Nenhum documento pendente</p>
-        <p style="font-size: 0.9rem;">Todos os seus comprovantes, holerites e termos estão em dia.</p>
+      <div class="panel doc-empty-panel">
+        <div class="doc-empty-icon">📁</div>
+        <p class="doc-empty-title">Nenhum documento pendente</p>
+        <p class="doc-empty-desc">Todos os seus holerites, comprovantes e termos estão em dia.</p>
       </div>
     `;
   } else {
@@ -412,37 +407,40 @@ function renderEmployeeView() {
       .map((doc) => {
         const isSigned = doc.Status === "Assinado";
         return `
-          <div class="doc-item-card">
+          <div class="doc-item-card ${!isSigned ? "doc-item-pending" : ""}">
             <div class="doc-item-header">
-              <div>
-                <span class="doc-type-pill">${esc(doc.Tipo)}</span>
-                <h4 class="doc-item-title" style="margin-top: 6px;">${esc(doc.Titulo)}</h4>
-              </div>
+              <span class="doc-type-pill">${esc(doc.Tipo || "Documento")}</span>
               <span class="doc-status-badge ${isSigned ? "doc-status-signed" : "doc-status-pending"}">
                 ${isSigned ? "✓ Assinado" : "⏳ Pendente"}
               </span>
             </div>
 
-            <div class="doc-item-meta">
-              <div>📅 Ref: <strong>${esc(doc.MesReferencia || "Geral")}</strong></div>
-              <div>🏢 Loja: <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></div>
-              <div>🕒 Enviado em: ${formatDate(doc.DataEnvio)}</div>
-              ${isSigned ? `<div>✅ Assinado em: ${formatDate(doc.DataAssinatura)}</div>` : ""}
+            <div class="doc-item-main">
+              <h4 class="doc-item-title">${esc(doc.Titulo)}</h4>
+              <div class="doc-item-meta">
+                <span>📅 Ref: <strong>${esc(doc.MesReferencia || "Geral")}</strong></span>
+                <span>•</span>
+                <span>🏢 <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
+                <span>•</span>
+                <span>🕒 Enviado em ${formatDate(doc.DataEnvio)}</span>
+                ${isSigned ? `<span>•</span><span>✅ Assinado em ${formatDate(doc.DataAssinatura)}</span>` : ""}
+              </div>
             </div>
 
             <div class="doc-item-actions">
               ${
                 !isSigned
                   ? `
-                <button class="btn btn-primary" data-action="sign" data-id="${esc(doc.DocumentoID)}">
-                  Ler e Assinar Eletronicamente
+                <button class="btn btn-primary doc-btn-sign" data-action="sign" data-id="${esc(doc.DocumentoID)}">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  Ler e Assinar Documento
                 </button>
               `
                   : `
-                <button class="btn btn-secondary" data-action="download" data-id="${esc(doc.DocumentoID)}">
+                <button class="btn btn-secondary btn-sm" data-action="download" data-id="${esc(doc.DocumentoID)}">
                   📥 Baixar PDF Assinado
                 </button>
-                <button class="btn btn-ghost" data-action="audit" data-id="${esc(doc.DocumentoID)}">
+                <button class="btn btn-ghost btn-sm" data-action="audit" data-id="${esc(doc.DocumentoID)}">
                   ⚖ Certificado & Hash
                 </button>
               `
@@ -455,7 +453,6 @@ function renderEmployeeView() {
   }
 
   return `
-    ${heroCardHtml}
     <div class="doc-cards-list">
       ${cardsHtml}
     </div>
@@ -531,6 +528,29 @@ function bindViewEvents() {
 }
 
 /**
+ * Helper para converter Base64 em Blob URL para renderização nativa de PDF
+ */
+function base64ToBlobUrl(base64Data, contentType = "application/pdf") {
+  try {
+    let clean = base64Data;
+    if (clean.includes(",")) {
+      clean = clean.split(",")[1];
+    }
+    const binary = atob(clean);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: contentType });
+    return URL.createObjectURL(blob);
+  } catch (err) {
+    console.warn("[documents] Falha ao converter base64 para Blob:", err);
+    return base64Data;
+  }
+}
+
+/**
  * Abre o Modal de Leitura Obrigatória e Assinatura Eletrônica
  */
 export async function openSignDialog(docId) {
@@ -549,17 +569,44 @@ export async function openSignDialog(docId) {
 
   const ip = await getClientIp();
 
-  // Renderiza viewer do documento
-  let viewerHtml = "";
+  let pdfBlobUrl = "";
   if (doc.ArquivoOriginalBase64) {
+    pdfBlobUrl = base64ToBlobUrl(doc.ArquivoOriginalBase64, "application/pdf");
+  }
+
+  // Renderiza viewer do documento com botão de tela cheia
+  let viewerHtml = "";
+  if (pdfBlobUrl) {
     viewerHtml = `
+      <div class="doc-viewer-action-row">
+        <div class="doc-sign-meta-compact">
+          <span>Colaborador: <strong>${esc(doc.NomeFuncionario)}</strong> (CPF: ${esc(doc.CPFFuncionario || "---")})</span>
+          <span>Unidade: <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
+        </div>
+        <button type="button" id="docOpenFullScreenPdfBtn" class="doc-btn-fullscreen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          Abrir em Tela Cheia ↗
+        </button>
+      </div>
+
+      <div class="doc-viewer-tip">
+        💡 Toque em <strong>Abrir em Tela Cheia</strong> para ver o holerite completo com zoom livre pelo celular.
+      </div>
+
       <div id="docViewerBox" class="doc-viewer-container">
-        <iframe class="doc-pdf-iframe" src="${doc.ArquivoOriginalBase64}"></iframe>
+        <iframe class="doc-pdf-iframe" src="${pdfBlobUrl}#toolbar=0&navpanes=0"></iframe>
       </div>
     `;
   } else {
     viewerHtml = `
-      <div id="docViewerBox" class="doc-viewer-container" style="background:#fff; line-height:1.6; font-size:14px; color:#1e293b;">
+      <div class="doc-viewer-action-row">
+        <div class="doc-sign-meta-compact">
+          <span>Colaborador: <strong>${esc(doc.NomeFuncionario)}</strong> (CPF: ${esc(doc.CPFFuncionario || "---")})</span>
+          <span>Unidade: <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
+        </div>
+      </div>
+
+      <div id="docViewerBox" class="doc-viewer-container doc-text-viewer">
         <h3 style="margin-top:0; color:#312e81;">${esc(doc.Titulo)}</h3>
         <div style="white-space: pre-wrap; font-family: inherit;">${esc(doc.ConteudoTexto || "")}</div>
       </div>
@@ -569,22 +616,17 @@ export async function openSignDialog(docId) {
   dialog.innerHTML = `
     <div class="dialog-head">
       <div>
-        <span class="eyebrow" style="color:#6340d8; font-weight:700; font-size:11px; letter-spacing:0.05em; text-transform:uppercase;">ASSINATURA ELETRÔNICA AVANÇADA</span>
-        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">${esc(doc.Titulo)}</h3>
+        <span class="doc-modal-eyebrow">Assinatura Eletrônica</span>
+        <h3 class="doc-modal-title">${esc(doc.Titulo)}</h3>
       </div>
       <button type="button" class="icon-btn" id="docSignCloseBtn" data-close="documentSignDialog" aria-label="Fechar">✕</button>
     </div>
 
     <div class="dialog-body">
-      <div style="font-size:12.5px; color:var(--muted, #64748b); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-        <span>Colaborador: <strong>${esc(doc.NomeFuncionario)}</strong> (CPF: ${esc(doc.CPFFuncionario || "---")})</span>
-        <span>Unidade: <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
-      </div>
-
       ${viewerHtml}
 
       <div id="docScrollLockBanner" class="doc-scroll-lock-banner">
-        <span id="docScrollLockMsg">⬇ Por favor, role até o final do documento para liberar a assinatura.</span>
+        <span id="docScrollLockMsg">⬇ Por favor, confira o documento para liberar a assinatura.</span>
         <div class="doc-scroll-progress-bar">
           <div id="docScrollProgressFill" class="doc-scroll-progress-fill"></div>
         </div>
@@ -626,21 +668,34 @@ export async function openSignDialog(docId) {
 
   dialog.showModal?.() || dialog.setAttribute("open", "true");
 
-  setupSignModalEvents(dialog, doc);
+  setupSignModalEvents(dialog, doc, pdfBlobUrl);
 }
 
 /**
  * Configura os eventos de rolagem e canvas no modal
  */
-function setupSignModalEvents(dialog, doc) {
+function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
   const close = () => {
+    if (pdfBlobUrl && pdfBlobUrl.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(pdfBlobUrl);
+      } catch (_) {}
+    }
     dialog.close?.() || dialog.removeAttribute("open");
   };
 
   $("#docSignCloseBtn")?.addEventListener("click", close);
   $("#docSignCancelBtn")?.addEventListener("click", close);
 
-  // Monitoramento de rolagem obrigatória
+  // Abrir PDF em Tela Cheia no Safari nativo
+  $("#docOpenFullScreenPdfBtn")?.addEventListener("click", () => {
+    if (pdfBlobUrl) {
+      window.open(pdfBlobUrl, "_blank");
+      unlockSignature();
+    }
+  });
+
+  // Monitoramento de leitura / rolagem
   const viewerBox = $("#docViewerBox");
   const lockBanner = $("#docScrollLockBanner");
   const lockMsg = $("#docScrollLockMsg");
@@ -652,7 +707,7 @@ function setupSignModalEvents(dialog, doc) {
     if (state.hasScrolledToBottom) return;
     state.hasScrolledToBottom = true;
     lockBanner?.classList.add("unlocked");
-    if (lockMsg) lockMsg.textContent = "✓ Leitura concluída. O painel de assinatura foi liberado.";
+    if (lockMsg) lockMsg.textContent = "✓ Leitura concluída. Painel de assinatura liberado.";
     if (progressFill) progressFill.style.width = "100%";
     sigSection?.classList.remove("disabled");
   };
@@ -667,17 +722,16 @@ function setupSignModalEvents(dialog, doc) {
       const current = viewerBox.scrollTop;
       const pct = Math.min(100, Math.round((current / scrollTotal) * 100));
       if (progressFill) progressFill.style.width = `${pct}%`;
-      if (pct >= 90) {
+      if (pct >= 85) {
         unlockSignature();
       }
     });
 
-    // Se o documento for curto e couber na tela sem rolagem, libera após 1.5s
+    // Em mobile/iOS iframe, o evento de rolagem externa não propaga.
+    // Garante liberação automática em breve intervalo.
     setTimeout(() => {
-      if (viewerBox.scrollHeight <= viewerBox.clientHeight + 20) {
-        unlockSignature();
-      }
-    }, 1500);
+      unlockSignature();
+    }, 1800);
   }
 
   // Canvas de Rubrica

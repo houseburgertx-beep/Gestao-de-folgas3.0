@@ -10,6 +10,69 @@
   padding-bottom: 5rem;
 }
 
+/* Cabeçalho Minimalista da Aba Documentos */
+.doc-view-header {
+  margin-bottom: 0.85rem;
+}
+
+.doc-view-header-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.doc-view-header-main h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text, #0f172a);
+}
+
+.doc-pending-chip {
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.doc-view-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  color: var(--muted, #64748b);
+}
+
+/* Painel Vazio Minimalista */
+.doc-empty-panel {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  border-radius: 20px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+}
+
+.doc-empty-icon {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.doc-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+  margin: 0 0 4px;
+}
+
+.doc-empty-desc {
+  font-size: 0.88rem;
+  color: var(--muted, #64748b);
+  margin: 0;
+}
+
 /* Tabs Superiores (Gestão vs Meus Documentos) */
 .doc-nav-tabs {
   display: inline-flex;
@@ -152,13 +215,19 @@
 .doc-item-card {
   background: var(--surface, #ffffff);
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 18px;
-  padding: 1.25rem;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 20px;
+  padding: 1.2rem 1.25rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.75rem;
+}
+
+.doc-item-card.doc-item-pending {
+  border-color: #fde68a;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
 }
 
 .doc-item-card:hover {
@@ -169,7 +238,7 @@
 .doc-item-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -188,8 +257,14 @@
   letter-spacing: 0.03em;
 }
 
+.doc-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .doc-item-title {
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   font-weight: 700;
   color: var(--text, #1e293b);
   margin: 0;
@@ -219,15 +294,16 @@
 .doc-item-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  font-size: 12.5px;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 12px;
   color: var(--muted, #64748b);
+  line-height: 1.4;
 }
 
-.doc-item-meta div {
-  display: flex;
+.doc-item-meta span {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
 }
 
 .doc-item-actions {
@@ -237,6 +313,18 @@
   justify-content: flex-end;
   border-top: 1px solid var(--line, #f1f5f9);
   padding-top: 0.85rem;
+}
+
+.doc-btn-sign {
+  width: 100%;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  padding: 11px 16px !important;
+  border-radius: 12px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* ==========================================================================
@@ -382,22 +470,95 @@ dialog#documentUploadDialog input[type="month"] {
   box-sizing: border-box;
 }
 
+.doc-modal-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary, #6340d8);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.doc-modal-title {
+  margin: 0;
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.doc-viewer-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.doc-sign-meta-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted, #64748b);
+}
+
+.doc-btn-fullscreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 6px 12px !important;
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.doc-btn-fullscreen:hover {
+  background: #e2e8f0 !important;
+}
+
+.doc-viewer-tip {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  color: #1e40af;
+  margin-bottom: 8px;
+}
+
 .doc-viewer-container {
   height: 48vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  min-height: 340px;
+  max-height: 520px;
+  overflow: hidden;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 14px;
-  padding: 1rem;
+  padding: 0 !important;
   position: relative;
+  -webkit-overflow-scrolling: touch;
 }
 
 .doc-pdf-iframe {
   width: 100%;
   height: 100%;
   border: none;
-  border-radius: 8px;
+  display: block;
+}
+
+.doc-text-viewer {
+  padding: 1.25rem !important;
+  overflow-y: auto;
+  line-height: 1.6;
+  font-size: 14px;
+  color: #1e293b;
 }
 
 /* Barra de Trava de Rolagem */
@@ -576,7 +737,8 @@ dialog#documentUploadDialog input[type="month"] {
     padding: 1.15rem;
   }
   .doc-viewer-container {
-    height: 40vh;
+    height: 48vh;
+    min-height: 320px;
   }
   .doc-canvas-wrap {
     height: 120px;

@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.4" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.5" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -1264,12 +1264,13 @@
             </div>
           </section>
           <section id="view-documents" class="view">
-            <div class="section-toolbar">
-              <div>
-                <span class="eyebrow" id="docViewEyebrow">GESTÃO DOCUMENTAL &amp; ASSINATURA ELETRÔNICA</span>
-                <h2 id="docViewTitle">Documentos &amp; Holerites</h2>
-                <p id="docViewSubtitle">Assinatura eletrônica avançada de contracheques, termos e contratos com validade jurídica pericial (Lei nº 14.063/2020 e Art. 464 da CLT).</p>
+            <div class="doc-view-header">
+              <div class="doc-view-header-main">
+                <span class="eyebrow hidden" id="docViewEyebrow"></span>
+                <h2 id="docViewTitle">Meus Documentos</h2>
+                <span id="docPendingCounterChip" class="doc-pending-chip hidden"></span>
               </div>
+              <p id="docViewSubtitle" class="doc-view-subtitle hidden"></p>
             </div>
             <div id="documentsAppRoot"></div>
           </section>
