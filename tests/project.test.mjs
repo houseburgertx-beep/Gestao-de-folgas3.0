@@ -2704,7 +2704,7 @@ test("Módulo de Assinatura Eletrônica e Gestão Documental: criptografia, audi
   assert.equal(resultFromText.finalHashSha256.length, 64, "Deve computar hash SHA-256 do PDF final");
 
   const pdfLoaded = await PDFDocument.load(resultFromText.finalPdfBytes);
-  assert.equal(pdfLoaded.getPageCount(), 2, "PDF gerado a partir de texto deve conter a página do contrato + página de auditoria");
+  assert.equal(pdfLoaded.getPageCount(), 1, "PDF gerado a partir de texto deve conter a folha do contrato com a assinatura gravada diretamente nela");
 
   // 5. Teste Piloto com PDF Real da Contabilidade: GABRIEL (1).pdf se existir
   try {
@@ -2742,8 +2742,8 @@ test("Módulo de Assinatura Eletrônica e Gestão Documental: criptografia, audi
       const finalPilotDoc = await PDFDocument.load(pilotSignedResult.finalPdfBytes);
       assert.equal(
         finalPilotDoc.getPageCount(),
-        originalPageCount + 1,
-        "O PDF assinado do Gabriel deve ter exatamente a folha original do holerite + a folha de auditoria pericial",
+        originalPageCount,
+        "O PDF assinado do Gabriel deve manter exatamente a folha original do holerite com o selo gravado diretamente nela, sem página avulsa",
       );
       assert.equal(pilotSignedResult.finalHashSha256.length, 64, "O hash final do holerite assinado deve ser válido");
     }

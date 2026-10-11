@@ -196,7 +196,183 @@ Comprometo-me a utilizar os EPIs durante toda a jornada, zelar pela sua conserva
 });
 
 /**
- * Criação e estampa do PDF assinado com folha pericial de auditoria
+ * Estampa o selo pericial de assinatura diretamente na folha do documento
+ * Sem gerar página avulsa/separada, garantindo conformidade com a Lei 14.063/2020 e Art. 464 CLT.
+ */
+async function stampSignatureDirectly({
+  pdfDoc,
+  targetPage,
+  docInfo,
+  signInfo,
+  rubricPngBytes,
+}) {
+  const { width: pWidth } = targetPage.getSize();
+  const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+  const boxX = 15;
+  const boxY = 8;
+  const boxWidth = pWidth - 30;
+  const boxHeight = 68;
+  const splitX = Math.min(boxX + 195, boxX + boxWidth * 0.42);
+
+  // 1. Fundo do card
+  targetPage.drawRectangle({
+    x: boxX,
+    y: boxY,
+    width: boxWidth,
+    height: boxHeight,
+    color: rgb(0.985, 0.99, 1.0),
+    borderColor: rgb(0.72, 0.8, 0.92),
+    borderWidth: 0.8,
+  });
+
+  // 2. Faixa superior Navy
+  targetPage.drawRectangle({
+    x: boxX,
+    y: boxY + boxHeight - 15,
+    width: boxWidth,
+    height: 15,
+    color: rgb(0.08, 0.12, 0.22),
+  });
+
+  const headerLeft = "ASSINATURA ELETRONICA AVANCADA - LEI No 14.063/2020 E ART. 464 CLT";
+  targetPage.drawText(headerLeft, {
+    x: boxX + 8,
+    y: boxY + boxHeight - 11,
+    size: 6.5,
+    font: helveticaBold,
+    color: rgb(1, 1, 1),
+  });
+
+  const valCodeStr = `VALIDADOR: ${signInfo.CodigoValidacao || "VAL"}`;
+  const valWidth = helveticaBold.widthOfTextAtSize(valCodeStr, 6.5);
+  targetPage.drawText(sanitizeTextForPdf(valCodeStr), {
+    x: boxX + boxWidth - 8 - valWidth,
+    y: boxY + boxHeight - 11,
+    size: 6.5,
+    font: helveticaBold,
+    color: rgb(0.68, 0.8, 0.98),
+  });
+
+  // 3. Divisória vertical
+  targetPage.drawLine({
+    start: { x: splitX, y: boxY + 2 },
+    end: { x: splitX, y: boxY + boxHeight - 15 },
+    thickness: 0.6,
+    color: rgb(0.8, 0.85, 0.92),
+  });
+
+  // 4. Lado Esquerdo: Rubrica Manuscrita do Colaborador
+  let rubricDrawn = false;
+  if (rubricPngBytes && rubricPngBytes.length > 0) {
+    try {
+      const rubricImg = await pdfDoc.embedPng(rubricPngBytes);
+      const maxImgW = splitX - boxX - 30;
+      const maxImgH = 32;
+      const imgScale = Math.min(maxImgW / rubricImg.width, maxImgH / rubricImg.height, 1);
+      const drawW = rubricImg.width * imgScale;
+      const drawH = rubricImg.height * imgScale;
+      const drawX = boxX + 15 + (maxImgW - drawW) / 2;
+      const drawY = boxY + 16 + (maxImgH - drawH) / 2;
+
+      targetPage.drawImage(rubricImg, {
+        x: drawX,
+        y: drawY,
+        width: drawW,
+        height: drawH,
+      });
+      rubricDrawn = true;
+    } catch {
+      // Ignora falha de decodificação e usa fallback
+    }
+  }
+
+  if (!rubricDrawn) {
+    targetPage.drawText("[Rubrica registrada digitalmente]", {
+      x: boxX + 18,
+      y: boxY + 24,
+      size: 7,
+      font: helvetica,
+      color: rgb(0.35, 0.4, 0.5),
+    });
+  }
+
+  targetPage.drawLine({
+    start: { x: boxX + 15, y: boxY + 14 },
+    end: { x: splitX - 15, y: boxY + 14 },
+    thickness: 0.5,
+    color: rgb(0.6, 0.65, 0.75),
+  });
+
+  const nomeSignatario = docInfo.NomeFuncionario || "Colaborador";
+  targetPage.drawText(
+    sanitizeTextForPdf(`Assinatura de ${nomeSignatario}`),
+    {
+      x: boxX + 15,
+      y: boxY + 5,
+      size: 6.2,
+      font: helveticaOblique,
+      color: rgb(0.3, 0.35, 0.45),
+    },
+  );
+
+  // 5. Lado Direito: Evidências Técnicas e Legais
+  const cpfStr = docInfo.CPFFuncionario || "Nao informado";
+  targetPage.drawText(
+    sanitizeTextForPdf(`Signatario: ${nomeSignatario}  -  CPF: ${cpfStr}`),
+    {
+      x: splitX + 10,
+      y: boxY + 38,
+      size: 7.2,
+      font: helveticaBold,
+      color: rgb(0.08, 0.12, 0.22),
+    },
+  );
+
+  const dtStr = formatBrasiliaDateTime(signInfo.DataHoraAssinatura);
+  const ipStr = signInfo.EnderecoIP || "Dispositivo PWA";
+  targetPage.drawText(
+    sanitizeTextForPdf(`Data/Hora: ${dtStr} (Brasilia)  -  IP: ${ipStr}`),
+    {
+      x: splitX + 10,
+      y: boxY + 27,
+      size: 6.2,
+      font: helvetica,
+      color: rgb(0.2, 0.26, 0.36),
+    },
+  );
+
+  const lojaStr = docInfo.NomeLoja || docInfo.LojaID || "Grupo House 190";
+  const dispStr = (signInfo.DispositivoInfo || "Navegador Web / Mobile").slice(0, 40);
+  targetPage.drawText(
+    sanitizeTextForPdf(`Unidade: ${lojaStr}  -  Dispositivo: ${dispStr}`),
+    {
+      x: splitX + 10,
+      y: boxY + 17,
+      size: 6.0,
+      font: helvetica,
+      color: rgb(0.3, 0.38, 0.48),
+    },
+  );
+
+  const rawHash = docInfo.HashOriginalSHA256 || "";
+  const displayHash = rawHash ? `${rawHash.slice(0, 32)}...` : "SHA-256 Registrado";
+  targetPage.drawText(
+    sanitizeTextForPdf(`Hash SHA-256: ${displayHash}  -  Autoria e Integridade Garantidas`),
+    {
+      x: splitX + 10,
+      y: boxY + 7,
+      size: 5.8,
+      font: helvetica,
+      color: rgb(0.1, 0.45, 0.22),
+    },
+  );
+}
+
+/**
+ * Criação e estampa do PDF assinado diretamente no documento original (sem página avulsa)
  */
 export async function generateSignedPdf({
   originalPdfBytes,
@@ -209,32 +385,45 @@ export async function generateSignedPdf({
 
   if (originalPdfBytes && originalPdfBytes.length > 0) {
     pdfDoc = await PDFDocument.load(originalPdfBytes);
-    // Estampa comprovante no rodapé da primeira página
-    const firstPage = pdfDoc.getPages()[0];
-    const { width: pWidth } = firstPage.getSize();
-    const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const pages = pdfDoc.getPages();
+    const totalPages = pages.length;
 
-    const bannerY = 10;
-    const bannerHeight = 16;
-    firstPage.drawRectangle({
-      x: 15,
-      y: bannerY,
-      width: pWidth - 30,
-      height: bannerHeight,
-      color: rgb(0.96, 0.97, 0.99),
-      borderColor: rgb(0.7, 0.76, 0.86),
-      borderWidth: 0.5,
-    });
+    // Se o documento tiver múltiplas páginas, carimba um micro-rodapé nas páginas anteriores
+    if (totalPages > 1) {
+      const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      for (let i = 0; i < totalPages - 1; i++) {
+        const priorPage = pages[i];
+        const { width: pW } = priorPage.getSize();
+        priorPage.drawRectangle({
+          x: 15,
+          y: 8,
+          width: pW - 30,
+          height: 14,
+          color: rgb(0.97, 0.98, 1.0),
+          borderColor: rgb(0.75, 0.82, 0.92),
+          borderWidth: 0.5,
+        });
+        const microText = sanitizeTextForPdf(
+          `Documento vinculado à Assinatura Eletrônica Avançada (${signInfo.CodigoValidacao || "VAL"}). Página ${i + 1} de ${totalPages}. Lei 14.063/2020.`
+        );
+        priorPage.drawText(microText, {
+          x: 22,
+          y: 12,
+          size: 6.2,
+          font: helvetica,
+          color: rgb(0.22, 0.28, 0.4),
+        });
+      }
+    }
 
-    const stampLine = sanitizeTextForPdf(
-      `Assinado eletronicamente por ${docInfo.NomeFuncionario} (CPF ${docInfo.CPFFuncionario || "---"}) em ${formatBrasiliaDateTime(signInfo.DataHoraAssinatura)}. Validador: ${signInfo.CodigoValidacao}. Lei 14.063/2020.`,
-    );
-    firstPage.drawText(stampLine, {
-      x: 20,
-      y: bannerY + 4,
-      size: 6.8,
-      font: helvetica,
-      color: rgb(0.18, 0.24, 0.35),
+    // Estampa o selo de assinatura diretamente na última página (ou página única) do documento
+    const lastPage = pages[totalPages - 1];
+    await stampSignatureDirectly({
+      pdfDoc,
+      targetPage: lastPage,
+      docInfo,
+      signInfo,
+      rubricPngBytes,
     });
   } else {
     // Se for texto / termo interno gerado dinamicamente
@@ -282,406 +471,18 @@ export async function generateSignedPdf({
         color: rgb(0.15, 0.18, 0.24),
       });
       textY -= 10;
-      if (textY < 60) break;
+      if (textY < 95) break;
     }
-  }
 
-  // -------------------------------------------------------------
-  // PÁGINA PERICIAL DE AUDITORIA (AUDIT TRAIL / CERTIFICADO)
-  // -------------------------------------------------------------
-  const auditPage = pdfDoc.addPage([595.28, 841.89]);
-  const pageWidth = 595.28;
-  const pageHeight = 841.89;
-
-  const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
-
-  // 1. Banner Superior Navy Blue
-  auditPage.drawRectangle({
-    x: 0,
-    y: pageHeight - 75,
-    width: pageWidth,
-    height: 75,
-    color: rgb(0.07, 0.11, 0.2),
-  });
-
-  auditPage.drawText("GRUPO HOUSE 190 · SISTEMA DE GESTAO FOLGAS 3.0", {
-    x: 40,
-    y: pageHeight - 28,
-    size: 9,
-    font: helveticaBold,
-    color: rgb(0.65, 0.75, 0.9),
-  });
-
-  auditPage.drawText("CERTIFICADO DE ASSINATURA ELETRONICA E AUDITORIA", {
-    x: 40,
-    y: pageHeight - 48,
-    size: 13.5,
-    font: helveticaBold,
-    color: rgb(1, 1, 1),
-  });
-
-  auditPage.drawText("Comprovante pericial de autoria, integridade criptografica e manifestacao expressa", {
-    x: 40,
-    y: pageHeight - 64,
-    size: 7.5,
-    font: helvetica,
-    color: rgb(0.75, 0.82, 0.92),
-  });
-
-  // 2. Enquadramento Jurídico
-  auditPage.drawRectangle({
-    x: 35,
-    y: pageHeight - 128,
-    width: pageWidth - 70,
-    height: 45,
-    color: rgb(0.95, 0.97, 1.0),
-    borderColor: rgb(0.72, 0.8, 0.92),
-    borderWidth: 0.8,
-  });
-
-  auditPage.drawText("ENQUADRAMENTO LEGAL E FORCA PROBATORIA", {
-    x: 45,
-    y: pageHeight - 96,
-    size: 8,
-    font: helveticaBold,
-    color: rgb(0.12, 0.28, 0.55),
-  });
-
-  const legalText =
-    "Documento assinado nos termos da Lei no 14.063/2020 (Assinatura Eletronica Avancada), Medida Provisoria no 2.200-2/2001, Artigo 464 da CLT (comprovacao de pagamento e recibo por meio eletronico) e Portaria MTP no 671/2021.";
-  drawWrappedText(auditPage, legalText, {
-    x: 45,
-    y: pageHeight - 108,
-    width: pageWidth - 90,
-    font: helvetica,
-    size: 7.2,
-    lineHeight: 10,
-    color: rgb(0.2, 0.28, 0.4),
-  });
-
-  // 3. Grid de Metadados: Documento + Signatário
-  const boxTop = pageHeight - 140;
-  const boxHeight = 115;
-  const halfWidth = (pageWidth - 80) / 2;
-
-  // Box Esquerda: Dados do Documento
-  auditPage.drawRectangle({
-    x: 35,
-    y: boxTop - boxHeight,
-    width: halfWidth,
-    height: boxHeight,
-    color: rgb(0.98, 0.99, 1.0),
-    borderColor: rgb(0.85, 0.88, 0.93),
-    borderWidth: 0.6,
-  });
-
-  auditPage.drawText("DADOS DO DOCUMENTO", {
-    x: 45,
-    y: boxTop - 16,
-    size: 8,
-    font: helveticaBold,
-    color: rgb(0.1, 0.15, 0.25),
-  });
-
-  const docLines = [
-    `Titulo: ${docInfo.Titulo || "Documento"}`,
-    `Tipo: ${docInfo.Tipo || "Geral"}`,
-    `ID: ${docInfo.DocumentoID || docInfo.DocID || "---"}`,
-    `Referencia: ${docInfo.MesReferencia || "N/A"}`,
-    `Data Envio: ${formatBrasiliaDateTime(docInfo.DataEnvio)}`,
-    `Emitido Por: ${docInfo.CriadoPor || "RH / Gestao"}`,
-  ];
-  let currY = boxTop - 30;
-  for (const dl of docLines) {
-    auditPage.drawText(sanitizeTextForPdf(dl), {
-      x: 45,
-      y: currY,
-      size: 7.2,
-      font: helvetica,
-      color: rgb(0.25, 0.3, 0.38),
+    // Estampa o selo de assinatura diretamente na própria folha do termo
+    await stampSignatureDirectly({
+      pdfDoc,
+      targetPage: docPage,
+      docInfo,
+      signInfo,
+      rubricPngBytes,
     });
-    currY -= 14;
   }
-
-  // Box Direita: Dados do Signatário
-  auditPage.drawRectangle({
-    x: 45 + halfWidth,
-    y: boxTop - boxHeight,
-    width: halfWidth,
-    height: boxHeight,
-    color: rgb(0.98, 0.99, 1.0),
-    borderColor: rgb(0.85, 0.88, 0.93),
-    borderWidth: 0.6,
-  });
-
-  auditPage.drawText("DADOS DO SIGNATARIO", {
-    x: 55 + halfWidth,
-    y: boxTop - 16,
-    size: 8,
-    font: helveticaBold,
-    color: rgb(0.1, 0.15, 0.25),
-  });
-
-  const sigLines = [
-    `Nome: ${docInfo.NomeFuncionario || "Colaborador"}`,
-    `CPF: ${docInfo.CPFFuncionario || "Nao informado"}`,
-    `Matricula/ID: ${docInfo.FuncionarioID || "---"}`,
-    `Unidade/Loja: ${docInfo.NomeLoja || docInfo.LojaID || "---"}`,
-    `Status: ASSINADO E CONCORDADO`,
-  ];
-  currY = boxTop - 30;
-  for (const sl of sigLines) {
-    auditPage.drawText(sanitizeTextForPdf(sl), {
-      x: 55 + halfWidth,
-      y: currY,
-      size: 7.2,
-      font: helvetica,
-      color: rgb(0.25, 0.3, 0.38),
-    });
-    currY -= 14;
-  }
-
-  // 4. Registro Forense / Técnico do Dispositivo e Assinatura
-  const forensicTop = boxTop - boxHeight - 12;
-  const forensicHeight = 85;
-
-  auditPage.drawRectangle({
-    x: 35,
-    y: forensicTop - forensicHeight,
-    width: pageWidth - 70,
-    height: forensicHeight,
-    color: rgb(0.97, 0.98, 0.99),
-    borderColor: rgb(0.82, 0.86, 0.92),
-    borderWidth: 0.6,
-  });
-
-  auditPage.drawText("EVIDENCIAS TECNICAS DA OPERACAO", {
-    x: 45,
-    y: forensicTop - 16,
-    size: 8,
-    font: helveticaBold,
-    color: rgb(0.12, 0.18, 0.28),
-  });
-
-  const techLines = [
-    `Data e Hora da Assinatura: ${formatBrasiliaDateTime(signInfo.DataHoraAssinatura)} (Brasilia)`,
-    `Carimbo Temporal UTC: ${signInfo.TimestampUTC || Date.now()} ms`,
-    `Endereco IP de Origem: ${signInfo.EnderecoIP || "Registrado pelo dispositivo cliente"}`,
-    `Dispositivo / Sistema Operacional: ${signInfo.DispositivoInfo || "Dispositivo movel PWA"}`,
-    `Navegador / User-Agent: ${signInfo.NavegadorInfo ? signInfo.NavegadorInfo.slice(0, 95) : "Web PWA Client"}`,
-    `Manifestacao: Concordancia expressa e irrevogavel apos rolagem integral obrigatoria e senha do usuario.`,
-  ];
-  currY = forensicTop - 30;
-  for (const tl of techLines) {
-    auditPage.drawText(sanitizeTextForPdf(tl), {
-      x: 45,
-      y: currY,
-      size: 7,
-      font: helvetica,
-      color: rgb(0.22, 0.28, 0.35),
-    });
-    currY -= 10;
-  }
-
-  // 5. Rubrica Manuscrita Capturada em Tela Touch
-  const rubricTop = forensicTop - forensicHeight - 12;
-  const rubricHeight = 85;
-
-  auditPage.drawRectangle({
-    x: 35,
-    y: rubricTop - rubricHeight,
-    width: pageWidth - 70,
-    height: rubricHeight,
-    color: rgb(1, 1, 1),
-    borderColor: rgb(0.8, 0.85, 0.92),
-    borderWidth: 0.6,
-  });
-
-  auditPage.drawText("RUBRICA DIGITALIZADA DO COLABORADOR (TOUCH CANVAS)", {
-    x: 45,
-    y: rubricTop - 16,
-    size: 8,
-    font: helveticaBold,
-    color: rgb(0.12, 0.2, 0.35),
-  });
-
-  // Linha de assinatura
-  auditPage.drawLine({
-    start: { x: 50, y: rubricTop - 65 },
-    end: { x: 320, y: rubricTop - 65 },
-    thickness: 0.8,
-    color: rgb(0.75, 0.8, 0.88),
-  });
-  auditPage.drawText(
-    sanitizeTextForPdf(`Assinatura de ${docInfo.NomeFuncionario}`),
-    {
-      x: 50,
-      y: rubricTop - 76,
-      size: 7,
-      font: helveticaOblique,
-      color: rgb(0.4, 0.45, 0.55),
-    },
-  );
-
-  // Embed da imagem da rubrica se fornecida
-  if (rubricPngBytes && rubricPngBytes.length > 0) {
-    try {
-      const rubricImage = await pdfDoc.embedPng(rubricPngBytes);
-      auditPage.drawImage(rubricImage, {
-        x: 60,
-        y: rubricTop - 62,
-        width: 180,
-        height: 42,
-      });
-    } catch {
-      auditPage.drawText("[Rubrica registrada digitalmente]", {
-        x: 60,
-        y: rubricTop - 50,
-        size: 8,
-        font: helvetica,
-        color: rgb(0.3, 0.3, 0.3),
-      });
-    }
-  }
-
-  // Selo de Autenticidade à Direita
-  auditPage.drawRectangle({
-    x: 350,
-    y: rubricTop - 74,
-    width: 190,
-    height: 58,
-    color: rgb(0.94, 0.98, 0.95),
-    borderColor: rgb(0.2, 0.65, 0.35),
-    borderWidth: 1,
-  });
-
-  auditPage.drawText("AUTENTICADO COM SUCESSO", {
-    x: 365,
-    y: rubricTop - 32,
-    size: 8.5,
-    font: helveticaBold,
-    color: rgb(0.1, 0.5, 0.25),
-  });
-  auditPage.drawText(`Codigo: ${signInfo.CodigoValidacao}`, {
-    x: 365,
-    y: rubricTop - 46,
-    size: 7.5,
-    font: helveticaBold,
-    color: rgb(0.15, 0.2, 0.3),
-  });
-  auditPage.drawText("Assinatura Eletronica Avancada", {
-    x: 365,
-    y: rubricTop - 58,
-    size: 6.8,
-    font: helvetica,
-    color: rgb(0.25, 0.45, 0.3),
-  });
-  auditPage.drawText("Validade probatoria plena", {
-    x: 365,
-    y: rubricTop - 68,
-    size: 6.5,
-    font: helveticaOblique,
-    color: rgb(0.35, 0.55, 0.4),
-  });
-
-  // 6. Trilha Criptográfica de Hashes SHA-256
-  const cryptoTop = rubricTop - rubricHeight - 12;
-  const cryptoHeight = 110;
-
-  auditPage.drawRectangle({
-    x: 35,
-    y: cryptoTop - cryptoHeight,
-    width: pageWidth - 70,
-    height: cryptoHeight,
-    color: rgb(0.96, 0.97, 0.99),
-    borderColor: rgb(0.7, 0.76, 0.86),
-    borderWidth: 0.8,
-  });
-
-  auditPage.drawText("INTEGRIDADE CRIPTOGRAFICA E AUDITORIA (SHA-256)", {
-    x: 45,
-    y: cryptoTop - 16,
-    size: 8,
-    font: helveticaBold,
-    color: rgb(0.1, 0.15, 0.28),
-  });
-
-  // Hash Original
-  auditPage.drawText("Hash SHA-256 do Documento Original:", {
-    x: 45,
-    y: cryptoTop - 32,
-    size: 7,
-    font: helveticaBold,
-    color: rgb(0.2, 0.25, 0.35),
-  });
-  auditPage.drawText(docInfo.HashOriginalSHA256 || "Nao computado", {
-    x: 45,
-    y: cryptoTop - 42,
-    size: 6.8,
-    font: helvetica,
-    color: rgb(0.15, 0.25, 0.5),
-  });
-
-  // Hash Final Placeholder / Explicação
-  auditPage.drawText("Hash SHA-256 do Pacote Final e Auditado:", {
-    x: 45,
-    y: cryptoTop - 56,
-    size: 7,
-    font: helveticaBold,
-    color: rgb(0.2, 0.25, 0.35),
-  });
-  auditPage.drawText(
-    signInfo.HashDocumentoFinalSHA256 ||
-      "[Calculado e registrado atomicamente na conclusao do processo]",
-    {
-      x: 45,
-      y: cryptoTop - 66,
-      size: 6.8,
-      font: helvetica,
-      color: rgb(0.1, 0.5, 0.25),
-    },
-  );
-
-  // Link de Validação
-  auditPage.drawText("Canal Oficial de Conferencia:", {
-    x: 45,
-    y: cryptoTop - 80,
-    size: 7,
-    font: helveticaBold,
-    color: rgb(0.2, 0.25, 0.35),
-  });
-  const valUrl = `https://houseburgertx-beep.github.io/gestao/#validar=${signInfo.CodigoValidacao}`;
-  auditPage.drawText(valUrl, {
-    x: 45,
-    y: cryptoTop - 90,
-    size: 6.8,
-    font: helvetica,
-    color: rgb(0.15, 0.35, 0.75),
-  });
-
-  // 7. Rodapé Institucional
-  auditPage.drawText(
-    "Este certificado e parte integrante e indissociavel do documento assinado. Qualquer adulteracao invalida os hashes matematicos.",
-    {
-      x: 40,
-      y: 25,
-      size: 6.5,
-      font: helveticaOblique,
-      color: rgb(0.45, 0.5, 0.6),
-    },
-  );
-  auditPage.drawText(
-    `Grupo House 190 · Gestao de Folgas 3.0 · Emitido em ${formatBrasiliaDateTime(nowIso())}`,
-    {
-      x: 40,
-      y: 15,
-      size: 6,
-      font: helvetica,
-      color: rgb(0.55, 0.6, 0.7),
-    },
-  );
 
   const finalPdfBytes = await pdfDoc.save();
   const finalPdfBase64 = uint8ArrayToBase64(finalPdfBytes);
