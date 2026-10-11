@@ -274,7 +274,7 @@ function renderManagerView() {
             <td>${esc(doc.NomeLoja || doc.LojaID)}</td>
             <td>
               <span class="doc-status-badge ${isSigned ? "doc-status-signed" : "doc-status-pending"}">
-                ${isSigned ? "✓ Assinado" : "⏳ Pendente"}
+                ${isSigned ? "Assinado" : "Pendente"}
               </span>
             </td>
             <td style="font-size: 12px; color: var(--muted, #64748b);">
@@ -286,18 +286,18 @@ function renderManagerView() {
                   isSigned
                     ? `
                   <button class="btn btn-secondary btn-sm" data-action="download" data-id="${esc(doc.DocumentoID)}">
-                    📥 Baixar PDF
+                    Baixar PDF
                   </button>
                   <button class="btn btn-ghost btn-sm" data-action="audit" data-id="${esc(doc.DocumentoID)}" title="Ver Auditoria Pericial">
-                    ⚖ Perícia
+                    Certificado
                   </button>
                 `
                     : `
                   <button class="btn btn-secondary btn-sm" data-action="preview" data-id="${esc(doc.DocumentoID)}">
-                    👁 Ver
+                    Visualizar
                   </button>
                   <button class="btn btn-ghost btn-sm" data-action="delete" data-id="${esc(doc.DocumentoID)}" style="color: #ef4444;" title="Excluir documento pendente">
-                    🗑
+                    Excluir
                   </button>
                 `
                 }
@@ -397,7 +397,9 @@ function renderEmployeeView() {
   if (myDocs.length === 0) {
     cardsHtml = `
       <div class="panel doc-empty-panel">
-        <div class="doc-empty-icon">📁</div>
+        <div class="doc-empty-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
         <p class="doc-empty-title">Nenhum documento pendente</p>
         <p class="doc-empty-desc">Todos os seus holerites, comprovantes e termos estão em dia.</p>
       </div>
@@ -411,19 +413,19 @@ function renderEmployeeView() {
             <div class="doc-item-header">
               <span class="doc-type-pill">${esc(doc.Tipo || "Documento")}</span>
               <span class="doc-status-badge ${isSigned ? "doc-status-signed" : "doc-status-pending"}">
-                ${isSigned ? "✓ Assinado" : "⏳ Pendente"}
+                ${isSigned ? "Assinado" : "Pendente"}
               </span>
             </div>
 
             <div class="doc-item-main">
               <h4 class="doc-item-title">${esc(doc.Titulo)}</h4>
               <div class="doc-item-meta">
-                <span>📅 Ref: <strong>${esc(doc.MesReferencia || "Geral")}</strong></span>
+                <span>Ref: <strong>${esc(doc.MesReferencia || "Geral")}</strong></span>
                 <span>•</span>
-                <span>🏢 <strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
+                <span><strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
                 <span>•</span>
-                <span>🕒 Enviado em ${formatDate(doc.DataEnvio)}</span>
-                ${isSigned ? `<span>•</span><span>✅ Assinado em ${formatDate(doc.DataAssinatura)}</span>` : ""}
+                <span>Enviado em ${formatDate(doc.DataEnvio)}</span>
+                ${isSigned ? `<span>•</span><span>Assinado em ${formatDate(doc.DataAssinatura)}</span>` : ""}
               </div>
             </div>
 
@@ -438,10 +440,10 @@ function renderEmployeeView() {
               `
                   : `
                 <button class="btn btn-secondary btn-sm" data-action="download" data-id="${esc(doc.DocumentoID)}">
-                  📥 Baixar PDF Assinado
+                  Baixar PDF Assinado
                 </button>
                 <button class="btn btn-ghost btn-sm" data-action="audit" data-id="${esc(doc.DocumentoID)}">
-                  ⚖ Certificado & Hash
+                  Certificado & Hash
                 </button>
               `
               }
@@ -585,12 +587,12 @@ export async function openSignDialog(docId) {
         </div>
         <button type="button" id="docOpenFullScreenPdfBtn" class="doc-btn-fullscreen">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-          Abrir em Tela Cheia ↗
+          Abrir em Tela Cheia
         </button>
       </div>
 
       <div class="doc-viewer-tip">
-        💡 Toque em <strong>Abrir em Tela Cheia</strong> para ver o holerite completo com zoom livre pelo celular.
+        Toque em <strong>Abrir em Tela Cheia</strong> para ver o documento completo com zoom pelo celular.
       </div>
 
       <div id="docViewerBox" class="doc-viewer-container">
@@ -619,14 +621,14 @@ export async function openSignDialog(docId) {
         <span class="doc-modal-eyebrow">Assinatura Eletrônica</span>
         <h3 class="doc-modal-title">${esc(doc.Titulo)}</h3>
       </div>
-      <button type="button" class="icon-btn" id="docSignCloseBtn" data-close="documentSignDialog" aria-label="Fechar">✕</button>
+      <button type="button" class="icon-btn" id="docSignCloseBtn" data-close="documentSignDialog" aria-label="Fechar">&times;</button>
     </div>
 
     <div class="dialog-body">
       ${viewerHtml}
 
       <div id="docScrollLockBanner" class="doc-scroll-lock-banner">
-        <span id="docScrollLockMsg">⬇ Por favor, confira o documento para liberar a assinatura.</span>
+        <span id="docScrollLockMsg">Por favor, confira o documento para liberar a assinatura.</span>
         <div class="doc-scroll-progress-bar">
           <div id="docScrollProgressFill" class="doc-scroll-progress-fill"></div>
         </div>
@@ -707,7 +709,7 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
     if (state.hasScrolledToBottom) return;
     state.hasScrolledToBottom = true;
     lockBanner?.classList.add("unlocked");
-    if (lockMsg) lockMsg.textContent = "✓ Leitura concluída. Painel de assinatura liberado.";
+    if (lockMsg) lockMsg.textContent = "Leitura concluída. Painel de assinatura liberado.";
     if (progressFill) progressFill.style.width = "100%";
     sigSection?.classList.remove("disabled");
   };
@@ -835,7 +837,7 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
 
       const result = await callApi("documentsSign", signPayload);
       close();
-      alert("✓ Documento assinado com sucesso!\nO certificado pericial e o hash criptográfico foram gerados.");
+      alert("Documento assinado com sucesso!\nO certificado pericial e o hash criptográfico foram gerados.");
       await loadDocuments();
     } catch (err) {
       console.error("[documents] Falha ao assinar:", err);
@@ -890,7 +892,7 @@ export function openUploadDialog() {
         <span class="eyebrow" style="color:#6340d8; font-weight:700; font-size:11px; letter-spacing:0.05em; text-transform:uppercase;">EMISSÃO DE DOCUMENTO</span>
         <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Novo Documento para Assinatura</h3>
       </div>
-      <button type="button" class="icon-btn" id="docUploadCloseBtn" data-close="documentUploadDialog" aria-label="Fechar">✕</button>
+      <button type="button" class="icon-btn" id="docUploadCloseBtn" data-close="documentUploadDialog" aria-label="Fechar">&times;</button>
     </div>
 
     <div class="dialog-body">
@@ -943,7 +945,9 @@ export function openUploadDialog() {
         <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:4px; color:var(--muted, #64748b);">Selecione o Arquivo PDF</label>
         <div style="border:2px dashed #cbd5e1; border-radius:16px; padding:2rem 1.25rem; text-align:center; background:#f8fafc; cursor:pointer; transition:all 0.2s;" id="docDropZone">
           <input type="file" id="docFileInput" accept="application/pdf" style="display:none;" />
-          <div style="font-size:2rem; margin-bottom:0.4rem;">📄</div>
+          <div style="color:#6340d8; margin-bottom:0.4rem;">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
           <strong id="docFileLabel" style="color:#6340d8; font-size:14px; display:block;">Toque para selecionar o PDF (Holerite)</strong>
           <p style="margin:4px 0 0; font-size:12px; color:#64748b;">Suporta PDF de holerites da contabilidade (até 10 MB)</p>
         </div>
@@ -1124,7 +1128,7 @@ function setupUploadDialogEvents(dialog) {
     reader.onload = async () => {
       selectedFileBase64 = reader.result;
       selectedFileHash = await sha256Hex(selectedFileBase64);
-      if (fileLabel) fileLabel.textContent = `✓ ${file.name} (${Math.round(file.size / 1024)} KB)`;
+      if (fileLabel) fileLabel.textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
       if (shaPreview) {
         shaPreview.style.display = "block";
         shaPreview.innerHTML = `<strong>Hash Original (SHA-256):</strong> <code>${selectedFileHash}</code>`;
@@ -1184,7 +1188,7 @@ function setupUploadDialogEvents(dialog) {
 
       await callApi("documentsSave", payload);
       close();
-      alert("✓ Documento emitido com sucesso e disponibilizado para o colaborador!");
+      alert("Documento emitido com sucesso e disponibilizado para o colaborador!");
       // Posiciona na aba de gestão e redefine filtros para visualização imediata do documento recém-criado
       state.activeTab = "gestao";
       state.storeFilter = "all";
@@ -1215,7 +1219,7 @@ export async function openAuditDialog(docId) {
         <span class="eyebrow" style="color:#059669; font-weight:700; font-size:11px; letter-spacing:0.05em; text-transform:uppercase;">EVIDÊNCIA PERICIAL JURÍDICA</span>
         <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Certificado de Autenticidade e Auditoria</h3>
       </div>
-      <button type="button" class="icon-btn" id="docAuditCloseBtn" data-close="documentSignDialog" aria-label="Fechar">✕</button>
+      <button type="button" class="icon-btn" id="docAuditCloseBtn" data-close="documentSignDialog" aria-label="Fechar">&times;</button>
     </div>
 
     <div class="dialog-body">
@@ -1234,7 +1238,7 @@ export async function openAuditDialog(docId) {
         </div>
         <div>
           <span style="color:#64748b;">Status Probatório:</span><br/>
-          <span style="color:#059669; font-weight:700;">✓ Assinatura Eletrônica Avançada (Íntegro)</span>
+          <span style="color:#059669; font-weight:700;">Assinatura Eletrônica Avançada (Íntegro)</span>
         </div>
       </div>
 
@@ -1258,7 +1262,7 @@ export async function openAuditDialog(docId) {
     <div class="dialog-actions">
       <button id="docAuditDoneBtn" class="btn btn-secondary" type="button" data-close="documentSignDialog">Fechar</button>
       <button id="docAuditDownloadBtn" class="btn btn-primary" type="button">
-        📥 Baixar PDF com Certificado
+        Baixar PDF com Certificado
       </button>
     </div>
   `;

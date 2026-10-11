@@ -3629,7 +3629,7 @@
             takeatDebt > 0
               ? `<span title="Débito em aberto no Takeat" style="display:inline-block; margin-top:3px; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">Prazo: - R$ ${takeatDebt.toFixed(2).replace(".", ",")}</span>`
               : "";
-          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -3658,7 +3658,7 @@
               .map((v) => v[0])
               .join("")
               .toUpperCase();
-          return `<article class="store-card store-card-v2"><div class="store-visual store-tone-${index % 4}"><div class="store-icon">${esc(initials)}</div>${badge(active ? "Ativa" : "Inativa")}</div><div class="store-body"><span class="eyebrow">${esc(code)}</span><h3>${esc(name)}</h3><p class="store-location">⌖ ${esc(city)}</p><div class="store-stats"><div><strong>${count[id] || 0}</strong><span>Funcionários</span></div><div><strong>${esc(limit)}</strong><span>Limite/dia</span></div><div><strong>${calendar ? "✓" : "—"}</strong><span>Calendar</span></div></div><div class="store-manager"><div class="avatar">${esc(String(manager).slice(0, 2).toUpperCase())}</div><div><span>Responsável</span><strong>${esc(manager)}</strong>${email ? `<small>${esc(email)}</small>` : ""}</div></div><div class="store-actions-v2"><button class="btn btn-secondary" data-action="edit-store" data-id="${esc(id)}">✎ Editar loja</button><button class="btn btn-ghost" data-action="${active ? "disable-store" : "activate-store"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></div></article>`;
+          return `<article class="store-card store-card-v2"><div class="store-visual store-tone-${index % 4}"><div class="store-icon">${esc(initials)}</div>${badge(active ? "Ativa" : "Inativa")}</div><div class="store-body"><span class="eyebrow">${esc(code)}</span><h3>${esc(name)}</h3><p class="store-location">⌖ ${esc(city)}</p><div class="store-stats"><div><strong>${count[id] || 0}</strong><span>Funcionários</span></div><div><strong>${esc(limit)}</strong><span>Limite/dia</span></div><div><strong>${calendar ? "✓" : "—"}</strong><span>Calendar</span></div></div><div class="store-manager"><div class="avatar">${esc(String(manager).slice(0, 2).toUpperCase())}</div><div><span>Responsável</span><strong>${esc(manager)}</strong>${email ? `<small>${esc(email)}</small>` : ""}</div></div><div class="store-actions-v2"><button class="btn btn-secondary" data-action="edit-store" data-id="${esc(id)}">Editar loja</button><button class="btn btn-ghost" data-action="${active ? "disable-store" : "activate-store"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></div></article>`;
         })
         .join("") || '<div class="panel">Nenhuma loja cadastrada.</div>';
   }
@@ -3727,7 +3727,7 @@
             store =
               val(x, "NomeLoja", "nomeLoja") ||
               storeName(val(x, "LojaID", "lojaId"));
-          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td>${esc(store || "—")}</td><td>${x._hasAccess ? dateBR(val(x, "UltimoAcesso", "ultimoAcesso")) : "—"}</td><td>${x._hasAccess ? badge(bool(val(x, "Ativo", "ativo")) ? "Ativo" : "Inativo") : badge("Sem acesso")}</td><td><div class="row-actions"><button data-action="edit-access" data-id="${esc(id)}">${x._hasAccess ? "Editar" : "Criar acesso"}</button>${x._hasAccess ? `<button data-action="reset-access-pwd" data-id="${esc(id)}" title="Trocar senha">🔑 Trocar senha</button>` : ""}</div></td></tr>`;
+          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td>${esc(store || "—")}</td><td>${x._hasAccess ? dateBR(val(x, "UltimoAcesso", "ultimoAcesso")) : "—"}</td><td>${x._hasAccess ? badge(bool(val(x, "Ativo", "ativo")) ? "Ativo" : "Inativo") : badge("Sem acesso")}</td><td><div class="row-actions"><button data-action="edit-access" data-id="${esc(id)}">${x._hasAccess ? "Editar" : "Criar acesso"}</button>${x._hasAccess ? `<button data-action="reset-access-pwd" data-id="${esc(id)}" title="Trocar senha">Trocar senha</button>` : ""}</div></td></tr>`;
         })
         .join("") || empty(6);
   }
@@ -8771,7 +8771,7 @@
         if (bodyEl) {
           bodyEl.innerHTML = `
             <div style="text-align:center; padding:2rem 1rem; color:var(--text-muted, #64748b);">
-              <div style="font-size:28px; margin-bottom:0.5rem;">📋</div>
+              <div style="color:var(--text-muted); margin-bottom:0.5rem;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div>
               <strong style="color:var(--text-primary, #0f172a); font-size:14px; display:block;">Nenhum item detalhado retornado pela Takeat</strong>
               <span style="font-size:12px;">Os lançamentos desta sessão foram consolidados diretamente no valor da comanda.</span>
             </div>
@@ -8901,7 +8901,7 @@
       if (openPurchases.length === 0) {
         let emptyHtml = `
           <div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted, #64748b);">
-            <div style="font-size:28px; margin-bottom:0.5rem;">🧾</div>
+            <div style="color:var(--text-muted); margin-bottom:0.5rem;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6M16 12h-6M10 16h-4"/></svg></div>
             <strong style="color:var(--text-primary, #0f172a); font-size:14px; display:block;">Nenhuma compra em aberto</strong>
             <span style="font-size:12px;">Não há lançamentos de consumo ativos ou pendentes para esta conta no momento.</span>
           </div>
@@ -9328,7 +9328,7 @@
         if (displayItems.length === 0) {
           cardsContainer.innerHTML = `
             <div class="takeat-ios-hero-card" style="text-align:center; padding:3rem 1.5rem; color:var(--text-muted); background:var(--bg-card, #ffffff); border:1px solid rgba(226, 232, 240, 0.85); border-radius:22px; box-shadow:0 10px 28px -4px rgba(15,23,42,0.08), 0 3px 10px -2px rgba(15,23,42,0.04);">
-              <div style="font-size:36px; margin-bottom:0.75rem;">💳</div>
+              <div style="color:var(--text-muted); margin-bottom:0.75rem;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
               <strong style="font-size:16px; color:var(--text-primary, #0f172a); display:block; margin-bottom:0.35rem;">Nenhuma conta vinculada encontrada</strong>
               <span style="font-size:13px; line-height:1.5; display:inline-block; max-width:320px;">Se você consome a prazo na loja, solicite ao gerente da sua unidade para vincular sua conta no sistema.</span>
             </div>
@@ -9592,7 +9592,7 @@
 
       let matchDisplay = '';
       if (item.matchedEmployee?.isIgnored) {
-        matchDisplay = '<span class="status" style="background:#f1f5f9; color:#64748b; font-size:11px;">🚫 Desconsiderado</span>';
+        matchDisplay = '<span class="status" style="background:#f1f5f9; color:#64748b; font-size:11px;">Desconsiderado</span>';
       } else if (item.matchedEmployee) {
         matchDisplay = `
           <div style="display:flex; align-items:center; gap:0.35rem;">
@@ -9634,7 +9634,7 @@
                 data-current-val="${esc(currentVal)}"
                 style="padding:3px 8px; font-size:11px; white-space:nowrap; border-radius:6px; cursor:pointer;"
                 title="Editar vínculo do colaborador">
-                ✎ Vincular
+                Vincular
               </button>
             </div>
           </div>
