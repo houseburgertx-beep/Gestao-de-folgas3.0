@@ -58,6 +58,7 @@
       onlyDebt: true,
     },
   };
+  window.__GESTAO_STATE__ = state;
   const FN = {
     login: "loginUser",
     logout: "logoutUser",
@@ -862,6 +863,7 @@
       setTimeout(() => el.remove(), 220);
     }, 3800);
   }
+  window.__GESTAO_TOAST__ = toast;
   function setLoading(on) {
     $("#loadingOverlay").classList.toggle("hidden", !on);
     if (!on) {
@@ -1700,6 +1702,7 @@
       button.removeAttribute("aria-busy");
     }
   }
+  window.__GESTAO_REFRESH_APP__ = refreshApplication;
   function applyBootstrapData(data) {
     data = data || {};
     const deferred = bool(data.deferred);

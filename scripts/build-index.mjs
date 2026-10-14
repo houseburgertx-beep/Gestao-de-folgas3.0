@@ -18,10 +18,11 @@ const [template, styles, dialogs, scripts] = await Promise.all([
   readLegacy("Scripts.html"),
 ]);
 
-const [redesign, cozinhaflow, documentsCss] = await Promise.all([
+const [redesign, cozinhaflow, documentsCss, copilotCss] = await Promise.all([
   readFile(path.join(projectDir, "src", "redesign.css"), "utf8"),
   readFile(path.join(projectDir, "src", "cozinhaflow.css"), "utf8"),
   readFile(path.join(projectDir, "src", "documents.css"), "utf8"),
+  readFile(path.join(projectDir, "src", "copilot.css"), "utf8"),
 ]);
 
 let html = template
@@ -35,7 +36,7 @@ let html = template
   )
   // Use callbacks so JavaScript replacement tokens such as "$$" are copied
   // verbatim instead of being collapsed to a single "$".
-  .replace("<?!= include_('Styles'); ?>", () => styles + `<style>${redesign}\n${cozinhaflow}\n${documentsCss}</style>`)
+  .replace("<?!= include_('Styles'); ?>", () => styles + `<style>${redesign}\n${cozinhaflow}\n${documentsCss}\n${copilotCss}</style>`)
   .replace("<?!= include_('Dialogs'); ?>", () => dialogs)
   .replace(
     "<?!= include_('Scripts'); ?>",

@@ -309,6 +309,17 @@
           </div>
           <div class="topbar-actions">
             <button
+              id="copilotOpenBtn"
+              class="copilot-topbar-btn"
+              title="Copiloto House 190"
+              aria-label="Abrir Copiloto House 190"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+              </svg>
+              <span class="copilot-btn-label">Copiloto</span>
+            </button>
+            <button
               id="notificationTopBtn"
               class="icon-btn notification-top-btn"
               title="Notificações"
@@ -1926,6 +1937,56 @@
           </section>
         </main>
       </div>
+    </div>
+
+    <!-- Botão Flutuante Mobile Copiloto -->
+    <button id="copilotFab" class="copilot-fab" title="Abrir Copiloto" aria-label="Abrir Copiloto House 190">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+      </svg>
+    </button>
+
+    <!-- Gaveta do Copiloto House 190 -->
+    <div id="copilotDrawer" class="copilot-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="copilotTitle">
+      <div class="copilot-backdrop" id="copilotBackdrop"></div>
+      <aside class="copilot-panel">
+        <header class="copilot-header">
+          <div class="copilot-header-info">
+            <div class="copilot-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+              </svg>
+            </div>
+            <div class="copilot-title-group">
+              <h2 id="copilotTitle" class="copilot-title">Copiloto House 190</h2>
+              <span class="copilot-badge"><span class="copilot-badge-dot"></span><span id="copilotRoleBadge">Operação Ativa</span></span>
+            </div>
+          </div>
+          <button type="button" id="copilotCloseBtn" class="copilot-close-btn" aria-label="Fechar Copiloto">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </header>
+
+        <div class="copilot-body" id="copilotBody">
+          <div class="copilot-messages" id="copilotMessages"></div>
+        </div>
+
+        <footer class="copilot-footer">
+          <div class="copilot-quick-suggestions" id="copilotQuickSuggestions"></div>
+          <form id="copilotForm" class="copilot-input-form">
+            <textarea id="copilotInput" class="copilot-input" placeholder="Comande uma ação ou tire dúvidas..." rows="1"></textarea>
+            <button type="submit" id="copilotSendBtn" class="copilot-send-btn" aria-label="Enviar comando">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </form>
+        </footer>
+      </aside>
     </div>
 
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
