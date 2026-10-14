@@ -12,6 +12,10 @@ import {
   callGeminiCopilot,
   GEMINI_TOOLS,
   SCREEN_KNOWLEDGE,
+  getLivePresenceItems,
+  isPersonWorking,
+  isPersonOnBreak,
+  getLivePresenceTotals,
 } from "../src/copilot.js";
 
 // Mock de dados operacionais
@@ -355,6 +359,129 @@ test("Copiloto Ações: Gerente pode justificar ausência na sua loja e é bloqu
   const resBlockedEmp = parseCopilotIntent("Justificar falta de Gabriel dia 10/10/2026", empCtx);
   assert.equal(resBlockedEmp.type, "error");
   assert.match(resBlockedEmp.message, /requer perfil de Gerente ou Administrador/i);
+});
+
+test("Copiloto Presença: getLivePresenceItems extrai corretamente listas de presença em objeto ou array", () => {
+  // Formato objeto retornado por calculateLivePresence
+  const objPresence = {
+    date: "2026-10-14",
+    presence: [
+      { FuncionarioID: "1", Nome: "Gabriel", status: "trabalhando", LojaID: "loja_1" },
+      { FuncionarioID: "2", Nome: "Mariana", status: "intervalo", LojaID: "loja_2" },
+      { FuncionarioID: "3", Nome: "Pedro", status: "ausente", LojaID: "loja_1" },
+    ],
+    totals: { trabalhando: 1, intervalo: 1, ausente: 1, total: 3 },
+  };
+
+  const items = getLivePresenceItems(objPresence);
+  assert.equal(items.length, 3);
+  assert.equal(isPersonWorking(items[0]), true);
+  assert.equal(isPersonOnBreak(items[1]), true);
+  assert.equal(isPersonWorking(items[2]), false);
+
+  const totals = getLivePresenceTotals(objPresence);
+  assert.equal(totals.trabalhando, 1);
+  assert.equal(totals.intervalo, 1);
+  assert.equal(totals.ausente, 1);
+
+  // Formato array direto
+  const arrPresence = [
+    { FuncionarioID: "4", Nome: "Lucas", status: "Trabalhando", LojaID: "loja_1" },
+    { FuncionarioID: "5", Nome: "Carlos", status: "Em serviço", LojaID: "loja_2" },
+  ];
+  const arrItems = getLivePresenceItems(arrPresence);
+  assert.equal(arrItems.length, 2);
+  assert.equal(isPersonWorking(arrItems[0]), true);
+  assert.equal(isPersonWorking(arrItems[1]), true);
+});
+
+test("Copiloto Presença: 'quem ta trabalhando na house hoje ?' lista os 9 colaboradores agrupados por loja para Admin", () => {
+  const adminUser = { Perfil: "Administrador", FuncionarioID: "adm_1", Nome: "GLEUCE DIAS DE SOUZA" };
+  const mockPresenceData = {
+    date: "2026-10-14",
+    presence: [
+      { FuncionarioID: "p1", Nome: "Gabriel Silva", NomeLoja: "House Food Park", LojaID: "loja_fp", status: "trabalhando", Cargo: "Cozinha", entryTime: "16:00", elapsedTexto: "4h 27min" },
+      { FuncionarioID: "p2", Nome: "Lucas Mendes", NomeLoja: "House Food Park", LojaID: "loja_fp", status: "trabalhando", Cargo: "Chapa", entryTime: "16:30", elapsedTexto: "3h 57min" },
+      { FuncionarioID: "p3", Nome: "Ana Souza", NomeLoja: "House Food Park", LojaID: "loja_fp", status: "trabalhando", Cargo: "Atendimento", entryTime: "16:45", elapsedTexto: "3h 42min" },
+      { FuncionarioID: "p4", Nome: "Carlos Pereira", NomeLoja: "House Food Park", LojaID: "loja_fp", status: "trabalhando", Cargo: "Cozinha", entryTime: "17:00", elapsedTexto: "3h 27min" },
+      { FuncionarioID: "p5", Nome: "Beatriz Lima", NomeLoja: "House Food Park", LojaID: "loja_fp", status: "trabalhando", Cargo: "Caixa", entryTime: "17:15", elapsedTexto: "3h 12min" },
+      { FuncionarioID: "p6", Nome: "Rodrigo Santos", NomeLoja: "House Food Park", LojaID: "loja_fp", status: "trabalhando", Cargo: "Auxiliar", entryTime: "17:30", elapsedTexto: "2h 57min" },
+      { FuncionarioID: "p7", Nome: "Mariana Costa", NomeLoja: "House 190 Teixeira", LojaID: "loja_tx", status: "trabalhando", Cargo: "Atendimento", entryTime: "16:00", elapsedTexto: "4h 27min" },
+      { FuncionarioID: "p8", Nome: "Felipe Alves", NomeLoja: "House 190 Teixeira", LojaID: "loja_tx", status: "trabalhando", Cargo: "Cozinha", entryTime: "16:15", elapsedTexto: "4h 12min" },
+      { FuncionarioID: "p9", Nome: "Juliana Rocha", NomeLoja: "House 190 Teixeira", LojaID: "loja_tx", status: "trabalhando", Cargo: "Gerência", entryTime: "15:30", elapsedTexto: "4h 57min" },
+      { FuncionarioID: "p10", Nome: "Thiago Oliveira", NomeLoja: "House Food Park", LojaID: "loja_fp", status: "intervalo", Cargo: "Cozinha", breakReturnTime: "21:00" },
+    ],
+    totals: { trabalhando: 9, intervalo: 1, ausente: 11, alertas: 5 },
+  };
+
+  const ctx = { user: adminUser, livePresenceData: mockPresenceData };
+
+  // Frase informal dita pelo usuário no print:
+  const res = parseCopilotIntent("quem ta trabalhando na house hoje ?", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /Colaboradores em atividade agora \(9\)/i);
+  assert.match(res.reply, /House Food Park \(6\)/i);
+  assert.match(res.reply, /House 190 Teixeira \(3\)/i);
+  assert.match(res.reply, /Gabriel Silva/i);
+  assert.match(res.reply, /4h 27min em turno/i);
+  assert.match(res.reply, /Thiago Oliveira/i);
+  assert.match(res.reply, /Colaboradores em intervalo \(1\)/i);
+
+  // Variação rápida do chip
+  const resChip = parseCopilotIntent("Quem está trabalhando agora?", ctx);
+  assert.equal(resChip.type, "query");
+  assert.match(resChip.reply, /Colaboradores em atividade agora \(9\)/i);
+
+  // Filtro específico para uma das unidades
+  const resFp = parseCopilotIntent("quem ta trabalhando no food park", ctx);
+  assert.equal(resFp.type, "query");
+  assert.match(resFp.reply, /Colaboradores em atividade agora \(6\)/i);
+  assert.match(resFp.reply, /Gabriel Silva/i);
+  assert.doesNotMatch(resFp.reply, /Mariana Costa/i);
+});
+
+test("Copiloto Decisão: 'o que precisa da minha decisão' e 'resumo do painel' apresentam resumo operacional completo", () => {
+  const adminUser = { Perfil: "Administrador", FuncionarioID: "adm_1", Nome: "GLEUCE DIAS DE SOUZA" };
+  const mockPresenceData = {
+    date: "2026-10-14",
+    presence: [],
+    totals: { trabalhando: 9, intervalo: 0, ausente: 11, alertas: 5 },
+  };
+
+  const ctx = {
+    user: adminUser,
+    livePresenceData: mockPresenceData,
+    tasks: mockTasks,
+    swaps: mockSwaps,
+    timeOff: [{ Status: "Pendente" }, { Status: "Aprovada" }],
+  };
+
+  const res = parseCopilotIntent("o que precisa da minha decisão", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /Resumo Operacional da Rede/i);
+  assert.match(res.reply, /Em operação agora:\*{0,2}\s*9/i);
+  assert.match(res.reply, /Ausentes previstos hoje:\*{0,2}\s*11/i);
+  assert.match(res.reply, /Alertas de jornada:\*{0,2}\s*5/i);
+  assert.match(res.reply, /Solicitações de folga pendentes:\*{0,2}\s*1/i);
+  assert.match(res.reply, /Trocas de folga aguardando aprovação:\*{0,2}\s*1/i);
+
+  // Variação "resumo do painel"
+  const resPainel = parseCopilotIntent("resumo do painel", ctx);
+  assert.equal(resPainel.type, "query");
+  assert.match(resPainel.reply, /Resumo Operacional da Rede/i);
+
+  // Variação "como tá a operação"
+  const resOperacao = parseCopilotIntent("como tá a operação hoje", ctx);
+  assert.equal(resOperacao.type, "query");
+  assert.match(resOperacao.reply, /Resumo Operacional da Rede/i);
+});
+
+test("Copiloto IA Info: esclarece qual modelo de IA roda no sistema", () => {
+  const ctx = { user: { Perfil: "Administrador" } };
+  const res = parseCopilotIntent("qual ia vai rodar ?", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /Google Gemini 2\.0 Flash/i);
+  assert.match(res.reply, /Motor Local Autônomo/i);
 });
 
 test("ZERO EMOJIS: Verificação estrita de ausência de emojis nos arquivos do Copiloto", async () => {

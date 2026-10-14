@@ -601,6 +601,53 @@ export function setGeminiApiKey(key) {
   } catch (_) {}
 }
 
+// ==========================================================================
+// UTILITÁRIOS DE PRESENÇA OPERACIONAL EM TEMPO REAL
+// ==========================================================================
+
+export function getLivePresenceItems(presenceData) {
+  let data = presenceData;
+  if (!data && typeof window !== "undefined") {
+    data = window.__GESTAO_STATE__?.livePresenceData || window.state?.livePresenceData;
+  }
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.presence)) return data.presence;
+  if (Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+export function isPersonWorking(p) {
+  if (!p) return false;
+  if (p.trabalhando === true) return true;
+  const st = String(p.status || p.statusLabel || "").toLowerCase().trim();
+  return st === "trabalhando" || st === "em serviço" || st === "em servico";
+}
+
+export function isPersonOnBreak(p) {
+  if (!p) return false;
+  const st = String(p.status || p.statusLabel || "").toLowerCase().trim();
+  return st === "intervalo" || st === "em intervalo";
+}
+
+export function getLivePresenceTotals(presenceData) {
+  let data = presenceData;
+  if (!data && typeof window !== "undefined") {
+    data = window.__GESTAO_STATE__?.livePresenceData || window.state?.livePresenceData;
+  }
+  if (data && typeof data === "object" && data.totals) {
+    return data.totals;
+  }
+  const items = getLivePresenceItems(data);
+  return {
+    trabalhando: items.filter(isPersonWorking).length,
+    intervalo: items.filter(isPersonOnBreak).length,
+    ausente: items.filter((p) => String(p.status || "").toLowerCase() === "ausente").length,
+    alertas: items.filter((p) => p.alertLevel && p.alertLevel !== "normal").length,
+    total: items.length,
+  };
+}
+
 // Declaração de Ferramentas para o Gemini Function Calling
 export const GEMINI_TOOLS = [
   {
@@ -1215,6 +1262,36 @@ export async function callGeminiCopilot(prompt, context = {}) {
   const currentView = context.currentView || getCurrentView();
   const screenInfo = SCREEN_KNOWLEDGE[currentView] || SCREEN_KNOWLEDGE.dashboard;
 
+  const liveItems = getLivePresenceItems(context.livePresenceData);
+  const workingItems = liveItems.filter(isPersonWorking);
+  const breakItems = liveItems.filter(isPersonOnBreak);
+  const absentItems = liveItems.filter((p) => String(p.status || "").toLowerCase() === "ausente");
+  const totals = getLivePresenceTotals(context.livePresenceData);
+
+  const workingSummary = workingItems
+    .slice(0, 30)
+    .map(
+      (p) =>
+        `${p.Nome || p.nome} (${p.NomeLoja || p.LojaID || "Loja"} · ${p.Cargo || "Equipe"} · Entrada: ${p.entryTime || "N/D"} · Tempo: ${p.elapsedTexto || "N/D"})`,
+    )
+    .join("; ");
+
+  const breakSummary = breakItems
+    .slice(0, 15)
+    .map(
+      (p) =>
+        `${p.Nome || p.nome} (${p.NomeLoja || p.LojaID || "Loja"} · Retorno: ${p.breakReturnTime || "N/D"})`,
+    )
+    .join("; ");
+
+  const pendingLeaves = (Array.isArray(context.timeOff) ? context.timeOff : []).filter(
+    (f) => String(f.Status || f.status || "").toLowerCase() === "pendente",
+  ).length;
+  const pendingSwaps = (Array.isArray(context.swaps) ? context.swaps : []).filter((s) => {
+    const st = String(s.Status || s.status || "").toLowerCase();
+    return st.includes("aguardando") || st === "pendente";
+  }).length;
+
   const systemPrompt = `Você é o Copiloto House 190, assistente oficial do Grupo House 190 para os sistemas Folgas 3.0 e CozinhaFlow.
 Dados do usuário logado:
 - Nome: ${userName}
@@ -1225,12 +1302,19 @@ Dados do usuário logado:
 - Regras operacionais da tela atual: ${screenInfo.rules}
 - Colaboradores cadastrados: ${empSummary || "Nenhum carregado"}
 
+DADOS OPERACIONAIS EM TEMPO REAL:
+- Colaboradores em operação agora (${workingItems.length}): ${workingSummary || "Nenhum no momento"}
+- Colaboradores em intervalo (${breakItems.length}): ${breakSummary || "Nenhum no momento"}
+- Totais: Em operação: ${totals.trabalhando || workingItems.length}, Em intervalo: ${totals.intervalo || breakItems.length}, Ausentes: ${totals.ausente || absentItems.length}, Alertas de jornada: ${totals.alertas || 0}
+- Pendências gerenciais: ${pendingLeaves} folgas aguardando aprovação, ${pendingSwaps} trocas aguardando aprovação.
+
 REGRAS OBRIGATÓRIAS:
 1. NUNCA use emojis. O sistema tem uma regra estrita de zero emojis. Responda sempre em português profissional, direto e limpo.
 2. Não interfira no bater ponto dos colaboradores (marcação de ponto é livre e sem exigência de validação facial).
 3. Se o usuário solicitar criar tarefa, alterar turno, alterar folga fixa semanal, solicitar folga, aprovar troca de folga, cadastrar feriado, justificar ausência ou publicar comunicado, você DEVE acionar a função correspondente.
 4. Respeite as permissões: Colaboradores não podem criar tarefas para outros, nem alterar escalas, nem aprovar trocas, nem cadastrar feriados.
-5. Se for dúvida, consulta ou explicação das regras do sistema ou da tela atual, responda com clareza em markdown simples.`;
+5. Se for dúvida, consulta ou explicação das regras do sistema ou da tela atual, responda com clareza em markdown simples.
+6. Quando perguntado sobre quem está trabalhando, equipe presente, ou operação de hoje, utilize com prioridade os DADOS OPERACIONAIS EM TEMPO REAL fornecidos acima para dar respostas exatas e organizadas por loja.`;
 
   const requestBody = {
     contents: [
@@ -1272,11 +1356,14 @@ REGRAS OBRIGATÓRIAS:
       return convertFunctionCallToAction(name, args || {}, context);
     }
 
-    // Resposta textual gerada pelo Gemini
+    // Resposta textual gerada pelo Gemini (sem emojis)
     if (part.text) {
+      const cleanText = part.text
+        .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu, "")
+        .trim();
       return {
         type: "query",
-        reply: part.text,
+        reply: cleanText,
       };
     }
 
@@ -1453,40 +1540,192 @@ export function parseCopilotIntent(text, context = {}) {
   }
 
   // ------------------------------------------------------------------------
-  // 4. CONSULTAS: EQUIPE AGORA
+  // CONSULTAS: QUAL IA / MODELO EM OPERAÇÃO
   // ------------------------------------------------------------------------
-  if (/(?:quem est[aá] trabalhando|equipe agora|quem est[aá] de plant[aã]o|escala de hoje)/i.test(clean)) {
+  if (
+    /(?:qual\s+(?:ia|intelig[eê]ncia|modelo)(?:\s+vai\s+rodar|\s+[eé] essa|\s+est[aá]\s+rodando|\s+est[aá]\s+ativa)?|qual\s+o?\s*melhor\s+modelo|como\s+ativar\s+(?:o\s+)?gemini)/i.test(
+      clean,
+    )
+  ) {
+    const hasKey = Boolean(getGeminiApiKey());
+    const currentEngine = hasKey
+      ? "Google Gemini 2.0 Flash (Ativo via chave API)"
+      : "Motor Local Autônomo (Ativo nativamente)";
+    return {
+      type: "query",
+      reply:
+        `**Inteligência do Copiloto House 190:**\n\n` +
+        `- **Status atual:** ${currentEngine}\n` +
+        `- **Modelo Principal:** **Google Gemini 2.0 Flash** (ultra-rápido, multimodal e raciocínio contextual avançado com Function Calling).\n` +
+        `- **Motor de Contingência:** Parser local determinístico com latência zero (0ms), operando mesmo offline ou sem chave.\n` +
+        `- **Como alternar/configurar:** Clique no ícone de engrenagem no cabeçalho deste painel e insira sua chave gratuita do Google AI Studio. Quando configurada, o Gemini Flash assume o controle em linguagem natural para todas as telas do sistema.`,
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // CONSULTAS: RESUMO OPERACIONAL E PRIORIDADES DE DECISÃO
+  // ------------------------------------------------------------------------
+  if (
+    /(?:resumo\s+(?:d[eao]s?\s+)?(?:painel|opera[cç][aã]o|geral|lojas?|rede|hoje)|como\s+(?:est[aá]|t[aá])\s+a\s+opera[cç][aã]o|o\s+que\s+precisa\s+(?:de|da\s+minha)\s+decis[aã]o|pend[eê]ncias\s+(?:de\s+hoje|gerais|ativas)|status\s+da\s+opera[cç][aã]o|vis[aã]o\s+geral\s+de\s+hoje)/i.test(
+      clean,
+    )
+  ) {
     if (role === "employee") {
       return {
         type: "query",
-        reply: "Para visualizar o painel completo de presença da equipe, solicite a um responsável de loja ou consulte a escala afixada.",
+        reply: "Para acompanhar o status geral da operação da sua unidade, consulte o gestor de loja.",
       };
     }
 
-    const liveData = Array.isArray(context.livePresenceData) ? context.livePresenceData : [];
-    const targetStore = userStore;
+    const liveItems = getLivePresenceItems(context.livePresenceData);
+    const totals = getLivePresenceTotals(context.livePresenceData);
+    const working = totals.trabalhando || liveItems.filter(isPersonWorking).length;
+    const onBreak = totals.intervalo || liveItems.filter(isPersonOnBreak).length;
+    const alerts = totals.alertas || liveItems.filter((p) => p.alertLevel && p.alertLevel !== "normal").length;
+    const absent = totals.ausente || liveItems.filter((p) => String(p.status || "").toLowerCase() === "ausente").length;
 
-    const present = liveData.filter((p) => {
-      if (role !== "admin" && targetStore && String(p.LojaID || p.lojaId || "") !== targetStore) {
-        return false;
+    const pendingTimeOff = timeOff.filter(
+      (f) => String(f.Status || f.status || "").toLowerCase() === "pendente",
+    ).length;
+    const pendingSwaps = swaps.filter((s) => {
+      const st = String(s.Status || s.status || "").toLowerCase();
+      return st.includes("aguardando") || st === "pendente";
+    }).length;
+    const pendingTasks = tasks.filter((t) => {
+      const s = String(t.STATUS || t.Status || "");
+      return s !== "Concluída" && s !== "Cancelada";
+    }).length;
+
+    const reply =
+      `**Resumo Operacional da Rede:**\n\n` +
+      `- **Em operação agora:** ${working} colaboradores\n` +
+      `- **Em intervalo intrajornada:** ${onBreak} colaboradores\n` +
+      `- **Ausentes previstos hoje:** ${absent} colaboradores\n` +
+      `- **Alertas de jornada:** ${alerts} (turnos longos ou horas extras)\n\n` +
+      `**Prioridades que aguardam decisão gerencial:**\n` +
+      `- **Solicitações de folga pendentes:** ${pendingTimeOff}\n` +
+      `- **Trocas de folga aguardando aprovação:** ${pendingSwaps}\n` +
+      `- **Tarefas ativas no CozinhaFlow:** ${pendingTasks}\n\n` +
+      `Você pode pedir detalhes digitando *"quem está trabalhando agora"*, *"tarefas pendentes"* ou *"ajuda nesta tela"*.`;
+
+    return {
+      type: "query",
+      reply,
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // 4. CONSULTAS: EQUIPE AGORA / QUEM ESTÁ TRABALHANDO
+  // ------------------------------------------------------------------------
+  if (
+    /(?:quem\s+(?:est[aá]|t[aá])\s+(?:a[ií]\s+)?(?:trabalhando|de\s+servi[cç]o|de\s+plant[aã]o|na\s+(?:loja|house|opera[cç][aã]o|central|unidade))|quem\s+(?:t[aá]|est[aá])\s+na\s+\w+|equipe\s+(?:agora|hoje)|quem\s+veio\s+hoje|quem\s+bateu\s+ponto|escala\s+(?:de\s+)?hoje|presen[cç]a\s+(?:hoje|agora)|quant[ao]s\s+(?:est[aãá]o|t[aã]o)\s+trabalhando)/i.test(
+      clean,
+    )
+  ) {
+    if (role === "employee") {
+      return {
+        type: "query",
+        reply:
+          "Para visualizar o painel completo de presença da equipe, solicite a um responsável de loja ou consulte a escala afixada.",
+      };
+    }
+
+    const liveData = getLivePresenceItems(context.livePresenceData);
+    const presentAll = liveData.filter(isPersonWorking);
+    const onBreakAll = liveData.filter(isPersonOnBreak);
+
+    // Identificar se a pergunta menciona alguma unidade específica
+    let storeQuery = "";
+    if (/(?:food\s*park)/i.test(clean)) {
+      storeQuery = "food park";
+    } else if (/(?:190|teixeira)/i.test(clean)) {
+      storeQuery = "teixeira";
+    } else if (/(?:central|matriz)/i.test(clean)) {
+      storeQuery = "central";
+    }
+
+    let present = presentAll;
+    let onBreak = onBreakAll;
+
+    if (storeQuery) {
+      present = presentAll.filter((p) => {
+        const storeName = String(p.NomeLoja || p.nomeLoja || "").toLowerCase();
+        const storeId = String(p.LojaID || p.lojaId || "").toLowerCase();
+        return storeName.includes(storeQuery) || storeId.includes(storeQuery);
+      });
+      onBreak = onBreakAll.filter((p) => {
+        const storeName = String(p.NomeLoja || p.nomeLoja || "").toLowerCase();
+        const storeId = String(p.LojaID || p.lojaId || "").toLowerCase();
+        return storeName.includes(storeQuery) || storeId.includes(storeQuery);
+      });
+    } else if (role !== "admin" && userStore) {
+      present = presentAll.filter((p) => String(p.LojaID || p.lojaId || "") === userStore);
+      onBreak = onBreakAll.filter((p) => String(p.LojaID || p.lojaId || "") === userStore);
+    }
+
+    if (present.length === 0 && onBreak.length === 0) {
+      if (presentAll.length > 0 && storeQuery) {
+        return {
+          type: "query",
+          reply: `No momento não há registros de colaboradores com turno aberto na unidade pesquisada. Há um total de **${presentAll.length}** colaboradores em atividade em outras lojas da rede.`,
+        };
       }
-      return p.trabalhando || p.status === "Em serviço" || p.status === "Trabalhando";
-    });
-
-    if (present.length === 0) {
       return {
         type: "query",
         reply: "No momento não há registros de colaboradores com turno aberto na loja selecionada.",
       };
     }
 
-    const list = present
-      .map((p) => `- **${p.Nome || p.nome || "Colaborador"}** (${p.Turno || p.turno || "Turno padrão"})`)
-      .join("\n");
+    const formatEmp = (p) => {
+      const name = p.Nome || p.nome || "Colaborador";
+      const cargo = p.Cargo || p.cargo || p.Turno || p.turno || "";
+      const entry = p.entryTime || p.lastPunchTime || "";
+      const elapsed = p.elapsedTexto || "";
+      const parts = [];
+      if (cargo) parts.push(cargo);
+      if (entry) parts.push(`Entrada: ${entry}`);
+      if (elapsed) parts.push(`${elapsed} em turno`);
+      const extra = parts.length > 0 ? ` (${parts.join(" · ")})` : "";
+      return `- **${name}**${extra}`;
+    };
+
+    let body = "";
+    if (role === "admin" && !storeQuery) {
+      const byStore = new Map();
+      present.forEach((p) => {
+        const sName = p.NomeLoja || p.nomeLoja || (p.LojaID ? `Loja ${p.LojaID}` : "Rede House 190");
+        const list = byStore.get(sName) || [];
+        list.push(p);
+        byStore.set(sName, list);
+      });
+
+      const storeBlocks = [];
+      for (const [sName, emps] of byStore.entries()) {
+        storeBlocks.push(`**${sName} (${emps.length}):**\n${emps.map(formatEmp).join("\n")}`);
+      }
+      body = storeBlocks.join("\n\n");
+    } else {
+      body = present.map(formatEmp).join("\n");
+    }
+
+    let reply = `**Colaboradores em atividade agora (${present.length}):**\n\n${body}`;
+
+    if (onBreak.length > 0) {
+      const breakList = onBreak
+        .map((p) => {
+          const name = p.Nome || p.nome || "Colaborador";
+          const store = p.NomeLoja || p.nomeLoja || "";
+          const ret = p.breakReturnTime ? `Retorno previsto: ${p.breakReturnTime}` : "Em pausa";
+          const storeStr = store ? `${store} · ` : "";
+          return `- **${name}** (${storeStr}${ret})`;
+        })
+        .join("\n");
+      reply += `\n\n**Colaboradores em intervalo (${onBreak.length}):**\n${breakList}`;
+    }
 
     return {
       type: "query",
-      reply: `**Colaboradores em atividade agora (${present.length}):**\n${list}`,
+      reply,
     };
   }
 
