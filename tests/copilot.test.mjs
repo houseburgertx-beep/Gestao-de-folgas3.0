@@ -4,12 +4,14 @@ import { readFile } from "node:fs/promises";
 import {
   parseCopilotIntent,
   getUserRole,
+  getUserName,
   executeCopilotAction,
   convertFunctionCallToAction,
   getGeminiApiKey,
   setGeminiApiKey,
   callGeminiCopilot,
   GEMINI_TOOLS,
+  SCREEN_KNOWLEDGE,
 } from "../src/copilot.js";
 
 // Mock de dados operacionais
@@ -234,6 +236,125 @@ test("Gemini Flash: Fallback para o motor local quando sem chave configurada", a
   const res = await callGeminiCopilot("Quando é minha próxima folga?", ctx);
   assert.equal(res.type, "query");
   assert.match(res.reply, /25\/10\/2026/);
+});
+
+test("Copiloto: SCREEN_KNOWLEDGE cobre todas as telas do sistema com regras e chips", () => {
+  const requiredScreens = [
+    "holidays",
+    "timeoff",
+    "tasks",
+    "timeclock",
+    "absences",
+    "pending-center",
+    "documents",
+    "hour-balances",
+    "live-team",
+    "takeat-credit",
+    "employees",
+    "calendar",
+    "stores",
+    "operations",
+    "access",
+    "dashboard",
+  ];
+
+  for (const s of requiredScreens) {
+    const info = SCREEN_KNOWLEDGE[s];
+    assert.ok(info, `Tela ${s} deve constar no SCREEN_KNOWLEDGE`);
+    assert.ok(info.title, `Tela ${s} deve ter título`);
+    assert.ok(info.summary, `Tela ${s} deve ter resumo`);
+    assert.ok(info.rules, `Tela ${s} deve ter regras operacionais`);
+    assert.ok(info.chips, `Tela ${s} deve ter chips configurados`);
+    assert.ok(Array.isArray(info.chips.employee) || Array.isArray(info.chips.admin), `Tela ${s} deve ter lista de chips`);
+  }
+});
+
+test("Copiloto: consulta 'como funciona esta tela' retorna conhecimento contextual da tela ativa", () => {
+  const ctx = {
+    user: { Perfil: "Administrador" },
+    currentView: "holidays",
+  };
+
+  const res = parseCopilotIntent("como funciona esta tela", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /Feriados e Pontos Facultativos/i);
+  assert.match(res.reply, /Apenas administradores podem cadastrar/i);
+});
+
+test("Copiloto: consulta 'como solicitar folga' orienta o usuário e não dá erro de comando não compreendido", () => {
+  const ctx = {
+    user: { Perfil: "Funcionário" },
+    currentView: "timeoff",
+  };
+
+  const res = parseCopilotIntent("Como solicitar folga?", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /Como solicitar folga no Folgas 3.0/i);
+  assert.match(res.reply, /Solicitar folga dia DD\/MM\/AAAA/i);
+});
+
+test("Copiloto: saldo de horas arredonda minutos decimais e não exibe dízimas", () => {
+  const ctx = {
+    user: { Perfil: "Funcionário" },
+    hourBalance: { totalMinutos: -16673.084349999997 },
+  };
+
+  const res = parseCopilotIntent("Qual é o meu saldo de horas?", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /-277h 53m/);
+  assert.doesNotMatch(res.reply, /\d+\.\d+/, "Não deve conter números decimais com ponto");
+});
+
+test("Copiloto Ações: Administrador pode cadastrar feriado com crédito automático", () => {
+  const adminUser = { Perfil: "Administrador", FuncionarioID: "adm_1", Nome: "Diretor" };
+  const ctx = { user: adminUser };
+
+  // Local parser
+  const resLocal = parseCopilotIntent("Cadastrar feriado Tiradentes dia 21/04/2026 Nacional", ctx);
+  assert.equal(resLocal.type, "action");
+  assert.equal(resLocal.apiMethod, "createHoliday");
+  assert.equal(resLocal.details.isoDate, "2026-04-21");
+  assert.equal(resLocal.details.tipo, "Nacional");
+  assert.match(resLocal.summary, /Tiradentes/i);
+
+  // Gemini tool function calling
+  const resGemini = convertFunctionCallToAction(
+    "cadastrarFeriado",
+    { nome: "Consciência Negra", data: "2026-11-20", tipo: "Nacional" },
+    ctx,
+  );
+  assert.equal(resGemini.type, "action");
+  assert.equal(resGemini.apiMethod, "createHoliday");
+  assert.equal(resGemini.details.isoDate, "2026-11-20");
+
+  // Bloqueio para colaborador
+  const empCtx = { user: { Perfil: "Funcionário" } };
+  const resBlocked = parseCopilotIntent("Cadastrar feriado Teste dia 21/04/2026", empCtx);
+  assert.equal(resBlocked.type, "error");
+  assert.match(resBlocked.message, /exclusivo para o perfil de Administrador/i);
+});
+
+test("Copiloto Ações: Gerente pode justificar ausência na sua loja e é bloqueado em outra", () => {
+  const mgrUser = { Perfil: "Gerente", FuncionarioID: "mgr_1", Nome: "Gestor", LojaID: "loja_matriz" };
+  const ctx = { user: mgrUser, employees: mockEmployees };
+
+  // Sucesso na própria loja
+  const resLocal = parseCopilotIntent("Justificar falta de Gabriel dia 10/10/2026 motivo Atestado", ctx);
+  assert.equal(resLocal.type, "action");
+  assert.equal(resLocal.apiMethod, "justifyMissedTimeClockDay");
+  assert.equal(resLocal.details.empId, "emp_1");
+  assert.equal(resLocal.details.tipo, "Atestado");
+
+  // Bloqueado em outra loja (Maria é de loja_filial)
+  const resBlockedStore = parseCopilotIntent("Justificar falta de Maria dia 10/10/2026 motivo Atestado", ctx);
+  assert.equal(resBlockedStore.type, "error");
+  assert.match(resBlockedStore.message, /pertence a outra unidade/i);
+
+  // Bloqueado para colaborador
+  const empCtx = { user: { Perfil: "Funcionário" }, employees: mockEmployees };
+  const resBlockedEmp = parseCopilotIntent("Justificar falta de Gabriel dia 10/10/2026", empCtx);
+  assert.equal(resBlockedEmp.type, "error");
+  assert.match(resBlockedEmp.message, /requer perfil de Gerente ou Administrador/i);
 });
 
 test("ZERO EMOJIS: Verificação estrita de ausência de emojis nos arquivos do Copiloto", async () => {

@@ -2827,6 +2827,9 @@
     document.body.classList.toggle("employee-workspace", !manager);
     $("#managementGroupLabel").textContent = manager ? "Gestão" : "Comunicação";
     renderPendingCenterSummary_();
+    try {
+      window.dispatchEvent(new CustomEvent("gestao-user-hydrated", { detail: { user: state.user } }));
+    } catch (_) {}
   }
   function isAdmin() {
     return (
@@ -2889,6 +2892,9 @@
       return;
     }
     state.currentView = view;
+    try {
+      window.dispatchEvent(new CustomEvent("gestao-view-change", { detail: { view } }));
+    } catch (_) {}
     publishJourney_();
     $$(".mobile-dock [data-view-target]").forEach(item => {
       const isActive = item.dataset.viewTarget === view;

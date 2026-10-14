@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.7" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.8" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.16.7-firebase-github" />
+    <meta name="app-version" content="6.16.8-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -17144,6 +17144,23 @@ dialog#documentUploadDialog input[type="month"] {
   flex-shrink: 0;
 }
 
+.copilot-screen-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  padding: 0 2px;
+}
+
+.copilot-screen-indicator svg {
+  width: 13px;
+  height: 13px;
+  stroke: var(--primary, #2563eb);
+  flex-shrink: 0;
+}
+
 .copilot-quick-suggestions {
   display: flex;
   gap: 6px;
@@ -19224,6 +19241,10 @@ dialog#documentUploadDialog input[type="month"] {
         </div>
 
         <footer class="copilot-footer">
+          <div class="copilot-screen-indicator" id="copilotScreenIndicator">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            <span id="copilotScreenName">Painel Geral</span>
+          </div>
           <div class="copilot-quick-suggestions" id="copilotQuickSuggestions"></div>
           <form id="copilotForm" class="copilot-input-form">
             <textarea id="copilotInput" class="copilot-input" placeholder="Comande uma ação ou tire dúvidas..." rows="1"></textarea>
@@ -20716,7 +20737,7 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.7"></script>
+<script type="module" src="./src/main.js?v=6.16.8"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -23546,6 +23567,9 @@ dialog#documentUploadDialog input[type="month"] {
     document.body.classList.toggle("employee-workspace", !manager);
     $("#managementGroupLabel").textContent = manager ? "Gestão" : "Comunicação";
     renderPendingCenterSummary_();
+    try {
+      window.dispatchEvent(new CustomEvent("gestao-user-hydrated", { detail: { user: state.user } }));
+    } catch (_) {}
   }
   function isAdmin() {
     return (
@@ -23608,6 +23632,9 @@ dialog#documentUploadDialog input[type="month"] {
       return;
     }
     state.currentView = view;
+    try {
+      window.dispatchEvent(new CustomEvent("gestao-view-change", { detail: { view } }));
+    } catch (_) {}
     publishJourney_();
     $$(".mobile-dock [data-view-target]").forEach(item => {
       const isActive = item.dataset.viewTarget === view;

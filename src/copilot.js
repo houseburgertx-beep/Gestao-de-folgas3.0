@@ -17,29 +17,560 @@ const esc = (x) =>
   }[c]));
 
 // ==========================================================================
-// PERMISSÕES E RBAC
+// PERMISSÕES, RBAC E IDENTIFICAÇÃO
 // ==========================================================================
 
+export function getCurrentUser() {
+  if (typeof window !== "undefined") {
+    return window.__GESTAO_STATE__?.user || window.state?.user || window.__GESTAO_USER__ || null;
+  }
+  return null;
+}
+
+export function getCurrentView() {
+  if (typeof window !== "undefined") {
+    if (window.__GESTAO_STATE__?.currentView) return window.__GESTAO_STATE__.currentView;
+    if (window.state?.currentView) return window.state.currentView;
+  }
+  if (typeof document !== "undefined") {
+    const active = document.querySelector(".view.active");
+    if (active && active.id) {
+      return active.id.replace(/^view-/, "");
+    }
+  }
+  return "dashboard";
+}
+
 export function getUserRole(user) {
-  if (!user) return "employee";
-  const p = String(user.Perfil || user.perfil || user.role || "").toLowerCase();
-  const perms = Array.isArray(user.permissions) ? user.permissions : [];
+  const u = user || (typeof window !== "undefined" ? getCurrentUser() : null);
+  if (!u) {
+    if (typeof document !== "undefined") {
+      const roleText = (document.querySelector("#userRole")?.textContent || "").toLowerCase();
+      if (roleText.includes("admin")) return "admin";
+      if (roleText.includes("gerente") || roleText.includes("respons")) return "manager";
+    }
+    return "employee";
+  }
+  const p = String(u.Perfil || u.perfil || u.role || "").toLowerCase();
+  const perms = Array.isArray(u.permissions) ? u.permissions : [];
   if (p.includes("admin") || perms.includes("*")) return "admin";
   if (p.includes("gerente") || p.includes("respons")) return "manager";
+  if (typeof document !== "undefined") {
+    const roleText = (document.querySelector("#userRole")?.textContent || "").toLowerCase();
+    if (roleText.includes("admin")) return "admin";
+    if (roleText.includes("gerente") || roleText.includes("respons")) return "manager";
+  }
   return "employee";
 }
 
 export function getUserStoreId(user) {
-  return String(user?.LojaID || user?.lojaId || user?.Loja || "").trim();
+  const u = user || (typeof window !== "undefined" ? getCurrentUser() : null);
+  return String(u?.LojaID || u?.lojaId || u?.Loja || "").trim();
 }
 
 export function getUserId(user) {
-  return String(user?.FuncionarioID || user?.funcionarioId || user?.id || user?.UsuarioID || "").trim();
+  const u = user || (typeof window !== "undefined" ? getCurrentUser() : null);
+  return String(u?.FuncionarioID || u?.funcionarioId || u?.id || u?.UsuarioID || "").trim();
 }
 
 export function getUserName(user) {
-  return String(user?.Nome || user?.nome || user?.NomeCompleto || "Colaborador").trim();
+  if (typeof document !== "undefined") {
+    const el = document.querySelector("#userName");
+    const name = el?.textContent?.trim();
+    if (name && name !== "Utilizador" && name !== "Colaborador") {
+      return name;
+    }
+  }
+  const u = user || (typeof window !== "undefined" ? getCurrentUser() : null);
+  const candidate = String(u?.Nome || u?.nome || u?.NomeCompleto || u?.nomeCompleto || "").trim();
+  return candidate || "Colaborador";
 }
+
+// ==========================================================================
+// CONHECIMENTO OPERACIONAL PROFUNDO POR TELA (SCREEN KNOWLEDGE)
+// ==========================================================================
+
+export const SCREEN_KNOWLEDGE = {
+  holidays: {
+    title: "Feriados e Pontos Facultativos",
+    category: "Gestão Operacional",
+    summary: "Gerenciamento de feriados nacionais, regionais e municipais com cálculo automático de folgas compensatórias aos colaboradores em escala.",
+    rules: "Apenas administradores podem cadastrar ou editar feriados. Ao cadastrar um feriado ativo, o sistema confere crédito automático de folga para todos os colaboradores elegíveis. Feriados municipais vinculam-se à loja correspondente.",
+    chips: {
+      admin: [
+        "Cadastrar feriado",
+        "Como funciona crédito de feriado?",
+        "Regras de feriado CLT",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Feriados da minha loja",
+        "Como funciona crédito de feriado?",
+        "Regras de feriado na escala",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Quando é o próximo feriado?",
+        "Tenho direito a folga por feriado?",
+        "Como funciona crédito de feriado?",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: ["createHoliday", "updateHoliday"],
+  },
+  timeoff: {
+    title: "Folgas e Trocas",
+    category: "Jornada e Escala",
+    summary: "Controle de folgas regulares, compensatórias, solicitações pontuais de colaboradores e trocas mútuas de plantão.",
+    rules: "Escala 6x1 exige no máximo 6 dias de trabalho contínuos. Trocas entre colaboradores exigem aprovação da gerência. A gerência só pode aprovar trocas da sua própria loja. Colaboradores podem solicitar folga informando data e motivo.",
+    chips: {
+      admin: [
+        "Aprovar trocas pendentes",
+        "Solicitações de folga abertas",
+        "Regra 6x1 e domingos",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Aprovar trocas pendentes",
+        "Solicitações de folga da loja",
+        "Regra 6x1 na escala",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Como solicitar folga?",
+        "Minha próxima folga",
+        "Como funciona troca de folga?",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: ["createEmployeeTimeOffRequest", "decideTimeOffSwap"],
+  },
+  tasks: {
+    title: "CozinhaFlow (Tarefas)",
+    category: "Operação da Cozinha",
+    summary: "Fluxo operacional de tarefas diárias da cozinha com prioridade (Baixa, Normal, Alta, Urgente), pontuação por execução e prazos.",
+    rules: "Gerentes e Administradores podem criar tarefas e delegar para a equipe da loja. Colaboradores visualizam tarefas atribuídas e marcam como concluídas.",
+    chips: {
+      admin: [
+        "Criar tarefa urgente",
+        "Tarefas pendentes da rede",
+        "Como funciona a pontuação",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Criar tarefa para a equipe",
+        "Tarefas pendentes da cozinha",
+        "Delegar tarefa de limpeza",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Minhas tarefas de hoje",
+        "Concluir minha tarefa",
+        "Pontuação no CozinhaFlow",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: ["cozinhaTasksSave"],
+  },
+  timeclock: {
+    title: "Ponto Eletrônico",
+    category: "Jornada e Frequência",
+    summary: "Registro digital de ponto com geolocalização por loja e espelho de jornada. Permite bater ponto e solicitar ajustes de horários esquecidos.",
+    rules: "CLT Art. 58: tolerância de 5 a 10 minutos. O ponto não é bloqueado por ausência de reconhecimento facial. Ajustes de ponto exigem justificativa e homologação do gestor.",
+    chips: {
+      admin: [
+        "Tolerância de ponto (CLT)",
+        "Colaboradores sem saída",
+        "Regras de intervalo intrajornada",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Tolerância de ponto (CLT)",
+        "Ajustes de ponto pendentes",
+        "Espelho de ponto da equipe",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Meu ponto hoje",
+        "Tolerância de ponto (CLT)",
+        "Como solicitar ajuste de ponto",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: [],
+  },
+  absences: {
+    title: "Ausências e Faltas",
+    category: "Frequência e Pessoal",
+    summary: "Registro e auditoria de ausências, atestados médicos, folgas concedidas e justificativas legais de ausência ao trabalho.",
+    rules: "Tipos de justificativa aceitos: Atestado, Folga trocada, Dia concedido e Outros. Não é permitido justificar data futura ou dias com marcações existentes. Gerentes justificam apenas para sua unidade.",
+    chips: {
+      admin: [
+        "Justificar falta de colaborador",
+        "Tipos de justificativas aceitas",
+        "Prazo legal para entrega de atestado",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Justificar falta de colaborador",
+        "Tipos de justificativas aceitas",
+        "Prazo legal para atestado",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Como enviar meu atestado?",
+        "Prazo para justificar falta",
+        "Falta justificada desconta banco?",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: ["justifyMissedTimeClockDay"],
+  },
+  "pending-center": {
+    title: "Central de Pendências",
+    category: "Gestão e Aprovações",
+    summary: "Central unificada de decisão gerencial: pedidos de folga, trocas de escala e ajustes de ponto aguardando validação.",
+    rules: "Gerentes aprovam solicitações da sua unidade. Administradores podem homologar em qualquer loja da rede. Ações aprovadas geram trilha de auditoria.",
+    chips: {
+      admin: [
+        "Trocas de folga pendentes",
+        "Ajustes de ponto pendentes",
+        "Solicitações de folga abertas",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Trocas de folga da minha loja",
+        "Ajustes de ponto da loja",
+        "Solicitações de folga pendentes",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Minhas solicitações pendentes",
+        "Prazo para aprovação de folga",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: ["decideTimeOffSwap"],
+  },
+  documents: {
+    title: "Documentos e Assinatura Digital",
+    category: "Gestão Documental",
+    summary: "Emissão, acompanhamento e assinatura digital de holerites mensais e espelhos de ponto com validade jurídica.",
+    rules: "Assinatura digital estampada na própria folha com hash de segurança e IP. O colaborador deve conferir e assinar mensalmente o espelho de ponto.",
+    chips: {
+      admin: [
+        "Documentos pendentes de assinatura",
+        "Validade jurídica da assinatura",
+        "Holerites emitidos",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Documentos pendentes na loja",
+        "Como funciona a assinatura digital?",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Como assinar meu espelho de ponto?",
+        "Onde vejo meus holerites?",
+        "Validade jurídica da assinatura",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: [],
+  },
+  "hour-balances": {
+    title: "Banco de Horas",
+    category: "Compensação e Horas",
+    summary: "Visão consolidada de créditos (horas extras) e débitos por loja e colaborador com controle de compensações.",
+    rules: "Banco de horas calculado a partir da jornada líquida. Horas em domingos e feriados sem folga compensatória são computadas com adicional de 100%.",
+    chips: {
+      admin: [
+        "Extrato de horas da rede",
+        "Regras de compensação e banco",
+        "Colaboradores com maior saldo",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Extrato de horas da loja",
+        "Regras de compensação e banco",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Meu saldo de horas",
+        "Limite de horas extras",
+        "Como funciona a compensação?",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: [],
+  },
+  "live-team": {
+    title: "Equipe em Tempo Real",
+    category: "Operação ao Vivo",
+    summary: "Visão ao vivo dos colaboradores em serviço, turnos em andamento, presenças e atrasos.",
+    rules: "Visível apenas para Gerentes e Administradores. Gerentes acompanham apenas a equipe da sua respectiva loja.",
+    chips: {
+      admin: [
+        "Quem está trabalhando agora?",
+        "Colaboradores atrasados",
+        "Presença por loja",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Quem está trabalhando agora?",
+        "Colaboradores atrasados na loja",
+        "Turnos em andamento",
+        "Como funciona esta tela?",
+      ],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  "takeat-credit": {
+    title: "Créditos Takeat",
+    category: "Consumo e Benefícios",
+    summary: "Controle de contas a prazo e consumo dos colaboradores no cardápio Takeat com separação por compra e histórico de comandas.",
+    rules: "Consumo a prazo lançado conforme limite de crédito estabelecido por cargo. Desconto processado no fechamento mensal.",
+    chips: {
+      admin: [
+        "Regras de consumo Takeat",
+        "Saldos devedores da rede",
+        "Limite de crédito por cargo",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Saldos devedores da loja",
+        "Regras de consumo Takeat",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Meu limite de consumo Takeat",
+        "Como funciona o desconto em folha?",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: [],
+  },
+  employees: {
+    title: "Colaboradores e Cadastro",
+    category: "Quadro de Pessoal",
+    summary: "Cadastro geral de funcionários, cargos, turnos, folgas fixas semanais, lojas vinculadas e jornada de trabalho.",
+    rules: "Gerentes editam apenas funcionários da sua loja. Alterações de turno e folga semanal exigem aviso prévio ao colaborador.",
+    chips: {
+      admin: [
+        "Alterar turno de colaborador",
+        "Alterar folga fixa semanal",
+        "Buscar colaborador",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Alterar turno de colaborador",
+        "Alterar folga fixa na loja",
+        "Equipe da minha loja",
+        "Como funciona esta tela?",
+      ],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: ["updateEmployee"],
+  },
+  calendar: {
+    title: "Escala e Calendário Geral",
+    category: "Planejamento de Escala",
+    summary: "Visualização mensal e semanal das escalas de trabalho, turnos, folgas regulares e feriados da rede.",
+    rules: "Escala deve respeitar a jornada legal CLT e folgas aos domingos para comércio e alimentação.",
+    chips: {
+      admin: [
+        "Regra 6x1 e domingos na CLT",
+        "Escala da semana",
+        "Alterar turno de colaborador",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Escala da semana na loja",
+        "Regra 6x1 e domingos",
+        "Alterar turno na escala",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Minha escala da semana",
+        "Quando é minha próxima folga?",
+        "Como funciona esta tela?",
+      ],
+    },
+    actions: ["updateEmployee"],
+  },
+  scheduler: {
+    title: "Planejador de Escala",
+    category: "Planejamento de Escala",
+    summary: "Simulador e planejador operacional de turnos semanais, distribuição de folgas e cobertura de postos.",
+    rules: "Simulação de escala automática garantindo cobertura mínima de turnos por loja e respeito à regra 6x1.",
+    chips: {
+      admin: ["Simular escala automática", "Regra 6x1", "Como funciona esta tela?"],
+      manager: ["Simular escala da loja", "Regra 6x1", "Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  "shift-plan": {
+    title: "Plano de Turnos",
+    category: "Planejamento de Escala",
+    summary: "Distribuição detalhada dos horários nominais de entrada, intervalos e saídas de cada turno operacional.",
+    rules: "Turnos Manhã, Tarde, Noite e Integral. Intervalo mínimo de 1 hora para jornadas superiores a 6 horas.",
+    chips: {
+      admin: ["Horários dos turnos", "Intervalo intrajornada CLT", "Como funciona esta tela?"],
+      manager: ["Horários dos turnos da loja", "Como funciona esta tela?"],
+      employee: ["Meu turno cadastrado", "Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  stores: {
+    title: "Lojas e Unidades",
+    category: "Estrutura Corporativa",
+    summary: "Configuração das unidades do Grupo House 190, coordenadas geográficas, raio de tolerância do ponto e dados fiscais.",
+    rules: "Apenas administradores podem criar ou editar lojas. O raio de ponto delimita a cerca virtual para registro eletrônico.",
+    chips: {
+      admin: ["Lojas cadastradas", "Raio de tolerância do ponto", "Como funciona esta tela?"],
+      manager: ["Dados da minha loja", "Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: ["updateStore"],
+  },
+  operations: {
+    title: "Operações e Parâmetros",
+    category: "Regras Corporativas",
+    summary: "Parâmetros operacionais globais, regras de tolerância, limites de banco de horas e mensagens automáticas.",
+    rules: "Configurações aplicadas a todas as lojas da rede por administradores.",
+    chips: {
+      admin: ["Parâmetros da rede", "Regras de banco de horas", "Como funciona esta tela?"],
+      manager: ["Regras da loja", "Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  access: {
+    title: "Acessos e Permissões",
+    category: "Segurança e Governança",
+    summary: "Gestão de usuários, perfis de acesso RBAC (Administrador, Gerente, Colaborador) e senhas do sistema.",
+    rules: "Apenas administradores podem conceder ou revogar perfis gerenciais ou administrativos.",
+    chips: {
+      admin: ["Perfis de acesso da rede", "Regras de segurança RBAC", "Como funciona esta tela?"],
+      manager: ["Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  governance: {
+    title: "Delegações e Governança",
+    category: "Segurança e Governança",
+    summary: "Controle de delegações temporárias de alçadas gerenciais e acompanhamento de conformidade corporativa.",
+    rules: "Delegações temporárias expiram automaticamente e são registradas na trilha de auditoria.",
+    chips: {
+      admin: ["Delegações ativas", "Regras de governança", "Como funciona esta tela?"],
+      manager: ["Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  audit: {
+    title: "Trilha de Auditoria",
+    category: "Segurança e Compliance",
+    summary: "Histórico imutável de todas as ações de escrita, exclusões, aprovações e execuções do Copiloto no sistema.",
+    rules: "Registros de auditoria possuem timestamp ISO, IP, ID do usuário e diff de dados 'before/after'. Não podem ser apagados.",
+    chips: {
+      admin: ["Últimas ações auditadas", "Ações do Copiloto", "Como funciona esta tela?"],
+      manager: ["Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  reports: {
+    title: "Relatórios Operacionais",
+    category: "BI e Indicadores",
+    summary: "Relatórios de assiduidade, banco de horas, faltas, trocas de folga e indicadores operacionais da rede.",
+    rules: "Gerentes acessam relatórios da sua unidade. Administradores visualizam indicadores consolidados de toda a rede.",
+    chips: {
+      admin: ["Relatório de pontualidade", "Relatório de absenteísmo", "Como funciona esta tela?"],
+      manager: ["Relatório da minha loja", "Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  "advanced-reports": {
+    title: "Relatórios Avançados",
+    category: "BI e Indicadores",
+    summary: "Análise profunda de produtividade, custos com horas extras e consolidação analítica.",
+    rules: "Exclusivo para Gerentes e Administradores.",
+    chips: {
+      admin: ["Análise de horas extras", "Taxa de absenteísmo consolidada", "Como funciona esta tela?"],
+      manager: ["Indicadores avançados da loja", "Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  "monthly-closing": {
+    title: "Fechamento Mensal",
+    category: "Departamento Pessoal",
+    summary: "Fechamento periódico de folha, consolidação de espelhos de ponto, horas extras e exportação contábil.",
+    rules: "Exclusivo para Gestores e RH. Exige conferência prévia de justificativas de ponto e atestados médicos.",
+    chips: {
+      admin: ["Status do fechamento mensal", "Conferência de espelhos de ponto", "Como funciona esta tela?"],
+      manager: ["Fechamento da loja", "Como funciona esta tela?"],
+      employee: ["Como funciona esta tela?"],
+    },
+    actions: [],
+  },
+  notifications: {
+    title: "Avisos e Lembretes",
+    category: "Comunicação Interna",
+    summary: "Mural de avisos institucionais e notificações operacionais com confirmação de leitura.",
+    rules: "Gerentes publicam para sua loja. Administradores podem emitir comunicados para toda a rede.",
+    chips: {
+      admin: ["Publicar comunicado para a rede", "Avisos ativos", "Como funciona esta tela?"],
+      manager: ["Publicar comunicado para a loja", "Avisos da equipe", "Como funciona esta tela?"],
+      employee: ["Meus avisos não lidos", "Como funciona esta tela?"],
+    },
+    actions: ["publicarComunicado"],
+  },
+  communication: {
+    title: "Mural de Comunicados",
+    category: "Comunicação Interna",
+    summary: "Comunicação operacional oficial entre gerência e equipes com confirmação de visualização.",
+    rules: "Avisos importantes exigem confirmação de leitura do colaborador.",
+    chips: {
+      admin: ["Publicar comunicado oficial", "Como funciona esta tela?"],
+      manager: ["Publicar comunicado oficial", "Como funciona esta tela?"],
+      employee: ["Últimos comunicados", "Como funciona esta tela?"],
+    },
+    actions: ["publicarComunicado"],
+  },
+  dashboard: {
+    title: "Painel Geral e Jornada",
+    category: "Visão Geral",
+    summary: "Visão consolidada da operação diária, jornada do colaborador, escala do dia e indicadores operacionais rápidos.",
+    rules: "Apresenta métricas contextuais ao perfil logado (Colaborador vê sua jornada; Gestor vê a loja; Admin vê a rede).",
+    chips: {
+      admin: [
+        "Quem está trabalhando agora?",
+        "Tarefas pendentes da rede",
+        "Resumo das lojas",
+        "Como funciona esta tela?",
+      ],
+      manager: [
+        "Quem está trabalhando agora?",
+        "Tarefas da cozinha",
+        "Trocas pendentes da loja",
+        "Como funciona esta tela?",
+      ],
+      employee: [
+        "Meu ponto hoje",
+        "Quando é minha próxima folga?",
+        "Meu saldo de horas",
+        "Minhas tarefas de hoje",
+      ],
+    },
+    actions: [],
+  },
+};
 
 // ==========================================================================
 // GERENCIAMENTO DA CHAVE DO GOOGLE GEMINI FLASH
@@ -155,6 +686,34 @@ export const GEMINI_TOOLS = [
             destino: { type: "STRING", enum: ["Loja local", "Toda a rede"], description: "Destinatários" },
           },
           required: ["titulo", "mensagem"],
+        },
+      },
+      {
+        name: "cadastrarFeriado",
+        description: "Cadastra um novo feriado nacional, regional ou municipal no sistema com crédito automático de folga para a equipe em escala",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            nome: { type: "STRING", description: "Nome do feriado (ex: Dia da Consciência Negra)" },
+            data: { type: "STRING", description: "Data do feriado no formato AAAA-MM-DD ou DD/MM/AAAA" },
+            tipo: { type: "STRING", enum: ["Nacional", "Regional", "Municipal"], description: "Tipo do feriado" },
+            lojaId: { type: "STRING", description: "Identificador da loja (para feriados municipais)" },
+          },
+          required: ["nome", "data"],
+        },
+      },
+      {
+        name: "justificarAusencia",
+        description: "Lança uma justificativa de falta ou ausência para um colaborador (ex: atestado médico, folga concedida, outros)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            nome: { type: "STRING", description: "Nome do colaborador que faltou" },
+            data: { type: "STRING", description: "Data da ausência no formato AAAA-MM-DD ou DD/MM/AAAA" },
+            tipo: { type: "STRING", enum: ["Atestado", "Folga trocada", "Dia concedido", "Outros"], description: "Tipo legal da justificativa" },
+            motivo: { type: "STRING", description: "Observação detalhada ou motivo da ausência" },
+          },
+          required: ["nome", "data"],
         },
       },
     ],
@@ -512,6 +1071,121 @@ export function convertFunctionCallToAction(name, args = {}, context = {}) {
       };
     }
 
+    case "cadastrarFeriado": {
+      if (role !== "admin") {
+        return {
+          type: "error",
+          message: "O cadastro de feriados é exclusivo para o perfil de Administrador.",
+        };
+      }
+
+      const nomeFeriado = String(args.nome || "").trim();
+      if (!nomeFeriado) {
+        return {
+          type: "error",
+          message: "Informe o nome do feriado a ser cadastrado.",
+        };
+      }
+
+      let isoDate = String(args.data || "").trim();
+      if (isoDate.includes("/")) {
+        const parts = isoDate.split("/");
+        const d = parts[0].padStart(2, "0");
+        const m = parts[1].padStart(2, "0");
+        const y = parts[2] ? (parts[2].length === 2 ? `20${parts[2]}` : parts[2]) : new Date().getFullYear().toString();
+        isoDate = `${y}-${m}-${d}`;
+      }
+
+      const tipo = args.tipo || "Nacional";
+      const lojaId = args.lojaId || (tipo === "Municipal" ? userStore : "");
+
+      const payload = {
+        NomeFeriado: nomeFeriado,
+        Data: isoDate,
+        Tipo: tipo,
+        LojaID: lojaId,
+        Ativo: true,
+      };
+
+      return {
+        type: "action",
+        actionType: "create_holiday",
+        title: "Cadastrar Feriado",
+        apiMethod: "createHoliday",
+        apiArgs: [payload],
+        summary: `Cadastrar feriado "${nomeFeriado}" em ${isoDate} (${tipo}) com crédito automático de folga para os colaboradores.`,
+        diff: [
+          { label: "Feriado", value: nomeFeriado },
+          { label: "Data", value: isoDate },
+          { label: "Tipo", value: tipo },
+          { label: "Crédito Automático", value: "Sim (folga extra para equipe em escala)" },
+        ],
+        details: { nomeFeriado, isoDate, tipo },
+      };
+    }
+
+    case "justificarAusencia": {
+      if (role === "employee") {
+        return {
+          type: "error",
+          message: "O lançamento de justificativas de falta requer perfil de Gerente ou Administrador.",
+        };
+      }
+
+      const emp = findEmployeeInText(args.nome, employees);
+      if (!emp) {
+        return {
+          type: "error",
+          message: `Colaborador "${args.nome}" não foi localizado no cadastro.`,
+        };
+      }
+
+      if (role === "manager" && userStore) {
+        const empStore = String(emp.LojaID || emp.lojaId || "");
+        if (empStore && empStore !== userStore) {
+          return {
+            type: "error",
+            message: `O colaborador ${emp.Nome} pertence a outra unidade. Você pode justificar ausências apenas da sua loja.`,
+          };
+        }
+      }
+
+      let isoDate = String(args.data || "").trim();
+      if (isoDate.includes("/")) {
+        const parts = isoDate.split("/");
+        const d = parts[0].padStart(2, "0");
+        const m = parts[1].padStart(2, "0");
+        const y = parts[2] ? (parts[2].length === 2 ? `20${parts[2]}` : parts[2]) : new Date().getFullYear().toString();
+        isoDate = `${y}-${m}-${d}`;
+      }
+
+      const tipo = args.tipo || "Atestado";
+      const obs = args.motivo || `Justificativa lançada via Copiloto por ${userName}`;
+
+      const payload = {
+        funcionarioId: emp.FuncionarioID || emp.id,
+        data: isoDate,
+        tipo: tipo,
+        observacao: obs,
+      };
+
+      return {
+        type: "action",
+        actionType: "justify_absence",
+        title: "Justificar Ausência / Falta",
+        apiMethod: "justifyMissedTimeClockDay",
+        apiArgs: [payload],
+        summary: `Lançar justificativa de ausência (${tipo}) para ${emp.Nome} no dia ${isoDate}.`,
+        diff: [
+          { label: "Colaborador", value: emp.Nome },
+          { label: "Data", value: isoDate },
+          { label: "Tipo", value: tipo },
+          { label: "Observação", value: obs },
+        ],
+        details: { empId: payload.funcionarioId, isoDate, tipo },
+      };
+    }
+
     default:
       return parseCopilotIntent(JSON.stringify(args), context);
   }
@@ -538,19 +1212,25 @@ export async function callGeminiCopilot(prompt, context = {}) {
     .map((e) => `${e.Nome || e.nome} (Loja: ${e.LojaID || ""}, Turno: ${e.Turno || ""})`)
     .join("; ");
 
+  const currentView = context.currentView || getCurrentView();
+  const screenInfo = SCREEN_KNOWLEDGE[currentView] || SCREEN_KNOWLEDGE.dashboard;
+
   const systemPrompt = `Você é o Copiloto House 190, assistente oficial do Grupo House 190 para os sistemas Folgas 3.0 e CozinhaFlow.
 Dados do usuário logado:
 - Nome: ${userName}
 - Perfil: ${role}
 - LojaID: ${userStore || "Todas"}
+- Tela atual no sistema: ${screenInfo.title} (${currentView})
+- Objetivo da tela atual: ${screenInfo.summary}
+- Regras operacionais da tela atual: ${screenInfo.rules}
 - Colaboradores cadastrados: ${empSummary || "Nenhum carregado"}
 
 REGRAS OBRIGATÓRIAS:
 1. NUNCA use emojis. O sistema tem uma regra estrita de zero emojis. Responda sempre em português profissional, direto e limpo.
-2. Não interfira no bater ponto dos colaboradores.
-3. Se o usuário solicitar criar tarefa, alterar turno, alterar folga fixa semanal, solicitar folga, aprovar troca de folga ou publicar comunicado, você DEVE acionar a função correspondente.
-4. Respeite as permissões: Colaboradores não podem criar tarefas para outros, nem alterar escalas, nem aprovar trocas.
-5. Se for dúvida ou consulta (banco de horas, folgas, escala), responda com clareza em markdown simples.`;
+2. Não interfira no bater ponto dos colaboradores (marcação de ponto é livre e sem exigência de validação facial).
+3. Se o usuário solicitar criar tarefa, alterar turno, alterar folga fixa semanal, solicitar folga, aprovar troca de folga, cadastrar feriado, justificar ausência ou publicar comunicado, você DEVE acionar a função correspondente.
+4. Respeite as permissões: Colaboradores não podem criar tarefas para outros, nem alterar escalas, nem aprovar trocas, nem cadastrar feriados.
+5. Se for dúvida, consulta ou explicação das regras do sistema ou da tela atual, responda com clareza em markdown simples.`;
 
   const requestBody = {
     contents: [
@@ -722,9 +1402,9 @@ export function parseCopilotIntent(text, context = {}) {
     if (bal && bal.totalMinutos !== undefined) {
       const mins = Number(bal.totalMinutos) || 0;
       const signal = mins >= 0 ? "+" : "-";
-      const absMins = Math.abs(mins);
-      const h = Math.floor(absMins / 60);
-      const m = absMins % 60;
+      const totalIntMins = Math.round(Math.abs(mins));
+      const h = Math.floor(totalIntMins / 60);
+      const m = totalIntMins % 60;
       const formatted = `${signal}${h}h ${String(m).padStart(2, "0")}m`;
       const statusDesc = mins >= 0 ? "saldo positivo (crédito)" : "saldo negativo (débito)";
       return {
@@ -735,6 +1415,40 @@ export function parseCopilotIntent(text, context = {}) {
     return {
       type: "query",
       reply: "Seu saldo de horas está em dia e sincronizado com os registros de ponto do sistema.",
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // CONSULTAS: TELA ATUAL E REGRAS OPERACIONAIS
+  // ------------------------------------------------------------------------
+  if (/(?:como funciona esta tela|o que faz esta tela|ajuda nesta tela|o que posso fazer aqui|ajuda desta tela|regras desta tela)/i.test(clean)) {
+    const viewKey = context.currentView || getCurrentView();
+    const info = SCREEN_KNOWLEDGE[viewKey] || SCREEN_KNOWLEDGE.dashboard;
+    const chipsList = (info.chips[role] || info.chips.employee || []).map((c) => `- "${c}"`).join("\n");
+    return {
+      type: "query",
+      reply: `**Tela: ${info.title} (${info.category})**\n\n${info.summary}\n\n**Regras operacionais:**\n${info.rules}\n\n**Comandos sugeridos para esta tela:**\n${chipsList}`,
+    };
+  }
+
+  if (/(?:como\s+(?:posso\s+)?solicitar\s+folga|regras?\s+(?:para\s+)?solicitar\s+folga|como\s+funciona\s+(?:o\s+pedido\s+de\s+|a\s+)?folga)/i.test(clean)) {
+    return {
+      type: "query",
+      reply: `**Como solicitar folga no Folgas 3.0:**\n\n1. **Pelo Copiloto:** Você pode pedir diretamente digitando:\n   *"Solicitar folga dia DD/MM/AAAA motivo [seu motivo]"*\n\n2. **Pela Central:** Acesse a aba **Folgas** ou **Central de Pendências** e clique em **＋ Pedir folga**.\n\n3. **Regras operacionais:**\n   - As solicitações devem ser enviadas com antecedência para organização da escala da sua loja.\n   - O gestor da sua unidade receberá a notificação para aprovação.\n   - Escala 6x1: é garantido descanso semanal remunerado a cada ciclo de 6 dias de trabalho contínuos.`,
+    };
+  }
+
+  if (/(?:como funciona (?:cr[eé]dito|folga extra) de feriado|tenho direito a folga por feriado|regras? de feriado)/i.test(clean)) {
+    return {
+      type: "query",
+      reply: `**Regras de Feriados e Folga Compensatória (House 190):**\n\n- **Crédito Automático:** Ao cadastrar um feriado ativo no sistema, os colaboradores em escala recebem crédito automático de folga extra compensatória.\n- **CLT e Convenção Coletiva:** Trabalho em feriados não compensados acarreta pagamento em dobro (100%) ou concessão de folga compensatória no banco de horas.\n- **Feriados Municipais:** Aplicam-se especificamente aos colaboradores da loja sediada no município do feriado.\n- **Administração:** Apenas administradores podem cadastrar feriados oficiais na aba **Feriados**.`,
+    };
+  }
+
+  if (/(?:toler[aâ]ncia de ponto|regras? de ponto|intervalo intrajornada)/i.test(clean)) {
+    return {
+      type: "query",
+      reply: `**Regras de Ponto Eletrônico (CLT e Grupo House 190):**\n\n- **Tolerância Legal (CLT Art. 58 § 1º):** Variações de até 5 minutos em cada marcação, observado o limite máximo de 10 minutos diários, não serão descontadas nem computadas como jornada extraordinária.\n- **Intervalo Intrajornada:** Mínimo de 1 hora para jornadas superiores a 6 horas diárias. Jornadas de 4 a 6 horas exigem intervalo de 15 minutos.\n- **Flexibilidade e Segurança:** A batida de ponto é permitida dentro do raio geográfico da sua loja. O registro não é impedido caso o reconhecimento facial não identifique o rosto.\n- **Ajustes:** Marcações esquecidas devem ser justificadas na Central de Pendências ou solicitadas ao gestor.`,
     };
   }
 
@@ -1232,6 +1946,149 @@ export function parseCopilotIntent(text, context = {}) {
   }
 
   // ------------------------------------------------------------------------
+  // 13. AÇÃO: CADASTRAR FERIADO
+  // ------------------------------------------------------------------------
+  const holidayMatch = clean.match(/(?:cadastra(?:r)?|cria(?:r)?|adiciona(?:r)?)\s+(?:um\s+)?feriado\s*(.*)/i);
+  if (holidayMatch) {
+    if (role !== "admin") {
+      return {
+        type: "error",
+        message: "O cadastro de feriados é exclusivo para o perfil de Administrador.",
+      };
+    }
+
+    const rest = holidayMatch[1]?.trim() || "";
+    const dateMatch = rest.match(/([0-9]{1,2}[\/\-][0-9]{1,2}(?:[\/\-][0-9]{2,4})?|[0-9]{4}-[0-9]{2}-[0-9]{2})/);
+    if (!dateMatch) {
+      return {
+        type: "query",
+        reply: `**Como cadastrar feriado pelo Copiloto:**\n\nDigite o comando informando o nome e a data. Por exemplo:\n*"Cadastrar feriado Dia da Consciência Negra dia 20/11/2026 Nacional"*\n\nO sistema registrará o feriado e concederá automaticamente o crédito de folga para todos os colaboradores elegíveis.`,
+      };
+    }
+
+    let rawDate = dateMatch[1];
+    let isoDate = rawDate;
+    if (isoDate.includes("/")) {
+      const parts = isoDate.split("/");
+      const d = parts[0].padStart(2, "0");
+      const m = parts[1].padStart(2, "0");
+      const y = parts[2] ? (parts[2].length === 2 ? `20${parts[2]}` : parts[2]) : new Date().getFullYear().toString();
+      isoDate = `${y}-${m}-${d}`;
+    }
+
+    let nomeFeriado = rest
+      .replace(rawDate, "")
+      .replace(/(?:dia|em|no|data)\s+/gi, "")
+      .replace(/\b(nacional|municipal|regional)\b/gi, "")
+      .trim();
+
+    if (!nomeFeriado || nomeFeriado.length < 3) {
+      nomeFeriado = "Feriado Operacional";
+    }
+    nomeFeriado = nomeFeriado.charAt(0).toUpperCase() + nomeFeriado.slice(1);
+
+    let tipo = "Nacional";
+    if (/municipal/i.test(rest)) tipo = "Municipal";
+    else if (/regional/i.test(rest)) tipo = "Regional";
+
+    const payload = {
+      NomeFeriado: nomeFeriado,
+      Data: isoDate,
+      Tipo: tipo,
+      LojaID: tipo === "Municipal" ? userStore : "",
+      Ativo: true,
+    };
+
+    return {
+      type: "action",
+      actionType: "create_holiday",
+      title: "Cadastrar Feriado",
+      apiMethod: "createHoliday",
+      apiArgs: [payload],
+      summary: `Cadastrar feriado "${nomeFeriado}" em ${isoDate} (${tipo}) com crédito automático de folga para os colaboradores.`,
+      diff: [
+        { label: "Feriado", value: nomeFeriado },
+        { label: "Data", value: isoDate },
+        { label: "Tipo", value: tipo },
+        { label: "Crédito de Folga", value: "Automático para equipe em escala" },
+      ],
+      details: { nomeFeriado, isoDate, tipo },
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // 14. AÇÃO: JUSTIFICAR AUSÊNCIA / FALTA
+  // ------------------------------------------------------------------------
+  const absenceMatch = clean.match(/(?:justifica(?:r)?)\s+(?:a\s+)?(?:falta|aus[eê]ncia)\s*(.*)/i);
+  if (absenceMatch) {
+    if (role === "employee") {
+      return {
+        type: "error",
+        message: "O lançamento de justificativas de falta requer perfil de Gerente ou Administrador.",
+      };
+    }
+
+    const rest = absenceMatch[1]?.trim() || "";
+    const dateMatch = rest.match(/([0-9]{1,2}[\/\-][0-9]{1,2}(?:[\/\-][0-9]{2,4})?|[0-9]{4}-[0-9]{2}-[0-9]{2})/);
+    const targetEmployee = findEmployee(rest);
+
+    if (!dateMatch || !targetEmployee) {
+      return {
+        type: "query",
+        reply: `**Como justificar falta pelo Copiloto:**\n\nDigite o comando com o nome do colaborador e a data. Por exemplo:\n*"Justificar falta de Gabriel dia 10/10/2026 motivo Atestado Médico"*\n\nTipos válidos aceitos pelo sistema: **Atestado**, **Folga trocada**, **Dia concedido** ou **Outros**.`,
+      };
+    }
+
+    if (role === "manager" && userStore) {
+      const empStore = String(targetEmployee.LojaID || targetEmployee.lojaId || "");
+      if (empStore && empStore !== userStore) {
+        return {
+          type: "error",
+          message: `O colaborador ${targetEmployee.Nome} pertence a outra unidade. Você pode justificar ausências apenas da sua loja.`,
+        };
+      }
+    }
+
+    let rawDate = dateMatch[1];
+    let isoDate = rawDate;
+    if (isoDate.includes("/")) {
+      const parts = isoDate.split("/");
+      const d = parts[0].padStart(2, "0");
+      const m = parts[1].padStart(2, "0");
+      const y = parts[2] ? (parts[2].length === 2 ? `20${parts[2]}` : parts[2]) : new Date().getFullYear().toString();
+      isoDate = `${y}-${m}-${d}`;
+    }
+
+    let tipo = "Atestado";
+    if (/folga\s+trocada/i.test(rest)) tipo = "Folga trocada";
+    else if (/dia\s+concedido/i.test(rest)) tipo = "Dia concedido";
+    else if (/outros/i.test(rest)) tipo = "Outros";
+
+    const payload = {
+      funcionarioId: targetEmployee.FuncionarioID || targetEmployee.id,
+      data: isoDate,
+      tipo: tipo,
+      observacao: `Justificativa lançada via Copiloto por ${userName}`,
+    };
+
+    return {
+      type: "action",
+      actionType: "justify_absence",
+      title: "Justificar Ausência / Falta",
+      apiMethod: "justifyMissedTimeClockDay",
+      apiArgs: [payload],
+      summary: `Lançar justificativa de ausência (${tipo}) para ${targetEmployee.Nome} no dia ${isoDate}.`,
+      diff: [
+        { label: "Colaborador", value: targetEmployee.Nome },
+        { label: "Data", value: isoDate },
+        { label: "Tipo", value: tipo },
+        { label: "Observação", value: payload.observacao },
+      ],
+      details: { empId: payload.funcionarioId, isoDate, tipo },
+    };
+  }
+
+  // ------------------------------------------------------------------------
   // FALLBACK
   // ------------------------------------------------------------------------
   return {
@@ -1368,36 +2225,30 @@ export function initCopilot() {
     }
   });
 
+  let lastRenderedView = null;
+  let lastRenderedRole = null;
+
   function updateWelcomeAndChips() {
-    const user = window.__GESTAO_STATE__?.user || window.__GESTAO_USER__;
+    const user = window.__GESTAO_STATE__?.user || window.state?.user || window.__GESTAO_USER__;
     const role = getUserRole(user);
+    const currentView = getCurrentView();
+    const screenInfo = SCREEN_KNOWLEDGE[currentView] || SCREEN_KNOWLEDGE.dashboard;
+
     const badge = $("#copilotRoleBadge");
     if (badge) {
       badge.textContent = role === "admin" ? "Admin Ativo" : role === "manager" ? "Gerência Ativa" : "Operação Ativa";
     }
 
-    if (suggestions && suggestions.children.length === 0) {
-      const chips =
-        role === "admin"
-          ? [
-              "Quem está trabalhando agora?",
-              "Tarefas pendentes da rede",
-              "Comandos de administração",
-            ]
-          : role === "manager"
-          ? [
-              "Quem está trabalhando agora?",
-              "Tarefas da cozinha",
-              "Trocas de folga pendentes",
-              "Comandos de gerência",
-            ]
-          : [
-              "Quando é minha próxima folga?",
-              "Meu saldo de horas",
-              "Minhas tarefas de hoje",
-              "Como solicitar folga?",
-            ];
+    const screenIndicator = $("#copilotScreenName");
+    if (screenIndicator) {
+      screenIndicator.textContent = screenInfo.title;
+    }
 
+    if (suggestions && (lastRenderedView !== currentView || lastRenderedRole !== role || suggestions.children.length === 0)) {
+      lastRenderedView = currentView;
+      lastRenderedRole = role;
+
+      const chips = (screenInfo.chips && screenInfo.chips[role]) || (screenInfo.chips && screenInfo.chips.employee) || [];
       suggestions.innerHTML = chips
         .map((c) => `<button type="button" class="copilot-chip">${esc(c)}</button>`)
         .join("");
@@ -1412,11 +2263,18 @@ export function initCopilot() {
       });
     }
 
+    const userName = getUserName(user);
+    const hasKey = Boolean(getGeminiApiKey());
+    const engineNote = hasKey ? "Motor Gemini Flash ativado." : "Motor local autônomo ativado.";
+
     if (messages && messages.children.length === 0) {
-      const hasKey = Boolean(getGeminiApiKey());
-      const engineNote = hasKey ? "Motor Gemini Flash ativado." : "Motor local autônomo ativado.";
-      const greeting = `Olá, **${getUserName(user)}**. Sou o Copiloto House 190. ${engineNote} Posso consultar saldos, escalas, criar tarefas no CozinhaFlow e gerenciar solicitações operacionais com total segurança e confirmação prévia.`;
+      const greeting = `Olá, **${userName}**. Sou o Copiloto House 190. ${engineNote} Você está na tela **${screenInfo.title}**. Como posso ajudar na sua operação hoje?`;
       appendAssistantMessage(greeting);
+    } else if (messages && messages.children.length === 1 && messages.firstElementChild?.classList.contains("copilot-message--assistant")) {
+      const firstBubble = messages.firstElementChild.querySelector(".copilot-bubble p");
+      if (firstBubble && (firstBubble.textContent.includes("Colaborador") || firstBubble.textContent.includes("Painel Geral")) && userName !== "Colaborador") {
+        firstBubble.innerHTML = `Olá, <strong>${esc(userName)}</strong>. Sou o Copiloto House 190. ${esc(engineNote)} Você está na tela <strong>${esc(screenInfo.title)}</strong>. Como posso ajudar na sua operação hoje?`;
+      }
     }
   }
 
@@ -1460,7 +2318,7 @@ export function initCopilot() {
 
     appendUserMessage(text);
 
-    const state = window.__GESTAO_STATE__ || {};
+    const state = window.__GESTAO_STATE__ || window.state || {};
     const context = {
       user: state.user || window.__GESTAO_USER__,
       employees: state.employees || [],
@@ -1470,6 +2328,7 @@ export function initCopilot() {
       stores: state.stores || [],
       livePresenceData: state.livePresenceData || [],
       hourBalance: state.timeClockBalance || state.hourBalance,
+      currentView: getCurrentView(),
     };
 
     let intent = null;
@@ -1596,6 +2455,14 @@ export function initCopilot() {
   window.addEventListener("gestao-api-ready", () => {
     updateWelcomeAndChips();
     updateEngineStatus();
+  });
+
+  window.addEventListener("gestao-view-change", () => {
+    updateWelcomeAndChips();
+  });
+
+  window.addEventListener("gestao-user-hydrated", () => {
+    updateWelcomeAndChips();
   });
 }
 
