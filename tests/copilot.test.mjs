@@ -1,7 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { parseCopilotIntent, getUserRole, executeCopilotAction } from "../src/copilot.js";
+import {
+  parseCopilotIntent,
+  getUserRole,
+  executeCopilotAction,
+  convertFunctionCallToAction,
+  getGeminiApiKey,
+  setGeminiApiKey,
+  callGeminiCopilot,
+  GEMINI_TOOLS,
+} from "../src/copilot.js";
 
 // Mock de dados operacionais
 const mockEmployees = [
@@ -176,6 +185,55 @@ test("Copiloto Execução: executeCopilotAction invoca api.invoke e dispara atua
   assert.equal(res.ok, true);
   assert.equal(invokedMethod, "cozinhaTasksSave");
   assert.deepEqual(invokedArgs, [{ TITULO: "Teste" }]);
+});
+
+test("Gemini Flash: Function Calling mapeia ferramentas para ações operacionais com RBAC", () => {
+  const managerUser = { FuncionarioID: "mgr_1", Nome: "Gestor Matriz", Perfil: "Gerente", LojaID: "loja_matriz" };
+  const ctx = { user: managerUser, employees: mockEmployees, tasks: mockTasks, swaps: mockSwaps };
+
+  // Ferramenta criarTarefaCozinha
+  const taskAction = convertFunctionCallToAction(
+    "criarTarefaCozinha",
+    { titulo: "Higienizar coifa", responsavelNome: "Gabriel", prioridade: "Alta", prazo: "hoje às 20h" },
+    ctx,
+  );
+  assert.equal(taskAction.type, "action");
+  assert.equal(taskAction.actionType, "create_task");
+  assert.equal(taskAction.apiMethod, "cozinhaTasksSave");
+  assert.equal(taskAction.details.responsavel, "Gabriel Silva");
+  assert.equal(taskAction.details.prioridade, "Alta");
+
+  // Ferramenta alterarTurno
+  const shiftAction = convertFunctionCallToAction(
+    "alterarTurno",
+    { nome: "Pedro", novoTurno: "Noite" },
+    ctx,
+  );
+  assert.equal(shiftAction.type, "action");
+  assert.equal(shiftAction.actionType, "update_shift");
+  assert.equal(shiftAction.apiMethod, "updateEmployee");
+  assert.equal(shiftAction.details.newShift, "Noite");
+
+  // Bloqueio RBAC para colaborador no Gemini Function Calling
+  const employeeUser = { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Funcionário", LojaID: "loja_matriz" };
+  const empCtx = { user: employeeUser, employees: mockEmployees };
+  const blockedGemini = convertFunctionCallToAction(
+    "criarTarefaCozinha",
+    { titulo: "Test", responsavelNome: "Pedro" },
+    empCtx,
+  );
+  assert.equal(blockedGemini.type, "error");
+  assert.match(blockedGemini.message, /requer permissão de Gerente ou Administrador/i);
+});
+
+test("Gemini Flash: Fallback para o motor local quando sem chave configurada", async () => {
+  const employeeUser = { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Funcionário", LojaID: "loja_matriz" };
+  const ctx = { user: employeeUser, timeOff: mockTimeOff };
+
+  // Sem chave: chama callGeminiCopilot e obtém resultado do motor local diretamente
+  const res = await callGeminiCopilot("Quando é minha próxima folga?", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /25\/10\/2026/);
 });
 
 test("ZERO EMOJIS: Verificação estrita de ausência de emojis nos arquivos do Copiloto", async () => {
