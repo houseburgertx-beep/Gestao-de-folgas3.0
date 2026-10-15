@@ -1035,14 +1035,30 @@ export const GEMINI_TOOLS = [
       },
       {
         name: "solicitarFolga",
-        description: "Solicita um dia de folga pontual para o colaborador logado",
+        description: "Solicita ou lança folga pontual. Para colaboradores comuns, envia pedido de aprovação para a gerência. Para gerentes e administradores, pode lançar folga para si mesmo ou para outro colaborador",
         parameters: {
           type: "OBJECT",
           properties: {
             data: { type: "STRING", description: "Data da folga no formato AAAA-MM-DD ou DD/MM/AAAA" },
-            motivo: { type: "STRING", description: "Motivo da solicitação de folga" },
+            motivo: { type: "STRING", description: "Motivo da solicitação ou concessão de folga" },
+            colaboradorNome: { type: "STRING", description: "Nome do colaborador que terá a folga (quando solicitado por gestor para terceiro)" },
+            lojaNome: { type: "STRING", description: "Nome da loja ou unidade (ex: Foodpark, Teixeira, Eunápolis)" },
           },
           required: ["data"],
+        },
+      },
+      {
+        name: "lancarFolga",
+        description: "Lança ou concede folga aprovada diretamente para um colaborador da loja ou rede (exclusivo para Gerentes e Administradores)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorNome: { type: "STRING", description: "Nome do colaborador a receber a folga" },
+            data: { type: "STRING", description: "Data da folga no formato AAAA-MM-DD ou DD/MM/AAAA" },
+            motivo: { type: "STRING", description: "Motivo ou justificativa da folga concedida" },
+            lojaNome: { type: "STRING", description: "Nome da loja ou unidade (ex: Foodpark, Teixeira, Eunápolis)" },
+          },
+          required: ["colaboradorNome", "data"],
         },
       },
       {
@@ -1172,23 +1188,111 @@ export const GEMINI_TOOLS = [
   },
 ];
 
-// Helper para localizar funcionário por menção em texto ou nome
+// Helper para normalização de texto sem acentos
+export function normalizeText(str) {
+  return String(str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+// Helper inteligente para localizar funcionário por menção em texto, nome ou loja
 export function findEmployeeInText(textToSearch, employees = []) {
-  if (!textToSearch) return null;
-  const cleanText = String(textToSearch).toLowerCase();
-  for (const emp of employees) {
-    const fullName = String(emp.Nome || emp.nome || "").toLowerCase();
-    const firstName = fullName.split(" ")[0];
-    if (new RegExp(`(?:para|de|do|da)\\s+${fullName}\\b`, "i").test(cleanText)) return emp;
-    if (new RegExp(`(?:para|de|do|da)\\s+${firstName}\\b`, "i").test(cleanText)) return emp;
+  if (!textToSearch || !Array.isArray(employees) || employees.length === 0) return null;
+  const rawText = String(textToSearch).trim();
+  const normText = normalizeText(rawText);
+
+  // 1. Detectar menção a loja no texto para desempate / filtro
+  const storeKeywords = [
+    { key: "foodpark", id: "foodpark" },
+    { key: "teixeira", id: "teixeira" },
+    { key: "eunapolis", id: "eunapolis" },
+    { key: "matriz", id: "matriz" },
+    { key: "filial", id: "filial" },
+  ];
+  let mentionedStore = null;
+  for (const sk of storeKeywords) {
+    if (normText.includes(sk.key)) {
+      mentionedStore = sk.id;
+      break;
+    }
   }
+
+  let bestEmp = null;
+  let bestScore = 0;
+
   for (const emp of employees) {
-    const fullName = String(emp.Nome || emp.nome || "").toLowerCase();
-    const firstName = fullName.split(" ")[0];
-    if (new RegExp(`\\b${fullName}\\b`, "i").test(cleanText)) return emp;
-    if (new RegExp(`\\b${firstName}\\b`, "i").test(cleanText)) return emp;
+    const rawName = emp.Nome || emp.nome || "";
+    if (!rawName) continue;
+    const normFullName = normalizeText(rawName);
+    const empStore = normalizeText(emp.LojaID || emp.lojaId || emp.NomeLoja || emp.nomeLoja || "");
+    const parts = normFullName.split(/\s+/).filter((p) => p.length >= 2 && !["de", "da", "do", "dos", "das", "e"].includes(p));
+    if (parts.length === 0) continue;
+
+    let score = 0;
+
+    // Match exato de nome completo (com ou sem acentos)
+    const exactFullRegex = new RegExp("(?:^|[^a-z0-9])" + normFullName + "(?:$|[^a-z0-9])", "i");
+    if (exactFullRegex.test(normText)) {
+      score += 120;
+    } else {
+      // Variação flexível de gênero no último nome (ex: Claudio / Cláudia)
+      const flexFullName = normFullName.replace(/[ao]$/, "[ao]");
+      const flexFullRegex = new RegExp("(?:^|[^a-z0-9])" + flexFullName + "(?:$|[^a-z0-9])", "i");
+      if (flexFullRegex.test(normText)) {
+        score += 105;
+      }
+    }
+
+    // Match do primeiro nome isolado (ex: "maria", "gabriel", "pedro")
+    const firstName = parts[0];
+    const firstNameRegex = new RegExp("(?:^|[^a-z0-9])" + firstName + "(?:$|[^a-z0-9])", "i");
+    if (firstNameRegex.test(normText)) {
+      score += 50;
+    }
+
+    // Match por palavras individuais do nome
+    let matchedPartsCount = 0;
+    for (const part of parts) {
+      const partRegex = new RegExp("(?:^|[^a-z0-9])" + part + "(?:$|[^a-z0-9])", "i");
+      const flexPartRegex = new RegExp("(?:^|[^a-z0-9])" + part.replace(/[ao]$/, "[ao]") + "(?:$|[^a-z0-9])", "i");
+      if (partRegex.test(normText)) {
+        matchedPartsCount += 1;
+      } else if (flexPartRegex.test(normText)) {
+        matchedPartsCount += 0.9;
+      }
+    }
+
+    if (matchedPartsCount > 0) {
+      score += (matchedPartsCount / parts.length) * 40;
+      if (matchedPartsCount >= 2) {
+        score += 30; // bônus forte para nome e sobrenome
+      }
+    }
+
+    // Preposição indicando destinatário (ex: "para Ana", "do Gabriel")
+    const prepRegex = new RegExp("(?:para|pro|pra|de|do|da|ao|a)\\s+" + firstName + "(?:$|[^a-z0-9])", "i");
+    if (prepRegex.test(normText)) {
+      score += 25;
+    }
+
+    // Alinhamento com a loja mencionada
+    if (mentionedStore) {
+      if (empStore.includes(mentionedStore)) {
+        score += 45;
+      } else if (matchedPartsCount > 0) {
+        score -= 40; // penaliza se pertencer explicitamente a outra loja
+      }
+    }
+
+    if (score > bestScore && score >= 40) {
+      bestScore = score;
+      bestEmp = emp;
+    }
   }
-  return null;
+
+  return bestEmp;
 }
 
 // ==========================================================================
@@ -1365,11 +1469,77 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
       };
     }
 
-    case "solicitarFolga": {
+    case "solicitarFolga":
+    case "lancarFolga": {
       const parsedDate = extractDateFromText(args.data);
       const isoDate = parsedDate ? parsedDate.isoDate : (args.data || "");
       const formattedDate = parsedDate ? parsedDate.formattedDate : isoDate;
-      const reason = extractReasonFromText(args.motivo || "Solicitação operacional via Copiloto");
+      const reason = extractReasonFromText(args.motivo || (role === "employee" ? "Solicitação de folga via Copiloto" : `Folga concedida via Copiloto por ${userName}`));
+
+      let targetEmp = null;
+      if (args.colaboradorNome) {
+        targetEmp = findEmployeeInText(args.colaboradorNome + (args.lojaNome ? ` do ${args.lojaNome}` : ""), employees);
+      }
+
+      if (targetEmp && role === "employee" && targetEmp.FuncionarioID !== userId) {
+        return {
+          type: "error",
+          message: "Você só pode solicitar folga para o seu próprio usuário. A concessão ou solicitação de folga para outros colaboradores é restrita à gerência e administração.",
+        };
+      }
+
+      if (targetEmp && role === "manager" && userStore) {
+        const empStore = String(targetEmp.LojaID || targetEmp.lojaId || "");
+        if (empStore && empStore !== userStore) {
+          return {
+            type: "error",
+            message: `O colaborador ${targetEmp.Nome} pertence a outra unidade. Você pode conceder folga apenas para colaboradores da sua loja.`,
+          };
+        }
+      }
+
+      if (targetEmp && role !== "employee" && targetEmp.FuncionarioID !== userId) {
+        const storeLabel = targetEmp.NomeLoja || (targetEmp.LojaID ? `Loja ${targetEmp.LojaID}` : (userStore ? `Loja ${userStore}` : "Unidade"));
+        const payload = {
+          FuncionarioID: targetEmp.FuncionarioID || targetEmp.id,
+          NomeFuncionario: targetEmp.Nome || targetEmp.nome,
+          LojaID: targetEmp.LojaID || targetEmp.lojaId || userStore,
+          DataInicio: isoDate,
+          DataFim: isoDate,
+          TipoFolga: "Folga",
+          Motivo: reason,
+          Status: "Aprovada",
+        };
+
+        return {
+          type: "action",
+          actionType: "create_timeoff",
+          title: "Lançar Folga",
+          apiMethod: "createTimeOff",
+          apiArgs: [payload],
+          summary: `Lançar folga aprovada para ${targetEmp.Nome} (${storeLabel}) no dia ${formattedDate}.`,
+          diff: [
+            { label: "Colaborador", value: targetEmp.Nome },
+            { label: "Loja", value: storeLabel },
+            { label: "Data da Folga", value: formattedDate },
+            { label: "Motivo", value: reason },
+            { label: "Status Inicial", value: "Aprovada (concedida pela gestão)" },
+          ],
+          details: {
+            empId: targetEmp.FuncionarioID || targetEmp.id,
+            empName: targetEmp.Nome || targetEmp.nome,
+            isoDate,
+            formattedDate,
+            reason,
+          },
+        };
+      }
+
+      // Se for o próprio colaborador ou gestor solicitando para si
+      const isDirectApproval = role !== "employee";
+      const apiMethod = isDirectApproval ? "createTimeOff" : "createEmployeeTimeOffRequest";
+      const title = isDirectApproval ? "Lançar Folga" : "Solicitar Folga";
+      const statusLabel = isDirectApproval ? "Aprovada (concedida pela gestão)" : "Pendente (aguardando gestor)";
 
       const payload = {
         FuncionarioID: userId,
@@ -1377,23 +1547,23 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
         LojaID: userStore,
         DataInicio: isoDate,
         DataFim: isoDate,
-        TipoFolga: "Folga solicitada",
+        TipoFolga: isDirectApproval ? "Folga" : "Folga solicitada",
         Motivo: reason,
-        Status: "Pendente",
+        Status: isDirectApproval ? "Aprovada" : "Pendente",
       };
 
       return {
         type: "action",
-        actionType: "request_timeoff",
-        title: "Solicitar Folga",
-        apiMethod: "createEmployeeTimeOffRequest",
+        actionType: isDirectApproval ? "create_timeoff" : "request_timeoff",
+        title,
+        apiMethod,
         apiArgs: [payload],
-        summary: `Enviar pedido de folga para ${formattedDate} com motivo: "${reason}".`,
+        summary: `${isDirectApproval ? "Lançar folga aprovada" : "Enviar pedido de folga"} para o dia ${formattedDate} com motivo: "${reason}".`,
         diff: [
           { label: "Data Solicitada", value: formattedDate },
           { label: "Colaborador", value: userName },
           { label: "Motivo", value: reason },
-          { label: "Status Inicial", value: "Pendente (aguardando gestor)" },
+          { label: "Status Inicial", value: statusLabel },
         ],
         details: { isoDate, formattedDate, reason },
       };
@@ -1934,8 +2104,8 @@ export async function callGeminiCopilot(prompt, context = {}) {
   const employees = Array.isArray(context.employees) ? context.employees : [];
 
   const empSummary = employees
-    .slice(0, 30)
-    .map((e) => `${e.Nome || e.nome} (Loja: ${e.LojaID || ""}, Turno: ${e.Turno || ""})`)
+    .slice(0, 100)
+    .map((e) => `${e.Nome || e.nome} (Loja: ${e.NomeLoja || e.LojaID || ""}, Turno: ${e.Turno || ""})`)
     .join("; ");
 
   const currentView = context.currentView || getCurrentView();
@@ -2011,7 +2181,9 @@ Seu objetivo principal é resolver a necessidade do usuário com precisão cirú
 6. DIRETRIZES DE COMUNICAÇÃO E EXECUÇÃO (MEGA CÉREBRO OPERACIONAL):
 - ZERO EMOJIS: Regra estrita de ausência total de emojis em todas as respostas, botões e textos.
 - ROTEIRO: ENTENDER -> CONSULTAR -> RESOLVER -> EXECUTAR QUANDO AUTORIZADO -> CONFIRMAR.
-- PEDIDO DE FOLGA: Quando o colaborador expressar qualquer intenção de pedir ou solicitar folga ("quero folga", "preciso de folga", "me dá folga", "gostaria de folga dia X"), acione IMEDIATAMENTE a ferramenta 'solicitarFolga' com a data e o motivo. NUNCA diga apenas que ele pode solicitar; acione a ferramenta para gerar o card de confirmação!
+- CONCESSÃO OU PEDIDO DE FOLGA:
+  * Se um GERENTE ou ADMINISTRADOR pedir para dar, conceder ou lançar folga para um colaborador ("Ana Claudio do Foodpark folga amanha", "da folga para Gabriel amanha", "lancar folga para Pedro sexta"), acione IMEDIATAMENTE a ferramenta 'lancarFolga' ou 'solicitarFolga' passando o colaboradorNome com o nome do colaborador encontrado, lojaNome se mencionada, a data e o motivo. NUNCA gere uma solicitação com o nome do próprio gestor quando ele estiver concedendo folga a um membro da equipe!
+  * Se o próprio COLABORADOR pedir folga para si ("quero folga amanhã", "preciso de folga dia 25"), acione 'solicitarFolga' para gerar o pedido de folga pendente dele.
 - AJUSTE OU ALTERAÇÃO DE PONTO: Quando o colaborador ou gestor pedir para alterar, corrigir ou disser que esqueceu de bater ponto ("esqueci de bater ponto ontem às 18h", "alterar ponto", "ajustar ponto", "esqueci a saída"), acione IMEDIATAMENTE a ferramenta 'solicitarAjustePonto' com a data, horário e tipo da batida!
 - AÇÕES REAIS: Ao solicitar folga, ajustar ponto, criar tarefa, alterar turno, alterar folga fixa, cadastrar feriado, justificar ausência, aprovar/recusar solicitações ou publicar comunicado, acione SEMPRE a função correspondente para gerar o card de confirmação visual ("Ver e Confirmar").
 - Multi-turn: Lembre-se do contexto das mensagens anteriores da conversa para responder adequadamente.
@@ -2706,22 +2878,102 @@ function _parseCopilotIntentRaw(text, context = {}) {
   }
 
   // ------------------------------------------------------------------------
-  // 8. AÇÃO: SOLICITAR FOLGA (MEGA CÉREBRO — LINGUAGEM NATURAL COMPLETA)
+  // 8. AÇÃO: SOLICITAR / LANÇAR FOLGA (MEGA CÉREBRO — LINGUAGEM NATURAL COMPLETA)
   // ------------------------------------------------------------------------
   const isTimeOffIntent =
-    /(?:(?:quero|preciso|solicito|solicitar|pedir|pe[cç]o|gostaria|marcar|me\s+d[aá]|posso\s+ter)\s+(?:de\s+)?(?:uma\s+)?folga|folga\s+(?:no\s+dia|dia|para|em|na|amanh[aã]|depois\s+de\s+amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)|preciso\s+folgar|marcar\s+minha\s+folga)/i.test(clean);
+    /(?:(?:quero|preciso|solicito|solicitar|pedir|pe[cç]o|gostaria|marcar|me\s+d[aá]|dar|d[aá]|colocar|lan[cç]ar|cadastrar|conceder|programar|posso\s+ter)\s+(?:de\s+)?(?:uma\s+)?folga|folga\s+(?:no\s+dia|dia|para|pro|pra|de|do|da|em|na|no|amanh[aã]|depois\s+de\s+amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)|preciso\s+folgar|marcar\s+minha\s+folga|\bfolga\s+amanh[aã])/i.test(clean);
 
   if (isTimeOffIntent && !clean.includes("troca") && !clean.includes("como funciona") && !clean.includes("quais as regras")) {
     const parsedDate = extractDateFromText(clean);
     if (!parsedDate) {
       return {
         type: "query",
-        reply: `Para qual data você gostaria de solicitar sua folga? Digite, por exemplo:\n- *"Quero folga dia 25/10 porque tenho médico"*\n- *"Solicitar folga amanhã motivo compromisso pessoal"*\n- *"Preciso de folga na próxima terça"*`,
+        reply: `Para qual data você gostaria de agendar a folga? Digite, por exemplo:\n- *"Quero folga dia 25/10 porque tenho médico"*\n- *"Ana Claudia do Foodpark folga amanhã"*\n- *"Dar folga para Gabriel amanhã"*`,
       };
     }
 
     const { isoDate, formattedDate } = parsedDate;
-    const reason = extractReasonFromText(clean, "Solicitação de folga via Copiloto");
+    const isSelfExplicit = /\b(minha\s+folga|quero\s+folga|preciso\s+de\s+folga|me\s+d[aá]\s+folga|folga\s+pra\s+mim|folga\s+para\s+mim|gostaria\s+de\s+folga)\b/i.test(clean);
+    const targetEmp = isSelfExplicit ? null : findEmployeeInText(clean, employees);
+
+    // Se o usuário for colaborador comum e tentar atribuir folga a outro
+    if (targetEmp && role === "employee" && targetEmp.FuncionarioID !== userId) {
+      return {
+        type: "error",
+        message: "Você só pode solicitar folga para o seu próprio usuário. A concessão ou solicitação de folga para outros colaboradores é restrita à gerência e administração.",
+      };
+    }
+
+    // Se o usuário for gerente, validar escopo de loja
+    if (targetEmp && role === "manager" && userStore) {
+      const empStore = String(targetEmp.LojaID || targetEmp.lojaId || "");
+      if (empStore && empStore !== userStore) {
+        return {
+          type: "error",
+          message: `O colaborador ${targetEmp.Nome} pertence a outra unidade. Você pode conceder folga apenas para colaboradores da sua loja.`,
+        };
+      }
+    }
+
+    const reason = extractReasonFromText(clean, targetEmp && role !== "employee" ? `Folga concedida via Copiloto por ${userName}` : "Solicitação de folga via Copiloto");
+
+    // Caso A: Gestor ou Administrador concedendo folga para colaborador identificado
+    if (targetEmp && role !== "employee" && targetEmp.FuncionarioID !== userId) {
+      const storeLabel = targetEmp.NomeLoja || (targetEmp.LojaID ? `Loja ${targetEmp.LojaID}` : (userStore ? `Loja ${userStore}` : "Unidade"));
+      const payload = {
+        FuncionarioID: targetEmp.FuncionarioID || targetEmp.id,
+        NomeFuncionario: targetEmp.Nome || targetEmp.nome,
+        LojaID: targetEmp.LojaID || targetEmp.lojaId || userStore,
+        DataInicio: isoDate,
+        DataFim: isoDate,
+        TipoFolga: "Folga",
+        Motivo: reason,
+        Status: "Aprovada",
+      };
+
+      return {
+        type: "action",
+        actionType: "create_timeoff",
+        title: "Lançar Folga",
+        apiMethod: "createTimeOff",
+        apiArgs: [payload],
+        summary: `Lançar folga aprovada para ${targetEmp.Nome} (${storeLabel}) no dia ${formattedDate}.`,
+        diff: [
+          { label: "Colaborador", value: targetEmp.Nome },
+          { label: "Loja", value: storeLabel },
+          { label: "Data da Folga", value: formattedDate },
+          { label: "Motivo", value: reason },
+          { label: "Status Inicial", value: "Aprovada (concedida pela gestão)" },
+        ],
+        details: {
+          empId: targetEmp.FuncionarioID || targetEmp.id,
+          empName: targetEmp.Nome || targetEmp.nome,
+          isoDate,
+          formattedDate,
+          reason,
+        },
+      };
+    }
+
+    // Caso B: Gestor/Admin mencionou terceiro que não foi encontrado no cadastro
+    if (!targetEmp && role !== "employee" && !isSelfExplicit) {
+      const storeKeywords = ["foodpark", "teixeira", "eunapolis"];
+      const hasStoreMention = storeKeywords.some((sk) => clean.includes(sk));
+      const hasThirdPartyIndicator = hasStoreMention || /(?:para|pro|pra|de|do|da)\s+[a-z]{3,}/i.test(clean) || /^[a-z]{3,}\s+[a-z]{3,}/i.test(clean);
+
+      if (employees.length > 0 && hasThirdPartyIndicator) {
+        return {
+          type: "error",
+          message: "O colaborador mencionado não foi localizado no cadastro da equipe. Verifique se o nome está correto ou se o colaborador está ativo.",
+        };
+      }
+    }
+
+    // Caso C: O próprio colaborador ou gestor solicitando para si
+    const isDirectApproval = role !== "employee";
+    const apiMethod = isDirectApproval ? "createTimeOff" : "createEmployeeTimeOffRequest";
+    const title = isDirectApproval ? "Lançar Folga" : "Solicitar Folga";
+    const statusLabel = isDirectApproval ? "Aprovada (concedida pela gestão)" : "Pendente (aguardando gestor)";
 
     const payload = {
       FuncionarioID: userId,
@@ -2729,23 +2981,23 @@ function _parseCopilotIntentRaw(text, context = {}) {
       LojaID: userStore,
       DataInicio: isoDate,
       DataFim: isoDate,
-      TipoFolga: "Folga solicitada",
+      TipoFolga: isDirectApproval ? "Folga" : "Folga solicitada",
       Motivo: reason,
-      Status: "Pendente",
+      Status: isDirectApproval ? "Aprovada" : "Pendente",
     };
 
     return {
       type: "action",
-      actionType: "request_timeoff",
-      title: "Solicitar Folga",
-      apiMethod: "createEmployeeTimeOffRequest",
+      actionType: isDirectApproval ? "create_timeoff" : "request_timeoff",
+      title,
+      apiMethod,
       apiArgs: [payload],
-      summary: `Enviar pedido de folga para o dia ${formattedDate} com motivo: "${reason}".`,
+      summary: `${isDirectApproval ? "Lançar folga aprovada" : "Enviar pedido de folga"} para o dia ${formattedDate} com motivo: "${reason}".`,
       diff: [
         { label: "Data Solicitada", value: formattedDate },
         { label: "Colaborador", value: userName },
         { label: "Motivo", value: reason },
-        { label: "Status Inicial", value: "Pendente (aguardando gestor)" },
+        { label: "Status Inicial", value: statusLabel },
       ],
       details: {
         isoDate,
@@ -3586,9 +3838,18 @@ export function initCopilot() {
       copilotChatHistory.push({ role: "user", text });
 
       const state = window.__GESTAO_STATE__ || window.state || {};
+      const allEmployees =
+        Array.isArray(state.employees) && state.employees.length > 0
+          ? state.employees
+          : Array.isArray(window.state?.employees) && window.state.employees.length > 0
+            ? window.state.employees
+            : Array.isArray(window.__GESTAO_STATE__?.employees)
+              ? window.__GESTAO_STATE__.employees
+              : [];
+
       const context = {
         user: state.user || window.__GESTAO_USER__,
-        employees: state.employees || [],
+        employees: allEmployees,
         tasks: state.tasks || [],
         swaps: state.swaps || [],
         timeOff: state.timeOff || [],

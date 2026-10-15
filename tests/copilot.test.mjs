@@ -35,6 +35,7 @@ const mockEmployees = [
   { FuncionarioID: "emp_1", Nome: "Gabriel Silva", LojaID: "loja_matriz", Turno: "Manhã", FolgaFixaSemanal: "Segunda-feira" },
   { FuncionarioID: "emp_2", Nome: "Pedro Santos", LojaID: "loja_matriz", Turno: "Tarde", FolgaFixaSemanal: "Terça-feira" },
   { FuncionarioID: "emp_3", Nome: "Maria Souza", LojaID: "loja_filial", Turno: "Noite", FolgaFixaSemanal: "Quarta-feira" },
+  { FuncionarioID: "emp_4", Nome: "Ana Cláudia", LojaID: "foodpark", NomeLoja: "House Foodpark", Turno: "Manhã", FolgaFixaSemanal: "Quinta-feira" },
 ];
 
 const mockTasks = [
@@ -718,6 +719,60 @@ test("Copiloto Mega Cérebro: Pedido de folga com linguagem natural variada", ()
   assert.equal(res5.type, "action");
   assert.equal(res5.actionType, "request_timeoff");
   assert.match(res5.details.isoDate, /-\d{2}-20$/);
+});
+
+test("Copiloto Mega Cérebro: Concessão de folga para colaborador por gestor/administrador (ex: ANA CLAUDIO DO FOODPARK FOLGA AMANHA)", () => {
+  const adminUser = { FuncionarioID: "admin_1", Nome: "GLEUCE DIAS DE SOUZA", Perfil: "Administrador", LojaID: "" };
+  const adminCtx = { user: adminUser, employees: mockEmployees };
+
+  // Administrador concedendo folga com nome e loja
+  const resAdmin = parseCopilotIntent("ANA CLAUDIO DO FOODPARK FOLGA AMANHA", adminCtx);
+  assert.equal(resAdmin.type, "action");
+  assert.equal(resAdmin.actionType, "create_timeoff");
+  assert.equal(resAdmin.title, "Lançar Folga");
+  assert.equal(resAdmin.apiMethod, "createTimeOff");
+  assert.equal(resAdmin.apiArgs[0].FuncionarioID, "emp_4");
+  assert.equal(resAdmin.apiArgs[0].NomeFuncionario, "Ana Cláudia");
+  assert.equal(resAdmin.apiArgs[0].Status, "Aprovada");
+  assert.equal(resAdmin.diff[0].label, "Colaborador");
+  assert.equal(resAdmin.diff[0].value, "Ana Cláudia");
+  assert.equal(resAdmin.diff[1].label, "Loja");
+  assert.equal(resAdmin.diff[1].value, "House Foodpark");
+  assert.match(resAdmin.diff[4].value, /Aprovada/);
+
+  // Gerente da mesma unidade (foodpark) concedendo folga
+  const mgrFoodpark = { FuncionarioID: "mgr_1", Nome: "Gerente Foodpark", Perfil: "Gerente", LojaID: "foodpark" };
+  const resMgrSame = parseCopilotIntent("Ana Claudia folga amanhã", { user: mgrFoodpark, employees: mockEmployees });
+  assert.equal(resMgrSame.type, "action");
+  assert.equal(resMgrSame.actionType, "create_timeoff");
+  assert.equal(resMgrSame.title, "Lançar Folga");
+  assert.equal(resMgrSame.apiMethod, "createTimeOff");
+  assert.equal(resMgrSame.diff[0].value, "Ana Cláudia");
+
+  // Gerente de outra loja (matriz) tentando conceder folga a colaborador do foodpark
+  const mgrMatriz = { FuncionarioID: "mgr_2", Nome: "Gerente Matriz", Perfil: "Gerente", LojaID: "loja_matriz" };
+  const resMgrOther = parseCopilotIntent("ANA CLAUDIO DO FOODPARK FOLGA AMANHA", { user: mgrMatriz, employees: mockEmployees });
+  assert.equal(resMgrOther.type, "error");
+  assert.match(resMgrOther.message, /outra unidade/i);
+
+  // Colaborador comum tentando conceder folga para colega
+  const employeeUser = { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Funcionário", LojaID: "loja_matriz" };
+  const resEmpForbidden = parseCopilotIntent("ANA CLAUDIO DO FOODPARK FOLGA AMANHA", { user: employeeUser, employees: mockEmployees });
+  assert.equal(resEmpForbidden.type, "error");
+  assert.match(resEmpForbidden.message, /próprio usuário/i);
+
+  // Function Calling Gemini com lancarFolga
+  const geminiRes = convertFunctionCallToAction("lancarFolga", {
+    colaboradorNome: "Ana Claudio",
+    lojaNome: "Foodpark",
+    data: "amanhã",
+    motivo: "Folga programada pela gerência"
+  }, adminCtx);
+  assert.equal(geminiRes.type, "action");
+  assert.equal(geminiRes.actionType, "create_timeoff");
+  assert.equal(geminiRes.title, "Lançar Folga");
+  assert.equal(geminiRes.diff[0].value, "Ana Cláudia");
+  assert.equal(geminiRes.diff[1].value, "House Foodpark");
 });
 
 test("Copiloto Mega Cérebro: Solicitação de ajuste de ponto em linguagem natural", () => {
