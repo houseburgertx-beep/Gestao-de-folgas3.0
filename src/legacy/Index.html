@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.9" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.10" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -1950,6 +1950,7 @@
     <div id="copilotDrawer" class="copilot-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="copilotTitle">
       <div class="copilot-backdrop" id="copilotBackdrop"></div>
       <aside class="copilot-panel">
+        <div class="copilot-drag-handle" aria-hidden="true"></div>
         <header class="copilot-header">
           <div class="copilot-header-info">
             <div class="copilot-avatar">
@@ -1980,10 +1981,17 @@
 
         <div id="copilotSettingsPanel" class="copilot-settings-panel hidden">
           <div class="copilot-settings-header">
-            <strong>Configurações do Gemini Flash</strong>
+            <strong>Configurações da IA (Gemini)</strong>
             <span id="copilotEngineStatus" class="copilot-engine-status">Motor Local</span>
           </div>
-          <p class="copilot-settings-desc">Insira sua chave do Google AI Studio para ativar o Gemini Flash. Se deixado em branco, o motor nativo offline é usado automaticamente.</p>
+          <p class="copilot-settings-desc">Escolha o modelo de IA e insira sua chave do Google AI Studio. Se deixado em branco, o motor autônomo offline opera com latência zero.</p>
+          <div class="copilot-settings-field">
+            <label for="copilotModelSelect" class="copilot-settings-label">Modelo de IA:</label>
+            <select id="copilotModelSelect" class="copilot-settings-select">
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado - Ultrarrápido)</option>
+              <option value="gemini-4-argon">Gemini 4 Argon (Raciocínio Avançado)</option>
+            </select>
+          </div>
           <div class="copilot-settings-input-group">
             <input type="password" id="copilotApiKeyInput" class="copilot-settings-input" placeholder="Cole sua chave de API do Gemini..." autocomplete="off">
             <button type="button" id="copilotSaveKeyBtn" class="copilot-settings-save-btn">Salvar</button>

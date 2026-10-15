@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.9" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.10" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.16.9-firebase-github" />
+    <meta name="app-version" content="6.16.10-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -16656,6 +16656,11 @@ dialog#documentUploadDialog input[type="month"] {
   transition: opacity 0.25s ease;
 }
 
+/* Drag Handle (Mobile) */
+.copilot-drag-handle {
+  display: none;
+}
+
 /* Slide-out Panel */
 .copilot-panel {
   position: relative;
@@ -16677,9 +16682,69 @@ dialog#documentUploadDialog input[type="month"] {
 }
 
 @media (max-width: 600px) {
+  .copilot-drawer {
+    align-items: flex-end;
+    justify-content: center;
+  }
+
   .copilot-panel {
     max-width: 100%;
+    width: 100%;
+    height: 72vh;
+    max-height: 580px;
+    min-height: 380px;
     border-left: none;
+    border-top: 1px solid var(--line, #e2e8f0);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+    transform: translateY(0);
+  }
+
+  .copilot-drawer.hidden .copilot-panel {
+    transform: translateY(100%);
+  }
+
+  .copilot-drag-handle {
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    margin: 8px auto 2px;
+    flex-shrink: 0;
+  }
+
+  .copilot-header {
+    padding: 10px 16px;
+  }
+
+  .copilot-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .copilot-avatar svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .copilot-title {
+    font-size: 14px;
+  }
+
+  .copilot-body {
+    padding: 12px 14px;
+  }
+
+  .copilot-bubble {
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .copilot-footer {
+    padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
   }
 }
 
@@ -16821,6 +16886,34 @@ dialog#documentUploadDialog input[type="month"] {
   font-size: 12px;
   color: var(--muted, #64748b);
   line-height: 1.4;
+}
+
+.copilot-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.copilot-settings-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+}
+
+.copilot-settings-select {
+  width: 100%;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #cbd5e1);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: var(--text, #0f172a);
+  outline: none;
+  cursor: pointer;
+}
+
+.copilot-settings-select:focus {
+  border-color: #2563eb;
 }
 
 .copilot-settings-input-group {
@@ -19194,6 +19287,7 @@ dialog#documentUploadDialog input[type="month"] {
     <div id="copilotDrawer" class="copilot-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="copilotTitle">
       <div class="copilot-backdrop" id="copilotBackdrop"></div>
       <aside class="copilot-panel">
+        <div class="copilot-drag-handle" aria-hidden="true"></div>
         <header class="copilot-header">
           <div class="copilot-header-info">
             <div class="copilot-avatar">
@@ -19224,10 +19318,17 @@ dialog#documentUploadDialog input[type="month"] {
 
         <div id="copilotSettingsPanel" class="copilot-settings-panel hidden">
           <div class="copilot-settings-header">
-            <strong>Configurações do Gemini Flash</strong>
+            <strong>Configurações da IA (Gemini)</strong>
             <span id="copilotEngineStatus" class="copilot-engine-status">Motor Local</span>
           </div>
-          <p class="copilot-settings-desc">Insira sua chave do Google AI Studio para ativar o Gemini Flash. Se deixado em branco, o motor nativo offline é usado automaticamente.</p>
+          <p class="copilot-settings-desc">Escolha o modelo de IA e insira sua chave do Google AI Studio. Se deixado em branco, o motor autônomo offline opera com latência zero.</p>
+          <div class="copilot-settings-field">
+            <label for="copilotModelSelect" class="copilot-settings-label">Modelo de IA:</label>
+            <select id="copilotModelSelect" class="copilot-settings-select">
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado - Ultrarrápido)</option>
+              <option value="gemini-4-argon">Gemini 4 Argon (Raciocínio Avançado)</option>
+            </select>
+          </div>
           <div class="copilot-settings-input-group">
             <input type="password" id="copilotApiKeyInput" class="copilot-settings-input" placeholder="Cole sua chave de API do Gemini..." autocomplete="off">
             <button type="button" id="copilotSaveKeyBtn" class="copilot-settings-save-btn">Salvar</button>
@@ -20737,7 +20838,7 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.9"></script>
+<script type="module" src="./src/main.js?v=6.16.10"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];

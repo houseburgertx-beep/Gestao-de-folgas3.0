@@ -105,6 +105,11 @@
   transition: opacity 0.25s ease;
 }
 
+/* Drag Handle (Mobile) */
+.copilot-drag-handle {
+  display: none;
+}
+
 /* Slide-out Panel */
 .copilot-panel {
   position: relative;
@@ -126,9 +131,69 @@
 }
 
 @media (max-width: 600px) {
+  .copilot-drawer {
+    align-items: flex-end;
+    justify-content: center;
+  }
+
   .copilot-panel {
     max-width: 100%;
+    width: 100%;
+    height: 72vh;
+    max-height: 580px;
+    min-height: 380px;
     border-left: none;
+    border-top: 1px solid var(--line, #e2e8f0);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
+    transform: translateY(0);
+  }
+
+  .copilot-drawer.hidden .copilot-panel {
+    transform: translateY(100%);
+  }
+
+  .copilot-drag-handle {
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    margin: 8px auto 2px;
+    flex-shrink: 0;
+  }
+
+  .copilot-header {
+    padding: 10px 16px;
+  }
+
+  .copilot-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .copilot-avatar svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .copilot-title {
+    font-size: 14px;
+  }
+
+  .copilot-body {
+    padding: 12px 14px;
+  }
+
+  .copilot-bubble {
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .copilot-footer {
+    padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
   }
 }
 
@@ -270,6 +335,34 @@
   font-size: 12px;
   color: var(--muted, #64748b);
   line-height: 1.4;
+}
+
+.copilot-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.copilot-settings-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+}
+
+.copilot-settings-select {
+  width: 100%;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #cbd5e1);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: var(--text, #0f172a);
+  outline: none;
+  cursor: pointer;
+}
+
+.copilot-settings-select:focus {
+  border-color: #2563eb;
 }
 
 .copilot-settings-input-group {

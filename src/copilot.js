@@ -1,5 +1,5 @@
 // ==========================================================================
-// COPILOTO HOUSE 190 — Assistente Operacional Ativo com Gemini Flash
+// COPILOTO HOUSE 190 — Assistente Operacional Ativo com Gemini Flash & Argon
 // Folgas 3.0 & CozinhaFlow
 // Estritamente sem emojis, com confirmação obrigatória e controle RBAC
 // ==========================================================================
@@ -15,6 +15,29 @@ const esc = (x) =>
     '"': "&quot;",
     "'": "&#39;",
   }[c]));
+
+export const EMOJI_REGEX =
+  /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu;
+
+export function stripEmojis(str) {
+  return String(str ?? "").replace(EMOJI_REGEX, "");
+}
+
+export function sanitizeIntent(res) {
+  if (!res) return res;
+  if (res.reply) res.reply = stripEmojis(res.reply);
+  if (res.message) res.message = stripEmojis(res.message);
+  if (res.summary) res.summary = stripEmojis(res.summary);
+  if (res.title) res.title = stripEmojis(res.title);
+  if (Array.isArray(res.diff)) {
+    res.diff = res.diff.map((d) => ({
+      ...d,
+      label: stripEmojis(d.label),
+      value: stripEmojis(d.value),
+    }));
+  }
+  return res;
+}
 
 // ==========================================================================
 // PERMISSÕES, RBAC E IDENTIFICAÇÃO
@@ -573,16 +596,54 @@ export const SCREEN_KNOWLEDGE = {
 };
 
 // ==========================================================================
-// GERENCIAMENTO DA CHAVE DO GOOGLE GEMINI FLASH
+// GERENCIAMENTO DA CHAVE E MODELO DO GOOGLE GEMINI
 // ==========================================================================
 
 const GEMINI_STORAGE_KEY = "gf-gemini-api-key";
+const GEMINI_MODEL_STORAGE_KEY = "gf-gemini-model";
+
+export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+export const SUPPORTED_GEMINI_MODELS = ["gemini-2.0-flash", "gemini-4-argon"];
+
+export function getGeminiModel() {
+  try {
+    const fromStorage =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem(GEMINI_MODEL_STORAGE_KEY)
+        : "";
+    const fromConfig =
+      typeof window !== "undefined"
+        ? window.__GESTAO_STATE__?.config?.geminiModel
+        : "";
+    const raw = (fromStorage || fromConfig || "").trim().toLowerCase();
+    if (raw === "gemini-4-argon" || raw === "gemini-2.0-flash") {
+      return raw;
+    }
+    return DEFAULT_GEMINI_MODEL;
+  } catch (_) {
+    return DEFAULT_GEMINI_MODEL;
+  }
+}
+
+export function setGeminiModel(model) {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const clean = String(model || "").trim().toLowerCase();
+    if (SUPPORTED_GEMINI_MODELS.includes(clean)) {
+      localStorage.setItem(GEMINI_MODEL_STORAGE_KEY, clean);
+    } else if (!clean) {
+      localStorage.removeItem(GEMINI_MODEL_STORAGE_KEY);
+    } else {
+      localStorage.setItem(GEMINI_MODEL_STORAGE_KEY, DEFAULT_GEMINI_MODEL);
+    }
+  } catch (_) {}
+}
 
 export function getGeminiApiKey() {
   try {
     return (
       (typeof localStorage !== "undefined" ? localStorage.getItem(GEMINI_STORAGE_KEY) : "") ||
-      window?.__GESTAO_STATE__?.config?.geminiApiKey ||
+      (typeof window !== "undefined" ? window.__GESTAO_STATE__?.config?.geminiApiKey : "") ||
       ""
     ).trim();
   } catch (_) {
@@ -791,6 +852,10 @@ export function findEmployeeInText(textToSearch, employees = []) {
 // ==========================================================================
 
 export function convertFunctionCallToAction(name, args = {}, context = {}) {
+  return sanitizeIntent(_convertFunctionCallToActionRaw(name, args, context));
+}
+
+function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
   const user = context.user || {};
   const role = getUserRole(user);
   const userStore = getUserStoreId(user);
@@ -1239,7 +1304,7 @@ export function convertFunctionCallToAction(name, args = {}, context = {}) {
 }
 
 // ==========================================================================
-// CHAMADA À API DO GEMINI FLASH
+// CHAMADA À API DO GEMINI (FLASH OU ARGON)
 // ==========================================================================
 
 export async function callGeminiCopilot(prompt, context = {}) {
@@ -1247,6 +1312,7 @@ export async function callGeminiCopilot(prompt, context = {}) {
   if (!apiKey) {
     return parseCopilotIntent(prompt, context);
   }
+  const model = getGeminiModel();
 
   const user = context.user || {};
   const role = getUserRole(user);
@@ -1330,7 +1396,7 @@ REGRAS OBRIGATÓRIAS:
   };
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1338,7 +1404,7 @@ REGRAS OBRIGATÓRIAS:
     });
 
     if (!res.ok) {
-      console.warn("Gemini Flash retornou erro HTTP:", res.status, "Usando fallback local.");
+      console.warn(`Gemini (${model}) retornou erro HTTP:`, res.status, "Usando fallback local.");
       return parseCopilotIntent(prompt, context);
     }
 
@@ -1358,9 +1424,7 @@ REGRAS OBRIGATÓRIAS:
 
     // Resposta textual gerada pelo Gemini (sem emojis)
     if (part.text) {
-      const cleanText = part.text
-        .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu, "")
-        .trim();
+      const cleanText = stripEmojis(part.text).trim();
       return {
         type: "query",
         reply: cleanText,
@@ -1369,7 +1433,7 @@ REGRAS OBRIGATÓRIAS:
 
     return parseCopilotIntent(prompt, context);
   } catch (err) {
-    console.warn("Falha na chamada Gemini Flash:", err.message, "Ativando motor local.");
+    console.warn("Falha na chamada Gemini:", err?.message || err, "Ativando motor local.");
     return parseCopilotIntent(prompt, context);
   }
 }
@@ -1379,6 +1443,10 @@ REGRAS OBRIGATÓRIAS:
 // ==========================================================================
 
 export function parseCopilotIntent(text, context = {}) {
+  return sanitizeIntent(_parseCopilotIntentRaw(text, context));
+}
+
+function _parseCopilotIntentRaw(text, context = {}) {
   const raw = String(text || "").trim();
   if (!raw) {
     return { type: "empty" };
@@ -1543,22 +1611,24 @@ export function parseCopilotIntent(text, context = {}) {
   // CONSULTAS: QUAL IA / MODELO EM OPERAÇÃO
   // ------------------------------------------------------------------------
   if (
-    /(?:qual\s+(?:ia|intelig[eê]ncia|modelo)(?:\s+vai\s+rodar|\s+[eé] essa|\s+est[aá]\s+rodando|\s+est[aá]\s+ativa)?|qual\s+o?\s*melhor\s+modelo|como\s+ativar\s+(?:o\s+)?gemini)/i.test(
+    /(?:qual\s+(?:ia|intelig[eê]ncia|modelo)(?:\s+vai\s+rodar|\s+[eé] essa|\s+est[aá]\s+rodando|\s+est[aá]\s+ativa)?|qual\s+o?\s*melhor\s+modelo|como\s+ativar\s+(?:o\s+)?gemini|como\s+usar\s+(?:o\s+)?gemini(?:\s+4\s+argon)?)/i.test(
       clean,
     )
   ) {
     const hasKey = Boolean(getGeminiApiKey());
+    const model = getGeminiModel();
+    const modelName = model === "gemini-4-argon" ? "Google Gemini 4 Argon" : "Google Gemini 2.0 Flash";
     const currentEngine = hasKey
-      ? "Google Gemini 2.0 Flash (Ativo via chave API)"
+      ? `${modelName} (Ativo via chave API)`
       : "Motor Local Autônomo (Ativo nativamente)";
     return {
       type: "query",
       reply:
         `**Inteligência do Copiloto House 190:**\n\n` +
         `- **Status atual:** ${currentEngine}\n` +
-        `- **Modelo Principal:** **Google Gemini 2.0 Flash** (ultra-rápido, multimodal e raciocínio contextual avançado com Function Calling).\n` +
+        `- **Modelos Suportados:** **Google Gemini 2.0 Flash** (recomendado para respostas instantâneas) e **Gemini 4 Argon** (raciocínio avançado e planejamento profundo).\n` +
         `- **Motor de Contingência:** Parser local determinístico com latência zero (0ms), operando mesmo offline ou sem chave.\n` +
-        `- **Como alternar/configurar:** Clique no ícone de engrenagem no cabeçalho deste painel e insira sua chave gratuita do Google AI Studio. Quando configurada, o Gemini Flash assume o controle em linguagem natural para todas as telas do sistema.`,
+        `- **Como alternar/configurar:** Clique no ícone de engrenagem no cabeçalho deste painel para alternar entre Flash e Argon ou inserir sua chave do Google AI Studio. Quando configurada, o modelo selecionado assume o controle em linguagem natural para todas as telas do sistema.`,
     };
   }
 
@@ -2392,18 +2462,24 @@ export function initCopilot() {
   const settingsBtn = $("#copilotSettingsBtn");
   const settingsPanel = $("#copilotSettingsPanel");
   const apiKeyInput = $("#copilotApiKeyInput");
+  const modelSelect = $("#copilotModelSelect");
   const saveKeyBtn = $("#copilotSaveKeyBtn");
   const clearKeyBtn = $("#copilotClearKeyBtn");
   const engineStatus = $("#copilotEngineStatus");
 
   function updateEngineStatus() {
     const key = getGeminiApiKey();
+    const model = getGeminiModel();
     if (apiKeyInput) {
       apiKeyInput.value = key ? "••••••••••••••••" : "";
     }
+    if (modelSelect) {
+      modelSelect.value = model;
+    }
     if (engineStatus) {
       if (key) {
-        engineStatus.textContent = "Gemini Flash Ativo";
+        const label = model === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
+        engineStatus.textContent = `${label} Ativo`;
         engineStatus.className = "copilot-engine-status copilot-engine-status--gemini";
       } else {
         engineStatus.textContent = "Motor Local Ativo";
@@ -2411,6 +2487,16 @@ export function initCopilot() {
       }
     }
   }
+
+  modelSelect?.addEventListener("change", () => {
+    const chosen = modelSelect.value;
+    setGeminiModel(chosen);
+    updateEngineStatus();
+    if (typeof window.__GESTAO_TOAST__ === "function") {
+      const name = chosen === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini 2.0 Flash";
+      window.__GESTAO_TOAST__(`Modelo alternado para ${name}.`);
+    }
+  });
 
   settingsBtn?.addEventListener("click", () => {
     settingsPanel?.classList.toggle("hidden");
@@ -2424,6 +2510,9 @@ export function initCopilot() {
       if (typeof window.__GESTAO_TOAST__ === "function") {
         window.__GESTAO_TOAST__("Chave da API do Gemini salva com sucesso.");
       }
+    }
+    if (modelSelect) {
+      setGeminiModel(modelSelect.value);
     }
     updateEngineStatus();
     settingsPanel?.classList.add("hidden");
@@ -2504,7 +2593,9 @@ export function initCopilot() {
 
     const userName = getUserName(user);
     const hasKey = Boolean(getGeminiApiKey());
-    const engineNote = hasKey ? "Motor Gemini Flash ativado." : "Motor local autônomo ativado.";
+    const model = getGeminiModel();
+    const modelName = model === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
+    const engineNote = hasKey ? `Motor ${modelName} ativado.` : "Motor local autônomo ativado.";
 
     if (messages && messages.children.length === 0) {
       const greeting = `Olá, **${userName}**. Sou o Copiloto House 190. ${engineNote} Você está na tela **${screenInfo.title}**. Como posso ajudar na sua operação hoje?`;
@@ -2574,7 +2665,9 @@ export function initCopilot() {
     const apiKey = getGeminiApiKey();
 
     if (apiKey) {
-      const waitMsg = appendAssistantMessage("Pensando com Gemini Flash…");
+      const currentModel = getGeminiModel();
+      const modelLabel = currentModel === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
+      const waitMsg = appendAssistantMessage(`Pensando com ${modelLabel}…`);
       try {
         intent = await callGeminiCopilot(text, context);
       } catch (err) {

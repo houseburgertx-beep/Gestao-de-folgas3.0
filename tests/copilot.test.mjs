@@ -9,6 +9,10 @@ import {
   convertFunctionCallToAction,
   getGeminiApiKey,
   setGeminiApiKey,
+  getGeminiModel,
+  setGeminiModel,
+  DEFAULT_GEMINI_MODEL,
+  SUPPORTED_GEMINI_MODELS,
   callGeminiCopilot,
   GEMINI_TOOLS,
   SCREEN_KNOWLEDGE,
@@ -481,7 +485,52 @@ test("Copiloto IA Info: esclarece qual modelo de IA roda no sistema", () => {
   const res = parseCopilotIntent("qual ia vai rodar ?", ctx);
   assert.equal(res.type, "query");
   assert.match(res.reply, /Google Gemini 2\.0 Flash/i);
+  assert.match(res.reply, /Gemini 4 Argon/i);
   assert.match(res.reply, /Motor Local Autônomo/i);
+});
+
+test("Copiloto IA Info: suporte a consultas sobre o Gemini 4 Argon", () => {
+  const ctx = { user: { Perfil: "Administrador" } };
+  const res = parseCopilotIntent("como usar o gemini 4 argon para trabalhar nesse projeto", ctx);
+  assert.equal(res.type, "query");
+  assert.match(res.reply, /Gemini 4 Argon/i);
+  assert.match(res.reply, /Google Gemini 2\.0 Flash/i);
+});
+
+test("Copiloto Model Config: getter e setter de modelo Gemini com validação", () => {
+  const originalStorage = globalThis.localStorage;
+  const store = {};
+  globalThis.localStorage = {
+    getItem: (k) => store[k] ?? null,
+    setItem: (k, v) => { store[k] = String(v); },
+    removeItem: (k) => { delete store[k]; },
+  };
+
+  try {
+    assert.equal(DEFAULT_GEMINI_MODEL, "gemini-2.0-flash");
+    assert.deepEqual(SUPPORTED_GEMINI_MODELS, ["gemini-2.0-flash", "gemini-4-argon"]);
+
+    // Default quando vazio
+    assert.equal(getGeminiModel(), "gemini-2.0-flash");
+
+    // Selecionar Argon
+    setGeminiModel("gemini-4-argon");
+    assert.equal(getGeminiModel(), "gemini-4-argon");
+
+    // Selecionar Flash
+    setGeminiModel("gemini-2.0-flash");
+    assert.equal(getGeminiModel(), "gemini-2.0-flash");
+
+    // Fallback para modelo desconhecido
+    setGeminiModel("modelo-invalido");
+    assert.equal(getGeminiModel(), "gemini-2.0-flash");
+
+    // Limpeza com string vazia
+    setGeminiModel("");
+    assert.equal(getGeminiModel(), "gemini-2.0-flash");
+  } finally {
+    globalThis.localStorage = originalStorage;
+  }
 });
 
 test("ZERO EMOJIS: Verificação estrita de ausência de emojis nos arquivos do Copiloto", async () => {
