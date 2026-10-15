@@ -20,6 +20,8 @@ import {
   isPersonWorking,
   isPersonOnBreak,
   getLivePresenceTotals,
+  RH_POLICIES,
+  hrAdapter,
 } from "../src/copilot.js";
 
 // Mock de dados operacionais
@@ -531,6 +533,129 @@ test("Copiloto Model Config: getter e setter de modelo Gemini com validação", 
   } finally {
     globalThis.localStorage = originalStorage;
   }
+});
+
+test("PROMPT MESTRE & HR Adapter: Políticas oficiais de RH do Grupo House 190", () => {
+  const policyFolgas = hrAdapter.getPolicy({}, { topic: "folgas" });
+  assert.match(policyFolgas.conteudo, /5 \(cinco\) folgas mensais/i);
+  assert.match(policyFolgas.conteudo, /segunda-feira e quinta-feira/i);
+  assert.match(policyFolgas.conteudo, /quinta folga mensal/i);
+
+  const policyTrocas = hrAdapter.getPolicy({}, { topic: "trocas" });
+  assert.match(policyTrocas.conteudo, /solicita[cç][aã]o pelo aplicativo/i);
+  assert.match(policyTrocas.conteudo, /aprova[cç][aã]o prévia do gerente/i);
+
+  const policyAtestados = hrAdapter.getPolicy({}, { topic: "atestados" });
+  assert.match(policyAtestados.conteudo, /48 horas/i);
+  assert.match(policyAtestados.conteudo, /Atestado Médico/i);
+});
+
+test("PROMPT MESTRE & HR Adapter: Consultas de perfil, escala e banco de horas", () => {
+  const ctx = {
+    employees: mockEmployees,
+    timeOff: mockTimeOff,
+    timeBalance: { emp_1: 90 }, // +1h 30m
+  };
+
+  const profile = hrAdapter.getProfile({ userId: "emp_1", role: "employee", storeId: "loja_matriz" }, ctx);
+  assert.equal(profile.nome, "Gabriel Silva");
+  assert.equal(profile.folgaFixa, "Segunda-feira");
+
+  const schedule = hrAdapter.getSchedule({ userId: "emp_1", role: "employee" }, { from: "2026-10-01", to: "2026-10-31" }, ctx);
+  assert.equal(schedule.colaborador, "Gabriel Silva");
+  assert.equal(schedule.solicitacoesPeriodo.length, 1);
+
+  const tb = hrAdapter.getTimeBank({ userId: "emp_1" }, ctx);
+  assert.equal(tb.saldoMinutos, 90);
+  assert.equal(tb.saldoFormatado, "+01h 30m");
+});
+
+test("PROMPT MESTRE & HR Adapter: Pendências e cobertura da equipe com controle RBAC", () => {
+  const ctx = {
+    employees: mockEmployees,
+    timeOff: [{ ID: "f1", FuncionarioID: "emp_1", NomeFuncionario: "Gabriel Silva", LojaID: "loja_matriz", Status: "Pendente", DataInicio: "2026-10-25" }],
+    swaps: mockSwaps,
+  };
+
+  // Funcionário é bloqueado
+  assert.throws(
+    () => hrAdapter.getTeamPendingRequests({ userId: "emp_1", role: "employee" }, ctx),
+    /Acesso restrito/i
+  );
+
+  // Gerente acessa sua loja
+  const mgrActor = { userId: "emp_2", role: "manager", storeId: "loja_matriz" };
+  const p = hrAdapter.getTeamPendingRequests(mgrActor, ctx);
+  assert.equal(p.totalPendencias, 2);
+  assert.equal(p.folgasPendentes.length, 1);
+  assert.equal(p.trocasPendentes.length, 1);
+
+  // Cobertura de equipe
+  const cov = hrAdapter.getTeamCoverage(mgrActor, { date: "2026-10-25" }, ctx);
+  assert.equal(cov.totalEquipe, 2);
+  assert.equal(cov.colaboradoresEscalados.length, 2);
+});
+
+test("PROMPT MESTRE Intents: consultas de regras de folga e atestados respondem com política oficial", () => {
+  const resFolgas = parseCopilotIntent("quais as regras de folga do grupo house ?");
+  assert.equal(resFolgas.type, "query");
+  assert.match(resFolgas.reply, /5 \(cinco\) folgas mensais/i);
+  assert.match(resFolgas.reply, /quinta folga mensal/i);
+
+  const resTrocas = parseCopilotIntent("como funciona a troca de folga ?");
+  assert.equal(resTrocas.type, "query");
+  assert.match(resTrocas.reply, /solicita[cç][aã]o pelo aplicativo/i);
+  assert.match(resTrocas.reply, /aprova[cç][aã]o prévia do gerente/i);
+
+  const resAtestado = parseCopilotIntent("como entregar atestado médico ?");
+  assert.equal(resAtestado.type, "query");
+  assert.match(resAtestado.reply, /48 horas/i);
+});
+
+test("PROMPT MESTRE Function Calling: novas ferramentas solicitarTrocaFolga e decidirSolicitacaoFolga", () => {
+  const ctx = {
+    user: { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Gerente Geral", LojaID: "loja_matriz" },
+    employees: mockEmployees,
+    swaps: mockSwaps,
+    timeOff: [{ ID: "f1", FuncionarioID: "emp_2", NomeFuncionario: "Pedro Santos", LojaID: "loja_matriz", Status: "Pendente", DataInicio: "2026-10-28" }],
+  };
+
+  // Solicitar troca de folga
+  const actionSwap = convertFunctionCallToAction(
+    "solicitarTrocaFolga",
+    { colegaNome: "Pedro Santos", minhaFolgaData: "2026-10-20", folgaColegaData: "2026-10-21", motivo: "Compromisso pessoal" },
+    ctx
+  );
+  assert.equal(actionSwap.type, "action");
+  assert.equal(actionSwap.actionType, "request_swap");
+  assert.equal(actionSwap.apiMethod, "createTimeOffSwapRequest");
+  assert.match(actionSwap.summary, /Pedro Santos/i);
+
+  // Decidir troca pendente
+  const actionDecideSwap = convertFunctionCallToAction(
+    "decidirSolicitacaoFolga",
+    { colaboradorNome: "Pedro Santos", decisao: "Aprovar" },
+    ctx
+  );
+  assert.equal(actionDecideSwap.type, "action");
+  assert.equal(actionDecideSwap.actionType, "approve_swap");
+  assert.equal(actionDecideSwap.apiMethod, "decideTimeOffSwap");
+  assert.match(actionDecideSwap.summary, /Pedro Santos/i);
+
+  // Decidir folga pendente (recusa com motivo)
+  const actionDecideLeave = convertFunctionCallToAction(
+    "decidirSolicitacaoFolga",
+    { colaboradorNome: "Maria Souza", decisao: "Recusar", motivo: "Falta de cobertura na loja" },
+    {
+      ...ctx,
+      swaps: [],
+      timeOff: [{ ID: "f2", FuncionarioID: "emp_3", NomeFuncionario: "Maria Souza", LojaID: "loja_matriz", Status: "Pendente", DataInicio: "2026-10-29" }],
+    }
+  );
+  assert.equal(actionDecideLeave.type, "action");
+  assert.equal(actionDecideLeave.actionType, "reject_leave");
+  assert.equal(actionDecideLeave.apiMethod, "saveTimeOffRequestDecision");
+  assert.match(actionDecideLeave.summary, /Maria Souza/i);
 });
 
 test("ZERO EMOJIS: Verificação estrita de ausência de emojis nos arquivos do Copiloto", async () => {

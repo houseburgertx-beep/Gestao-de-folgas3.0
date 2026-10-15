@@ -4,6 +4,9 @@
 // Estritamente sem emojis, com confirmação obrigatória e controle RBAC
 // ==========================================================================
 
+import { RH_POLICIES, hrAdapter } from "./hr-adapter.js";
+export { RH_POLICIES, hrAdapter };
+
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
@@ -824,6 +827,59 @@ export const GEMINI_TOOLS = [
           required: ["nome", "data"],
         },
       },
+      {
+        name: "consultarPoliticaRH",
+        description: "Consulta as regras e diretrizes oficiais de RH do Grupo House 190 (5 folgas/mês, seg a qui, 5ª folga da gerência, trocas pelo app, banco de horas, feriados, ponto e atestados)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            topico: {
+              type: "STRING",
+              enum: ["folgas", "trocas", "escala", "banco_horas", "feriados", "ponto", "atestados", "geral"],
+              description: "Tópico da política de RH a consultar",
+            },
+          },
+          required: ["topico"],
+        },
+      },
+      {
+        name: "solicitarTrocaFolga",
+        description: "Prepara uma solicitação formal de troca de folga entre o colaborador logado e outro colega para aprovação do gerente",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colegaNome: { type: "STRING", description: "Nome do colega com quem deseja trocar a folga" },
+            minhaFolgaData: { type: "STRING", description: "Data da folga do colaborador logado (AAAA-MM-DD ou DD/MM/AAAA)" },
+            folgaColegaData: { type: "STRING", description: "Data da folga pretendida do colega (AAAA-MM-DD ou DD/MM/AAAA)" },
+            motivo: { type: "STRING", description: "Justificativa da troca de folga" },
+          },
+          required: ["colegaNome", "minhaFolgaData", "folgaColegaData"],
+        },
+      },
+      {
+        name: "consultarCoberturaEscala",
+        description: "Analisa a cobertura operacional e colaboradores escalados em uma data específica para a gerência",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            data: { type: "STRING", description: "Data a analisar no formato AAAA-MM-DD ou DD/MM/AAAA" },
+          },
+          required: ["data"],
+        },
+      },
+      {
+        name: "decidirSolicitacaoFolga",
+        description: "Prepara aprovação ou recusa de solicitação de folga ou troca pendente da equipe (exclusivo para Gerentes e Admins)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorNome: { type: "STRING", description: "Nome do colaborador cuja solicitação será decidida" },
+            decisao: { type: "STRING", enum: ["Aprovar", "Recusar"], description: "Decisão gerencial" },
+            motivo: { type: "STRING", description: "Justificativa da decisão, especialmente em caso de recusa" },
+          },
+          required: ["colaboradorNome", "decisao"],
+        },
+      },
     ],
   },
 ];
@@ -864,6 +920,7 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
   const employees = Array.isArray(context.employees) ? context.employees : [];
   const tasks = Array.isArray(context.tasks) ? context.tasks : [];
   const swaps = Array.isArray(context.swaps) ? context.swaps : [];
+  const timeOff = Array.isArray(context.timeOff) ? context.timeOff : [];
 
   switch (name) {
     case "criarTarefaCozinha": {
@@ -1298,6 +1355,175 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
       };
     }
 
+    case "consultarPoliticaRH": {
+      const topico = String(args.topico || "folgas").toLowerCase().trim();
+      const content = RH_POLICIES[topico] || RH_POLICIES.folgas;
+      return {
+        type: "query",
+        reply: content,
+      };
+    }
+
+    case "solicitarTrocaFolga": {
+      const colega = findEmployeeInText(args.colegaNome, employees);
+      if (!colega) {
+        return {
+          type: "error",
+          message: `Colaborador colega "${args.colegaNome}" não foi localizado no cadastro.`,
+        };
+      }
+
+      let myDate = String(args.minhaFolgaData || "").trim();
+      if (myDate.includes("/")) {
+        const p = myDate.split("/");
+        myDate = `${p[2] ? (p[2].length === 2 ? `20${p[2]}` : p[2]) : new Date().getFullYear()}-${p[1].padStart(2, "0")}-${p[0].padStart(2, "0")}`;
+      }
+
+      let targetDate = String(args.folgaColegaData || "").trim();
+      if (targetDate.includes("/")) {
+        const p = targetDate.split("/");
+        targetDate = `${p[2] ? (p[2].length === 2 ? `20${p[2]}` : p[2]) : new Date().getFullYear()}-${p[1].padStart(2, "0")}-${p[0].padStart(2, "0")}`;
+      }
+
+      const motivo = args.motivo || "Solicitação de troca via Copiloto";
+
+      const payload = {
+        FuncionarioOrigemID: userId,
+        NomeFuncionarioOrigem: userName,
+        DataFolgaOrigem: myDate,
+        FuncionarioDestinoID: colega.FuncionarioID || colega.id,
+        NomeFuncionarioDestino: colega.Nome || colega.nome,
+        DataFolgaDestino: targetDate,
+        LojaID: userStore,
+        Motivo: motivo,
+        Status: "Aguardando gestor",
+      };
+
+      return {
+        type: "action",
+        actionType: "request_swap",
+        title: "Solicitar Troca de Folga",
+        apiMethod: "createTimeOffSwapRequest",
+        apiArgs: [payload],
+        summary: `Solicitar troca de folga com ${colega.Nome}: sua folga em ${myDate} pela folga dele(a) em ${targetDate}.`,
+        diff: [
+          { label: "Sua Folga Atual", value: myDate },
+          { label: "Colega", value: colega.Nome },
+          { label: "Folga Pretendida do Colega", value: targetDate },
+          { label: "Motivo", value: motivo },
+          { label: "Status Inicial", value: "Aguardando aprovação do gestor" },
+        ],
+        details: { colegaId: colega.FuncionarioID || colega.id, myDate, targetDate },
+      };
+    }
+
+    case "consultarCoberturaEscala": {
+      if (role === "employee") {
+        return {
+          type: "query",
+          reply: "A consulta detalhada de cobertura operacional de postos da equipe é restrita aos gestores da unidade.",
+        };
+      }
+
+      let isoDate = String(args.data || "").trim();
+      if (isoDate.includes("/")) {
+        const p = isoDate.split("/");
+        isoDate = `${p[2] ? (p[2].length === 2 ? `20${p[2]}` : p[2]) : new Date().getFullYear()}-${p[1].padStart(2, "0")}-${p[0].padStart(2, "0")}`;
+      }
+
+      const actor = { userId, role, storeId: userStore };
+      const cov = hrAdapter.getTeamCoverage(actor, { date: isoDate }, context);
+      return {
+        type: "query",
+        reply: `**Cobertura Operacional da Equipe em ${isoDate}:**\n\n- **Unidade:** ${cov.lojaId}\n- **Total no quadro:** ${cov.totalEquipe} colaboradores\n- **Escalados:**\n${cov.colaboradoresEscalados.map((c) => `  * ${c}`).join("\n")}`,
+      };
+    }
+
+    case "decidirSolicitacaoFolga": {
+      if (role === "employee") {
+        return {
+          type: "error",
+          message: "A aprovação ou recusa de solicitações é exclusiva de Gerentes e Administradores.",
+        };
+      }
+
+      const q = String(args.colaboradorNome || "").toLowerCase();
+      const isApproval = String(args.decisao || "").toLowerCase() === "aprovar";
+      const motivo = args.motivo || (isApproval ? `Aprovado pelo Copiloto House 190 (${userName})` : `Recusado pelo Copiloto House 190 (${userName})`);
+
+      // Verificar primeiro se há troca pendente para esse colaborador
+      const pendingSwap = swaps.find((s) => {
+        const st = String(s.Status || s.status || "").toLowerCase();
+        if (!st.includes("aguardando") && st !== "pendente") return false;
+        if (role === "manager" && userStore) {
+          const sStore = String(s.LojaID || s.lojaId || "");
+          if (sStore && sStore !== userStore) return false;
+        }
+        if (!q) return true;
+        const oName = String(s.NomeFuncionarioOrigem || "").toLowerCase();
+        const dName = String(s.NomeFuncionarioDestino || "").toLowerCase();
+        return oName.includes(q) || dName.includes(q);
+      });
+
+      if (pendingSwap) {
+        const swapId = pendingSwap.TrocaID || pendingSwap.TrocaPrincipalID;
+        const actionLabel = isApproval ? "Aprovar Troca de Folga" : "Recusar Troca de Folga";
+        return {
+          type: "action",
+          actionType: isApproval ? "approve_swap" : "reject_swap",
+          title: actionLabel,
+          apiMethod: "decideTimeOffSwap",
+          apiArgs: [swapId, isApproval, motivo],
+          summary: `${actionLabel} entre ${pendingSwap.NomeFuncionarioOrigem} e ${pendingSwap.NomeFuncionarioDestino}.`,
+          diff: [
+            { label: "Origem", value: `${pendingSwap.NomeFuncionarioOrigem} (${pendingSwap.DataFolgaOrigem || "Data"})` },
+            { label: "Destino", value: `${pendingSwap.NomeFuncionarioDestino} (${pendingSwap.DataFolgaDestino || "Data"})` },
+            { label: "Decisão", value: isApproval ? "Aprovada" : "Recusada" },
+            { label: "Motivo", value: motivo },
+          ],
+          details: { swapId, decision: isApproval ? "approved" : "rejected" },
+        };
+      }
+
+      // Verificar se há pedido de folga pendente
+      const pendingLeave = timeOff.find((f) => {
+        const st = String(f.Status || f.status || "").toLowerCase();
+        if (st !== "pendente") return false;
+        if (role === "manager" && userStore) {
+          const fStore = String(f.LojaID || f.lojaId || "");
+          if (fStore && fStore !== userStore) return false;
+        }
+        if (!q) return true;
+        const fName = String(f.NomeFuncionario || f.nome || "").toLowerCase();
+        return fName.includes(q);
+      });
+
+      if (pendingLeave) {
+        const reqId = pendingLeave.ID || pendingLeave.id;
+        const actionLabel = isApproval ? "Aprovar Solicitação de Folga" : "Recusar Solicitação de Folga";
+        return {
+          type: "action",
+          actionType: isApproval ? "approve_leave" : "reject_leave",
+          title: actionLabel,
+          apiMethod: "saveTimeOffRequestDecision",
+          apiArgs: [reqId, isApproval ? "Aprovada" : "Recusada", motivo],
+          summary: `${actionLabel} de ${pendingLeave.NomeFuncionario || "Colaborador"} para o dia ${pendingLeave.DataInicio || pendingLeave.Data}.`,
+          diff: [
+            { label: "Colaborador", value: pendingLeave.NomeFuncionario || "Colaborador" },
+            { label: "Data da Folga", value: pendingLeave.DataInicio || pendingLeave.Data || "Data" },
+            { label: "Decisão", value: isApproval ? "Aprovada" : "Recusada" },
+            { label: "Justificativa", value: motivo },
+          ],
+          details: { reqId, decision: isApproval ? "Aprovada" : "Recusada" },
+        };
+      }
+
+      return {
+        type: "error",
+        message: `Nenhuma solicitação de folga ou troca pendente foi localizada para "${args.colaboradorNome}".`,
+      };
+    }
+
     default:
       return parseCopilotIntent(JSON.stringify(args), context);
   }
@@ -1358,29 +1584,48 @@ export async function callGeminiCopilot(prompt, context = {}) {
     return st.includes("aguardando") || st === "pendente";
   }).length;
 
-  const systemPrompt = `Você é o Copiloto House 190, assistente oficial do Grupo House 190 para os sistemas Folgas 3.0 e CozinhaFlow.
-Dados do usuário logado:
+  const systemPrompt = `PROMPT MESTRE — ASSISTENTE INTELIGENTE DE RH E FOLGAS DO GRUPO HOUSE 190
+
+1. SUA IDENTIDADE E MISSÃO:
+Você é a assistente de inteligência artificial especializada em gestão de pessoas, recursos humanos, escalas de trabalho, folgas, jornada, banco de horas e suporte operacional aos colaboradores do Grupo House 190.
+Sua missão é atuar como uma assistente operacional inteligente, confiável, proativa e extremamente eficiente.
+Você não é apenas um chatbot de perguntas e respostas. Utilize as ferramentas do sistema para consultar dados, preparar ações com confirmação visual, solucionar problemas e facilitar a rotina de funcionários e gestores.
+Seu objetivo principal é resolver a necessidade do usuário com precisão cirúrgica. NUNCA invente informações. NUNCA afirme ter realizado uma operação sem confirmação do sistema.
+
+2. CONHEÇA O COLABORADOR (Sessão Autenticada):
 - Nome: ${userName}
-- Perfil: ${role}
-- LojaID: ${userStore || "Todas"}
+- Perfil/Nível de Acesso: ${role} (employee = Funcionário, manager = Gerente, admin = Administrador)
+- Unidade/Loja: ${userStore || "Todas as unidades"}
 - Tela atual no sistema: ${screenInfo.title} (${currentView})
-- Objetivo da tela atual: ${screenInfo.summary}
-- Regras operacionais da tela atual: ${screenInfo.rules}
+- Objetivo da tela: ${screenInfo.summary}
+- Regras operacionais da tela: ${screenInfo.rules}
 - Colaboradores cadastrados: ${empSummary || "Nenhum carregado"}
 
-DADOS OPERACIONAIS EM TEMPO REAL:
-- Colaboradores em operação agora (${workingItems.length}): ${workingSummary || "Nenhum no momento"}
-- Colaboradores em intervalo (${breakItems.length}): ${breakSummary || "Nenhum no momento"}
-- Totais: Em operação: ${totals.trabalhando || workingItems.length}, Em intervalo: ${totals.intervalo || breakItems.length}, Ausentes: ${totals.ausente || absentItems.length}, Alertas de jornada: ${totals.alertas || 0}
-- Pendências gerenciais: ${pendingLeaves} folgas aguardando aprovação, ${pendingSwaps} trocas aguardando aprovação.
+3. DADOS OPERACIONAIS EM TEMPO REAL:
+- Em operação agora (${workingItems.length}): ${workingSummary || "Nenhum no momento"}
+- Em intervalo (${breakItems.length}): ${breakSummary || "Nenhum no momento"}
+- Totais de presença: Trabalhando: ${totals.trabalhando || workingItems.length}, Intervalo: ${totals.intervalo || breakItems.length}, Ausentes: ${totals.ausente || absentItems.length}, Alertas de jornada: ${totals.alertas || 0}
+- Pendências gerenciais da rede: ${pendingLeaves} folgas aguardando aprovação, ${pendingSwaps} trocas aguardando aprovação.
 
-REGRAS OBRIGATÓRIAS:
-1. NUNCA use emojis. O sistema tem uma regra estrita de zero emojis. Responda sempre em português profissional, direto e limpo.
-2. Não interfira no bater ponto dos colaboradores (marcação de ponto é livre e sem exigência de validação facial).
-3. Se o usuário solicitar criar tarefa, alterar turno, alterar folga fixa semanal, solicitar folga, aprovar troca de folga, cadastrar feriado, justificar ausência ou publicar comunicado, você DEVE acionar a função correspondente.
-4. Respeite as permissões: Colaboradores não podem criar tarefas para outros, nem alterar escalas, nem aprovar trocas, nem cadastrar feriados.
-5. Se for dúvida, consulta ou explicação das regras do sistema ou da tela atual, responda com clareza em markdown simples.
-6. Quando perguntado sobre quem está trabalhando, equipe presente, ou operação de hoje, utilize com prioridade os DADOS OPERACIONAIS EM TEMPO REAL fornecidos acima para dar respostas exatas e organizadas por loja.`;
+4. POLÍTICAS INTERNAS DE FOLGAS E ESCALAS (OFICIAIS):
+- Programação de 5 (cinco) folgas mensais na escala 6x1.
+- Folgas habituais organizadas entre segunda-feira e quinta-feira.
+- Quinta folga mensal definida e organizada pelo gerente responsável.
+- Trocas de folga devem ser solicitadas pelo aplicativo e estão sujeitas à aprovação do gerente.
+- Feriados trabalhados e horas extras acompanhados pelo sistema de banco de horas com crédito de folga compensatória.
+- Ponto eletrônico: registro inviolável, livre e sem exigência de validação facial.
+- Atestados médicos: prazo de entrega de 48h para lançamento pelo gestor com abono no banco de horas.
+
+5. NÍVEIS DE ACESSO (RBAC RIGOROSO):
+- Funcionário: consulta seus próprios registros (folgas, escalas, banco de horas) e solicita folgas ou trocas de folga. Não pode alterar turnos de colegas, criar tarefas para terceiros, cadastrar feriados ou aprovar pedidos.
+- Gerente: gerencia a equipe da sua unidade, analisa cobertura, aprova/recusa folgas e trocas da sua loja.
+- Administrador: acesso pleno administrativo a todas as lojas e parametrizações da rede.
+
+6. DIRETRIZES DE COMUNICAÇÃO E EXECUÇÃO:
+- ZERO EMOJIS: Regra estrita de ausência total de emojis em todas as respostas, botões e textos.
+- ROTEIRO: ENTENDER -> CONSULTAR -> RESOLVER -> EXECUTAR QUANDO AUTORIZADO -> CONFIRMAR.
+- AÇÕES REAIS: Ao solicitar folga, solicitar troca de folga, criar tarefa, alterar turno, alterar folga fixa, cadastrar feriado, justificar ausência, aprovar/recusar solicitações ou publicar comunicado, acione SEMPRE a função correspondente para gerar o card de confirmação visual ("Ver e Confirmar").
+- Comunicação humanizada, atenciosa, precisa, em português brasileiro.`;
 
   const requestBody = {
     contents: [
@@ -1503,6 +1748,73 @@ function _parseCopilotIntentRaw(text, context = {}) {
 - **Solicitar folga:** "Solicitar folga dia 25/10/2026 motivo consulta médica"
 - **Minhas tarefas:** "Quais são as minhas tarefas de hoje?"
 - **Concluir tarefa:** "Concluir minha tarefa de higienização"`,
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // CONSULTAS: POLÍTICAS E REGRAS OFICIAIS DE RH (PROMPT MESTRE)
+  // ------------------------------------------------------------------------
+  if (
+    /(?:(?:quais\s+(?:s[aã]o\s+)?as\s+|como\s+funciona[mn]?\s+(?:as\s+)?)?regras?\s+de\s+folgas?|quantas\s+folgas(?:\s+eu\s+tenho|\s+por\s+m[eê]s|\s+no\s+m[eê]s)?|quinta\s+folga|pol[ií]tica\s+(?:de\s+)?folgas?)/i.test(
+      clean,
+    )
+  ) {
+    return {
+      type: "query",
+      reply: RH_POLICIES.folgas,
+    };
+  }
+
+  if (
+    /(?:(?:como\s+funciona[mn]?\s+(?:as\s+)?)?trocas?\s+de\s+folgas?|pol[ií]tica\s+(?:de\s+)?trocas?|posso\s+trocar\s+minha\s+folga)/i.test(
+      clean,
+    )
+  ) {
+    return {
+      type: "query",
+      reply: RH_POLICIES.trocas,
+    };
+  }
+
+  if (
+    /(?:como\s+(?:entregar|enviar|lan[cç]ar)\s+atestado|procedimento\s+(?:para\s+)?atestados?|pol[ií]tica\s+(?:de\s+)?atestados?|faltei\s+(?:por\s+)?doen[cç]a)/i.test(
+      clean,
+    )
+  ) {
+    return {
+      type: "query",
+      reply: RH_POLICIES.atestados,
+    };
+  }
+
+  if (
+    /(?:solicita[cç][oõ]es\s+pendentes\s+da\s+equipe|pedidos\s+(?:de\s+folgas?\s+)?aguardando\s+aprova[cç][aã]o|o\s+que\s+a\s+equipe\s+pediu|pedidos\s+pendentes\s+da\s+loja)/i.test(
+      clean,
+    )
+  ) {
+    if (role === "employee") {
+      return {
+        type: "query",
+        reply: "A consulta de solicitações pendentes da equipe é restrita aos gestores da unidade.",
+      };
+    }
+    const actor = { userId, role, storeId: userStore };
+    const p = hrAdapter.getTeamPendingRequests(actor, context);
+    if (p.totalPendencias === 0) {
+      return {
+        type: "query",
+        reply: "Não há nenhuma solicitação de folga ou troca pendente de aprovação para a sua unidade no momento.",
+      };
+    }
+    const leavesText = p.folgasPendentes.length > 0
+      ? `\n- **Folgas Solicitadas (${p.folgasPendentes.length}):**\n` + p.folgasPendentes.map((f) => `  * ${f.colaborador}: ${f.data} (${f.motivo})`).join("\n")
+      : "";
+    const swapsText = p.trocasPendentes.length > 0
+      ? `\n- **Trocas de Folga (${p.trocasPendentes.length}):**\n` + p.trocasPendentes.map((s) => `  * ${s.origem} por ${s.destino}`).join("\n")
+      : "";
+    return {
+      type: "query",
+      reply: `**Solicitações Pendentes da Equipe (${p.totalPendencias}):**${leavesText}${swapsText}\n\nPara aprovar ou recusar, digite: "Aprovar folga de [Nome]" ou "Aprovar troca de [Nome]".`,
     };
   }
 
