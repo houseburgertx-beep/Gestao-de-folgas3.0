@@ -22,6 +22,12 @@ import {
   getLivePresenceTotals,
   RH_POLICIES,
   hrAdapter,
+  extractDateFromText,
+  extractTimeFromText,
+  extractPunchType,
+  extractReasonFromText,
+  copilotChatHistory,
+  clearCopilotChatHistory,
 } from "../src/copilot.js";
 
 // Mock de dados operacionais
@@ -674,4 +680,159 @@ test("ZERO EMOJIS: Verificação estrita de ausência de emojis nos arquivos do 
   const copilotSection = indexHtml.match(/<!-- Gaveta do Copiloto[\s\S]*?<\/aside>/);
   assert.ok(copilotSection, "Gaveta do copiloto deve existir no Index.html");
   assert.doesNotMatch(copilotSection[0], emojiRegex, "Seção do Copiloto no Index.html não deve conter nenhum emoji");
+});
+
+test("Copiloto Mega Cérebro: Pedido de folga com linguagem natural variada", () => {
+  const employeeUser = { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Funcionário", LojaID: "loja_matriz" };
+  const ctx = { user: employeeUser, employees: mockEmployees };
+
+  // "Quero folga dia 25"
+  const res1 = parseCopilotIntent("Quero folga dia 25", ctx);
+  assert.equal(res1.type, "action");
+  assert.equal(res1.actionType, "request_timeoff");
+  assert.equal(res1.apiMethod, "createEmployeeTimeOffRequest");
+  assert.match(res1.details.isoDate, /-\d{2}-25$/);
+  assert.match(res1.summary, /25\//);
+
+  // "Preciso de folga dia 25/10 porque tenho médico"
+  const res2 = parseCopilotIntent("Preciso de folga dia 25/10 porque tenho médico", ctx);
+  assert.equal(res2.type, "action");
+  assert.equal(res2.actionType, "request_timeoff");
+  assert.match(res2.details.isoDate, /2026-10-25/);
+  assert.match(res2.details.reason, /médico/i);
+
+  // "Gostaria de folga amanhã"
+  const res3 = parseCopilotIntent("Gostaria de folga amanhã", ctx);
+  assert.equal(res3.type, "action");
+  assert.equal(res3.actionType, "request_timeoff");
+  assert.ok(res3.details.isoDate);
+
+  // "Quero folga na próxima terça"
+  const res4 = parseCopilotIntent("Quero folga na próxima terça", ctx);
+  assert.equal(res4.type, "action");
+  assert.equal(res4.actionType, "request_timeoff");
+  assert.ok(res4.details.isoDate);
+
+  // "Me dá folga dia 20"
+  const res5 = parseCopilotIntent("me dá folga dia 20", ctx);
+  assert.equal(res5.type, "action");
+  assert.equal(res5.actionType, "request_timeoff");
+  assert.match(res5.details.isoDate, /-\d{2}-20$/);
+});
+
+test("Copiloto Mega Cérebro: Solicitação de ajuste de ponto em linguagem natural", () => {
+  const employeeUser = { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Funcionário", LojaID: "loja_matriz" };
+  const ctx = { user: employeeUser, employees: mockEmployees };
+
+  // "Esqueci de bater ponto ontem às 18:00, altera pra mim"
+  const res1 = parseCopilotIntent("Esqueci de bater ponto ontem às 18:00, altera pra mim", ctx);
+  assert.equal(res1.type, "action");
+  assert.equal(res1.actionType, "request_clock_adjustment");
+  assert.equal(res1.apiMethod, "requestTimeClockAdjustment");
+  assert.equal(res1.details.time, "18:00");
+  assert.equal(res1.details.punchType, "SAIDA_FINAL");
+  assert.match(res1.summary, /18:00/);
+
+  // "esqueci a saída de ontem às 18h"
+  const res2 = parseCopilotIntent("esqueci a saída de ontem às 18h", ctx);
+  assert.equal(res2.type, "action");
+  assert.equal(res2.actionType, "request_clock_adjustment");
+  assert.equal(res2.details.time, "18:00");
+  assert.equal(res2.details.punchType, "SAIDA_FINAL");
+
+  // "alterar ponto dia 14/10 às 08:30"
+  const res3 = parseCopilotIntent("alterar ponto dia 14/10 às 08:30", ctx);
+  assert.equal(res3.type, "action");
+  assert.equal(res3.actionType, "request_clock_adjustment");
+  assert.equal(res3.details.time, "08:30");
+  assert.equal(res3.details.punchType, "ENTRADA");
+  assert.match(res3.details.isoDate, /2026-10-14/);
+
+  // "Bater ponto retroativo ontem às 18:00"
+  const res4 = parseCopilotIntent("bater ponto retroativo ontem às 18:00", ctx);
+  assert.equal(res4.type, "action");
+  assert.equal(res4.actionType, "request_clock_adjustment");
+  assert.equal(res4.details.time, "18:00");
+
+  // Gerente ajustando ponto de funcionário
+  const mgrUser = { FuncionarioID: "mgr_1", Nome: "Gestor", Perfil: "Gerente", LojaID: "loja_matriz" };
+  const mgrCtx = { user: mgrUser, employees: mockEmployees };
+  const resMgr = parseCopilotIntent("Ajustar ponto de Gabriel ontem às 18:00", mgrCtx);
+  assert.equal(resMgr.type, "action");
+  assert.equal(resMgr.actionType, "quick_fix_clock");
+  assert.equal(resMgr.apiMethod, "quickFixIncompletePunch");
+  assert.equal(resMgr.details.empId, "emp_1");
+  assert.equal(resMgr.details.time, "18:00");
+});
+
+test("Copiloto Mega Cérebro: Function Calling Gemini para solicitarAjustePonto e solicitarFolga", () => {
+  const employeeUser = { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Funcionário", LojaID: "loja_matriz" };
+  const ctx = { user: employeeUser, employees: mockEmployees };
+
+  // Ferramenta solicitarAjustePonto
+  const punchAction = convertFunctionCallToAction(
+    "solicitarAjustePonto",
+    { data: "ontem", horario: "18:00", tipoMarcacao: "SAIDA_FINAL", motivo: "Esquecimento de registro" },
+    ctx
+  );
+  assert.equal(punchAction.type, "action");
+  assert.equal(punchAction.actionType, "request_clock_adjustment");
+  assert.equal(punchAction.apiMethod, "requestTimeClockAdjustment");
+  assert.equal(punchAction.details.time, "18:00");
+  assert.match(punchAction.summary, /18:00/);
+
+  // Ferramenta solicitarFolga com data relativa e motivo
+  const leaveAction = convertFunctionCallToAction(
+    "solicitarFolga",
+    { data: "2026-10-25", motivo: "Consulta médica" },
+    ctx
+  );
+  assert.equal(leaveAction.type, "action");
+  assert.equal(leaveAction.actionType, "request_timeoff");
+  assert.equal(leaveAction.apiMethod, "createEmployeeTimeOffRequest");
+  assert.equal(leaveAction.details.isoDate, "2026-10-25");
+});
+
+test("Copiloto Consecutivo: Envio de múltiplas mensagens (> 2, 5 e 10 mensagens) sem bloqueio ou falha", () => {
+  const employeeUser = { FuncionarioID: "emp_1", Nome: "Gabriel Silva", Perfil: "Funcionário", LojaID: "loja_matriz" };
+  const ctx = { user: employeeUser, employees: mockEmployees, timeOff: mockTimeOff, hourBalance: { totalMinutos: 60 } };
+
+  clearCopilotChatHistory();
+
+  const sequence = [
+    "Olá, tudo bem?",
+    "Quando é minha próxima folga?",
+    "Qual é o meu saldo de horas?",
+    "Quais as regras de folga?",
+    "Como funciona a troca de folga?",
+    "Quero folga dia 25/10 porque tenho médico",
+    "Esqueci de bater ponto ontem às 18:00, altera pra mim",
+    "Como entregar atestado?",
+    "Quero folga amanhã",
+    "Obrigado pela ajuda",
+  ];
+
+  for (let i = 0; i < sequence.length; i++) {
+    const msg = sequence[i];
+    const res = parseCopilotIntent(msg, ctx);
+    assert.ok(res, `Turno ${i + 1} (${msg}) deve retornar uma resposta válida`);
+    assert.ok(res.type === "query" || res.type === "action" || res.type === "empty", `Turno ${i + 1} tipo esperado`);
+    copilotChatHistory.push({ role: "user", text: msg });
+    copilotChatHistory.push({ role: "assistant", text: res.reply || res.summary || "Ok" });
+  }
+
+  assert.equal(copilotChatHistory.length, 20, "Deve registrar exatamente 10 turnos de ida e volta");
+});
+
+test("Copiloto CSS Layout: painel possui overflow hidden e corpo possui min-height 0 para garantir que o rodapé não suma", async () => {
+  const css = await readFile(new URL("../src/copilot.css", import.meta.url), "utf8");
+
+  // .copilot-panel desktop e mobile devem ter overflow: hidden
+  assert.match(css, /\.copilot-panel\s*\{[\s\S]*?overflow:\s*hidden;/i, ".copilot-panel deve conter overflow: hidden");
+
+  // .copilot-body deve ter min-height: 0 para que flexbox encolha o conteúdo e não empurre o rodapé
+  assert.match(css, /\.copilot-body\s*\{[\s\S]*?min-height:\s*0;/i, ".copilot-body deve conter min-height: 0");
+
+  // .copilot-footer deve ter flex-shrink: 0 para nunca ser comprimido
+  assert.match(css, /\.copilot-footer\s*\{[\s\S]*?flex-shrink:\s*0;/i, ".copilot-footer deve conter flex-shrink: 0");
 });

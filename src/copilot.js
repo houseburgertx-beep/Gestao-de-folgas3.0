@@ -43,6 +43,275 @@ export function sanitizeIntent(res) {
 }
 
 // ==========================================================================
+// HISTÓRICO DE CONVERSA MULTI-TURN (MEMÓRIA DO COPILOTO)
+// ==========================================================================
+
+export const copilotChatHistory = [];
+
+export function getCopilotChatHistory() {
+  return copilotChatHistory;
+}
+
+export function clearCopilotChatHistory() {
+  copilotChatHistory.length = 0;
+}
+
+// ==========================================================================
+// UTILITÁRIOS OPERACIONAIS DE DATA, HORA E PONTO (MEGA CÉREBRO)
+// ==========================================================================
+
+export function extractDateFromText(text) {
+  if (!text) return null;
+  const str = String(text).toLowerCase();
+  const now = new Date();
+  const todayParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bahia",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now).split("-");
+  const todayYear = parseInt(todayParts[0], 10);
+  const todayMonth = parseInt(todayParts[1], 10);
+  const todayDay = parseInt(todayParts[2], 10);
+
+  const toIso = (y, m, d) =>
+    `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+  if (/\bhoje\b/i.test(str)) {
+    return {
+      isoDate: toIso(todayYear, todayMonth, todayDay),
+      formattedDate: `${String(todayDay).padStart(2, "0")}/${String(todayMonth).padStart(2, "0")}/${todayYear}`,
+      day: todayDay,
+      month: todayMonth,
+      year: todayYear,
+    };
+  }
+
+  if (/\banteontem\b/i.test(str)) {
+    const d = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay - 2));
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;
+    const dy = d.getUTCDate();
+    return {
+      isoDate: toIso(y, m, dy),
+      formattedDate: `${String(dy).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+      day: dy,
+      month: m,
+      year: y,
+    };
+  }
+
+  if (/\bontem\b/i.test(str)) {
+    const d = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay - 1));
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;
+    const dy = d.getUTCDate();
+    return {
+      isoDate: toIso(y, m, dy),
+      formattedDate: `${String(dy).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+      day: dy,
+      month: m,
+      year: y,
+    };
+  }
+
+  if (/\bdepois\s+de\s+amanh[aã](?![a-z0-9à-ú])/i.test(str)) {
+    const d = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay + 2));
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;
+    const dy = d.getUTCDate();
+    return {
+      isoDate: toIso(y, m, dy),
+      formattedDate: `${String(dy).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+      day: dy,
+      month: m,
+      year: y,
+    };
+  }
+
+  if (/\bamanh[aã](?![a-z0-9à-ú])/i.test(str)) {
+    const d = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay + 1));
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;
+    const dy = d.getUTCDate();
+    return {
+      isoDate: toIso(y, m, dy),
+      formattedDate: `${String(dy).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+      day: dy,
+      month: m,
+      year: y,
+    };
+  }
+
+  const weekdayMap = {
+    domingo: 0,
+    segunda: 1,
+    terca: 2,
+    quarta: 3,
+    quinta: 4,
+    sexta: 5,
+    sabado: 6,
+  };
+  const weekdayMatch = str.match(/\b(?:pr[oó]xim[ao]\s+)?(segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)(?:-feira)?(?![a-z0-9à-ú])/i);
+  if (weekdayMatch) {
+    const key = weekdayMatch[1].toLowerCase().replace("ç", "c").replace("á", "a");
+    const targetDayOfWeek = weekdayMap[key];
+    if (targetDayOfWeek !== undefined) {
+      const todayDate = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay));
+      const currentDayOfWeek = todayDate.getUTCDay();
+      let diff = targetDayOfWeek - currentDayOfWeek;
+      if (diff <= 0) diff += 7;
+      const targetDate = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay + diff));
+      const y = targetDate.getUTCFullYear();
+      const m = targetDate.getUTCMonth() + 1;
+      const dy = targetDate.getUTCDate();
+      return {
+        isoDate: toIso(y, m, dy),
+        formattedDate: `${String(dy).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+        day: dy,
+        month: m,
+        year: y,
+      };
+    }
+  }
+
+  const slashMatch = str.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+  if (slashMatch) {
+    const d = parseInt(slashMatch[1], 10);
+    const m = parseInt(slashMatch[2], 10);
+    let y = slashMatch[3] ? parseInt(slashMatch[3], 10) : todayYear;
+    if (y < 100) y += 2000;
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return {
+        isoDate: toIso(y, m, d),
+        formattedDate: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+        day: d,
+        month: m,
+        year: y,
+      };
+    }
+  }
+
+  const isoMatch = str.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (isoMatch) {
+    const y = parseInt(isoMatch[1], 10);
+    const m = parseInt(isoMatch[2], 10);
+    const d = parseInt(isoMatch[3], 10);
+    return {
+      isoDate: `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`,
+      formattedDate: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+      day: d,
+      month: m,
+      year: y,
+    };
+  }
+
+  const monthNames = {
+    janeiro: 1, jan: 1,
+    fevereiro: 2, fev: 2,
+    marco: 3, marco: 3, mar: 3,
+    abril: 4, abr: 4,
+    maio: 5, mai: 5,
+    junho: 6, jun: 6,
+    julho: 7, jul: 7,
+    agosto: 8, ago: 8,
+    setembro: 9, set: 9,
+    outubro: 10, out: 10,
+    novembro: 11, nov: 11,
+    dezembro: 12, dez: 12,
+  };
+  const dayMatch = str.match(/\bdia\s+(\d{1,2})(?:\s+de\s+([a-zçãé]+))?\b/i);
+  if (dayMatch) {
+    const d = parseInt(dayMatch[1], 10);
+    let m = todayMonth;
+    let y = todayYear;
+    if (dayMatch[2]) {
+      const cleanMonth = dayMatch[2].toLowerCase().replace("ç", "c").replace("ã", "a").replace("é", "e");
+      if (monthNames[cleanMonth]) {
+        m = monthNames[cleanMonth];
+      }
+    } else {
+      if (d < todayDay && !/\b(ontem|passad[ao]|atrasad[ao])\b/i.test(str)) {
+        m = todayMonth + 1;
+        if (m > 12) {
+          m = 1;
+          y += 1;
+        }
+      }
+    }
+    if (d >= 1 && d <= 31) {
+      return {
+        isoDate: toIso(y, m, d),
+        formattedDate: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+        day: d,
+        month: m,
+        year: y,
+      };
+    }
+  }
+
+  return null;
+}
+
+export function extractTimeFromText(text) {
+  if (!text) return null;
+  const str = String(text);
+  const m1 = str.match(/\b([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)\b/i);
+  if (m1) {
+    const h = String(m1[1]).padStart(2, "0");
+    const m = String(m1[2] || m1[3] || "00").padStart(2, "0");
+    return `${h}:${m}`;
+  }
+  const m2 = str.match(/\b(?:às|as)\s+([01]?\d|2[0-3])\s*(?:h|hrs|horas)?\b/i);
+  if (m2) {
+    const h = String(m2[1]).padStart(2, "0");
+    return `${h}:00`;
+  }
+  return null;
+}
+
+export function extractPunchType(text, time) {
+  const str = String(text || "").toLowerCase();
+  if (/\b(?:sa[ií]da|fechamento|fim\s+de\s+turno|sa[ií])\b/i.test(str)) {
+    return { type: "SAIDA_FINAL", label: "Saída Final" };
+  }
+  if (/\b(?:retorno|volta|volta\s+do\s+almo[cç]o)\b/i.test(str)) {
+    return { type: "RETORNO_INTERVALO", label: "Retorno de Intervalo" };
+  }
+  if (/\b(?:intervalo|almo[cç]o|pausa)\b/i.test(str)) {
+    return { type: "SAIDA_INTERVALO", label: "Saída para Intervalo" };
+  }
+  if (/\b(?:entrada|chegada|in[ií]cio|come[cç]o|iniciei|entrei)\b/i.test(str)) {
+    return { type: "ENTRADA", label: "Entrada" };
+  }
+  if (time) {
+    const hour = parseInt(time.split(":")[0], 10);
+    if (hour >= 15) return { type: "SAIDA_FINAL", label: "Saída Final" };
+    if (hour <= 11) return { type: "ENTRADA", label: "Entrada" };
+  }
+  return { type: "SAIDA_FINAL", label: "Saída Final" };
+}
+
+export function extractReasonFromText(text, defaultReason = "Solicitação operacional via Copiloto") {
+  if (!text) return defaultReason;
+  const str = String(text).trim();
+  const m = str.match(/(?:motivo\s*(?:[:=]|é|e)?|porque|por\s+causa\s+d[eo]|pois|já\s+que|para)\s+([^.,;]+)/i);
+  if (m && m[1]?.trim()) {
+    const candidate = m[1].trim();
+    if (candidate.length >= 3) {
+      return candidate;
+    }
+  }
+  if (/esquec(?:i|imento)/i.test(str)) {
+    return "Esquecimento de marcação de ponto";
+  }
+  if (/m[eé]dic[ao]|consulta|dentista|exame/i.test(str)) {
+    return "Consulta médica / compromisso de saúde";
+  }
+  return defaultReason;
+}
+
+// ==========================================================================
 // PERMISSÕES, RBAC E IDENTIFICAÇÃO
 // ==========================================================================
 
@@ -777,6 +1046,25 @@ export const GEMINI_TOOLS = [
         },
       },
       {
+        name: "solicitarAjustePonto",
+        description: "Solicita alteração, inclusão ou correção de batida de ponto esquecida ou divergente (ex: esqueci de bater saída ontem às 18:00)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            data: { type: "STRING", description: "Data do ponto a ajustar (AAAA-MM-DD, DD/MM/AAAA ou termos como ontem, hoje)" },
+            horario: { type: "STRING", description: "Horário pretendido no formato HH:MM (ex: 18:00, 08:30)" },
+            tipoMarcacao: {
+              type: "STRING",
+              enum: ["ENTRADA", "SAIDA_INTERVALO", "RETORNO_INTERVALO", "SAIDA_FINAL"],
+              description: "Tipo da marcação de ponto",
+            },
+            motivo: { type: "STRING", description: "Justificativa da alteração do ponto" },
+            colaboradorNome: { type: "STRING", description: "Nome do colaborador (quando acionado por gerente ou admin)" },
+          },
+          required: ["data", "horario"],
+        },
+      },
+      {
         name: "aprovarTrocaFolga",
         description: "Aprova uma troca de folga pendente entre colaboradores",
         parameters: {
@@ -1078,16 +1366,10 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
     }
 
     case "solicitarFolga": {
-      let isoDate = args.data || "";
-      if (isoDate.includes("/")) {
-        const parts = isoDate.split("/");
-        const d = parts[0].padStart(2, "0");
-        const m = parts[1].padStart(2, "0");
-        const y = parts[2] ? (parts[2].length === 2 ? `20${parts[2]}` : parts[2]) : new Date().getFullYear().toString();
-        isoDate = `${y}-${m}-${d}`;
-      }
-
-      const reason = args.motivo || "Solicitação via Copiloto";
+      const parsedDate = extractDateFromText(args.data);
+      const isoDate = parsedDate ? parsedDate.isoDate : (args.data || "");
+      const formattedDate = parsedDate ? parsedDate.formattedDate : isoDate;
+      const reason = extractReasonFromText(args.motivo || "Solicitação operacional via Copiloto");
 
       const payload = {
         FuncionarioID: userId,
@@ -1106,13 +1388,118 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
         title: "Solicitar Folga",
         apiMethod: "createEmployeeTimeOffRequest",
         apiArgs: [payload],
-        summary: `Enviar pedido de folga para ${isoDate} com motivo: "${reason}".`,
+        summary: `Enviar pedido de folga para ${formattedDate} com motivo: "${reason}".`,
         diff: [
-          { label: "Data Solicitada", value: isoDate },
+          { label: "Data Solicitada", value: formattedDate },
           { label: "Colaborador", value: userName },
           { label: "Motivo", value: reason },
+          { label: "Status Inicial", value: "Pendente (aguardando gestor)" },
         ],
-        details: { isoDate, reason },
+        details: { isoDate, formattedDate, reason },
+      };
+    }
+
+    case "solicitarAjustePonto":
+    case "ajustarPonto":
+    case "corrigirPonto": {
+      const parsedDate = extractDateFromText(args.data) || extractDateFromText("hoje");
+      const isoDate = parsedDate ? parsedDate.isoDate : (args.data || "");
+      const formattedDate = parsedDate ? parsedDate.formattedDate : (args.data || "");
+      const time = extractTimeFromText(args.horario) || "18:00";
+      const punchInfo = extractPunchType(args.tipoMarcacao || args.motivo || "", time);
+      const punchType = args.tipoMarcacao || punchInfo.type;
+      const punchLabel = punchInfo.label;
+      const reason = extractReasonFromText(args.motivo || "Solicitação de ajuste de ponto via Copiloto");
+
+      let targetEmp = null;
+      if (args.colaboradorNome && role !== "employee") {
+        targetEmp = findEmployeeInText(args.colaboradorNome, employees);
+      }
+      const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : userName;
+      const targetId = targetEmp ? (targetEmp.FuncionarioID || targetEmp.id) : userId;
+      const targetStore = targetEmp ? (targetEmp.LojaID || targetEmp.lojaId) : userStore;
+
+      if (role === "employee" || (!targetEmp && role !== "admin" && role !== "manager")) {
+        const payload = {
+          registroPontoId: "",
+          dataHoraSolicitada: `${isoDate}T${time}:00`,
+          motivo: reason,
+        };
+
+        return {
+          type: "action",
+          actionType: "request_clock_adjustment",
+          title: "Solicitar Ajuste de Ponto",
+          apiMethod: "requestTimeClockAdjustment",
+          apiArgs: [payload],
+          summary: `Enviar solicitação de ajuste da batida de ponto para o dia ${formattedDate} às ${time} (${punchLabel}) com motivo: "${reason}".`,
+          diff: [
+            { label: "Colaborador", value: targetName },
+            { label: "Data", value: formattedDate },
+            { label: "Marcação", value: punchLabel },
+            { label: "Horário Solicitado", value: time },
+            { label: "Motivo", value: reason },
+            { label: "Status Inicial", value: "Pendente (aguardando gestor)" },
+          ],
+          details: {
+            empId: targetId,
+            isoDate,
+            formattedDate,
+            time,
+            punchType,
+            reason,
+          },
+        };
+      }
+
+      if (role === "manager") {
+        const payload = {
+          funcionarioId: targetId,
+          data: isoDate,
+          horaSaida: time,
+          observacao: reason,
+        };
+
+        return {
+          type: "action",
+          actionType: "quick_fix_clock",
+          title: "Ajustar Ponto do Colaborador",
+          apiMethod: "quickFixIncompletePunch",
+          apiArgs: [payload],
+          summary: `Lançar ajuste de ponto para ${targetName} no dia ${formattedDate} às ${time}.`,
+          diff: [
+            { label: "Colaborador", value: targetName },
+            { label: "Data", value: formattedDate },
+            { label: "Horário", value: time },
+            { label: "Observação", value: reason },
+          ],
+          details: { empId: targetId, isoDate, time },
+        };
+      }
+
+      const payload = {
+        funcionarioId: targetId,
+        tipoMarcacao: punchType,
+        dataHora: `${isoDate}T${time}:00`,
+        motivo: reason,
+        dataOperacional: isoDate,
+      };
+
+      return {
+        type: "action",
+        actionType: "manual_clock_punch",
+        title: "Lançar Ponto Manual",
+        apiMethod: "registerTimeClockManualPunch",
+        apiArgs: [payload],
+        summary: `Lançar ponto manual para ${targetName} em ${formattedDate} às ${time} (${punchLabel}) com auditoria.`,
+        diff: [
+          { label: "Colaborador", value: targetName },
+          { label: "Data", value: formattedDate },
+          { label: "Tipo", value: punchLabel },
+          { label: "Horário", value: time },
+          { label: "Motivo", value: reason },
+        ],
+        details: { empId: targetId, isoDate, time, punchType },
       };
     }
 
@@ -1621,19 +2008,48 @@ Seu objetivo principal é resolver a necessidade do usuário com precisão cirú
 - Gerente: gerencia a equipe da sua unidade, analisa cobertura, aprova/recusa folgas e trocas da sua loja.
 - Administrador: acesso pleno administrativo a todas as lojas e parametrizações da rede.
 
-6. DIRETRIZES DE COMUNICAÇÃO E EXECUÇÃO:
+6. DIRETRIZES DE COMUNICAÇÃO E EXECUÇÃO (MEGA CÉREBRO OPERACIONAL):
 - ZERO EMOJIS: Regra estrita de ausência total de emojis em todas as respostas, botões e textos.
 - ROTEIRO: ENTENDER -> CONSULTAR -> RESOLVER -> EXECUTAR QUANDO AUTORIZADO -> CONFIRMAR.
-- AÇÕES REAIS: Ao solicitar folga, solicitar troca de folga, criar tarefa, alterar turno, alterar folga fixa, cadastrar feriado, justificar ausência, aprovar/recusar solicitações ou publicar comunicado, acione SEMPRE a função correspondente para gerar o card de confirmação visual ("Ver e Confirmar").
+- PEDIDO DE FOLGA: Quando o colaborador expressar qualquer intenção de pedir ou solicitar folga ("quero folga", "preciso de folga", "me dá folga", "gostaria de folga dia X"), acione IMEDIATAMENTE a ferramenta 'solicitarFolga' com a data e o motivo. NUNCA diga apenas que ele pode solicitar; acione a ferramenta para gerar o card de confirmação!
+- AJUSTE OU ALTERAÇÃO DE PONTO: Quando o colaborador ou gestor pedir para alterar, corrigir ou disser que esqueceu de bater ponto ("esqueci de bater ponto ontem às 18h", "alterar ponto", "ajustar ponto", "esqueci a saída"), acione IMEDIATAMENTE a ferramenta 'solicitarAjustePonto' com a data, horário e tipo da batida!
+- AÇÕES REAIS: Ao solicitar folga, ajustar ponto, criar tarefa, alterar turno, alterar folga fixa, cadastrar feriado, justificar ausência, aprovar/recusar solicitações ou publicar comunicado, acione SEMPRE a função correspondente para gerar o card de confirmação visual ("Ver e Confirmar").
+- Multi-turn: Lembre-se do contexto das mensagens anteriores da conversa para responder adequadamente.
 - Comunicação humanizada, atenciosa, precisa, em português brasileiro.`;
 
+  const turns = [];
+  const recentHistory = copilotChatHistory.slice(-10);
+  for (const item of recentHistory) {
+    if (item.role && item.text) {
+      turns.push({
+        role: item.role === "assistant" || item.role === "model" ? "model" : "user",
+        parts: [{ text: item.text }],
+      });
+    }
+  }
+
+  if (turns.length === 0 || turns[turns.length - 1].role !== "user" || turns[turns.length - 1].parts[0].text !== prompt) {
+    turns.push({
+      role: "user",
+      parts: [{ text: prompt }],
+    });
+  }
+
+  while (turns.length > 0 && turns[0].role !== "user") {
+    turns.shift();
+  }
+
+  const cleanTurns = [];
+  for (const t of turns) {
+    if (cleanTurns.length > 0 && cleanTurns[cleanTurns.length - 1].role === t.role) {
+      cleanTurns[cleanTurns.length - 1].parts[0].text += `\n${t.parts[0].text}`;
+    } else {
+      cleanTurns.push(t);
+    }
+  }
+
   const requestBody = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }],
-      },
-    ],
+    contents: cleanTurns.length > 0 ? cleanTurns : [{ role: "user", parts: [{ text: prompt }] }],
     systemInstruction: {
       parts: [{ text: systemPrompt }],
     },
@@ -1670,6 +2086,7 @@ Seu objetivo principal é resolver a necessidade do usuário com precisão cirú
     // Resposta textual gerada pelo Gemini (sem emojis)
     if (part.text) {
       const cleanText = stripEmojis(part.text).trim();
+      copilotChatHistory.push({ role: "model", text: cleanText });
       return {
         type: "query",
         reply: cleanText,
@@ -2289,18 +2706,22 @@ function _parseCopilotIntentRaw(text, context = {}) {
   }
 
   // ------------------------------------------------------------------------
-  // 8. AÇÃO: SOLICITAR FOLGA
+  // 8. AÇÃO: SOLICITAR FOLGA (MEGA CÉREBRO — LINGUAGEM NATURAL COMPLETA)
   // ------------------------------------------------------------------------
-  const requestTimeOffMatch = clean.match(/(?:solicita(?:r)?|pedir|quero)\s+folga\s+(?:para\s+(?:o\s+dia\s+)?|no\s+dia\s+|dia\s+|em\s+|o\s+dia\s+)?([0-9]{1,2}[\/\-][0-9]{1,2}(?:[\/\-][0-9]{2,4})?)(?:\s+(?:motivo|por)\s+(.+))?/i);
-  if (requestTimeOffMatch) {
-    const rawDate = requestTimeOffMatch[1].replace(/-/g, "/");
-    const reason = requestTimeOffMatch[2] ? requestTimeOffMatch[2].trim() : "Solicitação operacional via Copiloto";
+  const isTimeOffIntent =
+    /(?:(?:quero|preciso|solicito|solicitar|pedir|pe[cç]o|gostaria|marcar|me\s+d[aá]|posso\s+ter)\s+(?:de\s+)?(?:uma\s+)?folga|folga\s+(?:no\s+dia|dia|para|em|na|amanh[aã]|depois\s+de\s+amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)|preciso\s+folgar|marcar\s+minha\s+folga)/i.test(clean);
 
-    const parts = rawDate.split("/");
-    let d = parts[0].padStart(2, "0");
-    let m = parts[1].padStart(2, "0");
-    let y = parts[2] ? (parts[2].length === 2 ? `20${parts[2]}` : parts[2]) : new Date().getFullYear().toString();
-    const isoDate = `${y}-${m}-${d}`;
+  if (isTimeOffIntent && !clean.includes("troca") && !clean.includes("como funciona") && !clean.includes("quais as regras")) {
+    const parsedDate = extractDateFromText(clean);
+    if (!parsedDate) {
+      return {
+        type: "query",
+        reply: `Para qual data você gostaria de solicitar sua folga? Digite, por exemplo:\n- *"Quero folga dia 25/10 porque tenho médico"*\n- *"Solicitar folga amanhã motivo compromisso pessoal"*\n- *"Preciso de folga na próxima terça"*`,
+      };
+    }
+
+    const { isoDate, formattedDate } = parsedDate;
+    const reason = extractReasonFromText(clean, "Solicitação de folga via Copiloto");
 
     const payload = {
       FuncionarioID: userId,
@@ -2319,16 +2740,125 @@ function _parseCopilotIntentRaw(text, context = {}) {
       title: "Solicitar Folga",
       apiMethod: "createEmployeeTimeOffRequest",
       apiArgs: [payload],
-      summary: `Enviar pedido de folga para o dia ${d}/${m}/${y} com motivo: "${reason}".`,
+      summary: `Enviar pedido de folga para o dia ${formattedDate} com motivo: "${reason}".`,
       diff: [
-        { label: "Data Solicitada", value: `${d}/${m}/${y}` },
+        { label: "Data Solicitada", value: formattedDate },
         { label: "Colaborador", value: userName },
         { label: "Motivo", value: reason },
+        { label: "Status Inicial", value: "Pendente (aguardando gestor)" },
       ],
       details: {
         isoDate,
+        formattedDate,
         reason,
       },
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // 8.1. AÇÃO: SOLICITAR ALTERAÇÃO / AJUSTE DE PONTO (MEGA CÉREBRO)
+  // ------------------------------------------------------------------------
+  const isClockAdjustmentIntent =
+    /(?:esqueci\s+(?:de\s+)?(?:bater\s+)?(?:[oa]\s+|minha\s+|meu\s+)?(?:ponto|sa[ií]da|entrada)|(?:altera(?:r)?|ajusta(?:r)?|corrige|corrigir|muda(?:r)?|solicitar\s+ajuste\s+de|solicitar\s+altera[cç][aã]o\s+de)\s+(?:[oa]\s+|meu\s+)?ponto|ponto\s+(?:de\s+)?(?:ontem|retroativo)|bater\s+ponto\s+retroativo|ajuste\s+de\s+ponto|altera[cç][aã]o\s+de\s+ponto)/i.test(clean);
+
+  if (isClockAdjustmentIntent && !clean.includes("regras") && !clean.includes("tolerância")) {
+    const parsedDate = extractDateFromText(clean) || (clean.includes("ontem") ? extractDateFromText("ontem") : extractDateFromText("hoje"));
+    const isoDate = parsedDate ? parsedDate.isoDate : "";
+    const formattedDate = parsedDate ? parsedDate.formattedDate : "";
+    const time = extractTimeFromText(clean) || (clean.includes("saída") || clean.includes("saida") ? "18:00" : "08:00");
+    const punchInfo = extractPunchType(clean, time);
+    const punchType = punchInfo.type;
+    const punchLabel = punchInfo.label;
+    const reason = extractReasonFromText(clean, "Esquecimento de registro de ponto (solicitado via Copiloto)");
+
+    let targetEmp = null;
+    if (role !== "employee") {
+      targetEmp = findEmployee(clean);
+    }
+    const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : userName;
+    const targetId = targetEmp ? (targetEmp.FuncionarioID || targetEmp.id) : userId;
+
+    if (role === "employee" || (!targetEmp && role !== "admin" && role !== "manager")) {
+      const payload = {
+        registroPontoId: "",
+        dataHoraSolicitada: `${isoDate}T${time}:00`,
+        motivo: reason,
+      };
+
+      return {
+        type: "action",
+        actionType: "request_clock_adjustment",
+        title: "Solicitar Ajuste de Ponto",
+        apiMethod: "requestTimeClockAdjustment",
+        apiArgs: [payload],
+        summary: `Solicitar ajuste da batida de ponto para o dia ${formattedDate} às ${time} (${punchLabel}) com motivo: "${reason}".`,
+        diff: [
+          { label: "Colaborador", value: targetName },
+          { label: "Data", value: formattedDate },
+          { label: "Marcação", value: punchLabel },
+          { label: "Horário Solicitado", value: time },
+          { label: "Motivo", value: reason },
+          { label: "Status Inicial", value: "Pendente (aguardando gestor)" },
+        ],
+        details: {
+          empId: targetId,
+          isoDate,
+          formattedDate,
+          time,
+          punchType,
+          reason,
+        },
+      };
+    }
+
+    if (role === "manager") {
+      const payload = {
+        funcionarioId: targetId,
+        data: isoDate,
+        horaSaida: time,
+        observacao: reason,
+      };
+
+      return {
+        type: "action",
+        actionType: "quick_fix_clock",
+        title: "Ajustar Ponto do Colaborador",
+        apiMethod: "quickFixIncompletePunch",
+        apiArgs: [payload],
+        summary: `Lançar ajuste de ponto para ${targetName} no dia ${formattedDate} às ${time}.`,
+        diff: [
+          { label: "Colaborador", value: targetName },
+          { label: "Data", value: formattedDate },
+          { label: "Horário", value: time },
+          { label: "Observação", value: reason },
+        ],
+        details: { empId: targetId, isoDate, time },
+      };
+    }
+
+    const payload = {
+      funcionarioId: targetId,
+      tipoMarcacao: punchType,
+      dataHora: `${isoDate}T${time}:00`,
+      motivo: reason,
+      dataOperacional: isoDate,
+    };
+
+    return {
+      type: "action",
+      actionType: "manual_clock_punch",
+      title: "Lançar Ponto Manual",
+      apiMethod: "registerTimeClockManualPunch",
+      apiArgs: [payload],
+      summary: `Lançar ponto manual para ${targetName} em ${formattedDate} às ${time} (${punchLabel}) com auditoria.`,
+      diff: [
+        { label: "Colaborador", value: targetName },
+        { label: "Data", value: formattedDate },
+        { label: "Tipo", value: punchLabel },
+        { label: "Horário", value: time },
+        { label: "Motivo", value: reason },
+      ],
+      details: { empId: targetId, isoDate, time, punchType },
     };
   }
 
@@ -2735,11 +3265,42 @@ export async function executeCopilotAction(action, api) {
     throw new Error("A API do sistema não está disponível no momento.");
   }
 
+  if (action.actionType === "request_clock_adjustment") {
+    const payload = action.apiArgs?.[0] || {};
+    if (!payload.registroPontoId) {
+      const state = (typeof window !== "undefined" ? (window.__GESTAO_STATE__ || window.state) : null) || {};
+      let records = state.timeClock?.records || [];
+      if (!records.length) {
+        try {
+          const res = await api.invoke("getTimeClockDataWithSession", []);
+          records = res?.data?.records || [];
+        } catch (_) {}
+      }
+      const targetDate = action.details?.isoDate;
+      const targetEmpId = action.details?.empId || getUserId();
+      const match = records.find((r) =>
+        String(r.FuncionarioID) === String(targetEmpId) &&
+        String(r.Data).slice(0, 10) === targetDate
+      );
+      if (match) {
+        payload.registroPontoId = match.RegistroPontoID;
+      }
+    }
+  }
+
   const result = await api.invoke(action.apiMethod, action.apiArgs || []);
 
   try {
     if (action.actionType.includes("task")) {
       window.dispatchEvent(new CustomEvent("gestao-tasks-refresh"));
+    }
+    if (
+      action.actionType.includes("clock") ||
+      action.actionType.includes("ponto") ||
+      action.actionType.includes("timeoff") ||
+      action.actionType.includes("swap")
+    ) {
+      window.dispatchEvent(new CustomEvent("gestao-data-refresh"));
     }
     if (typeof window.__GESTAO_REFRESH_APP__ === "function") {
       window.__GESTAO_REFRESH_APP__();
@@ -3008,136 +3569,170 @@ export function initCopilot() {
     }
   }
 
+  let isProcessing = false;
+
   async function handleUserInput() {
+    if (isProcessing) return;
     const text = input?.value?.trim();
     if (!text) return;
+    isProcessing = true;
     input.value = "";
+    if (input) input.style.height = "auto";
+    const sendBtn = $("#copilotSendBtn");
+    if (sendBtn) sendBtn.disabled = true;
 
-    appendUserMessage(text);
+    try {
+      appendUserMessage(text);
+      copilotChatHistory.push({ role: "user", text });
 
-    const state = window.__GESTAO_STATE__ || window.state || {};
-    const context = {
-      user: state.user || window.__GESTAO_USER__,
-      employees: state.employees || [],
-      tasks: state.tasks || [],
-      swaps: state.swaps || [],
-      timeOff: state.timeOff || [],
-      stores: state.stores || [],
-      livePresenceData: state.livePresenceData || [],
-      hourBalance: state.timeClockBalance || state.hourBalance,
-      currentView: getCurrentView(),
-    };
+      const state = window.__GESTAO_STATE__ || window.state || {};
+      const context = {
+        user: state.user || window.__GESTAO_USER__,
+        employees: state.employees || [],
+        tasks: state.tasks || [],
+        swaps: state.swaps || [],
+        timeOff: state.timeOff || [],
+        stores: state.stores || [],
+        livePresenceData: state.livePresenceData || [],
+        hourBalance: state.timeClockBalance || state.hourBalance,
+        currentView: getCurrentView(),
+      };
 
-    let intent = null;
-    const apiKey = getGeminiApiKey();
+      let intent = null;
+      const apiKey = getGeminiApiKey();
 
-    if (apiKey) {
-      const currentModel = getGeminiModel();
-      const modelLabel = currentModel === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
-      const waitMsg = appendAssistantMessage(`Pensando com ${modelLabel}…`);
-      try {
-        intent = await callGeminiCopilot(text, context);
-      } catch (err) {
-        console.warn("Falha no Gemini, usando fallback local:", err);
-        intent = parseCopilotIntent(text, context);
-      } finally {
-        waitMsg.remove();
-      }
-    } else {
-      intent = parseCopilotIntent(text, context);
-    }
-
-    if (!intent || intent.type === "empty") return;
-
-    if (intent.type === "error") {
-      appendAssistantMessage(intent.message);
-      return;
-    }
-
-    if (intent.type === "query") {
-      appendAssistantMessage(intent.reply);
-      return;
-    }
-
-    if (intent.type === "action") {
-      pendingAction = intent;
-
-      const diffRows = (intent.diff || [])
-        .map(
-          (d) => `
-        <div class="copilot-diff-row">
-          <span class="copilot-diff-label">${esc(d.label)}</span>
-          <span class="copilot-diff-value copilot-diff-value--new">${esc(d.value)}</span>
-        </div>`,
-        )
-        .join("");
-
-      const cardHtml = `
-        <div class="copilot-card" id="activeCopilotCard">
-          <div class="copilot-card-tag">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Confirmação Necessária
-          </div>
-          <h3 class="copilot-card-title">${esc(intent.title)}</h3>
-          <p class="copilot-card-desc">${esc(intent.summary)}</p>
-          <div class="copilot-diff-table">${diffRows}</div>
-          <div class="copilot-card-actions">
-            <button type="button" class="copilot-btn-confirm" id="copilotCardConfirmBtn">
-              Confirmar e Aplicar
-            </button>
-            <button type="button" class="copilot-btn-cancel" id="copilotCardCancelBtn">
-              Cancelar
-            </button>
-          </div>
-        </div>`;
-
-      const msgEl = appendAssistantMessage(
-        "Preparei a seguinte alteração no sistema. Revise os detalhes abaixo para autorizar a aplicação:",
-        cardHtml,
-      );
-
-      const confirmBtn = msgEl.querySelector("#copilotCardConfirmBtn");
-      const cancelBtn = msgEl.querySelector("#copilotCardCancelBtn");
-      const cardEl = msgEl.querySelector("#activeCopilotCard");
-
-      confirmBtn?.addEventListener("click", async () => {
-        confirmBtn.disabled = true;
-        cancelBtn.disabled = true;
-        confirmBtn.innerHTML = '<span class="copilot-spinner"></span> Aplicando…';
-
+      if (apiKey) {
+        const currentModel = getGeminiModel();
+        const modelLabel = currentModel === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
+        const waitMsg = appendAssistantMessage(`Pensando com ${modelLabel}…`);
         try {
-          const api = window.__GESTAO_FIREBASE__?.api;
-          await executeCopilotAction(intent, api);
-
-          cardEl.innerHTML = `
-            <div class="copilot-status-card copilot-status-card--success">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              <div><strong>Ação concluída com sucesso!</strong><br>${esc(intent.summary)}</div>
-            </div>`;
-
-          if (typeof window.__GESTAO_TOAST__ === "function") {
-            window.__GESTAO_TOAST__("Ação aplicada pelo Copiloto.");
-          }
+          intent = await callGeminiCopilot(text, context);
         } catch (err) {
-          cardEl.innerHTML = `
-            <div class="copilot-status-card copilot-status-card--error">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-              <div><strong>Falha na aplicação:</strong><br>${esc(err.message || "Erro desconhecido")}</div>
-            </div>`;
+          console.warn("Falha no Gemini, usando fallback local:", err);
+          intent = parseCopilotIntent(text, context);
+        } finally {
+          waitMsg?.remove();
         }
-        pendingAction = null;
-      });
+      } else {
+        intent = parseCopilotIntent(text, context);
+      }
 
-      cancelBtn?.addEventListener("click", () => {
-        cardEl.innerHTML = `
-          <div class="copilot-status-card copilot-status-card--warning">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <div>Operação cancelada pelo usuário. Nenhuma alteração foi gravada.</div>
+      if (!intent || intent.type === "empty") return;
+
+      if (intent.type === "error") {
+        appendAssistantMessage(intent.message);
+        copilotChatHistory.push({ role: "assistant", text: intent.message });
+        return;
+      }
+
+      if (intent.type === "query") {
+        appendAssistantMessage(intent.reply);
+        copilotChatHistory.push({ role: "assistant", text: intent.reply });
+        return;
+      }
+
+      if (intent.type === "action") {
+        pendingAction = intent;
+
+        const diffRows = (intent.diff || [])
+          .map(
+            (d) => `
+          <div class="copilot-diff-row">
+            <span class="copilot-diff-label">${esc(d.label)}</span>
+            <span class="copilot-diff-value copilot-diff-value--new">${esc(d.value)}</span>
+          </div>`,
+          )
+          .join("");
+
+        const cardHtml = `
+          <div class="copilot-card" id="activeCopilotCard">
+            <div class="copilot-card-tag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Confirmação Necessária
+            </div>
+            <h3 class="copilot-card-title">${esc(intent.title)}</h3>
+            <p class="copilot-card-desc">${esc(intent.summary)}</p>
+            <div class="copilot-diff-table">${diffRows}</div>
+            <div class="copilot-card-actions">
+              <button type="button" class="copilot-btn-confirm" id="copilotCardConfirmBtn">
+                Confirmar e Aplicar
+              </button>
+              <button type="button" class="copilot-btn-cancel" id="copilotCardCancelBtn">
+                Cancelar
+              </button>
+            </div>
           </div>`;
-        pendingAction = null;
-      });
+
+        const msgEl = appendAssistantMessage(
+          "Preparei a seguinte alteração no sistema. Revise os detalhes abaixo para autorizar a aplicação:",
+          cardHtml,
+        );
+        copilotChatHistory.push({ role: "assistant", text: `${intent.title}: ${intent.summary}` });
+
+        const confirmBtn = msgEl.querySelector("#copilotCardConfirmBtn");
+        const cancelBtn = msgEl.querySelector("#copilotCardCancelBtn");
+        const cardEl = msgEl.querySelector("#activeCopilotCard");
+
+        confirmBtn?.addEventListener("click", async () => {
+          confirmBtn.disabled = true;
+          cancelBtn.disabled = true;
+          confirmBtn.innerHTML = '<span class="copilot-spinner"></span> Aplicando…';
+
+          try {
+            const api = window.__GESTAO_FIREBASE__?.api;
+            await executeCopilotAction(intent, api);
+
+            cardEl.innerHTML = `
+              <div class="copilot-status-card copilot-status-card--success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <div><strong>Ação concluída com sucesso!</strong><br>${esc(intent.summary)}</div>
+              </div>`;
+
+            if (typeof window.__GESTAO_TOAST__ === "function") {
+              window.__GESTAO_TOAST__("Ação aplicada pelo Copiloto.");
+            }
+          } catch (err) {
+            cardEl.innerHTML = `
+              <div class="copilot-status-card copilot-status-card--error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <div><strong>Falha na aplicação:</strong><br>${esc(err.message || "Erro desconhecido")}</div>
+              </div>`;
+          }
+          pendingAction = null;
+        });
+
+        cancelBtn?.addEventListener("click", () => {
+          cardEl.innerHTML = `
+            <div class="copilot-status-card copilot-status-card--warning">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>Operação cancelada pelo usuário. Nenhuma alteração foi gravada.</div>
+            </div>`;
+          pendingAction = null;
+        });
+      }
+    } catch (err) {
+      console.error("Erro no processamento do copiloto:", err);
+      appendAssistantMessage("Desculpe, ocorreu um erro ao processar o seu comando. Por favor, tente novamente.");
+    } finally {
+      isProcessing = false;
+      if (sendBtn) sendBtn.disabled = false;
+      scrollToBottom();
+      if (typeof window !== "undefined" && window.innerWidth > 600) {
+        input?.focus();
+      }
     }
   }
+
+  const clearChatBtn = $("#copilotClearChatBtn");
+  clearChatBtn?.addEventListener("click", () => {
+    if (messages) messages.innerHTML = "";
+    clearCopilotChatHistory();
+    updateWelcomeAndChips();
+    if (input) {
+      input.value = "";
+      input.style.height = "auto";
+    }
+  });
 
   form?.addEventListener("submit", (e) => {
     e.preventDefault();

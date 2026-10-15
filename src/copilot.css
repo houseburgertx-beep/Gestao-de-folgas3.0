@@ -116,11 +116,13 @@
   width: 100%;
   max-width: 460px;
   height: 100%;
+  max-height: 100%;
   background: var(--surface, #ffffff);
   border-left: 1px solid var(--line, #e2e8f0);
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   z-index: 2;
   transform: translateX(0);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -363,14 +365,17 @@
 
 /* Body & Message Stream */
 .copilot-body {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   scroll-behavior: smooth;
   background: var(--bg, #f8fafc);
+  -webkit-overflow-scrolling: touch;
 }
 
 .copilot-messages {
@@ -770,8 +775,8 @@
   .copilot-panel {
     max-width: 100%;
     width: 100%;
-    height: 70vh;
-    height: 70dvh;
+    height: 75vh;
+    height: 75dvh;
     max-height: calc(100vh - 56px);
     max-height: calc(100dvh - 56px);
     min-height: 280px;
@@ -779,6 +784,9 @@
     border-top: 1px solid var(--line, #e2e8f0);
     border-radius: 22px 22px 0 0;
     box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.22);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     transform: translateY(0);
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -906,6 +914,10 @@
 
   /* Corpo e Mensagens Mobile */
   .copilot-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 10px 12px;
     gap: 10px;
   }
@@ -978,6 +990,9 @@
 
   /* Rodapé, Sugestões e Input Mobile */
   .copilot-footer {
+    flex-shrink: 0;
+    z-index: 10;
+    background: var(--surface, #ffffff);
     padding: 6px 10px calc(max(8px, env(safe-area-inset-bottom, 8px)));
     gap: 6px;
   }
