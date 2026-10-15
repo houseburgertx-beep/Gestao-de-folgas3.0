@@ -2276,6 +2276,474 @@ Seu objetivo principal é resolver a necessidade do usuário com precisão cirú
 // MOTOR DE PARSING LOCAL DETERMINÍSTICO (FALLBACK NATIVO 0MS)
 // ==========================================================================
 
+// ==========================================================================
+// MOTOR DE CONHECIMENTO OPERACIONAL PARA TODOS OS CHIPS E DÚVIDAS DO SISTEMA
+// ==========================================================================
+
+export function resolveOperationalKnowledge(text, context = {}, role = "employee", user = {}) {
+  const c = String(text || "").toLowerCase().replace(/[?.,!]/g, "").trim();
+  const userId = getUserId(user);
+  const userStore = getUserStoreId(user);
+  const holidays = Array.isArray(context.holidays) ? context.holidays : [];
+  const stores = Array.isArray(context.stores) ? context.stores : [];
+  const employees = Array.isArray(context.employees) ? context.employees : [];
+  const tasks = Array.isArray(context.tasks) ? context.tasks : [];
+  const currentView = context.currentView || getCurrentView();
+
+  // 1. Feriados
+  if (/feriado/i.test(c)) {
+    if (/quando|pr[oó]ximo/i.test(c)) {
+      const now = new Date();
+      const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(now);
+      const nextHol = holidays
+        .filter((h) => {
+          const dt = String(h.Data || h.data || "").slice(0, 10);
+          return dt >= todayStr && h.Ativo !== false && h.ativo !== false;
+        })
+        .sort((a, b) => String(a.Data || a.data).localeCompare(String(b.Data || b.data)))[0];
+
+      if (nextHol) {
+        const parts = String(nextHol.Data || nextHol.data).slice(0, 10).split("-");
+        const dtFmt = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        const nm = nextHol.NomeFeriado || nextHol.nomeFeriado || "Feriado";
+        const tp = nextHol.Tipo || nextHol.tipo || "Nacional";
+        return {
+          type: "query",
+          reply: `O próximo feriado cadastrado no sistema é **${nm}** em **${dtFmt}** (${tp}). Colaboradores em escala têm direito a crédito automático de folga compensatória.`,
+        };
+      }
+      return {
+        type: "query",
+        reply: "Consulte o calendário oficial na aba Feriados. Ao cadastrar um feriado ativo no sistema, é conferido crédito automático de folga para todos os colaboradores em escala.",
+      };
+    }
+    if (/cr[eé]dito/i.test(c)) {
+      return {
+        type: "query",
+        reply: "No Folgas 3.0, ao salvar ou cadastrar um feriado ativo, é gerado crédito automático de folga para todos os colaboradores em escala 6x1. Esse crédito garante o gozo de folga compensatória conforme a CLT.",
+      };
+    }
+    if (/regras?|clt|escala/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Conforme a CLT e a Lei nº 605/49, o trabalho realizado em dias de feriado deve ser compensado com folga compensatória na mesma semana ou pago em dobro (100%), resguardando o descanso semanal.",
+      };
+    }
+    if (/cadastrar/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Apenas administradores podem cadastrar feriados oficiais. Para cadastrar, acesse a aba Feriados no menu lateral e clique em Novo Feriado, informando nome, data, tipo e loja correspondente.",
+      };
+    }
+    if (/loja/i.test(c)) {
+      const storeHol = holidays.filter((h) => {
+        if (!userStore) return true;
+        const sId = String(h.LojaID || h.lojaId || "");
+        return !sId || sId === userStore || sId === "Todas";
+      });
+      if (storeHol.length) {
+        return {
+          type: "query",
+          reply: `Feriados vinculados à sua unidade:\n` +
+            storeHol.slice(0, 5).map((h) => {
+              const d = String(h.Data || h.data || "").slice(0, 10);
+              return `- **${h.NomeFeriado || h.nomeFeriado}**: ${d} (${h.Tipo || "Feriado"})`;
+            }).join("\n"),
+        };
+      }
+      return {
+        type: "query",
+        reply: "Feriados municipais vinculam-se exclusivamente à loja do município correspondente. Não há feriados específicos pendentes para esta unidade.",
+      };
+    }
+    return {
+      type: "query",
+      reply: RH_POLICIES.feriados,
+    };
+  }
+
+  // 2. Ponto, Tolerância e Frequência
+  if (/toler[aâ]ncia.*(?:clt|ponto)/i.test(c) || /raio.*toler[aâ]ncia/i.test(c)) {
+    if (/raio/i.test(c)) {
+      return {
+        type: "query",
+        reply: "O raio de tolerância do ponto por GPS é padronizado em 150 metros em torno da coordenada cadastrada da loja. O sistema pré-aquece o sinal para garantir o registro ágil no início e término da jornada.",
+      };
+    }
+    return {
+      type: "query",
+      reply: "Conforme o Artigo 58, § 1º da CLT, variações no registro de ponto não excedentes de 5 (cinco) minutos, observado o limite máximo diário de 10 (dez) minutos, não são descontadas nem computadas como horas extras.",
+    };
+  }
+  if (/colaboradores sem sa[ií]da/i.test(c)) {
+    const liveItems = getLivePresenceItems(context.livePresenceData);
+    const withoutExit = liveItems.filter((p) => {
+      const st = String(p.status || "").toLowerCase();
+      return st === "trabalhando" || st === "intervalo" || p.alertaHoras;
+    });
+    if (withoutExit.length) {
+      return {
+        type: "query",
+        reply: `Colaboradores atualmente em turno aberto ou sem saída registrada (${withoutExit.length}):\n` +
+          withoutExit.map((p) => `- **${p.Nome || p.nome}** (${p.NomeLoja || p.LojaID || "Loja"}): entrada às ${p.entryTime || "N/D"} · tempo decorrido: ${p.elapsedTexto || "N/D"}`).join("\n"),
+      };
+    }
+    return {
+      type: "query",
+      reply: "Não há colaboradores com pendência de saída detectada no momento. Todas as jornadas em andamento estão dentro do horário regular.",
+    };
+  }
+  if (/intervalo intrajornada/i.test(c)) {
+    return {
+      type: "query",
+      reply: "Conforme o Artigo 71 da CLT:\n- Jornadas superiores a 6 horas diárias: descanso intrajornada obrigatório de no mínimo 1 (uma) hora.\n- Jornadas de 4 a 6 horas: intervalo de 15 minutos.\n- O colaborador deve registrar o início e o término do intervalo no aplicativo.",
+    };
+  }
+  if (/espelho de ponto/i.test(c) || /confer[eê]ncia de espelhos/i.test(c)) {
+    return {
+      type: "query",
+      reply: "O espelho de ponto detalha todas as marcações de entrada, intervalos e saídas do mês, com cálculo da jornada líquida e apuração do banco de horas. Gestores podem conferir pela aba Ponto e colaboradores podem assinar pela aba Documentos.",
+    };
+  }
+  if (/meu ponto hoje/i.test(c)) {
+    return {
+      type: "query",
+      reply: "Suas marcações do dia de hoje podem ser consultadas e registradas na aba Ponto. Para registrar entrada, intervalo ou saída, clique no botão Bater Ponto.",
+    };
+  }
+  if (/como solicitar ajuste de ponto/i.test(c)) {
+    return {
+      type: "query",
+      reply: "Para solicitar ajuste de uma batida esquecida:\n1. Pelo Copiloto: digite por exemplo *'Esqueci de bater ponto ontem às 18:00'*\n2. Pela tela de Ponto: clique em *'Solicitar Ajuste'*, informe a data, horário e justificativa para aprovação do gestor.",
+    };
+  }
+  if (/hor[aá]rios? dos? turnos?|meu turno cadastrado/i.test(c)) {
+    return {
+      type: "query",
+      reply: "Os horários oficiais de turno do Grupo House 190 são:\n- **Manhã:** 07:00 às 15:20\n- **Tarde:** 15:00 às 23:20\n- **Noite:** 18:00 às 02:20\n- **Integral:** jornada operacional diária com intervalo ampliado.",
+    };
+  }
+
+  // 3. Atestados & Ausências
+  if (/atestado/i.test(c)) {
+    if (/prazo/i.test(c)) {
+      return {
+        type: "query",
+        reply: "O prazo legal e regulamentar para apresentação de atestado médico é de **até 48 horas** a partir do início do afastamento.",
+      };
+    }
+    if (/enviar|entregar/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Para entregar seu atestado, apresente a foto ou via original ao gerente da sua loja em até 48 horas. O gestor fará o lançamento oficial com abono das horas correspondentes.",
+      };
+    }
+    return {
+      type: "query",
+      reply: RH_POLICIES.atestados,
+    };
+  }
+  if (/justifica/i.test(c) || /falta/i.test(c)) {
+    if (/tipos/i.test(c)) {
+      return {
+        type: "query",
+        reply: "As categorias aceitas para justificativa no sistema são:\n1. **Atestado Médico / Odontológico**\n2. **Folga Trocada** (permuta autorizada)\n3. **Dia Concedido** (dispensa institucional)\n4. **Outros Motivos Legais** (luto, casamento, etc.).",
+      };
+    }
+    if (/desconta/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Não. Faltas abonadas por justificativa legal homologada (como atestado médico) zeram a ausência do dia e não geram débito no banco de horas.",
+      };
+    }
+    if (/prazo/i.test(c)) {
+      return {
+        type: "query",
+        reply: "O prazo para comunicação e justificativa de ausências é de até 48 horas após o ocorrido.",
+      };
+    }
+    return {
+      type: "query",
+      reply: "Gestores e administradores podem registrar justificativas na aba Ausências, selecionando o colaborador, data da falta e a categoria legal.",
+    };
+  }
+
+  // 4. Folgas e Trocas
+  if (/prazo.*aprova[cç][aã]o.*folga/i.test(c)) {
+    return {
+      type: "query",
+      reply: "As solicitações de folga devem ser avaliadas e homologadas pela gerência da loja antes da publicação da escala semanal (com antecedência mínima recomendada de 48 a 72 horas para organização dos plantões).",
+    };
+  }
+  if (/como solicitar folga/i.test(c)) {
+    return {
+      type: "query",
+      reply: "Para solicitar folga no Folgas 3.0:\n1. Pelo Copiloto: digite por exemplo *'Solicitar folga dia 25/10/2026 motivo consulta médica'*\n2. Pela tela de Folgas: clique em Novo Pedido de Folga e selecione a data desejada.",
+    };
+  }
+  if (/como funciona troca de folga/i.test(c) || /regras? de troca/i.test(c)) {
+    return {
+      type: "query",
+      reply: RH_POLICIES.trocas,
+    };
+  }
+
+  // 5. Documentos e Assinatura Digital
+  if (/documentos?|assinatura|holerite/i.test(c)) {
+    if (/pendente/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Documentos pendentes de assinatura podem ser acessados na aba Documentos. O sistema destaca holerites e espelhos mensais aguardando confirmação eletrônica.",
+      };
+    }
+    if (/validade|jur[ií]dica/i.test(c)) {
+      return {
+        type: "query",
+        reply: "A assinatura digital no sistema possui plena validade jurídica amparada pela Medida Provisória nº 2.200-2/2001 e pela Lei nº 14.063/2020, contando com hash criptográfico SHA-256, carimbo de tempo e IP pericial.",
+      };
+    }
+    if (/como funciona.*assinatura/i.test(c) || /como assinar/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Para assinar seu espelho de ponto ou holerite:\n1. Acesse a aba Documentos.\n2. Selecione o documento do mês e confira as informações.\n3. Clique em Assinar Documento e confirme com seu PIN de segurança.",
+      };
+    }
+    if (/holerite/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Os comprovantes de pagamento e holerites ficam permanentemente disponíveis para consulta, download e assinatura na aba Documentos.",
+      };
+    }
+    return {
+      type: "query",
+      reply: "A gestão documental e assinatura digital do Grupo House 190 asseguram agilidade e conformidade trabalhista para toda a equipe.",
+    };
+  }
+
+  // 6. Banco de Horas
+  if (/banco|saldo|horas extras|compensa[cç][aã]o|extrato de horas/i.test(c)) {
+    if (/extrato/i.test(c)) {
+      return {
+        type: "query",
+        reply: "O extrato de horas detalha débitos, créditos e compensações diárias. Você pode consultar o extrato completo na aba Banco de Horas.",
+      };
+    }
+    if (/maior saldo|devedores/i.test(c)) {
+      return {
+        type: "query",
+        reply: "O quadro de maiores saldos e saldos devedores da loja ou rede pode ser consultado na aba Banco de Horas (exclusivo para gestores e administradores).",
+      };
+    }
+    if (/limite de horas extras/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Conforme o Artigo 59 da CLT, a duração diária da jornada de trabalho poderá ser acrescida de horas suplementares em número não excedente de 2 (duas) horas diárias.",
+      };
+    }
+    if (/compensa[cç][aã]o/i.test(c)) {
+      return {
+        type: "query",
+        reply: "As horas excedentes acumuladas no banco de horas podem ser compensadas mediante folga programada ou redução de jornada, conforme alinhamento com a gerência.",
+      };
+    }
+    return {
+      type: "query",
+      reply: RH_POLICIES.banco_horas,
+    };
+  }
+
+  // 7. CozinhaFlow & Gamificação
+  if (/tarefa|cozinhaflow|pontua[cç][aã]o/i.test(c)) {
+    if (/pontua[cç][aã]o|pontuar/i.test(c)) {
+      return {
+        type: "query",
+        reply: "No CozinhaFlow, cada tarefa concluída pontua de acordo com a prioridade:\n- **Prioridade Alta:** 30 pontos\n- **Prioridade Média:** 20 pontos\n- **Prioridade Baixa:** 10 pontos\nOs pontos acumulados podem ser trocados no Catálogo de Prêmios da sua loja.",
+      };
+    }
+    if (/pendente|cozinha|rede/i.test(c)) {
+      const openTasks = tasks.filter((t) => t.STATUS !== "Concluída" && t.STATUS !== "concluida");
+      if (openTasks.length) {
+        return {
+          type: "query",
+          reply: `Tarefas pendentes registradas no CozinhaFlow (${openTasks.length}):\n` +
+            openTasks.slice(0, 5).map((t) => `- **${t.TITULO || "Tarefa"}** (Prioridade: ${t.PRIORIDADE || "Normal"} | Status: ${t.STATUS || "A fazer"})`).join("\n"),
+        };
+      }
+      return {
+        type: "query",
+        reply: "Não há tarefas pendentes registradas no CozinhaFlow no momento. Toda a rotina operacional está em dia.",
+      };
+    }
+    if (/minhas tarefas/i.test(c)) {
+      const myT = tasks.filter((t) => String(t.RESPONSAVEL_ID || "") === userId && t.STATUS !== "Concluída");
+      if (myT.length) {
+        return {
+          type: "query",
+          reply: `Suas tarefas para hoje (${myT.length}):\n` +
+            myT.map((t) => `- **${t.TITULO || "Tarefa"}** (Status: ${t.STATUS || "A fazer"})`).join("\n"),
+        };
+      }
+      return {
+        type: "query",
+        reply: "Você não possui tarefas pendentes atribuídas a você no CozinhaFlow para hoje.",
+      };
+    }
+    if (/delegar|criar/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Para criar ou delegar uma tarefa, digite: *'Cria tarefa para [Nome] [Título da Tarefa] prazo hoje às 18h prioridade alta'*. O Copiloto preparará o card para sua confirmação.",
+      };
+    }
+    if (/concluir/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Para concluir uma tarefa, abra o card correspondente no CozinhaFlow ou digite *'Concluir tarefa [Título]'*.",
+      };
+    }
+    return {
+      type: "query",
+      reply: "O CozinhaFlow integra organização operacional, checklist de rotina e gamificação de equipe para as cozinhas e lojas.",
+    };
+  }
+
+  // 8. Escala e Regra 6x1
+  if (/escala|6x1|turno|folga fixa/i.test(c)) {
+    if (/6x1/i.test(c)) {
+      return {
+        type: "query",
+        reply: "A regra da escala 6x1 (Artigo 67 da CLT) estabelece que nenhum colaborador pode cumprir mais de 6 (seis) dias consecutivos de trabalho sem a fruição de repouso semanal remunerado, assegurando folgas periódicas aos domingos.",
+      };
+    }
+    if (/simular/i.test(c)) {
+      return {
+        type: "query",
+        reply: "O simulador de escala automática gera a distribuição de plantões e folgas respeitando limites de loja, regra 6x1 e folgas fixas cadastradas.",
+      };
+    }
+    if (/alterar folga fixa|folga fixa/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Para alterar a folga fixa semanal de um colaborador, digite: *'Muda a folga fixa de [Nome] para Segunda'*. O ajuste será programado com confirmação visual.",
+      };
+    }
+    if (/alterar turno/i.test(c)) {
+      return {
+        type: "query",
+        reply: "Para alterar o turno de um colaborador, digite: *'Muda o turno de [Nome] para Noite'*. Gestores ajustam para sua unidade e administradores para qualquer loja da rede.",
+      };
+    }
+    return {
+      type: "query",
+      reply: RH_POLICIES.escala,
+    };
+  }
+
+  // 9. Takeat Consumo
+  if (/takeat|consumo|limite de cr[eé]dito|desconto em folha/i.test(c)) {
+    return {
+      type: "query",
+      reply: "O módulo Takeat gerencia o consumo a prazo de colaboradores com limite parametrizado por cargo. O valor total consumido no ciclo mensal é deduzido em folha de pagamento de forma transparente.",
+    };
+  }
+
+  // 10. Presença ao Vivo
+  if (/quem est[aá] trabalhando|trabalhando agora/i.test(c)) {
+    const liveItems = getLivePresenceItems(context.livePresenceData);
+    const working = liveItems.filter(isPersonWorking);
+    if (working.length) {
+      return {
+        type: "query",
+        reply: `Colaboradores trabalhando agora (${working.length}):\n` +
+          working.slice(0, 10).map((p) => `- **${p.Nome || p.nome}** (${p.NomeLoja || p.LojaID || "Loja"} · Entrada: ${p.entryTime || "N/D"})`).join("\n"),
+      };
+    }
+    return {
+      type: "query",
+      reply: "Não há colaboradores com marcação de trabalho ativa registrada no momento.",
+    };
+  }
+
+  // 11. Lojas, Rede e Comunicação
+  if (/loja|equipe|buscar colaborador|presen[cç]a|atrasados|regras da loja|par[aâ]metros/i.test(c)) {
+    if (/atrasados/i.test(c)) {
+      return {
+        type: "query",
+        reply: "A lista de colaboradores atrasados é monitorada em tempo real com base no início previsto da jornada e ausência de batida de ponto.",
+      };
+    }
+    if (/presen[cç]a/i.test(c)) {
+      return {
+        type: "query",
+        reply: "O painel de Presença ao Vivo consolida o status da equipe em tempo real (trabalhando, em intervalo, folga ou ausente).",
+      };
+    }
+    if (/lojas cadastradas|dados da minha loja|resumo das lojas|regras da loja|par[aâ]metros/i.test(c)) {
+      if (stores.length) {
+        return {
+          type: "query",
+          reply: `Unidades cadastradas no Grupo House 190 (${stores.length}):\n` +
+            stores.map((s) => `- **${s.Nome || s.nome || "Loja"}** (${s.Codigo || s.codigo || s.LojaID || "ID"}): ${s.Cidade || "Bahia"}`).join("\n"),
+        };
+      }
+      return {
+        type: "query",
+        reply: "As unidades operacionais contam com parametrizações individuais de limite de folgas por dia e regras de escala.",
+      };
+    }
+    if (/equipe|buscar/i.test(c)) {
+      if (employees.length) {
+        return {
+          type: "query",
+          reply: `Colaboradores cadastrados na equipe (${employees.length}):\n` +
+            employees.slice(0, 8).map((e) => `- **${e.Nome || e.nome}** (${e.NomeLoja || e.LojaID || "Loja"} · Turno: ${e.Turno || "Padrão"})`).join("\n"),
+        };
+      }
+      return {
+        type: "query",
+        reply: "A equipe pode ser consultada na aba Equipe com dados detalhados de turno, cargo e folga fixa.",
+      };
+    }
+  }
+
+  if (/comunicado|avisos/i.test(c)) {
+    return {
+      type: "query",
+      reply: "Para publicar um comunicado oficial, digite: *'Publica comunicado: [Título] - [Mensagem]'*. O aviso será enviado para a equipe na aba Comunicados.",
+    };
+  }
+
+  if (/fechamento/i.test(c)) {
+    return {
+      type: "query",
+      reply: "O fechamento mensal consolida todos os espelhos de ponto, folgas e saldos de banco de horas para conferência e exportação contábil.",
+    };
+  }
+
+  if (/rbac|governan[cç]a|delega[cç][oõ]es|a[cç][oõ]es do copiloto|[uú]ltimas a[cç][oõ]es|perfis de acesso/i.test(c)) {
+    return {
+      type: "query",
+      reply: "O controle de acesso baseado em papéis (RBAC) e o log imutável de auditoria garantem que todas as ações do Copiloto sejam rastreáveis e autorizadas conforme a hierarquia da empresa.",
+    };
+  }
+
+  if (/relat[oó]rio|absente[ií]smo|pontualidade|indicadores/i.test(c)) {
+    return {
+      type: "query",
+      reply: "Os relatórios gerenciais e de auditoria consolidam índices de pontualidade, absenteísmo e volume de horas extras por loja e por período.",
+    };
+  }
+
+  if (/como funciona esta tela/i.test(c)) {
+    const screen = SCREEN_KNOWLEDGE[currentView] || SCREEN_KNOWLEDGE.dashboard;
+    return {
+      type: "query",
+      reply: `**${screen.title} (${screen.category}):**\n\n${screen.summary}\n\n**Regras e Diretrizes:**\n${screen.rules}`,
+    };
+  }
+
+  return null;
+}
+
 export function parseCopilotIntent(text, context = {}) {
   return sanitizeIntent(_parseCopilotIntentRaw(text, context));
 }
@@ -2297,6 +2765,16 @@ function _parseCopilotIntentRaw(text, context = {}) {
   const tasks = Array.isArray(context.tasks) ? context.tasks : [];
   const swaps = Array.isArray(context.swaps) ? context.swaps : [];
   const timeOff = Array.isArray(context.timeOff) ? context.timeOff : [];
+  const vacations = Array.isArray(context.vacations) ? context.vacations : [];
+  const holidays = Array.isArray(context.holidays) ? context.holidays : [];
+  const stores = Array.isArray(context.stores) ? context.stores : [];
+  const adjustments = Array.isArray(context.adjustments)
+    ? context.adjustments
+    : Array.isArray(context.timeClock?.adjustments)
+      ? context.timeClock.adjustments
+      : [];
+  const incompletePunches = Array.isArray(context.incompletePunches) ? context.incompletePunches : [];
+  const documents = Array.isArray(context.documents) ? context.documents : [];
 
   function findEmployee(query) {
     return findEmployeeInText(query, employees);
@@ -2355,9 +2833,12 @@ function _parseCopilotIntentRaw(text, context = {}) {
   }
 
   if (
-    /(?:(?:como\s+funciona[mn]?\s+(?:as\s+)?)?trocas?\s+de\s+folgas?|pol[ií]tica\s+(?:de\s+)?trocas?|posso\s+trocar\s+minha\s+folga)/i.test(
+    /(?:(?:como\s+funciona[mn]?\s+(?:[ao]s?\s+)?)?trocas?\s+de\s+folgas?|pol[ií]tica\s+(?:de\s+)?trocas?|posso\s+trocar\s+minha\s+folga|regras?\s+(?:de\s+)?trocas?)/i.test(
       clean,
-    )
+    ) &&
+    !clean.includes("pendente") &&
+    !clean.includes("loja") &&
+    !clean.includes("aprovar")
   ) {
     return {
       type: "query",
@@ -2376,36 +2857,413 @@ function _parseCopilotIntentRaw(text, context = {}) {
     };
   }
 
+  // ------------------------------------------------------------------------
+  // AÇÃO DIRETA: APROVAR OU RECUSAR FOLGA
+  // ------------------------------------------------------------------------
+  const approveLeaveMatch = clean.match(
+    /(?:(aprova(?:r)?|aceita(?:r)?|homologa(?:r)?|recusa(?:r)?|rejeita(?:r)?))\s+(?:a\s+)?(?:folga|pedido\s+de\s+folga|solicita[cç][aã]o\s+de\s+folga)?\s*(?:de|do|da)?\s+([a-zA-ZÀ-ÿ\s]+)/i,
+  );
   if (
-    /(?:solicita[cç][oõ]es\s+pendentes\s+da\s+equipe|pedidos\s+(?:de\s+folgas?\s+)?aguardando\s+aprova[cç][aã]o|o\s+que\s+a\s+equipe\s+pediu|pedidos\s+pendentes\s+da\s+loja)/i.test(
+    approveLeaveMatch &&
+    !clean.includes("troca") &&
+    !clean.includes("ponto") &&
+    !clean.includes("turno") &&
+    !clean.includes("fixa")
+  ) {
+    if (role === "employee") {
+      return {
+        type: "error",
+        message: "A aprovação ou recusa de solicitações de folga é exclusiva de Gerentes e Administradores.",
+      };
+    }
+
+    const isApproval = /^(aprova|aceita|homologa)/i.test(approveLeaveMatch[1]);
+    const targetQuery = approveLeaveMatch[2].trim();
+    const targetEmp = findEmployee(targetQuery);
+    const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : targetQuery;
+    const targetId = targetEmp ? (targetEmp.FuncionarioID || targetEmp.id) : "";
+
+    const allLeaves = [...timeOff, ...vacations];
+    const pendingLeave = allLeaves.find((f) => {
+      const st = String(f.Status || f.status || "").toLowerCase();
+      if (st !== "pendente" && !st.includes("aguardando")) return false;
+      if (role === "manager" && userStore) {
+        const fStore = String(f.LojaID || f.lojaId || "");
+        if (fStore && fStore !== userStore) return false;
+      }
+      if (targetId && String(f.FuncionarioID || f.funcionarioId) === String(targetId)) return true;
+      const fName = String(f.NomeFuncionario || f.nome || "").toLowerCase();
+      return fName.includes(targetQuery.toLowerCase());
+    });
+
+    if (!pendingLeave) {
+      return {
+        type: "error",
+        message: `Nenhuma solicitação de folga pendente foi localizada para "${targetName}".`,
+      };
+    }
+
+    const leaveId = pendingLeave.ID || pendingLeave.id || pendingLeave.FolgaID;
+    const actionLabel = isApproval ? "Aprovar Solicitação de Folga" : "Recusar Solicitação de Folga";
+    const dataFolga = String(pendingLeave.DataInicio || pendingLeave.Data || pendingLeave.dataInicio || "").slice(0, 10);
+    const motivoDecisao = isApproval ? "Aprovado via Copiloto" : "Recusado via Copiloto";
+
+    return {
+      type: "action",
+      actionType: isApproval ? "approve_leave" : "reject_leave",
+      title: actionLabel,
+      apiMethod: isApproval ? "approveTimeOff" : "rejectTimeOff",
+      apiArgs: [leaveId, motivoDecisao],
+      summary: `${isApproval ? "Aprovar" : "Recusar"} solicitação de folga de ${pendingLeave.NomeFuncionario || targetName} para o dia ${dataFolga}.`,
+      diff: [
+        { label: "Colaborador", value: pendingLeave.NomeFuncionario || targetName },
+        { label: "Data da Folga", value: dataFolga },
+        { label: "Decisão", value: isApproval ? "Aprovada" : "Recusada" },
+        { label: "Observação", value: motivoDecisao },
+      ],
+      details: { folgaId: leaveId, timeOffId: leaveId, decision: isApproval ? "Aprovada" : "Recusada" },
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // AÇÃO DIRETA: APROVAR AJUSTE DE PONTO
+  // ------------------------------------------------------------------------
+  const approveClockMatch = clean.match(
+    /(?:(aprova(?:r)?|aceita(?:r)?|homologa(?:r)?))\s+(?:o\s+)?(?:ajuste\s+de\s+ponto|ajuste|ponto)\s+(?:de|do|da)?\s+([a-zA-ZÀ-ÿ\s]+)/i,
+  );
+  if (approveClockMatch) {
+    if (role === "employee") {
+      return {
+        type: "error",
+        message: "A homologação de ajustes de ponto é restrita a Gerentes e Administradores.",
+      };
+    }
+    const targetQuery = approveClockMatch[2].trim();
+    const targetEmp = findEmployee(targetQuery);
+    const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : targetQuery;
+    const targetId = targetEmp ? (targetEmp.FuncionarioID || targetEmp.id) : "";
+
+    const pendingAdj = adjustments.find((a) => {
+      const st = String(a.Status || a.status || "").toLowerCase();
+      if (st !== "pendente" && !st.includes("aguardando")) return false;
+      if (role === "manager" && userStore) {
+        const aStore = String(a.LojaID || a.lojaId || "");
+        if (aStore && aStore !== userStore) return false;
+      }
+      if (targetId && String(a.FuncionarioID || a.funcionarioId) === String(targetId)) return true;
+      const aName = String(a.NomeFuncionario || a.nome || "").toLowerCase();
+      return aName.includes(targetQuery.toLowerCase());
+    });
+
+    if (!pendingAdj) {
+      return {
+        type: "error",
+        message: `Nenhum pedido de ajuste de ponto pendente foi localizado para "${targetName}".`,
+      };
+    }
+
+    const adjId = pendingAdj.ID || pendingAdj.id || pendingAdj.AjustePontoID;
+    const adjDate = String(pendingAdj.Data || pendingAdj.DataHoraSolicitada || "").slice(0, 10);
+    const adjTime = pendingAdj.HoraSolicitada || pendingAdj.Hora || "";
+
+    return {
+      type: "action",
+      actionType: "approve_clock_adjustment",
+      title: "Homologar Ajuste de Ponto",
+      apiMethod: "decideTimeClockAdjustment",
+      apiArgs: [{ ajustePontoId: adjId, decision: "aprovar", observacao: "Homologado via Copiloto" }],
+      summary: `Homologar ajuste de ponto de ${pendingAdj.NomeFuncionario || targetName} no dia ${adjDate}${adjTime ? ` às ${adjTime}` : ""}.`,
+      diff: [
+        { label: "Colaborador", value: pendingAdj.NomeFuncionario || targetName },
+        { label: "Data", value: adjDate },
+        { label: "Horário Homologado", value: adjTime || "Horário solicitado" },
+        { label: "Decisão", value: "Aprovado" },
+      ],
+      details: { ajustePontoId: adjId, adjustmentId: adjId, decision: "aprovar" },
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // PENDÊNCIAS: AJUSTES DE PONTO PENDENTES
+  // ------------------------------------------------------------------------
+  if (
+    /(?:ajustes?\s+de\s+ponto\s+(?:pendentes?|da\s+loja|em\s+aberto|aguardando)|pend[eê]ncias?\s+de\s+ponto|pontos?\s+(?:pendentes?|incompletos?)|ajustes?\s+de\s+ponto\b(?!.*(?:ontem|hoje|\d{1,2}[\/\:]\d{1,2}|esqueci)))/i.test(
       clean,
     )
   ) {
     if (role === "employee") {
+      const myAdj = adjustments.filter((a) => {
+        const aId = String(a.FuncionarioID || a.funcionarioId || "").trim();
+        const st = String(a.Status || a.status || "").toLowerCase();
+        return aId === userId && (st === "pendente" || st.includes("aguardando"));
+      });
+      if (!myAdj.length) {
+        return {
+          type: "query",
+          reply: "Você não possui solicitações de ajuste de ponto pendentes no momento. Suas marcações de ponto estão regularizadas.",
+        };
+      }
       return {
         type: "query",
-        reply: "A consulta de solicitações pendentes da equipe é restrita aos gestores da unidade.",
+        reply:
+          `Você possui **${myAdj.length} solicitação(ões) de ajuste de ponto** aguardando retorno da liderança:\n` +
+          myAdj
+            .map(
+              (a) =>
+                `- **Data:** ${String(a.Data || a.DataHoraSolicitada || "").slice(0, 10)} | **Horário:** ${a.HoraSolicitada || a.Hora || (a.DataHoraSolicitada ? String(a.DataHoraSolicitada).slice(11, 16) : "")} — Motivo: ${a.Motivo || a.motivo || "Ajuste de ponto"}`,
+            )
+            .join("\n"),
       };
     }
+
+    let pendingAdj = adjustments.filter((a) => {
+      const st = String(a.Status || a.status || "").toLowerCase();
+      return st === "pendente" || st.includes("aguardando");
+    });
+    if (role === "manager" && userStore) {
+      pendingAdj = pendingAdj.filter((a) => String(a.LojaID || a.lojaId || "") === userStore);
+    }
+
+    if (!pendingAdj.length) {
+      return {
+        type: "query",
+        reply: "Não há nenhum ajuste de ponto pendente no momento. Todas as batidas e solicitações de ajuste da equipe estão regularizadas.",
+      };
+    }
+
+    return {
+      type: "query",
+      reply:
+        `Há **${pendingAdj.length} ajuste(s) de ponto pendente(s)** aguardando sua validação:\n` +
+        pendingAdj
+          .map((a) => {
+            const empName = a.NomeFuncionario || a.nome || a.FuncionarioID;
+            const storeLabel =
+              a.NomeLoja ||
+              stores.find((s) => String(s.LojaID || s.id) === String(a.LojaID))?.Nome ||
+              "";
+            const storeTxt = storeLabel ? ` (${storeLabel})` : "";
+            const dt = String(a.Data || a.DataHoraSolicitada || "").slice(0, 10);
+            const hr =
+              a.HoraSolicitada ||
+              a.Hora ||
+              (a.DataHoraSolicitada ? String(a.DataHoraSolicitada).slice(11, 16) : "");
+            return `- **${empName}**${storeTxt}: ${dt}${hr ? ` às ${hr}` : ""} — Motivo: "${a.Motivo || a.motivo || "Esquecimento de registro"}"`;
+          })
+          .join("\n") +
+        `\n\nPara homologar, você pode digitar: *"Aprovar ajuste de ponto de [Nome]"*.`,
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // PENDÊNCIAS: SOLICITAÇÕES DE FOLGA ABERTAS / PENDENTES
+  // ------------------------------------------------------------------------
+  if (
+    !clean.includes("troca") &&
+    /(?:solicita[cç][oõ]es\s+de\s+folgas?\s+(?:abertas?|pendentes?|da\s+loja)|pedidos\s+de\s+folgas?\s+(?:abertos?|pendentes?)|folgas?\s+(?:pendentes?|em\s+aberto)|pedidos\s+de\s+folga\b|solicita[cç][oõ]es\s+pendentes\s+da\s+equipe|o\s+que\s+a\s+equipe\s+pediu|minhas\s+solicita[cç][oõ]es\s+pendentes)/i.test(
+      clean,
+    )
+  ) {
+    if (role === "employee" || clean.includes("minhas solicita")) {
+      const myPending = [...timeOff, ...vacations].filter((f) => {
+        const fId = String(f.FuncionarioID || f.funcionarioId || "").trim();
+        const st = String(f.Status || f.status || "").toLowerCase();
+        return fId === userId && (st === "pendente" || st.includes("aguardando"));
+      });
+      if (!myPending.length) {
+        return {
+          type: "query",
+          reply: "Você não possui solicitações de folga em aberto no momento.",
+        };
+      }
+      return {
+        type: "query",
+        reply:
+          `Você possui **${myPending.length} solicitação(ões) de folga em aberto** aguardando resposta da gerência:\n` +
+          myPending
+            .map((f) => {
+              const d = String(f.DataInicio || f.Data || f.dataInicio || "").slice(0, 10);
+              return `- **Data:** ${d} | **Tipo/Motivo:** ${f.TipoFolga || f.Motivo || "Folga regular"}`;
+            })
+            .join("\n"),
+      };
+    }
+
+    let pendingLeaves = [...timeOff, ...vacations].filter((f) => {
+      const st = String(f.Status || f.status || "").toLowerCase();
+      return st === "pendente" || st.includes("aguardando");
+    });
+    if (role === "manager" && userStore) {
+      pendingLeaves = pendingLeaves.filter((f) => String(f.LojaID || f.lojaId || "") === userStore);
+    }
+    if (!pendingLeaves.length) {
+      return {
+        type: "query",
+        reply: "Não há nenhuma solicitação de folga pendente de aprovação no momento. As escalas de folgas estão todas em dia.",
+      };
+    }
+    return {
+      type: "query",
+      reply:
+        `Há **${pendingLeaves.length} solicitação(ões) de folga aberta(s)** aguardando sua decisão:\n` +
+        pendingLeaves
+          .map((f) => {
+            const empName = f.NomeFuncionario || f.nome || f.FuncionarioID;
+            const storeLabel =
+              f.NomeLoja ||
+              stores.find((s) => String(s.LojaID || s.id) === String(f.LojaID))?.Nome ||
+              "";
+            const storeTxt = storeLabel ? ` (${storeLabel})` : "";
+            const d = String(f.DataInicio || f.Data || f.dataInicio || "").slice(0, 10);
+            const motive = f.Motivo || f.TipoFolga || "Folga solicitada";
+            return `- **${empName}**${storeTxt}: folga para o dia **${d}** (${motive})`;
+          })
+          .join("\n") +
+        `\n\nPara homologar, você pode digitar: *"Aprovar folga de [Nome]"* ou *"Recusar folga de [Nome]"*.`,
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // PENDÊNCIAS: TROCAS DE FOLGA PENDENTES
+  // ------------------------------------------------------------------------
+  if (
+    /(?:trocas?\s+(?:de\s+folgas?\s+)?(?:pendentes?|da\s+minha\s+loja|da\s+loja|em\s+aberto)|aprovar\s+trocas\s+pendentes)/i.test(
+      clean,
+    )
+  ) {
+    if (role === "employee") {
+      const mySwaps = swaps.filter((s) => {
+        const isMine =
+          String(s.FuncionarioOrigemID || "") === userId ||
+          String(s.FuncionarioDestinoID || "") === userId;
+        const st = String(s.Status || s.status || "").toLowerCase();
+        return isMine && (st.includes("aguardando") || st === "pendente");
+      });
+      if (!mySwaps.length) {
+        return {
+          type: "query",
+          reply: "Você não possui nenhuma troca de folga pendente de aprovação no momento.",
+        };
+      }
+      return {
+        type: "query",
+        reply:
+          `Você possui **${mySwaps.length} troca(s) de folga pendente(s)**:\n` +
+          mySwaps
+            .map(
+              (s) =>
+                `- ${s.NomeFuncionarioOrigem || "Colaborador"} (${s.DataFolgaOrigem}) por ${s.NomeFuncionarioDestino || "Colaborador"} (${s.DataFolgaDestino}) — Status: ${s.Status || "Aguardando gestor"}`,
+            )
+            .join("\n"),
+      };
+    }
+
+    let pendingSwaps = swaps.filter((s) => {
+      const st = String(s.Status || s.status || "").toLowerCase();
+      return st.includes("aguardando") || st === "pendente";
+    });
+    if (role === "manager" && userStore) {
+      pendingSwaps = pendingSwaps.filter((s) => String(s.LojaID || s.lojaId || "") === userStore);
+    }
+    if (!pendingSwaps.length) {
+      return {
+        type: "query",
+        reply: "Não há nenhuma solicitação de troca de folga pendente no momento.",
+      };
+    }
+    return {
+      type: "query",
+      reply:
+        `Há **${pendingSwaps.length} troca(s) de folga aguardando aprovação gerencial**:\n` +
+        pendingSwaps
+          .map(
+            (s) =>
+              `- **${s.NomeFuncionarioOrigem || "Origem"}** (${s.DataFolgaOrigem}) por **${s.NomeFuncionarioDestino || "Destino"}** (${s.DataFolgaDestino}) — Loja: ${s.NomeLoja || s.LojaID || "Unidade"}`,
+          )
+          .join("\n") +
+        `\n\nPara homologar, você pode digitar: *"Aprovar troca do [Nome]"*.`,
+    };
+  }
+
+  // ------------------------------------------------------------------------
+  // PENDÊNCIAS: CENTRAL / RESUMO GERAL DE PENDÊNCIAS
+  // ------------------------------------------------------------------------
+  if (
+    /(?:central\s+de\s+pend[eê]ncias|resumo\s+de\s+pend[eê]ncias|o\s+que\s+tem\s+pendente|quais\s+(?:s[aã]o\s+as\s+)?pend[eê]ncias|autoriza[cç][oõ]es\s+pendentes|\bpend[eê]ncias\b)/i.test(
+      clean,
+    )
+  ) {
+    if (role === "employee") {
+      const myLeaves = [...timeOff, ...vacations].filter((f) => {
+        const fId = String(f.FuncionarioID || f.funcionarioId || "").trim();
+        const st = String(f.Status || f.status || "").toLowerCase();
+        return fId === userId && (st === "pendente" || st.includes("aguardando"));
+      });
+      const myAdj = adjustments.filter((a) => {
+        const aId = String(a.FuncionarioID || a.funcionarioId || "").trim();
+        const st = String(a.Status || a.status || "").toLowerCase();
+        return aId === userId && (st === "pendente" || st.includes("aguardando"));
+      });
+      const mySwaps = swaps.filter((s) => {
+        const isMine =
+          String(s.FuncionarioOrigemID || "") === userId ||
+          String(s.FuncionarioDestinoID || "") === userId;
+        const st = String(s.Status || s.status || "").toLowerCase();
+        return isMine && (st.includes("aguardando") || st === "pendente");
+      });
+      const total = myLeaves.length + myAdj.length + mySwaps.length;
+      if (total === 0) {
+        return {
+          type: "query",
+          reply: "Você não possui nenhuma solicitação pendente no momento. Tudo está em dia.",
+        };
+      }
+      return {
+        type: "query",
+        reply:
+          `**Suas Solicitações Pendentes (Total: ${total}):**\n\n` +
+          `- **Folgas Solicitadas:** ${myLeaves.length}\n` +
+          `- **Ajustes de Ponto:** ${myAdj.length}\n` +
+          `- **Trocas de Folga:** ${mySwaps.length}\n\n` +
+          `Acompanhe a decisão da sua gerência pela Central de Pendências ou pelo Copiloto.`,
+      };
+    }
+
     const actor = { userId, role, storeId: userStore };
     const p = hrAdapter.getTeamPendingRequests(actor, context);
     if (p.totalPendencias === 0) {
       return {
         type: "query",
-        reply: "Não há nenhuma solicitação de folga ou troca pendente de aprovação para a sua unidade no momento.",
+        reply: "Não há nenhuma pendência operacional aguardando sua validação no momento. Todos os pedidos estão em dia.",
       };
     }
-    const leavesText = p.folgasPendentes.length > 0
-      ? `\n- **Folgas Solicitadas (${p.folgasPendentes.length}):**\n` + p.folgasPendentes.map((f) => `  * ${f.colaborador}: ${f.data} (${f.motivo})`).join("\n")
-      : "";
-    const swapsText = p.trocasPendentes.length > 0
-      ? `\n- **Trocas de Folga (${p.trocasPendentes.length}):**\n` + p.trocasPendentes.map((s) => `  * ${s.origem} por ${s.destino}`).join("\n")
-      : "";
+    const leavesText =
+      p.folgasPendentes.length > 0
+        ? `\n- **Folgas Solicitadas (${p.folgasPendentes.length}):**\n` +
+          p.folgasPendentes.map((f) => `  * ${f.colaborador}: ${f.data} (${f.motivo})`).join("\n")
+        : "\n- **Folgas Solicitadas:** Nenhuma";
+    const adjText =
+      p.ajustesPendentes.length > 0
+        ? `\n- **Ajustes de Ponto (${p.ajustesPendentes.length}):**\n` +
+          p.ajustesPendentes
+            .map((a) => `  * ${a.colaborador}: ${a.data}${a.horario ? ` às ${a.horario}` : ""} (${a.motivo})`)
+            .join("\n")
+        : "\n- **Ajustes de Ponto:** Nenhum";
+    const swapsText =
+      p.trocasPendentes.length > 0
+        ? `\n- **Trocas de Folga (${p.trocasPendentes.length}):**\n` +
+          p.trocasPendentes.map((s) => `  * ${s.origem} por ${s.destino}`).join("\n")
+        : "\n- **Trocas de Folga:** Nenhuma";
+
     return {
       type: "query",
-      reply: `**Solicitações Pendentes da Equipe (${p.totalPendencias}):**${leavesText}${swapsText}\n\nPara aprovar ou recusar, digite: "Aprovar folga de [Nome]" ou "Aprovar troca de [Nome]".`,
+      reply:
+        `**Central de Pendências (${p.totalPendencias} itens aguardando decisão):**${leavesText}${adjText}${swapsText}\n\n` +
+        `Para decidir, você pode digitar por exemplo: *"Aprovar folga de [Nome]"*, *"Recusar folga de [Nome]"* ou *"Aprovar troca de [Nome]"*.`,
     };
   }
+
+
 
   // ------------------------------------------------------------------------
   // 2. CONSULTAS: PRÓXIMA FOLGA
@@ -3492,6 +4350,14 @@ function _parseCopilotIntentRaw(text, context = {}) {
   }
 
   // ------------------------------------------------------------------------
+  // CONSULTAS OPERACIONAIS E CHIPS DO SISTEMA (MEGA CÉREBRO)
+  // ------------------------------------------------------------------------
+  const opKnowledge = resolveOperationalKnowledge(clean, context, role, user);
+  if (opKnowledge) {
+    return opKnowledge;
+  }
+
+  // ------------------------------------------------------------------------
   // FALLBACK
   // ------------------------------------------------------------------------
   return {
@@ -3847,15 +4713,35 @@ export function initCopilot() {
               ? window.__GESTAO_STATE__.employees
               : [];
 
+      const timeClockData =
+        state.timeClock || window.state?.timeClock || window.__GESTAO_STATE__?.timeClock || {};
+      const adjustments = Array.isArray(timeClockData.adjustments)
+        ? timeClockData.adjustments
+        : Array.isArray(state.adjustments)
+          ? state.adjustments
+          : [];
+      const incompletePunches = Array.isArray(state.incompletePunches)
+        ? state.incompletePunches
+        : Array.isArray(window.state?.incompletePunches)
+          ? window.state.incompletePunches
+          : [];
+
       const context = {
         user: state.user || window.__GESTAO_USER__,
         employees: allEmployees,
-        tasks: state.tasks || [],
-        swaps: state.swaps || [],
-        timeOff: state.timeOff || [],
-        stores: state.stores || [],
-        livePresenceData: state.livePresenceData || [],
-        hourBalance: state.timeClockBalance || state.hourBalance,
+        tasks: state.tasks || window.state?.tasks || [],
+        swaps: state.swaps || window.state?.swaps || [],
+        timeOff: state.timeOff || window.state?.timeOff || [],
+        vacations: state.vacations || window.state?.vacations || [],
+        holidays: state.holidays || window.state?.holidays || [],
+        stores: state.stores || window.state?.stores || [],
+        livePresenceData: state.livePresenceData || window.state?.livePresenceData || [],
+        timeClock: timeClockData,
+        adjustments,
+        incompletePunches,
+        documents: state.documents || window.state?.documents || [],
+        hourBalance: state.timeClockBalance || state.hourBalance || window.state?.timeClockBalance,
+        pendingCounts: typeof pendingCenterCounts_ === "function" ? pendingCenterCounts_() : (state.pendingCounts || null),
         currentView: getCurrentView(),
       };
 

@@ -891,3 +891,134 @@ test("Copiloto CSS Layout: painel possui overflow hidden e corpo possui min-heig
   // .copilot-footer deve ter flex-shrink: 0 para nunca ser comprimido
   assert.match(css, /\.copilot-footer\s*\{[\s\S]*?flex-shrink:\s*0;/i, ".copilot-footer deve conter flex-shrink: 0");
 });
+
+test("Copiloto Mega Cérebro: Consulta de pendências operacionais (ponto, folgas, trocas e central)", () => {
+  const adminUser = { FuncionarioID: "adm_1", Nome: "Administrador", Perfil: "Administrador" };
+  const mockAdjustments = [
+    { ID: "adj_1", FuncionarioID: "emp_1", NomeFuncionario: "Gabriel Silva", Data: "2026-10-14", HoraSolicitada: "18:00", Status: "Pendente", LojaID: "loja_matriz", Motivo: "Esqueci de bater ponto" }
+  ];
+  const mockPendingTimeOff = [
+    { ID: "to_1", FolgaID: "to_1", FuncionarioID: "emp_1", NomeFuncionario: "Gabriel Silva", DataInicio: "2026-10-25", Status: "Pendente", LojaID: "loja_matriz", Motivo: "Consulta médica" }
+  ];
+
+  const fullCtx = {
+    user: adminUser,
+    employees: mockEmployees,
+    adjustments: mockAdjustments,
+    timeOff: mockPendingTimeOff,
+    swaps: mockSwaps
+  };
+
+  // 1. Ajustes de ponto pendentes (com dados)
+  const resAdj = parseCopilotIntent("Ajustes de ponto pendentes", fullCtx);
+  assert.equal(resAdj.type, "query");
+  assert.match(resAdj.reply, /Gabriel Silva/);
+  assert.match(resAdj.reply, /18:00/);
+
+  // 1b. Ajustes de ponto pendentes (vazio)
+  const resAdjEmpty = parseCopilotIntent("Ajustes de ponto pendentes", { ...fullCtx, adjustments: [] });
+  assert.equal(resAdjEmpty.type, "query");
+  assert.match(resAdjEmpty.reply, /Nenhum ajuste de ponto pendente/i);
+
+  // 2. Solicitações de folga abertas (com dados)
+  const resFolga = parseCopilotIntent("Solicitações de folga abertas", fullCtx);
+  assert.equal(resFolga.type, "query");
+  assert.match(resFolga.reply, /Gabriel Silva/);
+  assert.match(resFolga.reply, /2026-10-25/);
+
+  // 2b. Solicitações de folga abertas (vazio)
+  const resFolgaEmpty = parseCopilotIntent("Solicitações de folga abertas", { ...fullCtx, timeOff: [] });
+  assert.equal(resFolgaEmpty.type, "query");
+  assert.match(resFolgaEmpty.reply, /Nenhuma solicitação de folga pendente/i);
+
+  // 3. Trocas de folga pendentes
+  const resTroca = parseCopilotIntent("Trocas de folga pendentes", fullCtx);
+  assert.equal(resTroca.type, "query");
+  assert.match(resTroca.reply, /Gabriel Silva/);
+
+  // 4. Central de pendências consolidada
+  const resCentral = parseCopilotIntent("Central de pendências", fullCtx);
+  assert.equal(resCentral.type, "query");
+  assert.match(resCentral.reply, /Central de Pendências/i);
+  assert.match(resCentral.reply, /Folgas Solicitadas\s*\(1\)/i);
+  assert.match(resCentral.reply, /Trocas de Folga\s*\(1\)/i);
+  assert.match(resCentral.reply, /Ajustes de Ponto\s*\(1\)/i);
+});
+
+test("Copiloto Mega Cérebro: Aprovação direta de folga e ajuste de ponto por Gestor/Admin", () => {
+  const adminUser = { FuncionarioID: "adm_1", Nome: "Administrador", Perfil: "Administrador" };
+  const mockAdjustments = [
+    { ID: "adj_1", FuncionarioID: "emp_1", NomeFuncionario: "Gabriel Silva", Data: "2026-10-14", HoraSolicitada: "18:00", Status: "Pendente", LojaID: "loja_matriz" }
+  ];
+  const mockPendingTimeOff = [
+    { ID: "to_1", FolgaID: "to_1", FuncionarioID: "emp_1", NomeFuncionario: "Gabriel Silva", DataInicio: "2026-10-25", Status: "Pendente", LojaID: "loja_matriz" }
+  ];
+
+  const fullCtx = {
+    user: adminUser,
+    employees: mockEmployees,
+    adjustments: mockAdjustments,
+    timeOff: mockPendingTimeOff,
+    swaps: mockSwaps
+  };
+
+  // Aprovar folga
+  const resApproveFolga = parseCopilotIntent("Aprovar folga de Gabriel", fullCtx);
+  assert.equal(resApproveFolga.type, "action");
+  assert.equal(resApproveFolga.actionType, "approve_leave");
+  assert.equal(resApproveFolga.apiMethod, "approveTimeOff");
+  assert.equal(resApproveFolga.details.timeOffId, "to_1");
+  assert.match(resApproveFolga.summary, /Gabriel Silva/);
+
+  // Aprovar ajuste de ponto
+  const resApproveAdj = parseCopilotIntent("Aprovar ajuste de ponto de Gabriel", fullCtx);
+  assert.equal(resApproveAdj.type, "action");
+  assert.equal(resApproveAdj.actionType, "approve_clock_adjustment");
+  assert.equal(resApproveAdj.apiMethod, "decideTimeClockAdjustment");
+  assert.equal(resApproveAdj.details.adjustmentId, "adj_1");
+  assert.equal(resApproveAdj.details.decision, "aprovar");
+  assert.match(resApproveAdj.summary, /Gabriel Silva/);
+});
+
+test("Copiloto Mega Cérebro: Cobertura de 100% de todos os chips de todas as telas sem fallback", () => {
+  const roles = [
+    { role: "admin", perfil: "Administrador" },
+    { role: "manager", perfil: "Gerente" },
+    { role: "employee", perfil: "Funcionário" }
+  ];
+
+  let totalChips = 0;
+  let passedChips = 0;
+  const failures = [];
+
+  for (const [screenKey, screenData] of Object.entries(SCREEN_KNOWLEDGE)) {
+    if (!screenData.chips) continue;
+    for (const r of roles) {
+      const list = screenData.chips[r.role] || [];
+      const user = { FuncionarioID: "u_test", Nome: "Teste", Perfil: r.perfil, LojaID: "loja_matriz" };
+      const ctx = {
+        user,
+        employees: mockEmployees,
+        tasks: mockTasks,
+        swaps: mockSwaps,
+        timeOff: mockTimeOff,
+        hourBalance: { totalMinutos: 120 }
+      };
+
+      for (const chip of list) {
+        totalChips++;
+        const res = parseCopilotIntent(chip, ctx);
+        if (res.type === "fallback" || (res.reply && res.reply.includes("Não compreendi este comando com precisão"))) {
+          failures.push({ screen: screenKey, role: r.role, chip, reply: res.reply });
+        } else {
+          passedChips++;
+        }
+      }
+    }
+  }
+
+  assert.equal(failures.length, 0, `Nenhum chip deve retornar fallback. Falhas: ${JSON.stringify(failures)}`);
+  assert.equal(passedChips, totalChips, `Todos os ${totalChips} chips devem ser compreendidos com sucesso`);
+  assert.ok(totalChips >= 200, "Deve cobrir a totalidade dos chips operacionais por perfil");
+});
+

@@ -165,32 +165,55 @@ export const hrAdapter = {
     }
 
     const timeOff = Array.isArray(context.timeOff) ? context.timeOff : [];
+    const vacations = Array.isArray(context.vacations) ? context.vacations : [];
     const swaps = Array.isArray(context.swaps) ? context.swaps : [];
+    const adjustments = Array.isArray(context.adjustments)
+      ? context.adjustments
+      : Array.isArray(context.timeClock?.adjustments)
+        ? context.timeClock.adjustments
+        : [];
 
-    let pendingLeaves = timeOff.filter((f) => String(f.Status || "").toLowerCase() === "pendente");
+    let pendingLeaves = [...timeOff, ...vacations].filter((f) => {
+      const st = String(f.Status || f.status || "").toLowerCase();
+      return st === "pendente" || st.includes("aguardando");
+    });
     let pendingSwaps = swaps.filter((s) => {
-      const st = String(s.Status || "").toLowerCase();
+      const st = String(s.Status || s.status || "").toLowerCase();
       return st.includes("aguardando") || st === "pendente";
+    });
+    let pendingAdjustments = adjustments.filter((a) => {
+      const st = String(a.Status || a.status || "").toLowerCase();
+      return st === "pendente" || st.includes("aguardando");
     });
 
     if (actor.role === "manager" && actor.storeId) {
-      pendingLeaves = pendingLeaves.filter((f) => String(f.LojaID || "") === String(actor.storeId));
-      pendingSwaps = pendingSwaps.filter((s) => String(s.LojaID || "") === String(actor.storeId));
+      pendingLeaves = pendingLeaves.filter((f) => String(f.LojaID || f.lojaId || "") === String(actor.storeId));
+      pendingSwaps = pendingSwaps.filter((s) => String(s.LojaID || s.lojaId || "") === String(actor.storeId));
+      pendingAdjustments = pendingAdjustments.filter((a) => String(a.LojaID || a.lojaId || "") === String(actor.storeId));
     }
 
     return {
-      totalPendencias: pendingLeaves.length + pendingSwaps.length,
+      totalPendencias: pendingLeaves.length + pendingSwaps.length + pendingAdjustments.length,
       folgasPendentes: pendingLeaves.map((f) => ({
-        id: f.ID || f.id,
-        colaborador: f.NomeFuncionario || f.FuncionarioID,
-        data: f.DataInicio || f.Data,
-        motivo: f.Motivo || "Folga solicitada"
+        id: f.ID || f.id || f.FolgaID,
+        colaborador: f.NomeFuncionario || f.nome || f.FuncionarioID,
+        data: f.DataInicio || f.Data || f.dataInicio,
+        motivo: f.Motivo || f.TipoFolga || "Folga solicitada",
+        lojaId: f.LojaID || f.lojaId || ""
       })),
       trocasPendentes: pendingSwaps.map((s) => ({
         id: s.TrocaID || s.TrocaPrincipalID,
-        origem: `${s.NomeFuncionarioOrigem} (${s.DataFolgaOrigem})`,
-        destino: `${s.NomeFuncionarioDestino} (${s.DataFolgaDestino})`,
-        lojaId: s.LojaID
+        origem: `${s.NomeFuncionarioOrigem || s.origem || "Colaborador"} (${s.DataFolgaOrigem || s.dataOrigem || ""})`,
+        destino: `${s.NomeFuncionarioDestino || s.destino || "Colaborador"} (${s.DataFolgaDestino || s.dataDestino || ""})`,
+        lojaId: s.LojaID || s.lojaId || ""
+      })),
+      ajustesPendentes: pendingAdjustments.map((a) => ({
+        id: a.ID || a.id || a.RegistroPontoID || a.AjustePontoID,
+        colaborador: a.NomeFuncionario || a.nome || a.FuncionarioID,
+        data: String(a.Data || a.dataHora || a.DataHoraSolicitada || "").slice(0, 10),
+        horario: a.HoraSolicitada || a.Hora || (a.DataHoraSolicitada ? String(a.DataHoraSolicitada).slice(11, 16) : ""),
+        motivo: a.Motivo || a.motivo || a.Observacao || "Ajuste de ponto",
+        lojaId: a.LojaID || a.lojaId || ""
       }))
     };
   },
