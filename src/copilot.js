@@ -2449,6 +2449,9 @@ export function initCopilot() {
   copilotInitialized = true;
 
   const drawer = $("#copilotDrawer");
+  const panel = $(".copilot-panel", drawer);
+  const dragHandle = $(".copilot-drag-handle", drawer);
+  const header = $(".copilot-header", drawer);
   const openBtn = $("#copilotOpenBtn");
   const closeBtn = $("#copilotCloseBtn");
   const backdrop = $("#copilotBackdrop");
@@ -2532,7 +2535,10 @@ export function initCopilot() {
   function openDrawer() {
     drawer?.classList.remove("hidden");
     drawer?.setAttribute("aria-hidden", "false");
-    input?.focus();
+    if (fab) fab.style.display = "none";
+    if (typeof window !== "undefined" && window.innerWidth > 600) {
+      input?.focus();
+    }
     updateWelcomeAndChips();
   }
 
@@ -2540,12 +2546,61 @@ export function initCopilot() {
     drawer?.classList.add("hidden");
     drawer?.setAttribute("aria-hidden", "true");
     settingsPanel?.classList.add("hidden");
+    if (fab) fab.style.display = "";
+    if (panel) panel.style.transform = "";
   }
 
   openBtn?.addEventListener("click", openDrawer);
   fab?.addEventListener("click", openDrawer);
   closeBtn?.addEventListener("click", closeDrawer);
   backdrop?.addEventListener("click", closeDrawer);
+
+  // Gesto de deslizar para baixo para fechar no celular (iOS Bottom Sheet)
+  let touchStartY = 0;
+  let touchCurrentY = 0;
+  let isDragging = false;
+
+  function onTouchStart(e) {
+    if (typeof window !== "undefined" && window.innerWidth > 600) return;
+    touchStartY = e.touches[0].clientY;
+    touchCurrentY = touchStartY;
+    isDragging = true;
+    if (panel) panel.style.transition = "none";
+  }
+
+  function onTouchMove(e) {
+    if (!isDragging || (typeof window !== "undefined" && window.innerWidth > 600)) return;
+    touchCurrentY = e.touches[0].clientY;
+    const deltaY = touchCurrentY - touchStartY;
+    if (deltaY > 0 && panel) {
+      panel.style.transform = `translateY(${deltaY}px)`;
+    }
+  }
+
+  function onTouchEnd() {
+    if (!isDragging || (typeof window !== "undefined" && window.innerWidth > 600)) return;
+    isDragging = false;
+    if (panel) {
+      panel.style.transition = "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
+      const deltaY = touchCurrentY - touchStartY;
+      if (deltaY > 70) {
+        panel.style.transform = "translateY(100%)";
+        setTimeout(() => {
+          closeDrawer();
+          panel.style.transform = "";
+        }, 220);
+      } else {
+        panel.style.transform = "translateY(0)";
+      }
+    }
+  }
+
+  dragHandle?.addEventListener("touchstart", onTouchStart, { passive: true });
+  dragHandle?.addEventListener("touchmove", onTouchMove, { passive: true });
+  dragHandle?.addEventListener("touchend", onTouchEnd, { passive: true });
+  header?.addEventListener("touchstart", onTouchStart, { passive: true });
+  header?.addEventListener("touchmove", onTouchMove, { passive: true });
+  header?.addEventListener("touchend", onTouchEnd, { passive: true });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !drawer?.classList.contains("hidden")) {
