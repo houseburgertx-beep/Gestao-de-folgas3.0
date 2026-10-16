@@ -355,6 +355,7 @@ body {
   position: sticky !important;
   top: 0 !important;
   z-index: 90 !important;
+  overflow: visible !important;
 }
 
 .topbar-left {
@@ -521,6 +522,141 @@ body {
   font-weight: 500;
 }
 
+/* User Menu & App Download Button na Topbar */
+.app-download-btn {
+  height: 38px !important;
+  max-width: 150px !important;
+  padding: 4px 10px !important;
+  border-radius: var(--radius-pill) !important;
+  background: var(--surface-card) !important;
+  border: 1px solid #EAECEF !important;
+  box-shadow: var(--shadow-subtle) !important;
+  color: var(--text-body) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  transition: var(--transition-fast) !important;
+}
+
+.app-download-btn:hover {
+  background: var(--surface-muted) !important;
+  border-color: #D1D5DB !important;
+}
+
+.app-download-btn .app-download-copy small,
+.app-download-btn .app-download-arrow {
+  display: none !important;
+}
+
+.app-download-btn .app-download-copy strong {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--text-title) !important;
+}
+
+.app-download-btn .app-download-icon {
+  width: 20px !important;
+  height: 20px !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.app-download-btn .app-download-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke: var(--accent-primary) !important;
+}
+
+.user-menu {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 4px 10px 4px 4px !important;
+  border-radius: var(--radius-pill) !important;
+  background: var(--surface-card) !important;
+  border: 1px solid #EAECEF !important;
+  cursor: pointer !important;
+  box-shadow: var(--shadow-subtle) !important;
+  transition: var(--transition-fast) !important;
+}
+
+.user-menu:hover {
+  background: var(--surface-muted) !important;
+  border-color: #D1D5DB !important;
+}
+
+.user-menu .avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.user-menu-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  text-align: left !important;
+  line-height: 1.2 !important;
+}
+
+.user-menu-copy strong {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--text-title) !important;
+}
+
+.user-menu-copy span {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  font-weight: 500 !important;
+}
+
+.user-menu-chevron {
+  font-size: 14px !important;
+  color: var(--text-muted) !important;
+  margin-left: 2px !important;
+}
+
+/* Toast Container reposicionado no canto inferior direito */
+.toast-container {
+  position: fixed !important;
+  top: auto !important;
+  left: auto !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  pointer-events: none !important;
+}
+
+.toast-container > * {
+  pointer-events: auto !important;
+}
+
+.toast {
+  border-radius: var(--radius-inner) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08) !important;
+}
+
+@media (max-width: 768px) {
+  .toast-container {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 16px !important;
+    left: 16px !important;
+  }
+}
+
 /* 3. CABEÇALHO DA PÁGINA ATIVA */
 .workspace-page-header {
   display: flex;
@@ -637,11 +773,26 @@ body {
    TELA 1: BENTO GRID DASHBOARD (3 LINHAS)
    ========================================================================== */
 
+/* Container do Bento Dashboard no lugar da grid legada do journeyHome */
+#journeyHome,
+.journey-bento {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#planlyBentoGrid,
 .bento-dashboard-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  grid-column: 1 / -1 !important;
+  box-sizing: border-box !important;
 }
 
 /* LINHA 1: 4 CARDS DE KPI */

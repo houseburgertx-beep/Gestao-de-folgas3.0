@@ -1035,70 +1035,78 @@
       )
         document.body.classList.remove("menu-open");
     });
-    $("#themeToggle").onclick = () => {
-      const dark = document.documentElement.dataset.theme === "dark";
-      document.documentElement.dataset.theme = dark ? "light" : "dark";
-      localStorage.setItem("gf-theme", dark ? "light" : "dark");
-    };
+    if ($("#themeToggle")) {
+      $("#themeToggle").onclick = () => {
+        const dark = document.documentElement.dataset.theme === "dark";
+        document.documentElement.dataset.theme = dark ? "light" : "dark";
+        localStorage.setItem("gf-theme", dark ? "light" : "dark");
+      };
+    }
     document.documentElement.dataset.theme =
       localStorage.getItem("gf-theme") || "light";
-    $("#logoutBtn").onclick = logoutApplication;
-    $("#profileMenuBtn").onclick = openOwnProfile;
-    $("#profileForm").onsubmit = saveOwnProfile;
-    $("#profileShowPasswords").onchange = toggleProfilePasswords_;
-    $("#profileForgotPassword").onclick = sendOwnPasswordReset_;
-    $("#refreshBtn").onclick = refreshApplication;
+    if ($("#logoutBtn")) $("#logoutBtn").onclick = logoutApplication;
+    if ($("#profileMenuBtn")) $("#profileMenuBtn").onclick = openOwnProfile;
+    if ($("#profileForm")) $("#profileForm").onsubmit = saveOwnProfile;
+    if ($("#profileShowPasswords")) $("#profileShowPasswords").onchange = toggleProfilePasswords_;
+    if ($("#profileForgotPassword")) $("#profileForgotPassword").onclick = sendOwnPasswordReset_;
+    if ($("#refreshBtn")) $("#refreshBtn").onclick = refreshApplication;
     ["dashboardNewTimeOff", "newTimeOffBtn", "calendarNewBtn"].forEach(
-      (id) => ($("#" + id).onclick = () => editTimeOff()),
+      (id) => { if ($("#" + id)) $("#" + id).onclick = () => editTimeOff(); },
     );
-    $("#newEmployeeBtn").onclick = () => editEmployee();
-    $("#newStoreBtn").onclick = () => editStore();
-    $("#newHolidayBtn").onclick = () => editHoliday();
-    $("#newAccessBtn").onclick = () => editAccess();
-    $("#clockPunchBtn").onclick = punchClock;
-    $("#clockSkipBreakBtn").onclick = skipClockBreak_;
-    $("#clockSelfieForm").onsubmit = confirmClockPunchWithSelfie_;
-    $("#clockSelfieCapture").onclick = captureClockSelfie_;
-    $("#clockSelfieNative").onclick = openNativeClockCamera_;
-    $("#clockSelfieFile").onchange = loadNativeClockSelfie_;
-    $("#clockSelfieRetake").onclick = startClockSelfieCamera_;
-    $("#clockSelfieDialog").addEventListener("close", resetClockSelfieCapture_);
-    $("#clockRefreshBtn").onclick = () => loadTimeClock(true, true);
-    $("#clockMonth").onchange = () => {
-      syncClockDayToMonth_($("#clockMonth").value, true);
-      loadTimeClock(true, true);
-    };
-    $("#clockEmployeeFilter").onchange = () => loadTimeClock(true, true);
-    $("#clockDayFilter").onchange = () => {
-      const selectedDay = normalizeClockDay_($("#clockDayFilter").value);
-      if (!selectedDay) return;
-      const selectedMonth = selectedDay.slice(0, 7);
-      if ($("#clockMonth").value !== selectedMonth) {
-        $("#clockMonth").value = selectedMonth;
+    if ($("#newEmployeeBtn")) $("#newEmployeeBtn").onclick = () => editEmployee();
+    if ($("#newStoreBtn")) $("#newStoreBtn").onclick = () => editStore();
+    if ($("#newHolidayBtn")) $("#newHolidayBtn").onclick = () => editHoliday();
+    if ($("#newAccessBtn")) $("#newAccessBtn").onclick = () => editAccess();
+    if ($("#clockPunchBtn")) $("#clockPunchBtn").onclick = punchClock;
+    if ($("#clockSkipBreakBtn")) $("#clockSkipBreakBtn").onclick = skipClockBreak_;
+    if ($("#clockSelfieForm")) $("#clockSelfieForm").onsubmit = confirmClockPunchWithSelfie_;
+    if ($("#clockSelfieCapture")) $("#clockSelfieCapture").onclick = captureClockSelfie_;
+    if ($("#clockSelfieNative")) $("#clockSelfieNative").onclick = openNativeClockCamera_;
+    if ($("#clockSelfieFile")) $("#clockSelfieFile").onchange = loadNativeClockSelfie_;
+    if ($("#clockSelfieRetake")) $("#clockSelfieRetake").onclick = startClockSelfieCamera_;
+    if ($("#clockSelfieDialog")) $("#clockSelfieDialog").addEventListener("close", resetClockSelfieCapture_);
+    if ($("#clockRefreshBtn")) $("#clockRefreshBtn").onclick = () => loadTimeClock(true, true);
+    if ($("#clockMonth")) {
+      $("#clockMonth").onchange = () => {
+        syncClockDayToMonth_($("#clockMonth").value, true);
         loadTimeClock(true, true);
-        return;
-      }
-      renderTimeClock();
-    };
-    $("#clockTodayBtn").onclick = () => {
-      const today = iso(new Date()).slice(0, 10);
-      $("#clockMonth").value = today.slice(0, 7);
-      $("#clockDayFilter").value = today;
-      loadTimeClock(true);
-    };
+      };
+    }
+    if ($("#clockEmployeeFilter")) $("#clockEmployeeFilter").onchange = () => loadTimeClock(true, true);
+    if ($("#clockDayFilter")) {
+      $("#clockDayFilter").onchange = () => {
+        const selectedDay = normalizeClockDay_($("#clockDayFilter").value);
+        if (!selectedDay) return;
+        const selectedMonth = selectedDay.slice(0, 7);
+        if ($("#clockMonth") && $("#clockMonth").value !== selectedMonth) {
+          $("#clockMonth").value = selectedMonth;
+          loadTimeClock(true, true);
+          return;
+        }
+        renderTimeClock();
+      };
+    }
+    if ($("#clockTodayBtn")) {
+      $("#clockTodayBtn").onclick = () => {
+        const today = iso(new Date()).slice(0, 10);
+        if ($("#clockMonth")) $("#clockMonth").value = today.slice(0, 7);
+        if ($("#clockDayFilter")) $("#clockDayFilter").value = today;
+        loadTimeClock(true);
+      };
+    }
     const defaultClockDay = iso(new Date()).slice(0, 10);
-    if (!$("#clockMonth").value)
+    if ($("#clockMonth") && !$("#clockMonth").value)
       $("#clockMonth").value = defaultClockDay.slice(0, 7);
-    if (!$("#clockDayFilter").value)
+    if ($("#clockDayFilter") && !$("#clockDayFilter").value)
       $("#clockDayFilter").value = defaultClockDay;
-    $("#clockExportBtn").onclick = exportTimeClockSheet;
-    $("#clockManualPunchBtn").onclick = openManualClockPunch_;
-    $("#clockRepairDuplicatesBtn").onclick = repairDuplicateClockEntries_;
-    $("#clockManualPunchForm").onsubmit = saveManualClockPunch_;
-    $("#clockAdjustmentForm").onsubmit = saveClockAdjustment;
-    $("#clockDecisionForm").onsubmit = approveClockAdjustment;
-    $("#clockDecisionReject").onclick = rejectClockAdjustment;
-    $("#clockJustificationForm").onsubmit = saveClockJustification_;
+    if ($("#clockExportBtn")) $("#clockExportBtn").onclick = exportTimeClockSheet;
+    if ($("#clockManualPunchBtn")) $("#clockManualPunchBtn").onclick = openManualClockPunch_;
+    if ($("#clockRepairDuplicatesBtn")) $("#clockRepairDuplicatesBtn").onclick = repairDuplicateClockEntries_;
+    if ($("#clockManualPunchForm")) $("#clockManualPunchForm").onsubmit = saveManualClockPunch_;
+    if ($("#clockAdjustmentForm")) $("#clockAdjustmentForm").onsubmit = saveClockAdjustment;
+    if ($("#clockDecisionForm")) $("#clockDecisionForm").onsubmit = approveClockAdjustment;
+    if ($("#clockDecisionReject")) $("#clockDecisionReject").onclick = rejectClockAdjustment;
+    if ($("#clockJustificationForm")) $("#clockJustificationForm").onsubmit = saveClockJustification_;
     $("#absencesMonth") && ($("#absencesMonth").onchange = () => loadAbsences_(true));
     $("#absencesStoreFilter") && ($("#absencesStoreFilter").onchange = () => renderAbsences_());
     $("#absencesStatusFilter") && ($("#absencesStatusFilter").onchange = () => renderAbsences_());
@@ -1106,9 +1114,9 @@
     $("#absencesNewBtn") && ($("#absencesNewBtn").onclick = () => openNewClockJustification_());
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
-    $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
-    $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
-    $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
+    if ($("#adminHourBalanceRefresh")) $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
+    if ($("#adminHourBalanceMonth")) $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
+    if ($("#adminHourBalanceSearch")) $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
     $("#adminHourBalanceTotalCard") &&
       ($("#adminHourBalanceTotalCard").onclick = () => {
         state.adminHourBalanceNegativeOnly =
@@ -1150,57 +1158,67 @@
       ($("#copyWhatsAppScheduleBtn").onclick = copyWhatsAppSchedule_);
     $("#sendWhatsAppScheduleBtn") &&
       ($("#sendWhatsAppScheduleBtn").onclick = sendWhatsAppSchedule_);
-    $("#hourBalanceAdjustmentForm").onsubmit = saveHourBalanceAdjustment_;
-    $("#captureStoreLocation").onclick = captureStoreLocation;
+    if ($("#hourBalanceAdjustmentForm")) $("#hourBalanceAdjustmentForm").onsubmit = saveHourBalanceAdjustment_;
+    if ($("#captureStoreLocation")) $("#captureStoreLocation").onclick = captureStoreLocation;
     $$("[data-close]").forEach(
       (b) => (b.onclick = () => closeDialog(b.dataset.close)),
     );
-    $("#timeOffForm").onsubmit = saveTimeOff;
-    $("#timeOffType").onchange = updateTimeOffDateFields;
-    $("#employeeForm").onsubmit = saveEmployee;
+    if ($("#timeOffForm")) $("#timeOffForm").onsubmit = saveTimeOff;
+    if ($("#timeOffType")) $("#timeOffType").onchange = updateTimeOffDateFields;
+    if ($("#employeeForm")) $("#employeeForm").onsubmit = saveEmployee;
     ["employeeClockIn", "employeeBreakOut", "employeeBreakIn", "employeeClockOut", "employeeBreakMinutes"].forEach(
       (id) => {
-        $("#" + id).addEventListener("input", syncEmployeeDailyHours_);
-        $("#" + id).addEventListener("change", syncEmployeeDailyHours_);
+        const el = $("#" + id);
+        if (el) {
+          el.addEventListener("input", syncEmployeeDailyHours_);
+          el.addEventListener("change", syncEmployeeDailyHours_);
+        }
       },
     );
-    $("#employeeFlexibleTwoShifts").onchange = syncFlexibleTwoShiftFields_;
-    $("#storeForm").onsubmit = saveStore;
-    $("#holidayForm").onsubmit = saveHoliday;
-    $("#approvalForm").onsubmit = saveApproval;
-    $("#cancelForm").onsubmit = saveCancellation;
-    $("#accessForm").onsubmit = saveAccess;
-    $("#validateTimeOffButton").onclick = validateTimeOffForm;
-    $("#timeOffStore").onchange = () =>
-      fillEmployeeSelect("#timeOffEmployee", $("#timeOffStore").value);
-    $("#timeOffEmployee").onchange = () => {
-      if (isEmployee()) return;
-      const employee = state.employees.find(
-        (item) =>
-          String(idOf(item, "Funcionario")) ===
-          String($("#timeOffEmployee").value),
-      );
-      const storeId = val(employee, "LojaID", "lojaId");
-      if (
-        storeId &&
-        [...$("#timeOffStore").options].some(
-          (option) => String(option.value) === String(storeId),
-        )
-      ) {
-        $("#timeOffStore").value = storeId;
-      }
-    };
-    $("#accessEmployee").onchange = syncAccessEmployee;
-    $("#calendarPrev").onclick = () => moveCalendar(-1);
-    $("#calendarNext").onclick = () => moveCalendar(1);
-    $("#calendarToday").onclick = () => {
-      state.calendarFocusDate = "";
-      state.calendarDate = new Date();
-      renderCalendar();
-      $("#calendarGrid .today")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    };
-    $("#calendarStoreFilter").onchange = renderCalendar;
-    $("#calendarEmployeeFilter").onchange = renderCalendar;
+    if ($("#employeeFlexibleTwoShifts")) $("#employeeFlexibleTwoShifts").onchange = syncFlexibleTwoShiftFields_;
+    if ($("#storeForm")) $("#storeForm").onsubmit = saveStore;
+    if ($("#holidayForm")) $("#holidayForm").onsubmit = saveHoliday;
+    if ($("#approvalForm")) $("#approvalForm").onsubmit = saveApproval;
+    if ($("#cancelForm")) $("#cancelForm").onsubmit = saveCancellation;
+    if ($("#accessForm")) $("#accessForm").onsubmit = saveAccess;
+    if ($("#validateTimeOffButton")) $("#validateTimeOffButton").onclick = validateTimeOffForm;
+    if ($("#timeOffStore")) {
+      $("#timeOffStore").onchange = () =>
+        fillEmployeeSelect("#timeOffEmployee", $("#timeOffStore").value);
+    }
+    if ($("#timeOffEmployee")) {
+      $("#timeOffEmployee").onchange = () => {
+        if (isEmployee()) return;
+        const employee = state.employees.find(
+          (item) =>
+            String(idOf(item, "Funcionario")) ===
+            String($("#timeOffEmployee").value),
+        );
+        const storeId = val(employee, "LojaID", "lojaId");
+        if (
+          storeId &&
+          $("#timeOffStore") &&
+          [...$("#timeOffStore").options].some(
+            (option) => String(option.value) === String(storeId),
+          )
+        ) {
+          $("#timeOffStore").value = storeId;
+        }
+      };
+    }
+    if ($("#accessEmployee")) $("#accessEmployee").onchange = syncAccessEmployee;
+    if ($("#calendarPrev")) $("#calendarPrev").onclick = () => moveCalendar(-1);
+    if ($("#calendarNext")) $("#calendarNext").onclick = () => moveCalendar(1);
+    if ($("#calendarToday")) {
+      $("#calendarToday").onclick = () => {
+        state.calendarFocusDate = "";
+        state.calendarDate = new Date();
+        renderCalendar();
+        $("#calendarGrid .today")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+    }
+    if ($("#calendarStoreFilter")) $("#calendarStoreFilter").onchange = renderCalendar;
+    if ($("#calendarEmployeeFilter")) $("#calendarEmployeeFilter").onchange = renderCalendar;
     $$('[data-calendar-mode]').forEach((button) => {
       button.onclick = () => {
         state.calendarMode = button.dataset.calendarMode;
@@ -1208,28 +1226,32 @@
         renderCalendar();
       };
     });
-    $("#timeOffSearch").oninput = renderTimeOff;
-    $("#timeOffStatusFilter").onchange = renderTimeOff;
-    $("#employeeSearch").oninput = renderEmployees;
-    $("#employeeStoreFilter").onchange = renderEmployees;
-    $("#newOperationalRuleBtn").onclick = openOperationalRuleDialog;
-    $("#operationalRuleForm").onsubmit = saveOperationalRuleUI;
-    $("#newSwapBtn").onclick = openSwapDialog;
-    $("#pendingNewTimeOff").onclick = () => editTimeOff();
-    $("#pendingTimeOffAction").onclick = () => editTimeOff();
-    $("#pendingClockAction").onclick = () => switchView("timeclock");
-    $("#pendingRefreshBtn").onclick = () => loadPendingCenter_(true);
+    if ($("#timeOffSearch")) $("#timeOffSearch").oninput = renderTimeOff;
+    if ($("#timeOffStatusFilter")) $("#timeOffStatusFilter").onchange = renderTimeOff;
+    if ($("#employeeSearch")) $("#employeeSearch").oninput = renderEmployees;
+    if ($("#employeeStoreFilter")) $("#employeeStoreFilter").onchange = renderEmployees;
+    if ($("#newOperationalRuleBtn")) $("#newOperationalRuleBtn").onclick = openOperationalRuleDialog;
+    if ($("#operationalRuleForm")) $("#operationalRuleForm").onsubmit = saveOperationalRuleUI;
+    if ($("#newSwapBtn")) $("#newSwapBtn").onclick = openSwapDialog;
+    if ($("#pendingNewTimeOff")) $("#pendingNewTimeOff").onclick = () => editTimeOff();
+    if ($("#pendingTimeOffAction")) $("#pendingTimeOffAction").onclick = () => editTimeOff();
+    if ($("#pendingClockAction")) $("#pendingClockAction").onclick = () => switchView("timeclock");
+    if ($("#pendingRefreshBtn")) $("#pendingRefreshBtn").onclick = () => loadPendingCenter_(true);
     $$("[data-pending-filter]").forEach(
       (button) =>
         (button.onclick = () =>
           setPendingCenterFilter_(button.dataset.pendingFilter)),
     );
-    $("#swapForm").onsubmit = saveSwapUI;
-    $("#acknowledgementForm").onsubmit = (e) =>
-      saveAcknowledgementUI(e, "Ciente");
-    $("#requestTimeOffChangeBtn").onclick = () =>
-      saveAcknowledgementUI(null, "Solicitar alteração");
-    $("#refreshNotificationsBtn").onclick = loadNotifications;
+    if ($("#swapForm")) $("#swapForm").onsubmit = saveSwapUI;
+    if ($("#acknowledgementForm")) {
+      $("#acknowledgementForm").onsubmit = (e) =>
+        saveAcknowledgementUI(e, "Ciente");
+    }
+    if ($("#requestTimeOffChangeBtn")) {
+      $("#requestTimeOffChangeBtn").onclick = () =>
+        saveAcknowledgementUI(null, "Solicitar alteração");
+    }
+    if ($("#refreshNotificationsBtn")) $("#refreshNotificationsBtn").onclick = loadNotifications;
     if ($("#dockMore")) $("#dockMore").onclick = () => document.body.classList.add("menu-open");
     const mobileDockEl = $(".mobile-dock");
     if (mobileDockEl) {
@@ -1242,61 +1264,67 @@
       }, { passive: true });
       setTimeout(positionDockIndicator, 100);
     }
-    $("#notificationTopBtn").onclick = () => switchView("notifications");
-    $("#schedulerForm").onsubmit = simulateSchedule;
+    if ($("#notificationTopBtn")) $("#notificationTopBtn").onclick = () => switchView("notifications");
+    if ($("#schedulerForm")) $("#schedulerForm").onsubmit = simulateSchedule;
     const mandatoryDeduct = $("#schedulerDeductBalance");
-    mandatoryDeduct.checked = true;
-    mandatoryDeduct.disabled = true;
-    const mandatoryLabel = mandatoryDeduct.closest("label");
-    if (mandatoryLabel)
-      mandatoryLabel.lastChild.textContent =
-        " Descontar folgas extras do saldo (obrigatório)";
-    $("#aiSimulateBtn").onclick = aiSimulateSchedule;
-    $("#clearSimulationBtn").onclick = () => {
-      state.simulation = [];
-      resetSimulationAIState();
-      $("#simulationArea").classList.add("hidden");
-    };
-    $("#simulationTableView").onclick = () => toggleSimulation("table");
-    $("#simulationCalendarView").onclick = () => toggleSimulation("calendar");
-    $("#confirmSimulationBtn").onclick = confirmSimulation;
-    $("#calendarPdfBtn").onclick = () => exportCalendar(false);
-    $("#simulationPdfBtn").onclick = () => exportCalendar(true);
-    $("#reportPeriod").onchange = renderReports;
-    $("#exportCsvBtn").onclick = () => exportReport("csv");
-    $("#exportPdfBtn").onclick = () => exportReport("pdf");
-    $("#refreshAuditBtn").onclick = loadAudit;
-    $("#calendarGrid").onclick = (e) => {
-      const modeButton = e.target.closest("[data-calendar-mode]");
-      if (modeButton) {
-        state.calendarMode = modeButton.dataset.calendarMode;
-        state.calendarFocusDate = "";
-        renderCalendar();
-        return;
-      }
-      const add = e.target.closest("[data-calendar-add]");
-      if (add) {
-        editTimeOff(null, add.dataset.calendarAdd);
-        return;
-      }
-      const more = e.target.closest("[data-calendar-more]");
-      if (more) {
-        state.calendarMode = "list";
-        state.calendarFocusDate = more.dataset.calendarMore;
-        state.calendarDate = new Date(state.calendarFocusDate + "T12:00:00");
-        renderCalendar();
-        return;
-      }
-      const day = e.target.closest(".calendar-day");
-      if (day && !e.target.closest(".calendar-event")) {
-        if (day.dataset.hasEvents === "true") {
-          state.calendarMode = "list";
-          state.calendarFocusDate = day.dataset.date;
-          state.calendarDate = new Date(day.dataset.date + "T12:00:00");
+    if (mandatoryDeduct) {
+      mandatoryDeduct.checked = true;
+      mandatoryDeduct.disabled = true;
+      const mandatoryLabel = mandatoryDeduct.closest("label");
+      if (mandatoryLabel)
+        mandatoryLabel.lastChild.textContent =
+          " Descontar folgas extras do saldo (obrigatório)";
+    }
+    if ($("#aiSimulateBtn")) $("#aiSimulateBtn").onclick = aiSimulateSchedule;
+    if ($("#clearSimulationBtn")) {
+      $("#clearSimulationBtn").onclick = () => {
+        state.simulation = [];
+        resetSimulationAIState();
+        $("#simulationArea")?.classList.add("hidden");
+      };
+    }
+    if ($("#simulationTableView")) $("#simulationTableView").onclick = () => toggleSimulation("table");
+    if ($("#simulationCalendarView")) $("#simulationCalendarView").onclick = () => toggleSimulation("calendar");
+    if ($("#confirmSimulationBtn")) $("#confirmSimulationBtn").onclick = confirmSimulation;
+    if ($("#calendarPdfBtn")) $("#calendarPdfBtn").onclick = () => exportCalendar(false);
+    if ($("#simulationPdfBtn")) $("#simulationPdfBtn").onclick = () => exportCalendar(true);
+    if ($("#reportPeriod")) $("#reportPeriod").onchange = renderReports;
+    if ($("#exportCsvBtn")) $("#exportCsvBtn").onclick = () => exportReport("csv");
+    if ($("#exportPdfBtn")) $("#exportPdfBtn").onclick = () => exportReport("pdf");
+    if ($("#refreshAuditBtn")) $("#refreshAuditBtn").onclick = loadAudit;
+    if ($("#calendarGrid")) {
+      $("#calendarGrid").onclick = (e) => {
+        const modeButton = e.target.closest("[data-calendar-mode]");
+        if (modeButton) {
+          state.calendarMode = modeButton.dataset.calendarMode;
+          state.calendarFocusDate = "";
           renderCalendar();
-        } else editTimeOff(null, day.dataset.date);
-      }
-    };
+          return;
+        }
+        const add = e.target.closest("[data-calendar-add]");
+        if (add) {
+          editTimeOff(null, add.dataset.calendarAdd);
+          return;
+        }
+        const more = e.target.closest("[data-calendar-more]");
+        if (more) {
+          state.calendarMode = "list";
+          state.calendarFocusDate = more.dataset.calendarMore;
+          state.calendarDate = new Date(state.calendarFocusDate + "T12:00:00");
+          renderCalendar();
+          return;
+        }
+        const day = e.target.closest(".calendar-day");
+        if (day && !e.target.closest(".calendar-event")) {
+          if (day.dataset.hasEvents === "true") {
+            state.calendarMode = "list";
+            state.calendarFocusDate = day.dataset.date;
+            state.calendarDate = new Date(day.dataset.date + "T12:00:00");
+            renderCalendar();
+          } else editTimeOff(null, day.dataset.date);
+        }
+      };
+    }
     $$('[data-open-vacations]').forEach((button) => {
       button.addEventListener("click", () =>
         setTimeout(() => {
@@ -2999,7 +3027,7 @@
   }
   function loadIntegraView_() {
     const bridgeEl = document.getElementById("integrarBridgeVersion");
-    if (bridgeEl) bridgeEl.textContent = window.__GESTAO_BRIDGE_VERSION__ || "6.16.18";
+    if (bridgeEl) bridgeEl.textContent = window.__GESTAO_BRIDGE_VERSION__ || "6.16.19";
     const diagEl = document.getElementById("diagFirebaseStatus");
     if (diagEl) diagEl.textContent = (window.navigator?.onLine !== false) ? "Ativo (Online)" : "Offline (Cache)";
   }
