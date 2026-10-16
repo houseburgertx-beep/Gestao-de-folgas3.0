@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.15" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.16" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -27,7 +27,7 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
     <meta
       name="app-version"
       content="<?= (typeof appVersion !== 'undefined' ? String(appVersion).replace(/[<>]/g, '') : 'unknown') ?>"
@@ -239,8 +239,10 @@
     <div id="app" class="app-shell hidden">
       <aside id="sidebar" class="sidebar">
         <div class="sidebar-head">
-          <div class="brand-logo" aria-label="Grupo House 190"></div>
-          <div class="brand-copy">
+          <div class="sidebar-brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+          </div>
+          <div class="sidebar-brand-text">
             <strong>Folgas 3.0</strong><span>Grupo House 190</span>
           </div>
           <button id="sidebarToggle" class="icon-btn" aria-label="Fechar menu">
@@ -248,53 +250,55 @@
           </button>
         </div>
         <nav class="nav-list" aria-label="Navegação principal">
-          <details class="nav-group" open>
-            <summary><span>●</span>Operação</summary>
-            <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b>Início</b></button>
-            <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
-            <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
-            <button class="nav-item permission-manager" data-view="absences"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span><b>Ausências</b><em id="absencesBadge" class="nav-badge">0</em></button>
-            <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
-            <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg></span><b>Pendências</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
-            <button class="nav-item" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b id="takeatCreditNavLabel">Contas a Prazo</b></button>
-            <button class="nav-item" data-view="documents"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><b>Documentos</b><em id="documentsNavBadge" class="nav-badge hidden">0</em></button>
-          </details>
-          <details class="nav-group" open>
-            <summary><span>▦</span>Escalas</summary>
-            <button class="nav-item" data-view="calendar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg></span><b>Calendário</b></button>
-            <button class="nav-item" data-view="timeoff"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/></svg></span><b>Folgas</b></button>
-            <button class="nav-item" data-view="shift-plan"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M10 10v11M3 16h18"/></svg></span><b>Escala</b></button>
-            <button class="nav-item permission-manager" data-view="scheduler"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2 6 7 3-7 2-2 7-3-7-6-2 6-3Z"/></svg></span><b>Geração automática</b></button>
-          </details>
-          <details class="nav-group permission-manager" open>
-            <summary><span>♙</span>Pessoas</summary>
-            <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
-            <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
-            <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
-          </details>
-          <details class="nav-group" open>
-            <summary><span>⚙</span><b id="managementGroupLabel">Gestão</b></summary>
+          <div class="nav-group-title">MENU</div>
+          <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><b>Dashboard</b></button>
+          <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/></svg></span><b>Solicitações</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
+          <button class="nav-item" data-view="calendar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><b>Calendário</b></button>
+          <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><b>Analytics</b></button>
+          <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><b>Equipe</b></button>
+
+          <div class="nav-group-title">OPERAÇÃO</div>
+          <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
+          <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
+          <button class="nav-item permission-manager" data-view="absences"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span><b>Ausências</b><em id="absencesBadge" class="nav-badge">0</em></button>
+          <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
+          <button class="nav-item" data-view="timeoff"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/></svg></span><b>Folgas</b></button>
+          <button class="nav-item" data-view="shift-plan"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M10 10v11M3 16h18"/></svg></span><b>Escala</b></button>
+          <button class="nav-item" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b id="takeatCreditNavLabel">Contas a Prazo</b></button>
+          <button class="nav-item" data-view="documents"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><b>Documentos</b><em id="documentsNavBadge" class="nav-badge hidden">0</em></button>
+
+          <details class="nav-group permission-manager">
+            <summary><b id="managementGroupLabel">Gestão &amp; Lojas</b></summary>
             <button class="nav-item permission-manager" data-view="stores"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 2-6h14l2 6M3 9v3h18V9M5 12v9h14v-9M9 21v-6h6v6"/></svg></span><b>Lojas</b></button>
             <button class="nav-item permission-manager" data-view="holidays"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1Z"/></svg></span><b>Feriados</b></button>
             <button class="nav-item permission-manager" data-view="operations"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg></span><b>Regras</b></button>
-            <button class="nav-item" data-view="communication"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H9l-5 4Z"/><path d="M8 8h8m-8 5h5"/></svg></span><b>Comunicação</b><em id="notificationBadge" class="nav-badge">0</em></button>
+            <button class="nav-item permission-manager" data-view="scheduler"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2 6 7 3-7 2-2 7-3-7-6-2 6-3Z"/></svg></span><b>Geração automática</b></button>
+            <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
             <button class="nav-item permission-manager" data-view="monthly-closing"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8m-8 5h4m-4 4 2 2 6-6"/></svg></span><b>Fechamento mensal</b></button>
             <button class="nav-item permission-manager" data-view="advanced-reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/></svg></span><b>Jornada e desempenho</b></button>
-            <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/></svg></span><b>Relatórios</b></button>
+            <button class="nav-item" data-view="communication"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H9l-5 4Z"/><path d="M8 8h8m-8 5h5"/></svg></span><b>Comunicação</b><em id="notificationBadge" class="nav-badge">0</em></button>
           </details>
+
           <details class="nav-group permission-admin">
-            <summary><span>◇</span>Administração</summary>
+            <summary><b>Administração</b></summary>
             <button class="nav-item permission-admin" data-view="access"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg></span><b>Acessos e permissões</b></button>
             <button class="nav-item permission-admin" data-view="governance"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h17l-4-4M21 17H4l4 4"/></svg></span><b>Delegações</b></button>
             <button class="nav-item permission-admin" data-view="audit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l4 4v14H5Z"/><path d="M9 11h7m-7 4h7"/></svg></span><b>Auditoria</b></button>
           </details>
+
+          <div class="nav-group-title">GERAL</div>
+          <button class="nav-item" id="planlySettingsNavBtn" data-open-settings="true"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><b>Configurações</b></button>
+          <button class="nav-item" id="sidebarHelpBtn" onclick="document.getElementById('copilotOpenBtn')?.click()"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><b>Ajuda</b></button>
+          <button id="logoutBtn" class="nav-item"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><b>Sair</b></button>
         </nav>
         <div class="sidebar-foot">
-          <button id="themeToggle" class="nav-item">
-            <span>◐</span><b>Alternar tema</b></button
-          ><button id="logoutBtn" class="nav-item">
-            <span>↪</span><b>Sair</b>
-          </button>
+          <div id="sidebarPlanlyCard" class="sidebar-accent-card">
+            <h4>Folgas 3.0 Pro</h4>
+            <p>Gestão contínua em tempo real com apoio do Copiloto IA.</p>
+            <button type="button" class="sidebar-accent-btn" onclick="document.getElementById('copilotOpenBtn')?.click()">
+              <span>Falar com Copiloto →</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -302,12 +306,28 @@
         <header class="topbar">
           <div class="topbar-left">
             <button id="mobileMenu" class="icon-btn mobile-only">☰</button>
+            <div id="globalSearchWrapper" class="global-search-wrapper">
+              <svg class="global-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="search" id="globalSearchInput" class="global-search-input" placeholder="Buscar colaborador, folga ou setor..." aria-label="Busca global" />
+              <kbd class="global-search-kbd">⌘ F</kbd>
+            </div>
             <div>
               <p id="breadcrumb">Grupo House 190 / Início</p>
               <h1 id="pageTitle">Início</h1>
             </div>
           </div>
           <div class="topbar-actions">
+            <div class="page-header-actions" style="margin-right:12px;">
+              <button type="button" id="headerNewTimeOffBtn" class="btn-pill-primary">
+                <span>＋ Nova Folga</span>
+              </button>
+              <button type="button" id="headerFilterBtn" class="btn-pill-secondary" onclick="document.getElementById('planlySettingsNavBtn')?.click()">
+                <span>Filtrar</span>
+              </button>
+            </div>
             <button
               id="copilotOpenBtn"
               class="copilot-topbar-btn"

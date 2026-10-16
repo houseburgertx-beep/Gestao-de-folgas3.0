@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.15" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.16" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -27,8 +27,8 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <meta name="app-version" content="6.16.15-firebase-github" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+    <meta name="app-version" content="6.16.16-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -17617,6 +17617,1823 @@ dialog#documentUploadDialog input[type="month"] {
     height: 20px;
   }
 }
+
+/* ==========================================================================
+   FOLGAS 3.0 — PLANLY SAAS BENTO GRID DESIGN SYSTEM (LIGHT MODE CLEAN)
+   ========================================================================== */
+
+:root {
+  /* Paleta Base Light Mode */
+  --bg-workspace: #F6F7F9;
+  --surface-card: #FFFFFF;
+  --surface-muted: #F8F9FA;
+  --card-border: 1px solid #EAECEF;
+  --card-border-subtle: #F0F2F5;
+  --line-divider: #EAECEF;
+
+  /* Tipografia & Cores de Texto */
+  --font-family-base: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --text-title: #111827;
+  --text-body: #374151;
+  --text-muted: #6B7280;
+  --text-subtle: #9CA3AF;
+
+  /* Border Radius */
+  --radius-card: 16px;
+  --radius-inner: 12px;
+  --radius-pill: 9999px;
+  --radius-btn: 10px;
+
+  /* Sombras */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: 0 4px 12px rgba(17, 24, 39, 0.05);
+  --shadow-drawer: -4px 0 24px rgba(17, 24, 39, 0.08);
+
+  /* Transições */
+  --transition-fast: all 0.2s ease;
+
+  /* Cores Semânticas Oficiais */
+  --status-approved-bg: #DCFCE7;
+  --status-approved-text: #15803D;
+  --status-pending-bg: #FEF3C7;
+  --status-pending-text: #B45309;
+  --status-urgent-bg: #FEE2E2;
+  --status-urgent-text: #B91C1C;
+
+  /* Tema Accent Padrão: Ocean */
+  --accent-primary: #1B365D;
+  --accent-hover: #132644;
+  --accent-soft: #E8EEF5;
+  --accent-glow: rgba(27, 54, 93, 0.15);
+}
+
+/* Temas de Destaque Selecionáveis */
+[data-accent="ocean"], :root {
+  --accent-primary: #1B365D;
+  --accent-hover: #132644;
+  --accent-soft: #E8EEF5;
+  --accent-glow: rgba(27, 54, 93, 0.15);
+}
+
+[data-accent="plum"] {
+  --accent-primary: #5B21B6;
+  --accent-hover: #4C1D95;
+  --accent-soft: #F3E8FF;
+  --accent-glow: rgba(91, 33, 182, 0.15);
+}
+
+[data-accent="forest"] {
+  --accent-primary: #14532D;
+  --accent-hover: #0F3D21;
+  --accent-soft: #DCFCE7;
+  --accent-glow: rgba(20, 83, 45, 0.15);
+}
+
+[data-accent="ember"] {
+  --accent-primary: #7C2D12;
+  --accent-hover: #5E220D;
+  --accent-soft: #FFEDD5;
+  --accent-glow: rgba(124, 45, 18, 0.15);
+}
+
+/* ==========================================================================
+   APP SHELL GLOBAL
+   ========================================================================== */
+
+body {
+  font-family: var(--font-family-base) !important;
+  background-color: var(--bg-workspace) !important;
+  color: var(--text-body) !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell {
+  display: flex !important;
+  background: var(--bg-workspace) !important;
+  min-height: 100vh;
+}
+
+/* 1. SIDEBAR ESQUERDA FIXA (240px, #FFFFFF, borda #EAECEF) */
+.sidebar {
+  width: 240px !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+  background: var(--surface-card) !important;
+  border-right: 1px solid #EAECEF !important;
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 0 !important;
+  z-index: 100 !important;
+  height: 100vh !important;
+  position: sticky !important;
+  top: 0 !important;
+}
+
+.sidebar-head {
+  padding: 20px 18px 16px !important;
+  min-height: 64px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  border-bottom: 1px solid #EAECEF !important;
+}
+
+.sidebar-brand-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: var(--shadow-subtle);
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+}
+
+.sidebar-brand-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: #FFFFFF;
+}
+
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-brand-text strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.sidebar-brand-text span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.nav-list {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 16px 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.nav-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-subtle);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 12px 12px 6px;
+}
+
+.nav-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 14px !important;
+  border-radius: var(--radius-btn) !important;
+  color: var(--text-body) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-left: 3px solid transparent !important;
+  cursor: pointer !important;
+  transition: var(--transition-fast) !important;
+  text-align: left !important;
+  text-decoration: none !important;
+  position: relative !important;
+  min-height: 40px !important;
+}
+
+.nav-item:hover {
+  background: var(--surface-muted) !important;
+  color: var(--text-title) !important;
+}
+
+.nav-item.active {
+  background: var(--accent-soft) !important;
+  color: var(--accent-primary) !important;
+  border-left: 3px solid var(--accent-primary) !important;
+  font-weight: 700 !important;
+}
+
+.nav-item.active svg {
+  stroke: var(--accent-primary) !important;
+  stroke-width: 2.2 !important;
+}
+
+.nav-item svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: var(--text-muted) !important;
+  stroke-width: 1.8 !important;
+  flex-shrink: 0 !important;
+  transition: var(--transition-fast) !important;
+}
+
+.nav-item.active svg {
+  stroke: var(--accent-primary) !important;
+}
+
+.nav-item b {
+  font-weight: inherit !important;
+  flex: 1 !important;
+}
+
+.nav-item .nav-badge {
+  background: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  border-radius: var(--radius-pill) !important;
+  padding: 2px 7px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+/* Rodapé da Sidebar: Card de alto contraste */
+.sidebar-foot {
+  padding: 14px !important;
+  border-top: 1px solid #EAECEF !important;
+  background: var(--surface-card) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.sidebar-accent-card {
+  background: var(--accent-primary);
+  background-image: radial-gradient(circle at 100% 0%, rgba(255,255,255,0.15) 0%, transparent 60%),
+                    radial-gradient(circle at 0% 100%, rgba(255,255,255,0.08) 0%, transparent 50%);
+  border-radius: var(--radius-inner);
+  padding: 14px;
+  color: #FFFFFF;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 14px var(--accent-glow);
+  transition: var(--transition-fast);
+}
+
+.sidebar-accent-card:hover {
+  transform: translateY(-1px);
+}
+
+.sidebar-accent-card h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.01em;
+}
+
+.sidebar-accent-card p {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 10px 0;
+  line-height: 1.35;
+}
+
+.sidebar-accent-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #FFFFFF;
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-fast);
+}
+
+.sidebar-accent-btn:hover {
+  background: #FFFFFF;
+  color: var(--accent-primary);
+}
+
+/* 2. TOPBAR SUPERIOR (64px, fundo branco, borda #EAECEF) */
+.topbar {
+  height: 64px !important;
+  min-height: 64px !important;
+  background: var(--surface-card) !important;
+  border-bottom: 1px solid #EAECEF !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 28px !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 90 !important;
+}
+
+.topbar-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  flex: 1 !important;
+}
+
+/* Input de busca global com atalho ⌘ F */
+.global-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 380px;
+  width: 100%;
+}
+
+.global-search-input {
+  width: 100%;
+  height: 38px;
+  background: var(--bg-workspace);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-pill);
+  padding: 0 76px 0 38px;
+  font-size: 13px;
+  font-family: var(--font-family-base);
+  color: var(--text-title);
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.global-search-input:focus {
+  background: #FFFFFF;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.global-search-icon {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.global-search-kbd {
+  position: absolute;
+  right: 10px;
+  background: #FFFFFF;
+  border: 1px solid #EAECEF;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Topbar Direita */
+.topbar-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.icon-btn-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50% !important;
+  border: 1px solid #EAECEF !important;
+  background: var(--surface-card) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--text-body) !important;
+  cursor: pointer !important;
+  position: relative !important;
+  transition: var(--transition-fast) !important;
+}
+
+.icon-btn-circle:hover {
+  background: var(--surface-muted) !important;
+  border-color: #D1D5DB !important;
+  color: var(--accent-primary) !important;
+}
+
+.user-profile-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--transition-fast);
+  background: transparent;
+}
+
+.user-profile-block:hover {
+  background: var(--surface-muted);
+  border-color: #EAECEF;
+}
+
+.user-avatar-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: var(--shadow-subtle);
+}
+
+.user-profile-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.user-profile-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-title);
+  line-height: 1.2;
+}
+
+.user-profile-email {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 3. CABEÇALHO DA PÁGINA ATIVA */
+.workspace-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.workspace-page-header .page-heading h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.workspace-page-header .page-heading p {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 3px 0 0 0;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Botões Estilo Planly SaaS */
+.btn-pill-primary {
+  background: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  border-radius: var(--radius-pill) !important;
+  padding: 8px 18px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border: 1px solid var(--accent-primary) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transition: var(--transition-fast) !important;
+  box-shadow: 0 2px 6px var(--accent-glow) !important;
+}
+
+.btn-pill-primary:hover {
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+  transform: translateY(-1px);
+}
+
+.btn-pill-secondary {
+  background: var(--surface-card) !important;
+  color: var(--text-title) !important;
+  border-radius: var(--radius-pill) !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border: 1px solid #EAECEF !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transition: var(--transition-fast) !important;
+}
+
+.btn-pill-secondary:hover {
+  background: var(--surface-muted) !important;
+  border-color: #D1D5DB !important;
+}
+
+/* ==========================================================================
+   TELA 1: BENTO GRID DASHBOARD (3 LINHAS)
+   ========================================================================== */
+
+.bento-dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* LINHA 1: 4 CARDS DE KPI */
+.bento-row-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.bento-kpi-card {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-card);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-subtle);
+  position: relative;
+  transition: var(--transition-fast);
+  min-height: 138px;
+}
+
+.bento-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: #D8DCE3;
+}
+
+/* Card 1: Destaque Sólido Accent */
+.bento-kpi-card.kpi-highlight {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 18px var(--accent-glow) !important;
+}
+
+.bento-kpi-card.kpi-highlight .kpi-label {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.bento-kpi-card.kpi-highlight .kpi-number {
+  color: #FFFFFF !important;
+}
+
+.bento-kpi-card.kpi-highlight .kpi-arrow-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.bento-kpi-card.kpi-highlight .kpi-badge-pill {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+.kpi-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.kpi-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.kpi-arrow-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-subtle);
+  stroke-width: 2;
+  transition: var(--transition-fast);
+}
+
+.bento-kpi-card:hover .kpi-arrow-icon {
+  transform: translate(2px, -2px);
+  color: var(--accent-primary);
+}
+
+.bento-kpi-card.kpi-highlight:hover .kpi-arrow-icon {
+  color: #FFFFFF;
+}
+
+.kpi-number {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+
+.kpi-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kpi-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--status-approved-bg);
+  color: var(--status-approved-text);
+}
+
+.kpi-badge-pill.neutral {
+  background: #F3F4F6;
+  color: var(--text-muted);
+}
+
+.kpi-badge-pill.warning {
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+}
+
+/* LINHA 2: GRÁFICOS, LEMBRETES E LISTA RÁPIDA */
+.bento-row-middle {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 1fr;
+  gap: 18px;
+}
+
+.bento-card {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-card);
+  padding: 22px;
+  box-shadow: var(--shadow-subtle);
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition-fast);
+}
+
+.bento-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.bento-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-title);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.bento-card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Coluna 1: Gráfico de Pílulas Verticais */
+.pill-chart-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 160px;
+  padding: 10px 0 4px;
+  gap: 12px;
+}
+
+.pill-chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pill-bar-track {
+  width: 24px;
+  height: 120px;
+  background: var(--surface-muted);
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  position: relative;
+}
+
+.pill-bar-fill {
+  width: 100%;
+  border-radius: var(--radius-pill);
+  transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: var(--accent-primary);
+}
+
+/* Preenchimento listrado diagonal para dias projetados */
+.pill-bar-fill.striped {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--accent-primary),
+    var(--accent-primary) 3px,
+    var(--accent-soft) 3px,
+    var(--accent-soft) 7px
+  );
+}
+
+.pill-bar-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Coluna 2: Card Próximas Folgas / Alertas do Dia */
+.alert-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.alert-employee-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-workspace);
+  border-radius: var(--radius-inner);
+  border: 1px solid #EAECEF;
+}
+
+.alert-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.alert-info {
+  flex: 1;
+}
+
+.alert-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-title);
+  line-height: 1.2;
+}
+
+.alert-role {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.btn-card-wide {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 16px;
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-inner);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: center;
+}
+
+.btn-card-wide:hover {
+  background: var(--surface-muted);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* Coluna 3: Lista Compacta Últimas Solicitações */
+.compact-request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.compact-request-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.compact-request-item:last-child {
+  border-bottom: none;
+}
+
+.compact-req-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compact-req-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.compact-req-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* LINHA 3: EQUIPE, COBERTURA E WIDGET DE TURNO/RELÓGIO */
+.bento-row-bottom {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.1fr;
+  gap: 18px;
+}
+
+/* Coluna 1: Status da Equipe */
+.team-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.team-status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--radius-inner);
+  background: var(--bg-workspace);
+  border: 1px solid #EAECEF;
+}
+
+.team-status-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-avatar-mini {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.team-meta strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+  display: block;
+}
+
+.team-meta span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status-pill-badge {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-pill-badge.working {
+  background: #E0F2FE;
+  color: #0369A1;
+}
+
+.status-pill-badge.break {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.status-pill-badge.off {
+  background: #DCFCE7;
+  color: #15803D;
+}
+
+/* Coluna 2: Gráfico Semicircular (Half-Donut Gauge) */
+.gauge-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  flex: 1;
+}
+
+.gauge-svg-container {
+  width: 180px;
+  height: 100px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.gauge-center-text {
+  position: absolute;
+  bottom: 0;
+  text-align: center;
+}
+
+.gauge-center-text strong {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: -0.03em;
+  display: block;
+}
+
+.gauge-center-text span {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.gauge-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.gauge-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.gauge-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Coluna 3: Widget de Alto Contraste (Relógio / Turno) */
+.bento-card-accent-dark {
+  background: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--accent-primary) !important;
+  background-image: radial-gradient(circle at 100% 0%, rgba(255,255,255,0.18) 0%, transparent 60%),
+                    radial-gradient(circle at 0% 100%, rgba(255,255,255,0.1) 0%, transparent 50%) !important;
+  box-shadow: 0 4px 18px var(--accent-glow) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.bento-card-accent-dark .bento-card-title {
+  color: #FFFFFF !important;
+}
+
+.bento-card-accent-dark .bento-card-subtitle {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.clock-digital-display {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  margin: 14px 0 4px;
+  line-height: 1;
+}
+
+.clock-date-display {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 18px;
+}
+
+.clock-action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.clock-action-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #FFFFFF;
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-fast);
+}
+
+.clock-action-btn:hover {
+  background: #FFFFFF;
+  color: var(--accent-primary);
+}
+
+/* ==========================================================================
+   TELA 2: SOLICITAÇÕES (QUADRO KANBAN INTERATIVO)
+   ========================================================================== */
+
+.kanban-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.kanban-filters-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill-filter-btn {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-body);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.pill-filter-btn:hover {
+  background: var(--surface-muted);
+  border-color: #D1D5DB;
+}
+
+.pill-filter-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px var(--accent-glow);
+}
+
+.kanban-board-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.kanban-column {
+  background: var(--bg-workspace);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-card);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 520px;
+  transition: var(--transition-fast);
+}
+
+.kanban-column.drag-over {
+  background: var(--accent-soft);
+  border-color: var(--accent-primary);
+}
+
+.kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #EAECEF;
+}
+
+.kanban-column-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-title);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban-count-badge {
+  background: #FFFFFF;
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.kanban-cards-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 400px;
+}
+
+.kanban-card {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-inner);
+  padding: 14px;
+  box-shadow: var(--shadow-subtle);
+  cursor: grab;
+  transition: var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: #D1D5DB;
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+.kanban-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kanban-type-tag {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.kanban-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.kanban-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.kanban-card-date {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kanban-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #F3F4F6;
+}
+
+.kanban-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kanban-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.kanban-mini-btn {
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  font-weight: 600;
+  border: 1px solid #EAECEF;
+  background: #FFFFFF;
+  color: var(--text-body);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.kanban-mini-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+/* ==========================================================================
+   TELA 3: EQUIPE (GRID DE CARDS + SIDE DRAWER)
+   ========================================================================== */
+
+.team-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.team-filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.team-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.team-member-card {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-card);
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: var(--shadow-subtle);
+  transition: var(--transition-fast);
+}
+
+.team-member-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: #D8DCE3;
+}
+
+.member-avatar-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.member-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+  line-height: 1.2;
+}
+
+.member-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.member-unit-badge {
+  background: var(--bg-workspace);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 8px 0 14px;
+}
+
+.member-metrics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 0;
+  border-top: 1px solid #F3F4F6;
+  border-bottom: 1px solid #F3F4F6;
+  margin-bottom: 14px;
+}
+
+.member-metric-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-box-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.metric-box-lbl {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.member-card-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-member-outline {
+  padding: 7px 12px;
+  border-radius: var(--radius-inner);
+  border: 1px solid #EAECEF;
+  background: #FFFFFF;
+  color: var(--text-title);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-member-outline:hover {
+  background: var(--surface-muted);
+  border-color: #D1D5DB;
+}
+
+.btn-member-primary {
+  padding: 7px 12px;
+  border-radius: var(--radius-inner);
+  border: 1px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-member-primary:hover {
+  background: var(--accent-hover);
+}
+
+/* SIDE DRAWER (PAINEL DESLIZANTE DIREITO - 380px) */
+.side-drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(17, 24, 39, 0.25);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition-fast);
+}
+
+.side-drawer-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.side-drawer-panel {
+  position: fixed;
+  top: 0;
+  right: -420px;
+  width: 380px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--surface-card);
+  box-shadow: var(--shadow-drawer);
+  z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.side-drawer-backdrop.open .side-drawer-panel {
+  right: 0;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.drawer-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #EAECEF;
+  background: #FFFFFF;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.drawer-close-btn:hover {
+  background: var(--surface-muted);
+  color: var(--text-title);
+}
+
+/* ==========================================================================
+   TELA 4: CALENDÁRIO DE ESCALAS (70% GRID + 30% PAINEL FIXO)
+   ========================================================================== */
+
+.calendar-70-30-layout {
+  display: grid;
+  grid-template-columns: 2.3fr 1fr;
+  gap: 20px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.calendar-main-box {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-card);
+  padding: 22px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.calendar-nav-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.calendar-month-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: -0.02em;
+}
+
+.calendar-nav-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-nav-btn {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-body);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.cal-nav-btn:hover {
+  background: var(--surface-muted);
+  border-color: #D1D5DB;
+}
+
+.cal-nav-btn.today {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.cal-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.cal-weekday-label {
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+
+.cal-day-cell {
+  background: var(--bg-workspace);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-inner);
+  min-height: 90px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.cal-day-cell:hover {
+  border-color: var(--accent-primary);
+  background: #FFFFFF;
+}
+
+.cal-day-cell.selected {
+  border: 2px solid var(--accent-primary);
+  background: #FFFFFF;
+}
+
+.cal-day-number-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cal-day-number {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-body);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.cal-day-cell.selected .cal-day-number {
+  background: var(--accent-primary);
+  color: #FFFFFF;
+}
+
+.cal-leave-pill {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  border-radius: var(--radius-pill);
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* Painel Fixo 30% do Dia */
+.calendar-day-panel {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-card);
+  padding: 22px;
+  box-shadow: var(--shadow-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 84px;
+}
+
+.day-panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.day-panel-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   TELA 5: ANALYTICS & CONFIGURAÇÕES DE APARÊNCIA
+   ========================================================================== */
+
+.analytics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.analytics-period-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.analytics-charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+}
+
+.area-chart-wrap {
+  width: 100%;
+  height: 220px;
+  position: relative;
+}
+
+/* Configurações & Seletor de Temas */
+.settings-dialog-box {
+  background: var(--surface-card);
+  border: 1px solid #EAECEF;
+  border-radius: var(--radius-card);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  max-width: 580px;
+  width: 90vw;
+}
+
+.theme-swatches-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.theme-swatch-card {
+  border: 2px solid #EAECEF;
+  border-radius: var(--radius-inner);
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition-fast);
+  background: var(--surface-card);
+}
+
+.theme-swatch-card:hover {
+  border-color: #D1D5DB;
+  transform: translateY(-2px);
+}
+
+.theme-swatch-card.active {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.theme-color-preview {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  box-shadow: var(--shadow-subtle);
+}
+
+.theme-swatch-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+/* ==========================================================================
+   MODAL DE CRIAÇÃO (+ NOVA FOLGA) — BACKDROP BLUR
+   ========================================================================== */
+
+dialog#timeOffDialog {
+  border: 1px solid #EAECEF !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: 0 12px 36px rgba(17, 24, 39, 0.12) !important;
+  background: var(--surface-card) !important;
+  padding: 24px !important;
+  max-width: 520px !important;
+  width: 90vw !important;
+  color: var(--text-title) !important;
+}
+
+dialog#timeOffDialog::backdrop {
+  background: rgba(17, 24, 39, 0.3) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+dialog#timeOffDialog .dialog-head h3 {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--text-title) !important;
+}
+
+dialog#timeOffDialog input,
+dialog#timeOffDialog select,
+dialog#timeOffDialog textarea {
+  border-radius: var(--radius-inner) !important;
+  border: 1px solid #EAECEF !important;
+  font-family: var(--font-family-base) !important;
+  font-size: 13.5px !important;
+  padding: 8px 12px !important;
+  transition: var(--transition-fast) !important;
+}
+
+dialog#timeOffDialog input:focus,
+dialog#timeOffDialog select:focus,
+dialog#timeOffDialog textarea:focus {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+  outline: none !important;
+}
+
+/* ==========================================================================
+   RESPONSIVIDADE MOBILE
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .bento-row-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-row-middle,
+  .bento-row-bottom {
+    grid-template-columns: 1fr;
+  }
+  .kanban-board-grid {
+    grid-template-columns: 1fr;
+  }
+  .team-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .calendar-70-30-layout {
+    grid-template-columns: 1fr;
+  }
+  .analytics-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .bento-row-kpis {
+    grid-template-columns: 1fr;
+  }
+  .team-cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .theme-swatches-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .global-search-wrapper {
+    display: none;
+  }
+}
 </style>
   </head>
   <body>
@@ -17820,8 +19637,10 @@ dialog#documentUploadDialog input[type="month"] {
     <div id="app" class="app-shell hidden">
       <aside id="sidebar" class="sidebar">
         <div class="sidebar-head">
-          <div class="brand-logo" aria-label="Grupo House 190"></div>
-          <div class="brand-copy">
+          <div class="sidebar-brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+          </div>
+          <div class="sidebar-brand-text">
             <strong>Folgas 3.0</strong><span>Grupo House 190</span>
           </div>
           <button id="sidebarToggle" class="icon-btn" aria-label="Fechar menu">
@@ -17829,53 +19648,55 @@ dialog#documentUploadDialog input[type="month"] {
           </button>
         </div>
         <nav class="nav-list" aria-label="Navegação principal">
-          <details class="nav-group" open>
-            <summary><span>●</span>Operação</summary>
-            <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b>Início</b></button>
-            <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
-            <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
-            <button class="nav-item permission-manager" data-view="absences"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span><b>Ausências</b><em id="absencesBadge" class="nav-badge">0</em></button>
-            <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
-            <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M9 3h6M8 10h8m-8 5h5"/></svg></span><b>Pendências</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
-            <button class="nav-item" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b id="takeatCreditNavLabel">Contas a Prazo</b></button>
-            <button class="nav-item" data-view="documents"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><b>Documentos</b><em id="documentsNavBadge" class="nav-badge hidden">0</em></button>
-          </details>
-          <details class="nav-group" open>
-            <summary><span>▦</span>Escalas</summary>
-            <button class="nav-item" data-view="calendar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/></svg></span><b>Calendário</b></button>
-            <button class="nav-item" data-view="timeoff"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/></svg></span><b>Folgas</b></button>
-            <button class="nav-item" data-view="shift-plan"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M10 10v11M3 16h18"/></svg></span><b>Escala</b></button>
-            <button class="nav-item permission-manager" data-view="scheduler"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2 6 7 3-7 2-2 7-3-7-6-2 6-3Z"/></svg></span><b>Geração automática</b></button>
-          </details>
-          <details class="nav-group permission-manager" open>
-            <summary><span>♙</span>Pessoas</summary>
-            <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
-            <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
-            <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
-          </details>
-          <details class="nav-group" open>
-            <summary><span>⚙</span><b id="managementGroupLabel">Gestão</b></summary>
+          <div class="nav-group-title">MENU</div>
+          <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><b>Dashboard</b></button>
+          <button class="nav-item" data-view="pending-center" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/></svg></span><b>Solicitações</b><em id="pendingCenterBadge" class="nav-badge">0</em></button>
+          <button class="nav-item" data-view="calendar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><b>Calendário</b></button>
+          <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><b>Analytics</b></button>
+          <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><b>Equipe</b></button>
+
+          <div class="nav-group-title">OPERAÇÃO</div>
+          <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
+          <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
+          <button class="nav-item permission-manager" data-view="absences"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span><b>Ausências</b><em id="absencesBadge" class="nav-badge">0</em></button>
+          <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
+          <button class="nav-item" data-view="timeoff"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/></svg></span><b>Folgas</b></button>
+          <button class="nav-item" data-view="shift-plan"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M10 10v11M3 16h18"/></svg></span><b>Escala</b></button>
+          <button class="nav-item" data-view="takeat-credit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg></span><b id="takeatCreditNavLabel">Contas a Prazo</b></button>
+          <button class="nav-item" data-view="documents"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><b>Documentos</b><em id="documentsNavBadge" class="nav-badge hidden">0</em></button>
+
+          <details class="nav-group permission-manager">
+            <summary><b id="managementGroupLabel">Gestão &amp; Lojas</b></summary>
             <button class="nav-item permission-manager" data-view="stores"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 2-6h14l2 6M3 9v3h18V9M5 12v9h14v-9M9 21v-6h6v6"/></svg></span><b>Lojas</b></button>
             <button class="nav-item permission-manager" data-view="holidays"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1Z"/></svg></span><b>Feriados</b></button>
             <button class="nav-item permission-manager" data-view="operations"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg></span><b>Regras</b></button>
-            <button class="nav-item" data-view="communication"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H9l-5 4Z"/><path d="M8 8h8m-8 5h5"/></svg></span><b>Comunicação</b><em id="notificationBadge" class="nav-badge">0</em></button>
+            <button class="nav-item permission-manager" data-view="scheduler"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2 6 7 3-7 2-2 7-3-7-6-2 6-3Z"/></svg></span><b>Geração automática</b></button>
+            <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
             <button class="nav-item permission-manager" data-view="monthly-closing"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8m-8 5h4m-4 4 2 2 6-6"/></svg></span><b>Fechamento mensal</b></button>
             <button class="nav-item permission-manager" data-view="advanced-reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/></svg></span><b>Jornada e desempenho</b></button>
-            <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/></svg></span><b>Relatórios</b></button>
+            <button class="nav-item" data-view="communication"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H9l-5 4Z"/><path d="M8 8h8m-8 5h5"/></svg></span><b>Comunicação</b><em id="notificationBadge" class="nav-badge">0</em></button>
           </details>
+
           <details class="nav-group permission-admin">
-            <summary><span>◇</span>Administração</summary>
+            <summary><b>Administração</b></summary>
             <button class="nav-item permission-admin" data-view="access"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg></span><b>Acessos e permissões</b></button>
             <button class="nav-item permission-admin" data-view="governance"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h17l-4-4M21 17H4l4 4"/></svg></span><b>Delegações</b></button>
             <button class="nav-item permission-admin" data-view="audit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l4 4v14H5Z"/><path d="M9 11h7m-7 4h7"/></svg></span><b>Auditoria</b></button>
           </details>
+
+          <div class="nav-group-title">GERAL</div>
+          <button class="nav-item" id="planlySettingsNavBtn" data-open-settings="true"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><b>Configurações</b></button>
+          <button class="nav-item" id="sidebarHelpBtn" onclick="document.getElementById('copilotOpenBtn')?.click()"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><b>Ajuda</b></button>
+          <button id="logoutBtn" class="nav-item"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><b>Sair</b></button>
         </nav>
         <div class="sidebar-foot">
-          <button id="themeToggle" class="nav-item">
-            <span>◐</span><b>Alternar tema</b></button
-          ><button id="logoutBtn" class="nav-item">
-            <span>↪</span><b>Sair</b>
-          </button>
+          <div id="sidebarPlanlyCard" class="sidebar-accent-card">
+            <h4>Folgas 3.0 Pro</h4>
+            <p>Gestão contínua em tempo real com apoio do Copiloto IA.</p>
+            <button type="button" class="sidebar-accent-btn" onclick="document.getElementById('copilotOpenBtn')?.click()">
+              <span>Falar com Copiloto →</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -17883,12 +19704,28 @@ dialog#documentUploadDialog input[type="month"] {
         <header class="topbar">
           <div class="topbar-left">
             <button id="mobileMenu" class="icon-btn mobile-only">☰</button>
+            <div id="globalSearchWrapper" class="global-search-wrapper">
+              <svg class="global-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="search" id="globalSearchInput" class="global-search-input" placeholder="Buscar colaborador, folga ou setor..." aria-label="Busca global" />
+              <kbd class="global-search-kbd">⌘ F</kbd>
+            </div>
             <div>
               <p id="breadcrumb">Grupo House 190 / Início</p>
               <h1 id="pageTitle">Início</h1>
             </div>
           </div>
           <div class="topbar-actions">
+            <div class="page-header-actions" style="margin-right:12px;">
+              <button type="button" id="headerNewTimeOffBtn" class="btn-pill-primary">
+                <span>＋ Nova Folga</span>
+              </button>
+              <button type="button" id="headerFilterBtn" class="btn-pill-secondary" onclick="document.getElementById('planlySettingsNavBtn')?.click()">
+                <span>Filtrar</span>
+              </button>
+            </div>
             <button
               id="copilotOpenBtn"
               class="copilot-topbar-btn"
@@ -21088,7 +22925,7 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.15"></script>
+<script type="module" src="./src/main.js?v=6.16.16"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
