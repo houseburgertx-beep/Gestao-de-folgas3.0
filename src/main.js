@@ -3,8 +3,6 @@ import "./journey.js";
 import "./tasks.js";
 import "./documents.js";
 import "./copilot.js";
-import { planlyEngine } from "./planly-bento.js";
-planlyEngine.init();
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
 import "./pwa.js";

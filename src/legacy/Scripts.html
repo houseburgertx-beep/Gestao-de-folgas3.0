@@ -3012,8 +3012,6 @@
       } else {
         window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
       }
-    } else if (view === "integrar") {
-      loadIntegraView_();
     }
     else if (
       [
@@ -3024,12 +3022,6 @@
       ].includes(view)
     )
       loadAdvancedView(view);
-  }
-  function loadIntegraView_() {
-    const bridgeEl = document.getElementById("integrarBridgeVersion");
-    if (bridgeEl) bridgeEl.textContent = window.__GESTAO_BRIDGE_VERSION__ || "6.16.19";
-    const diagEl = document.getElementById("diagFirebaseStatus");
-    if (diagEl) diagEl.textContent = (window.navigator?.onLine !== false) ? "Ativo (Online)" : "Offline (Cache)";
   }
   function renderEmployeeDashboardCards() {
     const cards = computeCards(),
