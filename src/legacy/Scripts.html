@@ -1044,6 +1044,8 @@
     }
     document.documentElement.dataset.theme =
       localStorage.getItem("gf-theme") || "light";
+    document.documentElement.dataset.accent =
+      localStorage.getItem("gf-accent") || "ocean";
     if ($("#logoutBtn")) $("#logoutBtn").onclick = logoutApplication;
     if ($("#profileMenuBtn")) $("#profileMenuBtn").onclick = openOwnProfile;
     if ($("#profileForm")) $("#profileForm").onsubmit = saveOwnProfile;
