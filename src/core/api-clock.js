@@ -172,10 +172,10 @@ const timeValue = (dateTime) => {
 const extractScheduleTime = (val) => {
   if (!val) return "";
   const s = String(val).trim();
-  const hhmm = s.match(/^(\d{1,2}:\d{2})/);
+  const hhmm = s.match(/^(\d{1,2}):(\d{2})/);
   if (hhmm) return `${hhmm[1].padStart(2, "0")}:${hhmm[2]}`;
-  const embedded = s.match(/[T\s](\d{2}):(\d{2})/);
-  if (embedded) return `${embedded[1]}:${embedded[2]}`;
+  const embedded = s.match(/[T\s](\d{1,2}):(\d{2})/);
+  if (embedded) return `${embedded[1].padStart(2, "0")}:${embedded[2]}`;
   const tv = timeValue(s);
   if (tv) return tv;
   return s.slice(0, 5);
@@ -187,7 +187,11 @@ const calculateSuggestedExit = (sched, entryTimeOrDateTime) => {
     return schedExit;
   }
   if (entryTimeOrDateTime) {
-    const m = String(entryTimeOrDateTime).match(/^(\d{1,2}):(\d{2})/);
+    const directMatch = String(entryTimeOrDateTime).match(/^(\d{1,2}):(\d{2})/);
+    const tv = directMatch
+      ? `${directMatch[1].padStart(2, "0")}:${directMatch[2]}`
+      : timeValue(entryTimeOrDateTime);
+    const m = String(tv || "").match(/^(\d{1,2}):(\d{2})/);
     if (m) {
       const entryMins = Number(m[1]) * 60 + Number(m[2]);
       const dailyMinutes =
@@ -197,14 +201,6 @@ const calculateSuggestedExit = (sched, entryTimeOrDateTime) => {
       const h = Math.floor(exitMins / 60);
       const min = exitMins % 60;
       return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-    }
-    const d = new Date(entryTimeOrDateTime);
-    if (!Number.isNaN(d.getTime())) {
-      const dailyMinutes =
-        Number(sched?.CargaDiariaMinutos || 440) +
-        Number(sched?.DuracaoIntervaloMinutos || 60);
-      d.setMinutes(d.getMinutes() + dailyMinutes);
-      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     }
   }
   return "23:00";
