@@ -460,18 +460,6 @@ export class PlanlyBentoEngine {
       }
     }
 
-    // 2. Adicionar Botão de Ação Primária no Header da Workspace
-    const heroRow = document.querySelector("#view-dashboard .hero-row");
-    if (heroRow && !document.getElementById("headerNewTimeOffBtn")) {
-      const heroActions = heroRow.querySelector(".hero-actions");
-      if (heroActions) {
-        const newBtn = document.createElement("button");
-        newBtn.id = "headerNewTimeOffBtn";
-        newBtn.className = "btn-pill-primary";
-        newBtn.innerHTML = `<span>＋ Nova Folga</span>`;
-        heroActions.prepend(newBtn);
-      }
-    }
 
     // 3. Atualizar Bloco da Sidebar com o Card de Alto Contraste
     const sidebar = document.getElementById("sidebar");
@@ -556,6 +544,22 @@ export class PlanlyBentoEngine {
     // HTML do Bento Grid
     const bentoHtml = `
       <div class="bento-dashboard-grid" id="planlyBentoGrid">
+        <div class="bento-page-header">
+          <div class="bento-page-header-left">
+            <h1 class="bento-page-title">Dashboard</h1>
+            <p class="bento-page-subtitle">Visão geral das escalas, folgas e presença da equipe em tempo real</p>
+          </div>
+          <div class="bento-page-header-actions">
+            <button type="button" id="headerFilterBtn" class="btn-pill-secondary" onclick="document.getElementById('planlySettingsNavBtn')?.click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span>Filtrar</span>
+            </button>
+            <button type="button" id="headerNewTimeOffBtn" class="btn-pill-primary">
+              <span>＋ Nova Folga</span>
+            </button>
+          </div>
+        </div>
+
         <!-- LINHA 1: 4 CARDS DE KPI -->
         <div class="bento-row-kpis">
           <div class="bento-kpi-card kpi-highlight">
