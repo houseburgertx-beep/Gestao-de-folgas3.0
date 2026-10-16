@@ -2978,3 +2978,53 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
 .badge-warning, .status-pending  { background: #FEF3C7 !important; color: #B45309 !important; }
 .badge-danger, .status-rejected  { background: #FEE2E2 !important; color: #B91C1C !important; }
 .tag-sector, .tag-role           { background: var(--primary-soft) !important; color: var(--primary) !important; }
+
+/* Ações rápidas de ponto (Saída rápida automática) */
+.clock-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.quick-exit-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px 10px !important;
+  min-height: 28px !important;
+  height: 28px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  border-radius: 999px !important;
+  background: var(--primary-soft, #eef2ff) !important;
+  color: var(--primary, #1B365D) !important;
+  border: 1px solid rgba(27, 54, 93, 0.15) !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+}
+.quick-exit-btn:hover {
+  background: var(--primary, #1B365D) !important;
+  color: #fff !important;
+  border-color: var(--primary, #1B365D) !important;
+  transform: translateY(-1px);
+}
+.quick-exit-btn:active {
+  transform: scale(0.97);
+}
+.quick-exit-btn[disabled] {
+  opacity: 0.6 !important;
+  pointer-events: none !important;
+}
+[data-theme="dark"] .quick-exit-btn {
+  background: rgba(174, 149, 228, 0.15) !important;
+  color: #cbb8f7 !important;
+  border-color: rgba(174, 149, 228, 0.25) !important;
+}
+[data-theme="dark"] .quick-exit-btn:hover {
+  background: #ae95e4 !important;
+  color: #1a1625 !important;
+  border-color: #ae95e4 !important;
+}
+

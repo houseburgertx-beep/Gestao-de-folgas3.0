@@ -2383,6 +2383,41 @@
     }
   }
 
+  async function handleAutoFillExitAction_(btn) {
+    if (!btn || btn.disabled) return;
+    const employeeId = btn.dataset.employee;
+    const date = btn.dataset.date;
+    const name = btn.dataset.name || "Colaborador";
+    const time = btn.dataset.time || "23:00";
+    if (!employeeId || !date) return;
+
+    btn.disabled = true;
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner" style="width:12px;height:12px;display:inline-block;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;margin-right:4px;"></span>Gravando…`;
+
+    try {
+      await call(FN.quickFixPunch, sessionToken(), {
+        funcionarioId: employeeId,
+        data: date,
+        horaSaida: time,
+        observacao: `Saída preenchida automaticamente pelo gestor conforme horário estabelecido (${time}).`,
+      });
+      toast(`Saída de ${name} preenchida com sucesso às ${time}!`);
+      state.hourBalance = null;
+      state.timeClockBalance = null;
+      if (Array.isArray(state.incompletePunches)) {
+        state.incompletePunches = state.incompletePunches.filter(
+          (p) => !(String(p.FuncionarioID) === String(employeeId) && p.Data === date),
+        );
+      }
+      await loadTimeClock(false, true);
+    } catch (e) {
+      toast(e.message || "Erro ao registrar saída.", true);
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+  }
+
   function openSettleHourBalanceDialog_() {
     if (!isManager())
       return toast(
@@ -5223,6 +5258,7 @@
     if (a === "clock-review") openClockDecision(id);
     if (a === "clock-justify-day")
       openClockJustification_(b.dataset.employee, b.dataset.date);
+    if (a === "auto-fill-exit") handleAutoFillExitAction_(b);
     if (a === "quick-fix-punch") handleQuickFixPunchAction_(b.dataset.idx);
     if (a === "adjust-hour-balance") openHourBalanceAdjustment_(id);
     if (a === "disable-employee")
@@ -5508,6 +5544,47 @@
     })();
     return CLOCK_QUICK_PROMISE_;
   }
+  function getEmployeeScheduledExitTime_(employeeId, dateKey, entryTime, dayObj) {
+    if (dayObj && dayObj.horaSaidaPrevista && /^([01]\d|2[0-3]):[0-5]\d$/.test(dayObj.horaSaidaPrevista)) {
+      return dayObj.horaSaidaPrevista;
+    }
+    const allSchedules = arr(state.timeClock?.schedules)
+      .concat(arr(state.clockSettings?.schedules))
+      .concat(arr(state.schedules));
+    const sched =
+      allSchedules.find(
+        (s) =>
+          String(s.FuncionarioID) === String(employeeId) &&
+          (!s.VigenteDe || String(s.VigenteDe).slice(0, 10) <= dateKey) &&
+          (!s.VigenteAte || String(s.VigenteAte).slice(0, 10) >= dateKey),
+      ) ||
+      allSchedules.find((s) => String(s.FuncionarioID) === String(employeeId));
+
+    if (sched) {
+      const exitVal = timeInput(sched.HoraSaida);
+      if (exitVal && /^([01]\d|2[0-3]):[0-5]\d$/.test(exitVal)) return exitVal;
+      if (entryTime && entryTime !== "—") {
+        const m = String(entryTime).match(/^(\d{1,2}):(\d{2})/);
+        if (m) {
+          const entryMins = Number(m[1]) * 60 + Number(m[2]);
+          const daily =
+            Number(sched.CargaDiariaMinutos || 440) +
+            Number(sched.DuracaoIntervaloMinutos || 60);
+          const exitMins = (entryMins + daily) % 1440;
+          return `${String(Math.floor(exitMins / 60)).padStart(2, "0")}:${String(exitMins % 60).padStart(2, "0")}`;
+        }
+      }
+    }
+    if (entryTime && entryTime !== "—") {
+      const m = String(entryTime).match(/^(\d{1,2}):(\d{2})/);
+      if (m) {
+        const entryMins = Number(m[1]) * 60 + Number(m[2]);
+        const exitMins = (entryMins + 500) % 1440;
+        return `${String(Math.floor(exitMins / 60)).padStart(2, "0")}:${String(exitMins % 60).padStart(2, "0")}`;
+      }
+    }
+    return "23:00";
+  }
   function renderTimeClock() {
     publishJourney_();
     warmClockLocation_();
@@ -5642,8 +5719,19 @@
           const key =
             String(x.funcionarioId) + "|" + normalizeClockDay_(x.data);
           const record = firstRecordByDay[key];
+          const hasMissingExit =
+            Boolean(record) &&
+            Boolean(x.entrada && x.entrada !== "—") &&
+            (!x.saida || x.saida === "—");
+          const scheduledExit = hasMissingExit
+            ? getEmployeeScheduledExitTime_(x.funcionarioId, x.data, x.entrada, x)
+            : "";
+          const autoExitBtn =
+            hasMissingExit && isManager() && !isKitchenChief()
+              ? `<button class="btn btn-ghost quick-exit-btn" data-action="auto-fill-exit" data-employee="${esc(x.funcionarioId)}" data-date="${esc(x.data)}" data-name="${esc(x.nome)}" data-time="${esc(scheduledExit)}" title="Preencher saída esquecida com horário estabelecido (${esc(scheduledExit)})"><span class="material-symbols-rounded" style="font-size:15px;line-height:1;margin-right:3px;">logout</span>Saída (${esc(scheduledExit)})</button>`
+              : "";
           const adjustment = record && !isKitchenChief()
-            ? `<button class="btn btn-ghost" data-action="clock-adjust" data-id="${esc(record.RegistroPontoID || "")}">Selecionar marcação</button>`
+            ? `<div class="clock-row-actions"><button class="btn btn-ghost" data-action="clock-adjust" data-id="${esc(record.RegistroPontoID || "")}">Selecionar marcação</button>${autoExitBtn}</div>`
             : "—";
           if ((x.folga || x.folgaFixa) && !x.trabalhou) {
             const label = x.folga ? "De folga" : "Folga fixa";

@@ -169,6 +169,47 @@ const timeValue = (dateTime) => {
     : "";
 };
 
+const extractScheduleTime = (val) => {
+  if (!val) return "";
+  const s = String(val).trim();
+  const hhmm = s.match(/^(\d{1,2}:\d{2})/);
+  if (hhmm) return `${hhmm[1].padStart(2, "0")}:${hhmm[2]}`;
+  const embedded = s.match(/[T\s](\d{2}):(\d{2})/);
+  if (embedded) return `${embedded[1]}:${embedded[2]}`;
+  const tv = timeValue(s);
+  if (tv) return tv;
+  return s.slice(0, 5);
+};
+
+const calculateSuggestedExit = (sched, entryTimeOrDateTime) => {
+  const schedExit = extractScheduleTime(sched?.HoraSaida);
+  if (schedExit && /^([01]\d|2[0-3]):[0-5]\d$/.test(schedExit)) {
+    return schedExit;
+  }
+  if (entryTimeOrDateTime) {
+    const m = String(entryTimeOrDateTime).match(/^(\d{1,2}):(\d{2})/);
+    if (m) {
+      const entryMins = Number(m[1]) * 60 + Number(m[2]);
+      const dailyMinutes =
+        Number(sched?.CargaDiariaMinutos || 440) +
+        Number(sched?.DuracaoIntervaloMinutos || 60);
+      const exitMins = (entryMins + dailyMinutes) % 1440;
+      const h = Math.floor(exitMins / 60);
+      const min = exitMins % 60;
+      return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+    }
+    const d = new Date(entryTimeOrDateTime);
+    if (!Number.isNaN(d.getTime())) {
+      const dailyMinutes =
+        Number(sched?.CargaDiariaMinutos || 440) +
+        Number(sched?.DuracaoIntervaloMinutos || 60);
+      d.setMinutes(d.getMinutes() + dailyMinutes);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+  }
+  return "23:00";
+};
+
 const formatScheduleTime = (schedule) => {
   if (!schedule?.HoraEntrada || !schedule?.HoraSaida) return "";
   const fmt = (val) => {
@@ -1067,6 +1108,10 @@ async function clockContext(filters = {}) {
         saidaIntervalo: metrics.saidaIntervalo,
         retornoIntervalo: metrics.retornoIntervalo,
         saida: metrics.saida,
+        horaSaidaPrevista: calculateSuggestedExit(
+          schedule,
+          metrics.entrada || rows[0]?.DataHora,
+        ),
         trabalhadoMinutos: metrics.worked,
         trabalhadoTexto: minutesText(metrics.worked),
         previstoMinutos: metrics.expected,
@@ -2005,8 +2050,8 @@ export function createClockHandlers() {
       scopeRecord(profile, employee);
       const date = normalizedDateKey(payload.data);
       assert(
-        /^\d{4}-\d{2}-\d{2}$/.test(date) && date < todayIso(),
-        "Informe uma data válida de um dia anterior.",
+        /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= todayIso(),
+        "Informe uma data válida.",
       );
       const time = String(
         payload.horaSaida || payload.horario || "23:00",
@@ -2015,7 +2060,29 @@ export function createClockHandlers() {
         /^([01]\d|2[0-3]):[0-5]\d$/.test(time),
         "Informe um horário válido no formato HH:MM.",
       );
-      const exitDateTime = `${date}T${time}:00`;
+      let exitDate = date;
+      const [exitH, exitM] = time.split(":").map(Number);
+      const exitMinutes = exitH * 60 + exitM;
+      try {
+        const periodMonth = date.slice(0, 7);
+        const monthRecords = await runtime.listPeriods("RegistrosPonto", [periodMonth], { profile });
+        const entryRecord = (monthRecords || []).find(
+          (r) =>
+            String(r.FuncionarioID) === employeeId &&
+            normalizedDateKey(r.Data) === date &&
+            r.TipoMarcacao === "ENTRADA" &&
+            r.Status !== "Substituído",
+        );
+        if (entryRecord && entryRecord.DataHora) {
+          const entryParts = getLocalTimeParts(entryRecord.DataHora);
+          if (entryParts && exitMinutes < entryParts.totalMinutes) {
+            const nextDay = new Date(`${date}T12:00:00`);
+            nextDay.setDate(nextDay.getDate() + 1);
+            exitDate = todayIso(nextDay);
+          }
+        }
+      } catch (_) {}
+      const exitDateTime = `${exitDate}T${time}:00`;
       const observation = String(payload.observacao || "").trim();
 
       const record = {
@@ -2634,19 +2701,10 @@ export const findIncompletePunches = (
     if (!complete) {
       const entry = sorted.find((r) => r.TipoMarcacao === "ENTRADA");
       const last = sorted[sorted.length - 1];
-      let suggestedExit = "23:00";
-      if (sched?.HoraSaida) {
-        suggestedExit = String(sched.HoraSaida).slice(0, 5);
-      } else if (entry?.DataHora) {
-        const entryDate = new Date(entry.DataHora);
-        const dailyMinutes =
-          Number(sched?.CargaDiariaMinutos || 440) +
-          Number(sched?.DuracaoIntervaloMinutos || 60);
-        entryDate.setMinutes(entryDate.getMinutes() + dailyMinutes);
-        suggestedExit = `${String(entryDate.getHours()).padStart(2, "0")}:${String(
-          entryDate.getMinutes(),
-        ).padStart(2, "0")}`;
-      }
+      const suggestedExit = calculateSuggestedExit(
+        sched,
+        entry?.DataHora || last?.DataHora,
+      );
       const empName =
         emp.Nome ||
         emp.nome ||

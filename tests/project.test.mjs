@@ -2820,5 +2820,27 @@ test("Acessibilidade de Documentos para colaboradores no menu, início, jornada 
   );
 });
 
+test("botão minimalista de saída rápida automática preenche saída esquecida com horário estabelecido", async () => {
+  const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const redesignCss = await readFile(new URL("../src/redesign.css", import.meta.url), "utf8");
+  const apiClockJs = await readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8");
+
+  // 1. Botão minimalista configurado na tabela do espelho da equipe
+  assert.match(indexHtml, /class="[^"]*quick-exit-btn[^"]*"/, "Deve incluir o botão com classe quick-exit-btn");
+  assert.match(indexHtml, /data-action="auto-fill-exit"/, "Deve possuir ação data-action auto-fill-exit");
+  assert.match(indexHtml, /handleAutoFillExitAction_/, "Deve possuir o handler handleAutoFillExitAction_");
+  assert.match(indexHtml, /getEmployeeScheduledExitTime_/, "Deve possuir a função getEmployeeScheduledExitTime_");
+
+  // 2. Estilos dedicados no redesign.css
+  assert.match(redesignCss, /\.quick-exit-btn/, "CSS deve conter regras para .quick-exit-btn");
+  assert.match(redesignCss, /\.clock-row-actions/, "CSS deve conter regras para .clock-row-actions");
+
+  // 3. Backend api-clock aceita dia atual e trata virada de turno pós meia-noite
+  assert.match(apiClockJs, /date\s*<=\s*todayIso\(\)/, "Backend deve permitir registrar saída esquecida para a data atual");
+  assert.match(apiClockJs, /horaSaidaPrevista/, "Backend deve calcular horaSaidaPrevista nas métricas de dias");
+});
+
+
+
 
 
