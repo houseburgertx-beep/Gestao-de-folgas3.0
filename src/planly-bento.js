@@ -437,15 +437,10 @@ export class PlanlyBentoEngine {
 
   mountInitialWidgets() {
     this.enhanceAppShell();
-    this.renderBentoDashboard();
-    this.renderKanbanBoard();
-    this.renderTeamCards();
-    this.renderCalendar7030();
-    this.renderAnalytics();
   }
 
   enhanceAppShell() {
-    // 1. Ajustar Topbar com busca e perfil
+    // 1. Ajustar Topbar com busca e perfil se necessário
     const topbar = document.querySelector(".topbar");
     if (topbar && !document.getElementById("globalSearchWrapper")) {
       const topbarLeft = topbar.querySelector(".topbar-left");
@@ -503,19 +498,15 @@ export class PlanlyBentoEngine {
 
   handleJourneyData(data) {
     this.latestData = data;
-    this.renderBentoDashboard();
-    this.renderKanbanBoard();
-    this.renderTeamCards();
-    this.renderCalendar7030();
-    this.renderAnalytics();
+    if (data && data.manager) {
+      this.renderBentoDashboard();
+    }
   }
 
   handleViewChange(view) {
-    if (view === "dashboard") this.renderBentoDashboard();
-    else if (view === "pending-center") this.renderKanbanBoard();
-    else if (view === "employees") this.renderTeamCards();
-    else if (view === "calendar") this.renderCalendar7030();
-    else if (view === "reports" || view === "advanced-reports") this.renderAnalytics();
+    if (view === "dashboard" && this.latestData?.manager) {
+      this.renderBentoDashboard();
+    }
   }
 
   // =========================================================================
@@ -526,6 +517,9 @@ export class PlanlyBentoEngine {
     if (!container) return;
 
     const state = window.__GESTAO_STATE__ || {};
+    const isManager = Boolean(this.latestData?.manager || state.isManager || state.user?.Papel === "Gerente" || state.user?.Papel === "Administrador" || (typeof window.isManager === "function" && window.isManager()));
+    if (!isManager) return;
+
     const timeOff = Array.isArray(state.timeOff) ? state.timeOff : [];
     const employees = Array.isArray(state.employees) ? state.employees : [];
     const presence = Array.isArray(state.livePresenceData?.presence) ? state.livePresenceData.presence : [];
@@ -999,7 +993,6 @@ export class PlanlyBentoEngine {
       const tablePanel = container.querySelector(".table-panel");
       if (tablePanel) {
         tablePanel.before(teamWrapper);
-        tablePanel.style.display = "none"; // Substituir a tabela antiga pelo Bento Grid de Cards
       } else {
         container.appendChild(teamWrapper);
       }
@@ -1071,7 +1064,6 @@ export class PlanlyBentoEngine {
       calLayout.className = "calendar-70-30-layout";
       const oldLayout = calendarView.querySelector(".calendar-layout");
       if (oldLayout) {
-        oldLayout.style.display = "none";
         oldLayout.before(calLayout);
       } else {
         calendarView.appendChild(calLayout);

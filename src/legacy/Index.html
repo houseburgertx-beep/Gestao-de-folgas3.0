@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.16" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.17" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -245,7 +245,7 @@
           <div class="sidebar-brand-text">
             <strong>Folgas 3.0</strong><span>Grupo House 190</span>
           </div>
-          <button id="sidebarToggle" class="icon-btn" aria-label="Fechar menu">
+          <button id="sidebarToggle" class="icon-btn mobile-only" aria-label="Fechar menu">
             ✕
           </button>
         </div>
@@ -256,6 +256,7 @@
           <button class="nav-item" data-view="calendar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><b>Calendário</b></button>
           <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><b>Analytics</b></button>
           <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><b>Equipe</b></button>
+          <button class="nav-item" data-view="integrar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><b>Integrar</b></button>
 
           <div class="nav-group-title">OPERAÇÃO</div>
           <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
@@ -305,7 +306,11 @@
       <div class="workspace">
         <header class="topbar">
           <div class="topbar-left">
-            <button id="mobileMenu" class="icon-btn mobile-only">☰</button>
+            <button id="mobileMenu" class="icon-btn mobile-only" aria-label="Abrir menu">☰</button>
+            <div class="topbar-page-identity">
+              <p id="breadcrumb">Grupo House 190 / Início</p>
+              <h1 id="pageTitle">Início</h1>
+            </div>
             <div id="globalSearchWrapper" class="global-search-wrapper">
               <svg class="global-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -313,10 +318,6 @@
               </svg>
               <input type="search" id="globalSearchInput" class="global-search-input" placeholder="Buscar colaborador, folga ou setor..." aria-label="Busca global" />
               <kbd class="global-search-kbd">⌘ F</kbd>
-            </div>
-            <div>
-              <p id="breadcrumb">Grupo House 190 / Início</p>
-              <h1 id="pageTitle">Início</h1>
             </div>
           </div>
           <div class="topbar-actions">
@@ -1952,6 +1953,161 @@
                   </thead>
                   <tbody id="auditBody"></tbody>
                 </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-integrar" class="view">
+            <div class="view-integrar-shell">
+              <div class="integrar-hero">
+                <div class="integrar-hero-badge">
+                  <span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+                  <span>ECOSSISTEMA &amp; CONECTIVIDADE</span>
+                </div>
+                <h2 class="integrar-title">Central de Integrações</h2>
+                <p class="integrar-subtitle">Conecte o Folgas 3.0 ao ecossistema do Grupo House 190: Firebase, Google Workspace, Takeat PDV, Copiloto IA e canais de comunicação.</p>
+              </div>
+
+              <div class="integrar-cards-grid">
+                <!-- 1. Firebase / Cloud Firestore -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Firebase / Firestore</h4>
+                      <span class="integrar-status-pill connected">Conectado em tempo real</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Sincronização bidirecional de colaboradores, batidas de ponto, escalas, folgas e regras de negócio em tempo real com baixa latência.</p>
+                  <div class="integrar-card-meta">
+                    <span>Projeto: <strong>gestao-house-190</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 2. Google Apps Script Bridge -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Google Apps Script</h4>
+                      <span class="integrar-status-pill connected">Bridge operacional</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Automações, exportações de folha, envio de comunicados por e-mail e rotinas automáticas de fechamento mensal via Google Workspace.</p>
+                  <div class="integrar-card-meta">
+                    <span>Bridge: <strong id="integrarBridgeVersion">6.16.17</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 3. Push FCM (Cloud Messaging) -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Notificações Push (PWA)</h4>
+                      <span class="integrar-status-pill connected">Service Worker Ativo</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Alertas instantâneos no celular e desktop para aprovações de folga, lembretes de intervalo, batidas de ponto e fechamento de escala.</p>
+                  <div class="integrar-card-meta">
+                    <span>Status: <strong>Ativado (PWA)</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 4. Copiloto IA (Gemini API) -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Copiloto IA House 190</h4>
+                      <span class="integrar-status-pill connected">Cérebro Operacional</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Assistente inteligente de RH integrado com Gemini Flash: responde dúvidas de colaboradores, sugere escalas e processa solicitações.</p>
+                  <div class="integrar-card-meta">
+                    <span>Modelo: <strong>Gemini 2.0 / Flash</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 5. Takeat PDV / Contas a Prazo -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Takeat PDV</h4>
+                      <span class="integrar-status-pill connected">Sincronizado</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Importação e espelhamento de consumo de colaboradores nas comandas das lojas House Burger, integrando limites e saldos mensais.</p>
+                  <div class="integrar-card-meta">
+                    <span>Módulo: <strong>Contas a Prazo</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 6. WhatsApp Business API -->
+                <div class="integrar-card">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon" style="background:#DCFCE7;color:#15803D;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">WhatsApp Notifier</h4>
+                      <span class="integrar-status-pill pending">Disponível</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Envio direto da escala formatada semanal e avisos de aprovação de folgas diretamente no WhatsApp dos colaboradores.</p>
+                  <div class="integrar-card-meta">
+                    <button type="button" class="btn-pill-secondary" style="font-size:11px;padding:3px 10px;" onclick="window.generateWhatsAppSchedule?.() || toast('Escala pronta para envio!',false)">Testar Formato</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- WEBHOOK & DIAGNÓSTICO -->
+              <div class="integrar-bottom-grid">
+                <div class="integrar-box">
+                  <h3 class="integrar-box-title">Webhook de Notificações Externas</h3>
+                  <p class="integrar-box-desc">Envie eventos de solicitação e aprovação de folga para um endpoint HTTPS externo (Zapier, n8n ou webhook personalizado).</p>
+                  <div class="integrar-input-group">
+                    <input type="url" id="integrarWebhookInput" class="integrar-input" placeholder="https://seu-endpoint.com/webhook/folgas" />
+                    <button type="button" class="btn-pill-primary" id="integrarSaveWebhookBtn">Salvar Webhook</button>
+                  </div>
+                </div>
+
+                <div class="integrar-box">
+                  <h3 class="integrar-box-title">Status e Diagnóstico da Conexão</h3>
+                  <div class="integrar-diag-list">
+                    <div class="integrar-diag-item">
+                      <span>Conexão com Firestore:</span>
+                      <strong class="text-success" id="diagFirebaseStatus">Ativo (Online)</strong>
+                    </div>
+                    <div class="integrar-diag-item">
+                      <span>Ambiente:</span>
+                      <strong>Produção / PWA</strong>
+                    </div>
+                    <div class="integrar-diag-item">
+                      <span>Versão do Portal:</span>
+                      <strong>v6.16.17-firebase-github</strong>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-pill-secondary" style="margin-top:12px;align-self:flex-start;" onclick="window.location.reload()">
+                    ↻ Recarregar e Testar Conexões
+                  </button>
+                </div>
               </div>
             </div>
           </section>

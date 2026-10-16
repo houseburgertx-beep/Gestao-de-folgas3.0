@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.16" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.17" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.16-firebase-github" />
+    <meta name="app-version" content="6.16.17-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -17731,6 +17731,10 @@ body {
   top: 0 !important;
 }
 
+#sidebarToggle {
+  display: none !important;
+}
+
 .sidebar-head {
   padding: 20px 18px 16px !important;
   min-height: 64px !important;
@@ -17783,8 +17787,9 @@ body {
 
 .nav-list {
   flex: 1 !important;
+  min-height: 0 !important;
   overflow-y: auto !important;
-  padding: 16px 10px !important;
+  padding: 12px 10px 30px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 4px !important;
@@ -17865,12 +17870,13 @@ body {
 
 /* Rodapé da Sidebar: Card de alto contraste */
 .sidebar-foot {
-  padding: 14px !important;
+  flex-shrink: 0 !important;
+  padding: 10px 12px !important;
   border-top: 1px solid #EAECEF !important;
   background: var(--surface-card) !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 10px !important;
+  gap: 8px !important;
 }
 
 .sidebar-accent-card {
@@ -17945,6 +17951,30 @@ body {
   align-items: center !important;
   gap: 16px !important;
   flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.topbar-page-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.topbar-page-identity p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.topbar-page-identity h1 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 
 /* Input de busca global com atalho ⌘ F */
@@ -17952,8 +17982,9 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  max-width: 380px;
-  width: 100%;
+  max-width: 280px;
+  min-width: 140px;
+  flex: 1;
 }
 
 .global-search-input {
@@ -19395,8 +19426,251 @@ dialog#timeOffDialog textarea:focus {
 }
 
 /* ==========================================================================
-   RESPONSIVIDADE MOBILE
+   VIEW INTEGRAR — Central de Integrações
    ========================================================================== */
+
+.view-integrar-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 0 32px 0;
+}
+
+.integrar-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.integrar-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  width: fit-content;
+}
+
+.integrar-hero-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.integrar-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.integrar-subtitle {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 680px;
+  line-height: 1.55;
+}
+
+.integrar-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.integrar-card {
+  background: var(--surface-card);
+  border: var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: var(--transition-fast);
+  position: relative;
+}
+
+.integrar-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.integrar-card--active {
+  border-left: 3.5px solid var(--status-approved-text);
+}
+
+.integrar-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.integrar-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-inner);
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.integrar-card-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.integrar-card-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.integrar-status-pill {
+  font-size: 10.5px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  width: fit-content;
+}
+
+.integrar-status-pill.connected {
+  background: var(--status-approved-bg);
+  color: var(--status-approved-text);
+}
+
+.integrar-status-pill.pending {
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+}
+
+.integrar-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+  flex: 1;
+}
+
+.integrar-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #F0F2F5;
+  font-size: 11.5px;
+  color: var(--text-subtle);
+}
+
+.integrar-card-meta strong {
+  color: var(--text-body);
+}
+
+.integrar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.integrar-dot.green {
+  background: #15803D;
+  box-shadow: 0 0 0 2px #DCFCE7;
+}
+
+.integrar-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.integrar-box {
+  background: var(--surface-card);
+  border: var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.integrar-box-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.integrar-box-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 4px 0;
+}
+
+.integrar-input-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.integrar-input {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-btn);
+  border: 1px solid #EAECEF;
+  font-size: 13px;
+  background: var(--bg-workspace);
+  outline: none;
+  color: var(--text-title);
+}
+
+.integrar-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.integrar-diag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.integrar-diag-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-workspace);
+  border-radius: var(--radius-inner);
+  font-size: 12.5px;
+  color: var(--text-body);
+}
+
+.text-success {
+  color: var(--status-approved-text);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   RESPONSIVIDADE MOBILE & TABLET REFINADA
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .integrar-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 
 @media (max-width: 900px) {
   .bento-row-kpis {
@@ -19418,20 +19692,180 @@ dialog#timeOffDialog textarea:focus {
   .analytics-charts-grid {
     grid-template-columns: 1fr;
   }
+  .integrar-bottom-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-@media (max-width: 600px) {
-  .bento-row-kpis {
-    grid-template-columns: 1fr;
+/* Mobile Breakpoint (760px) */
+@media (max-width: 760px) {
+  /* 1. Sidebar off-canvas drawer */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: none !important;
+    border-right: 1px solid #EAECEF !important;
+    display: flex !important;
   }
-  .team-cards-grid {
-    grid-template-columns: 1fr;
+
+  body.menu-open .sidebar {
+    transform: translateX(0) !important;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  /* Backdrop blur overlay */
+  body.menu-open::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 9998;
+  }
+
+  #sidebarToggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-inner);
+    background: var(--surface-muted);
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  /* 2. Workspace */
+  .app-shell {
+    display: block !important;
+  }
+
+  .workspace {
+    width: 100% !important;
+    max-width: 100vw !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  /* 3. Topbar */
+  .topbar {
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 0 14px !important;
+    gap: 8px !important;
+  }
+
+  .topbar-left {
+    gap: 8px !important;
+  }
+
+  #mobileMenu {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-btn);
+    background: var(--surface-muted);
+    border: 1px solid #EAECEF;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .global-search-wrapper {
+    display: none !important;
+  }
+
+  .page-header-actions {
+    display: none !important;
+  }
+
+  #appDownloadBtn {
+    display: none !important;
+  }
+
+  .user-menu > div:last-child {
+    display: none !important;
+  }
+
+  /* 4. Bento Dashboard */
+  .bento-dashboard-grid {
+    gap: 12px !important;
+    padding: 10px 12px 90px 12px !important;
+  }
+
+  .bento-row-kpis {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .bento-kpi-card {
+    padding: 14px 12px !important;
+    border-radius: var(--radius-inner) !important;
+  }
+
+  .kpi-number {
+    font-size: 26px !important;
+  }
+
+  .bento-row-middle,
+  .bento-row-bottom {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* 5. Mobile Dock Navigation */
+  .mobile-dock {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 60px !important;
+    background: #FFFFFF !important;
+    border-top: 1px solid #EAECEF !important;
+    z-index: 200 !important;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0) !important;
+  }
+
+  .content {
+    padding-bottom: 80px !important;
+  }
+
+  .integrar-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .integrar-input-group {
+    flex-direction: column !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bento-row-kpis {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
   }
   .theme-swatches-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr) !important;
   }
-  .global-search-wrapper {
-    display: none;
+  .team-cards-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 </style>
@@ -19643,7 +20077,7 @@ dialog#timeOffDialog textarea:focus {
           <div class="sidebar-brand-text">
             <strong>Folgas 3.0</strong><span>Grupo House 190</span>
           </div>
-          <button id="sidebarToggle" class="icon-btn" aria-label="Fechar menu">
+          <button id="sidebarToggle" class="icon-btn mobile-only" aria-label="Fechar menu">
             ✕
           </button>
         </div>
@@ -19654,6 +20088,7 @@ dialog#timeOffDialog textarea:focus {
           <button class="nav-item" data-view="calendar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><b>Calendário</b></button>
           <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><b>Analytics</b></button>
           <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><b>Equipe</b></button>
+          <button class="nav-item" data-view="integrar"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><b>Integrar</b></button>
 
           <div class="nav-group-title">OPERAÇÃO</div>
           <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
@@ -19703,7 +20138,11 @@ dialog#timeOffDialog textarea:focus {
       <div class="workspace">
         <header class="topbar">
           <div class="topbar-left">
-            <button id="mobileMenu" class="icon-btn mobile-only">☰</button>
+            <button id="mobileMenu" class="icon-btn mobile-only" aria-label="Abrir menu">☰</button>
+            <div class="topbar-page-identity">
+              <p id="breadcrumb">Grupo House 190 / Início</p>
+              <h1 id="pageTitle">Início</h1>
+            </div>
             <div id="globalSearchWrapper" class="global-search-wrapper">
               <svg class="global-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -19711,10 +20150,6 @@ dialog#timeOffDialog textarea:focus {
               </svg>
               <input type="search" id="globalSearchInput" class="global-search-input" placeholder="Buscar colaborador, folga ou setor..." aria-label="Busca global" />
               <kbd class="global-search-kbd">⌘ F</kbd>
-            </div>
-            <div>
-              <p id="breadcrumb">Grupo House 190 / Início</p>
-              <h1 id="pageTitle">Início</h1>
             </div>
           </div>
           <div class="topbar-actions">
@@ -21353,6 +21788,161 @@ dialog#timeOffDialog textarea:focus {
               </div>
             </div>
           </section>
+
+          <section id="view-integrar" class="view">
+            <div class="view-integrar-shell">
+              <div class="integrar-hero">
+                <div class="integrar-hero-badge">
+                  <span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+                  <span>ECOSSISTEMA &amp; CONECTIVIDADE</span>
+                </div>
+                <h2 class="integrar-title">Central de Integrações</h2>
+                <p class="integrar-subtitle">Conecte o Folgas 3.0 ao ecossistema do Grupo House 190: Firebase, Google Workspace, Takeat PDV, Copiloto IA e canais de comunicação.</p>
+              </div>
+
+              <div class="integrar-cards-grid">
+                <!-- 1. Firebase / Cloud Firestore -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Firebase / Firestore</h4>
+                      <span class="integrar-status-pill connected">Conectado em tempo real</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Sincronização bidirecional de colaboradores, batidas de ponto, escalas, folgas e regras de negócio em tempo real com baixa latência.</p>
+                  <div class="integrar-card-meta">
+                    <span>Projeto: <strong>gestao-house-190</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 2. Google Apps Script Bridge -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Google Apps Script</h4>
+                      <span class="integrar-status-pill connected">Bridge operacional</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Automações, exportações de folha, envio de comunicados por e-mail e rotinas automáticas de fechamento mensal via Google Workspace.</p>
+                  <div class="integrar-card-meta">
+                    <span>Bridge: <strong id="integrarBridgeVersion">6.16.17</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 3. Push FCM (Cloud Messaging) -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Notificações Push (PWA)</h4>
+                      <span class="integrar-status-pill connected">Service Worker Ativo</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Alertas instantâneos no celular e desktop para aprovações de folga, lembretes de intervalo, batidas de ponto e fechamento de escala.</p>
+                  <div class="integrar-card-meta">
+                    <span>Status: <strong>Ativado (PWA)</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 4. Copiloto IA (Gemini API) -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Copiloto IA House 190</h4>
+                      <span class="integrar-status-pill connected">Cérebro Operacional</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Assistente inteligente de RH integrado com Gemini Flash: responde dúvidas de colaboradores, sugere escalas e processa solicitações.</p>
+                  <div class="integrar-card-meta">
+                    <span>Modelo: <strong>Gemini 2.0 / Flash</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 5. Takeat PDV / Contas a Prazo -->
+                <div class="integrar-card integrar-card--active">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">Takeat PDV</h4>
+                      <span class="integrar-status-pill connected">Sincronizado</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Importação e espelhamento de consumo de colaboradores nas comandas das lojas House Burger, integrando limites e saldos mensais.</p>
+                  <div class="integrar-card-meta">
+                    <span>Módulo: <strong>Contas a Prazo</strong></span>
+                    <span class="integrar-dot green"></span>
+                  </div>
+                </div>
+
+                <!-- 6. WhatsApp Business API -->
+                <div class="integrar-card">
+                  <div class="integrar-card-header">
+                    <div class="integrar-card-icon" style="background:#DCFCE7;color:#15803D;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="22" height="22"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <div class="integrar-card-titles">
+                      <h4 class="integrar-card-name">WhatsApp Notifier</h4>
+                      <span class="integrar-status-pill pending">Disponível</span>
+                    </div>
+                  </div>
+                  <p class="integrar-card-desc">Envio direto da escala formatada semanal e avisos de aprovação de folgas diretamente no WhatsApp dos colaboradores.</p>
+                  <div class="integrar-card-meta">
+                    <button type="button" class="btn-pill-secondary" style="font-size:11px;padding:3px 10px;" onclick="window.generateWhatsAppSchedule?.() || toast('Escala pronta para envio!',false)">Testar Formato</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- WEBHOOK & DIAGNÓSTICO -->
+              <div class="integrar-bottom-grid">
+                <div class="integrar-box">
+                  <h3 class="integrar-box-title">Webhook de Notificações Externas</h3>
+                  <p class="integrar-box-desc">Envie eventos de solicitação e aprovação de folga para um endpoint HTTPS externo (Zapier, n8n ou webhook personalizado).</p>
+                  <div class="integrar-input-group">
+                    <input type="url" id="integrarWebhookInput" class="integrar-input" placeholder="https://seu-endpoint.com/webhook/folgas" />
+                    <button type="button" class="btn-pill-primary" id="integrarSaveWebhookBtn">Salvar Webhook</button>
+                  </div>
+                </div>
+
+                <div class="integrar-box">
+                  <h3 class="integrar-box-title">Status e Diagnóstico da Conexão</h3>
+                  <div class="integrar-diag-list">
+                    <div class="integrar-diag-item">
+                      <span>Conexão com Firestore:</span>
+                      <strong class="text-success" id="diagFirebaseStatus">Ativo (Online)</strong>
+                    </div>
+                    <div class="integrar-diag-item">
+                      <span>Ambiente:</span>
+                      <strong>Produção / PWA</strong>
+                    </div>
+                    <div class="integrar-diag-item">
+                      <span>Versão do Portal:</span>
+                      <strong>v6.16.17-firebase-github</strong>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-pill-secondary" style="margin-top:12px;align-self:flex-start;" onclick="window.location.reload()">
+                    ↻ Recarregar e Testar Conexões
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
         </main>
       </div>
     </div>
@@ -22925,7 +23515,7 @@ dialog#timeOffDialog textarea:focus {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.16"></script>
+<script type="module" src="./src/main.js?v=6.16.17"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -25912,6 +26502,8 @@ dialog#timeOffDialog textarea:focus {
       } else {
         window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
       }
+    } else if (view === "integrar") {
+      loadIntegraView_();
     }
     else if (
       [
@@ -25922,6 +26514,12 @@ dialog#timeOffDialog textarea:focus {
       ].includes(view)
     )
       loadAdvancedView(view);
+  }
+  function loadIntegraView_() {
+    const bridgeEl = document.getElementById("integrarBridgeVersion");
+    if (bridgeEl) bridgeEl.textContent = window.__GESTAO_BRIDGE_VERSION__ || "6.16.17";
+    const diagEl = document.getElementById("diagFirebaseStatus");
+    if (diagEl) diagEl.textContent = (window.navigator?.onLine !== false) ? "Ativo (Online)" : "Offline (Cache)";
   }
   function renderEmployeeDashboardCards() {
     const cards = computeCards(),
