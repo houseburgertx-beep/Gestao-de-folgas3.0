@@ -2906,6 +2906,193 @@ textarea:focus {
   font-weight: 750 !important;
 }
 
+/* Cards adaptativos de pedidos (Meus Pedidos / Próximas Folgas) */
+.w-request {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.w-request:last-of-type {
+  border-bottom: none;
+}
+.w-request > .w-date {
+  min-width: 84px;
+  border-right: 1px solid var(--line);
+  padding-right: 12px;
+  flex-shrink: 0;
+}
+.w-request > .w-date strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.w-request > .w-date small {
+  display: block;
+  font-size: 11.5px;
+  margin-top: 3px;
+  color: var(--muted);
+}
+.w-request > div:not(.w-date),
+.w-request > .w-request-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.w-request strong,
+.w-request small {
+  display: block;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  white-space: normal !important;
+}
+.w-request > div:not(.w-date) > strong,
+.w-request > .w-request-body > strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+.w-request > div:not(.w-date) > small,
+.w-request > .w-request-body > small {
+  font-size: 12.5px;
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.w-request > .w-badge {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Modo Mobile: Cards Adaptativos Modernos Estilo iOS / Bento */
+@media (max-width: 768px) {
+  .w-request {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+      "meta badge"
+      "body body" !important;
+    align-items: center !important;
+    gap: 8px 12px !important;
+    padding: 14px 16px !important;
+    margin-top: 10px !important;
+    margin-bottom: 0 !important;
+    border: 1px solid rgba(40, 45, 70, 0.08) !important;
+    border-radius: 18px !important;
+    background: #F9FAFB !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  }
+
+  .w-request:first-of-type {
+    margin-top: 6px !important;
+  }
+
+  .w-request:active {
+    transform: scale(0.99) !important;
+  }
+
+  .w-request > .w-date {
+    grid-area: meta !important;
+    border-right: none !important;
+    padding-right: 0 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px 8px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .w-request > .w-date strong {
+    font-size: 13.5px !important;
+    font-weight: 750 !important;
+    color: var(--text) !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .w-request > .w-date small {
+    font-size: 11px !important;
+    color: var(--muted) !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+    padding: 2px 8px !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+    margin-top: 0 !important;
+    display: inline-block !important;
+  }
+
+  .w-request > .w-badge {
+    grid-area: badge !important;
+    margin-left: 0 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    padding: 4px 11px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    font-weight: 750 !important;
+    letter-spacing: 0.02em !important;
+    white-space: nowrap !important;
+  }
+
+  .w-request > div:not(.w-date),
+  .w-request > .w-request-body {
+    grid-area: body !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+    padding-top: 9px !important;
+    border-top: 1px dashed rgba(40, 45, 70, 0.08) !important;
+  }
+
+  .w-request strong,
+  .w-request small {
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    white-space: normal !important;
+  }
+
+  .w-request > div:not(.w-date) > strong,
+  .w-request > .w-request-body > strong {
+    font-size: 14.5px !important;
+    font-weight: 750 !important;
+    color: var(--text) !important;
+    line-height: 1.35 !important;
+  }
+
+  .w-request > div:not(.w-date) > small,
+  .w-request > .w-request-body > small {
+    font-size: 12.5px !important;
+    color: var(--muted) !important;
+    line-height: 1.45 !important;
+    margin-top: 2px !important;
+  }
+
+  /* Dark theme adaptação */
+  [data-theme="dark"] .w-request {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: none !important;
+  }
+
+  [data-theme="dark"] .w-request > .w-date small {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--muted) !important;
+  }
+
+  [data-theme="dark"] .w-request > div:not(.w-date),
+  [data-theme="dark"] .w-request > .w-request-body {
+    border-top-color: rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
 /* Painel do Gestor (Operação) — Card de Comando Principal com Gradiente Azul e Contraste Nítido */
 .j-command {
   background: linear-gradient(115deg, #365cf5 0%, #5763ee 65%, #7860e7 100%) !important;

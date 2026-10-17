@@ -93,3 +93,12 @@ test('gestor conserva decisões de folga, ajuste e troca com atalhos para resolv
  assert.match(html,/data-jump-team="atrasados"/);assert.match(html,/data-jump-team="ausente"/);
  assert.doesNotMatch(html,/data-live-clock/);
 });
+
+test('cards de pedidos na jornada possuem estrutura adaptativa com w-request-body',()=>{
+ const h=harness();
+ h.send({manager:false,coreReady:true,user:{FuncionarioID:'me'},timeOff:[{FuncionarioID:'me',TipoFolga:'Folga manual',Motivo:'Quinta folga do mês',Status:'Aprovada',DataInicio:'2026-10-11',DataFim:'2026-10-11'}]});
+ const html=h.nodes.get('#journeyHome').innerHTML;
+ assert.match(html,/class="w-request"/);
+ assert.match(html,/class="w-request-body"><strong>Folga manual<\/strong><small>Quinta folga do mês<\/small><\/div>/);
+ assert.match(html,/class="w-badge ok">Aprovada<\/span>/);
+});

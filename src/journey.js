@@ -73,7 +73,7 @@ const scoped = items => list(items).filter(x => data.manager ? (!unit || String(
 const approved = x => ['aprovada','concluida'].includes(norm(x.Status));
 function emptyState(text, detail='') { return `<div class="w-empty"><span aria-hidden="true">◇</span><strong>${esc(text)}</strong>${detail?`<p>${esc(detail)}</p>`:''}</div>`; }
 function leaveItems(items, manager=false) {
- return items.map(x=>`<div class="w-request"><div class="w-date"><strong>${esc(dateLabel(x.DataInicio))}</strong><small>${x.DataFim && x.DataFim!==x.DataInicio?'até '+esc(dateLabel(x.DataFim)):esc(manager?x.TipoFolga || 'Folga':'Solicitação')}</small></div><div><strong>${esc(manager?x.NomeFuncionario || 'Colaborador':x.TipoFolga || 'Folga solicitada')}</strong><small>${esc(manager?x.NomeLoja || '':x.Motivo || 'Acompanhe a decisão da gestão')}</small></div><span class="w-badge ${approved(x)?'ok':'wait'}">${esc(x.Status || 'Pendente')}</span></div>`).join('');
+ return items.map(x=>`<div class="w-request"><div class="w-date"><strong>${esc(dateLabel(x.DataInicio))}</strong><small>${x.DataFim && x.DataFim!==x.DataInicio?'até '+esc(dateLabel(x.DataFim)):esc(manager?x.TipoFolga || 'Folga':'Solicitação')}</small></div><div class="w-request-body"><strong>${esc(manager?x.NomeFuncionario || 'Colaborador':x.TipoFolga || 'Folga solicitada')}</strong><small>${esc(manager?x.NomeLoja || '':x.Motivo || 'Acompanhe a decisão da gestão')}</small></div><span class="w-badge ${approved(x)?'ok':'wait'}">${esc(x.Status || 'Pendente')}</span></div>`).join('');
 }
 function managerCommand() {
  const r=rows(), late=r.filter(p=>delay(p)>0).length, missing=r.filter(p=>p.status==='ausente').length;
