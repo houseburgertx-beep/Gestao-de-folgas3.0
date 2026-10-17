@@ -537,6 +537,12 @@
     try {
       bindUI();
       installStartupSafety_();
+      const hasInitialSession = !!(sessionStorage.getItem("gf-session-token") || persistentSessionToken_());
+      if (hasInitialSession) {
+        if (restoreTurboShellCache_()) {
+          setLoading(false);
+        }
+      }
       await waitForPortalApi_();
       let token = sessionToken();
       if (!token) {
@@ -1983,21 +1989,20 @@
   function saveTurboShellCache_() {
     if (!state.user) return;
     try {
-      localStorage.setItem(
-        TURBO_CACHE_KEY_,
-        JSON.stringify({
-          version: APP_CLIENT_VERSION_,
-          savedAt: Date.now(),
-          user: state.user,
-          permissions: arr(state.permissions),
-          dashboard: state.dashboard || {},
-          stores: compactTurboRows_(state.stores, 80),
-          employees: compactTurboRows_(state.employees, 180),
-          timeOff: compactTurboTimeOff_(),
-          timeClock: compactTurboClock_(),
-          hourBalance: state.hourBalance || null,
-        }),
-      );
+      const payload = JSON.stringify({
+        version: APP_CLIENT_VERSION_,
+        savedAt: Date.now(),
+        user: state.user,
+        permissions: arr(state.permissions),
+        dashboard: state.dashboard || {},
+        stores: compactTurboRows_(state.stores, 80),
+        employees: compactTurboRows_(state.employees, 180),
+        timeOff: compactTurboTimeOff_(),
+        timeClock: compactTurboClock_(),
+        hourBalance: state.hourBalance || null,
+      });
+      localStorage.setItem(TURBO_CACHE_KEY_, payload);
+      localStorage.setItem("gf-turbo-shell-latest", payload);
     } catch (error) {
       console.warn("Cache de abertura rápida:", error.message);
     }
@@ -2005,13 +2010,14 @@
 
   function restoreTurboShellCache_() {
     try {
-      const cached = JSON.parse(
-        localStorage.getItem(TURBO_CACHE_KEY_) || "null",
-      );
+      const raw =
+        localStorage.getItem(TURBO_CACHE_KEY_) ||
+        localStorage.getItem("gf-turbo-shell-latest") ||
+        localStorage.getItem("gf-turbo-shell-v2");
+      const cached = JSON.parse(raw || "null");
       if (
         !cached ||
         !cached.user ||
-        cached.version !== APP_CLIENT_VERSION_ ||
         Date.now() - Number(cached.savedAt || 0) > 30 * 24 * 60 * 60 * 1000
       )
         return false;
@@ -6204,28 +6210,34 @@
     );
   }
   async function startClockPunch_(expectedAction) {
-    if (!navigator.geolocation)
-      return toast("Este aparelho não disponibiliza localização.", true);
-    if (!expectedAction) {
-      expectedAction = String((state.timeClock || {}).nextAction || "");
+    if (window.__IS_STARTING_CLOCK_PUNCH__) return;
+    window.__IS_STARTING_CLOCK_PUNCH_ = true;
+    try {
+      if (!navigator.geolocation)
+        return toast("Este aparelho não disponibiliza localização.", true);
+      if (!expectedAction) {
+        expectedAction = String((state.timeClock || {}).nextAction || "");
+      }
+      if (!expectedAction && !state.timeClock) {
+        const tc = await loadTimeClock(false, false);
+        expectedAction = String((tc || {}).nextAction || "");
+      }
+      if (!expectedAction)
+        return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
+      CLOCK_EXPECTED_ACTION_ = expectedAction;
+      if (!CLOCK_PUNCH_REQUEST_ID_) {
+        CLOCK_PUNCH_REQUEST_ID_ =
+          window.crypto?.randomUUID?.() ||
+          `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      }
+      CLOCK_POSITION_PROMISE_ = getClockPosition_();
+      CLOCK_POSITION_PROMISE_.catch(() => {});
+      call(FN.clockSelfieWarm).catch(() => {});
+      openDialog("clockSelfieDialog");
+      await startClockSelfieCamera_();
+    } finally {
+      window.__IS_STARTING_CLOCK_PUNCH_ = false;
     }
-    if (!expectedAction && !state.timeClock) {
-      const tc = await loadTimeClock(false, false);
-      expectedAction = String((tc || {}).nextAction || "");
-    }
-    if (!expectedAction)
-      return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
-    CLOCK_EXPECTED_ACTION_ = expectedAction;
-    if (!CLOCK_PUNCH_REQUEST_ID_) {
-      CLOCK_PUNCH_REQUEST_ID_ =
-        window.crypto?.randomUUID?.() ||
-        `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-    }
-    CLOCK_POSITION_PROMISE_ = getClockPosition_();
-    CLOCK_POSITION_PROMISE_.catch(() => {});
-    call(FN.clockSelfieWarm).catch(() => {});
-    openDialog("clockSelfieDialog");
-    await startClockSelfieCamera_();
   }
   function stopClockSelfieStream_() {
     if (CLOCK_SELFIE_STREAM_) {
@@ -6276,14 +6288,20 @@
       return;
     }
     try {
-      CLOCK_SELFIE_STREAM_ = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 480 },
-          height: { ideal: 640 },
-        },
-        audio: false,
-      });
+      const cameraTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("CAMERA_TIMEOUT")), 8000),
+      );
+      CLOCK_SELFIE_STREAM_ = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 480 },
+            height: { ideal: 640 },
+          },
+          audio: false,
+        }),
+        cameraTimeout,
+      ]);
       video.srcObject = CLOCK_SELFIE_STREAM_;
       await video.play();
       placeholder.classList.add("hidden");
@@ -6446,6 +6464,7 @@
       );
     } catch (_) {}
   }
+  window.warmClockLocation_ = warmClockLocation_;
   function getClockPosition_() {
     if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 120000) {
       return Promise.resolve(CLOCK_CACHED_POSITION_);
@@ -6561,8 +6580,10 @@
   }
   async function confirmClockPunchWithSelfie_(event) {
     event.preventDefault();
+    if (window.__IS_CONFIRMING_CLOCK_PUNCH__) return;
     if (!CLOCK_SELFIE_DATA_)
       return toast("Capture a selfie antes de confirmar o ponto.", true);
+    window.__IS_CONFIRMING_CLOCK_PUNCH_ = true;
     const confirm = $("#clockSelfieConfirm"),
       status = $("#clockSelfieStatus");
     confirm.disabled = true;
@@ -6618,6 +6639,7 @@
       confirm.textContent = "Confirmar ponto";
       confirm.disabled = confirmed || !CLOCK_SELFIE_DATA_;
       setClockButtonsBusy(false);
+      window.__IS_CONFIRMING_CLOCK_PUNCH_ = false;
     }
   }
   function setClockButtonsBusy(busy) {

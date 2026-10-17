@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.26" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.27" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -25,10 +25,12 @@
       sizes="180x180"
       href="./apple-touch-icon-6.1.5.png"
     />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.26-firebase-github" />
+    <meta name="app-version" content="6.16.27-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -16222,8 +16224,24 @@ tr:last-child td {
   }
 }
 
+/* Otimização de fluidez, 60fps e toque instantâneo */
+html, body {
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation;
+}
 
+button, a, input, select, textarea, .btn, .j-card button {
+  touch-action: manipulation;
+}
 
+.btn:active, .j-card button:active {
+  transform: scale(0.985);
+  transition: transform 0.08s ease;
+}
+
+#clockSelfieDialog {
+  overscroll-behavior: contain;
+}
 
 /* ==========================================================================
    MÓDULO DE DOCUMENTOS & ASSINATURA ELETRÔNICA (FOLGAS 3.0)
@@ -21527,7 +21545,7 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.26"></script>
+<script type="module" src="./src/main.js?v=6.16.27"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22067,6 +22085,12 @@ dialog#documentUploadDialog input[type="month"] {
     try {
       bindUI();
       installStartupSafety_();
+      const hasInitialSession = !!(sessionStorage.getItem("gf-session-token") || persistentSessionToken_());
+      if (hasInitialSession) {
+        if (restoreTurboShellCache_()) {
+          setLoading(false);
+        }
+      }
       await waitForPortalApi_();
       let token = sessionToken();
       if (!token) {
@@ -23513,21 +23537,20 @@ dialog#documentUploadDialog input[type="month"] {
   function saveTurboShellCache_() {
     if (!state.user) return;
     try {
-      localStorage.setItem(
-        TURBO_CACHE_KEY_,
-        JSON.stringify({
-          version: APP_CLIENT_VERSION_,
-          savedAt: Date.now(),
-          user: state.user,
-          permissions: arr(state.permissions),
-          dashboard: state.dashboard || {},
-          stores: compactTurboRows_(state.stores, 80),
-          employees: compactTurboRows_(state.employees, 180),
-          timeOff: compactTurboTimeOff_(),
-          timeClock: compactTurboClock_(),
-          hourBalance: state.hourBalance || null,
-        }),
-      );
+      const payload = JSON.stringify({
+        version: APP_CLIENT_VERSION_,
+        savedAt: Date.now(),
+        user: state.user,
+        permissions: arr(state.permissions),
+        dashboard: state.dashboard || {},
+        stores: compactTurboRows_(state.stores, 80),
+        employees: compactTurboRows_(state.employees, 180),
+        timeOff: compactTurboTimeOff_(),
+        timeClock: compactTurboClock_(),
+        hourBalance: state.hourBalance || null,
+      });
+      localStorage.setItem(TURBO_CACHE_KEY_, payload);
+      localStorage.setItem("gf-turbo-shell-latest", payload);
     } catch (error) {
       console.warn("Cache de abertura rápida:", error.message);
     }
@@ -23535,13 +23558,14 @@ dialog#documentUploadDialog input[type="month"] {
 
   function restoreTurboShellCache_() {
     try {
-      const cached = JSON.parse(
-        localStorage.getItem(TURBO_CACHE_KEY_) || "null",
-      );
+      const raw =
+        localStorage.getItem(TURBO_CACHE_KEY_) ||
+        localStorage.getItem("gf-turbo-shell-latest") ||
+        localStorage.getItem("gf-turbo-shell-v2");
+      const cached = JSON.parse(raw || "null");
       if (
         !cached ||
         !cached.user ||
-        cached.version !== APP_CLIENT_VERSION_ ||
         Date.now() - Number(cached.savedAt || 0) > 30 * 24 * 60 * 60 * 1000
       )
         return false;
@@ -27734,28 +27758,34 @@ dialog#documentUploadDialog input[type="month"] {
     );
   }
   async function startClockPunch_(expectedAction) {
-    if (!navigator.geolocation)
-      return toast("Este aparelho não disponibiliza localização.", true);
-    if (!expectedAction) {
-      expectedAction = String((state.timeClock || {}).nextAction || "");
+    if (window.__IS_STARTING_CLOCK_PUNCH__) return;
+    window.__IS_STARTING_CLOCK_PUNCH_ = true;
+    try {
+      if (!navigator.geolocation)
+        return toast("Este aparelho não disponibiliza localização.", true);
+      if (!expectedAction) {
+        expectedAction = String((state.timeClock || {}).nextAction || "");
+      }
+      if (!expectedAction && !state.timeClock) {
+        const tc = await loadTimeClock(false, false);
+        expectedAction = String((tc || {}).nextAction || "");
+      }
+      if (!expectedAction)
+        return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
+      CLOCK_EXPECTED_ACTION_ = expectedAction;
+      if (!CLOCK_PUNCH_REQUEST_ID_) {
+        CLOCK_PUNCH_REQUEST_ID_ =
+          window.crypto?.randomUUID?.() ||
+          `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      }
+      CLOCK_POSITION_PROMISE_ = getClockPosition_();
+      CLOCK_POSITION_PROMISE_.catch(() => {});
+      call(FN.clockSelfieWarm).catch(() => {});
+      openDialog("clockSelfieDialog");
+      await startClockSelfieCamera_();
+    } finally {
+      window.__IS_STARTING_CLOCK_PUNCH_ = false;
     }
-    if (!expectedAction && !state.timeClock) {
-      const tc = await loadTimeClock(false, false);
-      expectedAction = String((tc || {}).nextAction || "");
-    }
-    if (!expectedAction)
-      return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
-    CLOCK_EXPECTED_ACTION_ = expectedAction;
-    if (!CLOCK_PUNCH_REQUEST_ID_) {
-      CLOCK_PUNCH_REQUEST_ID_ =
-        window.crypto?.randomUUID?.() ||
-        `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-    }
-    CLOCK_POSITION_PROMISE_ = getClockPosition_();
-    CLOCK_POSITION_PROMISE_.catch(() => {});
-    call(FN.clockSelfieWarm).catch(() => {});
-    openDialog("clockSelfieDialog");
-    await startClockSelfieCamera_();
   }
   function stopClockSelfieStream_() {
     if (CLOCK_SELFIE_STREAM_) {
@@ -27806,14 +27836,20 @@ dialog#documentUploadDialog input[type="month"] {
       return;
     }
     try {
-      CLOCK_SELFIE_STREAM_ = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 480 },
-          height: { ideal: 640 },
-        },
-        audio: false,
-      });
+      const cameraTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("CAMERA_TIMEOUT")), 8000),
+      );
+      CLOCK_SELFIE_STREAM_ = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 480 },
+            height: { ideal: 640 },
+          },
+          audio: false,
+        }),
+        cameraTimeout,
+      ]);
       video.srcObject = CLOCK_SELFIE_STREAM_;
       await video.play();
       placeholder.classList.add("hidden");
@@ -27976,6 +28012,7 @@ dialog#documentUploadDialog input[type="month"] {
       );
     } catch (_) {}
   }
+  window.warmClockLocation_ = warmClockLocation_;
   function getClockPosition_() {
     if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 120000) {
       return Promise.resolve(CLOCK_CACHED_POSITION_);
@@ -28091,8 +28128,10 @@ dialog#documentUploadDialog input[type="month"] {
   }
   async function confirmClockPunchWithSelfie_(event) {
     event.preventDefault();
+    if (window.__IS_CONFIRMING_CLOCK_PUNCH__) return;
     if (!CLOCK_SELFIE_DATA_)
       return toast("Capture a selfie antes de confirmar o ponto.", true);
+    window.__IS_CONFIRMING_CLOCK_PUNCH_ = true;
     const confirm = $("#clockSelfieConfirm"),
       status = $("#clockSelfieStatus");
     confirm.disabled = true;
@@ -28148,6 +28187,7 @@ dialog#documentUploadDialog input[type="month"] {
       confirm.textContent = "Confirmar ponto";
       confirm.disabled = confirmed || !CLOCK_SELFIE_DATA_;
       setClockButtonsBusy(false);
+      window.__IS_CONFIRMING_CLOCK_PUNCH_ = false;
     }
   }
   function setClockButtonsBusy(busy) {

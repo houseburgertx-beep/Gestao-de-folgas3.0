@@ -4175,5 +4175,21 @@ tr:last-child td {
   }
 }
 
+/* Otimização de fluidez, 60fps e toque instantâneo */
+html, body {
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation;
+}
 
+button, a, input, select, textarea, .btn, .j-card button {
+  touch-action: manipulation;
+}
 
+.btn:active, .j-card button:active {
+  transform: scale(0.985);
+  transition: transform 0.08s ease;
+}
+
+#clockSelfieDialog {
+  overscroll-behavior: contain;
+}

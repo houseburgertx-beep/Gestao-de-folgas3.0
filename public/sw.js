@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.16.26";
+const CACHE_NAME = "house-folgas-v6.16.27";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.16.26",
+  "./manifest.webmanifest?v=6.16.27",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -40,7 +40,7 @@ self.addEventListener("activate", (event) => {
           includeUncontrolled: true,
         });
         clients.forEach((client) =>
-          client.postMessage({ type: "FORCE_UPDATE", version: "6.16.20" }),
+          client.postMessage({ type: "FORCE_UPDATE", version: CACHE_NAME }),
         );
       }),
   );
@@ -51,7 +51,7 @@ const staleWhileRevalidate = async (request) => {
   const cached = await cache.match(request);
   const network = fetch(request)
     .then(async (response) => {
-      if (response && response.ok) {
+      if (response && (response.ok || response.type === "opaque")) {
         await cache.put(request, response.clone());
       }
       return response;
@@ -102,10 +102,11 @@ self.addEventListener("fetch", (event) => {
   const isGstaticFirebase =
     url.origin === "https://www.gstatic.com" &&
     url.pathname.includes("/firebasejs/");
+  const isWebFont = url.origin === "https://fonts.gstatic.com";
 
-  if (url.origin !== self.location.origin && !isGstaticFirebase) return;
+  if (url.origin !== self.location.origin && !isGstaticFirebase && !isWebFont) return;
 
-  if (isGstaticFirebase) {
+  if (isGstaticFirebase || isWebFont) {
     event.respondWith(staleWhileRevalidate(request));
     return;
   }
