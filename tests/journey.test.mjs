@@ -109,8 +109,8 @@ test('card w-wallet destaca saldo devedor, chip de folga semanal e ações simé
  const html=h.nodes.get('#journeyHome').innerHTML;
  assert.match(html,/class="balance-debit">-20h 41min<\/strong>/);
  assert.match(html,/class="w-fixed-off-chip">.*Folga semanal: <strong>Terça-feira<\/strong>/);
- assert.match(html,/data-j-request-leave>🏖️ Pedir folga<\/button>/);
- assert.match(html,/data-view-target="documents">📄 Meus Documentos<\/button>/);
+ assert.match(html,/data-j-request-leave>Pedir folga<\/button>/);
+ assert.match(html,/data-view-target="documents">Meus Documentos<\/button>/);
  const walletHtml = html.split('w-wallet')[1].split('</article>')[0];
  assert.doesNotMatch(walletHtml,/data-view-target="notifications"/);
 });
