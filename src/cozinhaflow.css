@@ -2800,40 +2800,78 @@ textarea:focus {
   text-align: center !important;
   transition: all 0.2s ease !important;
 }
+.w-punches > div i {
+  display: grid !important;
+  place-items: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  margin: 0 auto 6px !important;
+  border-radius: 50% !important;
+  font-style: normal !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 22px !important;
+}
 .w-punches > div.done {
   background: #DBF3EE !important;
-  border-color: rgba(13, 104, 84, 0.15) !important;
+  border-color: rgba(13, 104, 84, 0.25) !important;
   color: #0D6854 !important;
 }
 .w-punches > div.done i {
   background: #0D6854 !important;
   color: #FFFFFF !important;
-  border-radius: 50% !important;
+  opacity: 1 !important;
+}
+.w-punches > div.done strong {
+  color: #0D6854 !important;
+  font-weight: 750 !important;
 }
 .w-punches > div.done time {
   color: #0D6854 !important;
+  font-weight: 800 !important;
 }
 .w-punches > div.next {
-  background: #E6E2FF !important;
-  border-color: rgba(128, 126, 250, 0.25) !important;
+  background: #EEECFF !important;
+  border-color: rgba(79, 70, 229, 0.3) !important;
   color: #4F46E5 !important;
 }
 .w-punches > div.next i {
-  background: #807EFA !important;
+  background: #4F46E5 !important;
   color: #FFFFFF !important;
-  border-radius: 50% !important;
+  opacity: 1 !important;
+}
+.w-punches > div.next strong {
+  color: #4F46E5 !important;
+  font-weight: 750 !important;
+}
+.w-punches > div.next time {
+  color: #4F46E5 !important;
+  font-weight: 800 !important;
+}
+.w-punches > div:not(.done):not(.next) {
+  background: #F8F9FA !important;
+  border: 1px dashed rgba(40, 45, 70, 0.12) !important;
+}
+.w-punches > div:not(.done):not(.next) i {
+  background: #E2E8F0 !important;
+  color: #64748B !important;
+}
+.w-punches > div:not(.done):not(.next) strong {
+  color: #64748B !important;
+  font-weight: 600 !important;
+}
+.w-punches > div:not(.done):not(.next) time {
+  color: #94A3B8 !important;
+  font-weight: 700 !important;
 }
 .w-punches time {
   font-size: 15px !important;
   font-weight: 750 !important;
-  color: #242737 !important;
   display: block !important;
   margin-top: 4px !important;
 }
 .w-punches strong {
   font-size: 11px !important;
-  color: #858A9E !important;
-  font-weight: 600 !important;
   display: block !important;
 }
 
@@ -2885,10 +2923,76 @@ textarea:focus {
   margin: 4px 0 !important;
   letter-spacing: -0.02em !important;
 }
+.w-wallet-values strong.balance-debit {
+  color: #DC2626 !important;
+}
+.w-wallet-values strong.balance-credit {
+  color: #059669 !important;
+}
+.w-wallet-values button.is-debit {
+  background: #FEF2F2 !important;
+  border-color: rgba(220, 38, 38, 0.15) !important;
+}
+.w-wallet-values button.is-debit span {
+  color: #991B1B !important;
+}
+.w-wallet-values button.is-debit small {
+  color: #DC2626 !important;
+}
+.w-wallet-values button.is-credit {
+  background: #ECFDF5 !important;
+  border-color: rgba(5, 150, 105, 0.15) !important;
+}
+.w-wallet-values button.is-credit span {
+  color: #065F46 !important;
+}
+.w-wallet-values button.is-credit small {
+  color: #059669 !important;
+}
 .w-wallet-values small {
   font-size: 11px !important;
   color: #807EFA !important;
   font-weight: 600 !important;
+}
+
+/* Chip de folga semanal */
+.w-fixed-off-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  background: #F4F5FB !important;
+  border: 1px solid rgba(40, 45, 70, 0.06) !important;
+  border-radius: 9999px !important;
+  padding: 6px 14px !important;
+  font-size: 12px !important;
+  color: #5A607F !important;
+  margin-top: 6px !important;
+  margin-bottom: 4px !important;
+}
+.w-fixed-off-chip strong {
+  color: #242737 !important;
+  font-weight: 750 !important;
+}
+
+/* Botões simétricos de ação em Folgas e Horas */
+.w-wallet .w-actions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+  margin-top: 16px !important;
+  width: 100% !important;
+}
+.w-wallet .w-actions .btn {
+  width: 100% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 12px 10px !important;
+  min-height: 44px !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  border-radius: 14px !important;
 }
 
 
@@ -3160,6 +3264,36 @@ textarea:focus {
 [data-theme="dark"] .j-command {
   background: linear-gradient(115deg, #27376c 0%, #3a3260 65%, #442f60 100%) !important;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4) !important;
+}
+[data-theme="dark"] .w-wallet-values strong.balance-debit {
+  color: #F87171 !important;
+}
+[data-theme="dark"] .w-wallet-values strong.balance-credit {
+  color: #34D399 !important;
+}
+[data-theme="dark"] .w-wallet-values button.is-debit {
+  background: rgba(220, 38, 38, 0.12) !important;
+  border-color: rgba(220, 38, 38, 0.25) !important;
+}
+[data-theme="dark"] .w-wallet-values button.is-debit span,
+[data-theme="dark"] .w-wallet-values button.is-debit small {
+  color: #FCA5A5 !important;
+}
+[data-theme="dark"] .w-wallet-values button.is-credit {
+  background: rgba(5, 150, 105, 0.12) !important;
+  border-color: rgba(5, 150, 105, 0.25) !important;
+}
+[data-theme="dark"] .w-wallet-values button.is-credit span,
+[data-theme="dark"] .w-wallet-values button.is-credit small {
+  color: #6EE7B7 !important;
+}
+[data-theme="dark"] .w-fixed-off-chip {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #A0A5BA !important;
+}
+[data-theme="dark"] .w-fixed-off-chip strong {
+  color: #E2E8F0 !important;
 }
 .w-summary .w-stat:nth-child(1) {
   background: #FFFFFF !important;

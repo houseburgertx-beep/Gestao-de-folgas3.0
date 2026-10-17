@@ -1055,14 +1055,22 @@
 
   /* Botão Flutuante (FAB) Mobile */
   .copilot-fab {
-    right: 14px;
-    bottom: calc(max(14px, env(safe-area-inset-bottom, 14px)) + 74px);
-    width: 44px;
-    height: 44px;
+    right: 12px;
+    bottom: calc(max(10px, env(safe-area-inset-bottom, 10px)) + 64px);
+    width: 40px;
+    height: 40px;
+    opacity: 0.85;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .copilot-fab:hover,
+  .copilot-fab:active {
+    opacity: 1;
+    transform: scale(1.06);
   }
 
   .copilot-fab svg {
-    width: 20px;
-    height: 20px;
+    width: 19px;
+    height: 19px;
   }
 }
