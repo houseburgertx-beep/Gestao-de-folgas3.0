@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.27" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.28" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -1053,10 +1053,28 @@
                 <div class="clock-day-picker" aria-label="Selecionar dia do ponto">
                   <label for="clockDayFilter">Dia exibido</label>
                   <div>
+                    <button
+                      id="clockPrevDayBtn"
+                      class="btn btn-secondary clock-nav-day-btn"
+                      type="button"
+                      aria-label="Dia anterior"
+                      title="Dia anterior"
+                    >
+                      ‹
+                    </button>
                     <input id="clockDayFilter" type="date" />
                     <button
+                      id="clockNextDayBtn"
+                      class="btn btn-secondary clock-nav-day-btn"
+                      type="button"
+                      aria-label="Próximo dia"
+                      title="Próximo dia"
+                    >
+                      ›
+                    </button>
+                    <button
                       id="clockTodayBtn"
-                      class="btn btn-secondary"
+                      class="btn btn-secondary clock-today-btn"
                       type="button"
                     >
                       Hoje

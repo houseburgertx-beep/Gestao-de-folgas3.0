@@ -1094,6 +1094,32 @@
         renderTimeClock();
       };
     }
+    const shiftClockDay_ = (deltaDays) => {
+      const input = $("#clockDayFilter");
+      if (!input) return;
+      const currentVal = input.value || iso(new Date()).slice(0, 10);
+      const parts = currentVal.split("-").map(Number);
+      if (parts.length !== 3 || parts.some(isNaN)) return;
+      const d = new Date(parts[0], parts[1] - 1, parts[2] + deltaDays);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const nextDateStr = `${year}-${month}-${day}`;
+      input.value = nextDateStr;
+      const nextMonth = `${year}-${month}`;
+      if ($("#clockMonth") && $("#clockMonth").value !== nextMonth) {
+        $("#clockMonth").value = nextMonth;
+        loadTimeClock(true, true);
+        return;
+      }
+      renderTimeClock();
+    };
+    if ($("#clockPrevDayBtn")) {
+      $("#clockPrevDayBtn").onclick = () => shiftClockDay_(-1);
+    }
+    if ($("#clockNextDayBtn")) {
+      $("#clockNextDayBtn").onclick = () => shiftClockDay_(1);
+    }
     if ($("#clockTodayBtn")) {
       $("#clockTodayBtn").onclick = () => {
         const today = iso(new Date()).slice(0, 10);
@@ -5737,7 +5763,7 @@
               ? `<button class="btn btn-ghost quick-exit-btn" data-action="auto-fill-exit" data-employee="${esc(x.funcionarioId)}" data-date="${esc(x.data)}" data-name="${esc(x.nome)}" data-time="${esc(scheduledExit)}" title="Preencher saída esquecida com horário estabelecido (${esc(scheduledExit)})"><span class="material-symbols-rounded" style="font-size:15px;line-height:1;margin-right:3px;">logout</span>Saída (${esc(scheduledExit)})</button>`
               : "";
           const adjustment = record && !isKitchenChief()
-            ? `<div class="clock-row-actions"><button class="btn btn-ghost" data-action="clock-adjust" data-id="${esc(record.RegistroPontoID || "")}">Selecionar marcação</button>${autoExitBtn}</div>`
+            ? `<div class="clock-row-actions"><button class="btn btn-secondary clock-adjust-btn" data-action="clock-adjust" data-id="${esc(record.RegistroPontoID || "")}">Ajustar marcação ↗</button>${autoExitBtn}</div>`
             : "—";
           if ((x.folga || x.folgaFixa) && !x.trabalhou) {
             const label = x.folga ? "De folga" : "Folga fixa";

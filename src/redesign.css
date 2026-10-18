@@ -3028,3 +3028,39 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   border-color: #ae95e4 !important;
 }
 
+.clock-adjust-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 6px 12px !important;
+  min-height: 32px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  background: var(--surface-soft, #f8fafc) !important;
+  color: var(--text, #1e293b) !important;
+  border: 1px solid var(--line, #cbd5e1) !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+}
+.clock-adjust-btn:hover {
+  background: var(--primary-soft, #eef2ff) !important;
+  color: var(--primary, #1B365D) !important;
+  border-color: var(--primary, #1B365D) !important;
+  transform: translateY(-1px);
+}
+.clock-adjust-btn:active {
+  transform: scale(0.97);
+}
+[data-theme="dark"] .clock-adjust-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+[data-theme="dark"] .clock-adjust-btn:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
