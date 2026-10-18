@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees, PDFName, decodePDFRawStream } from "pdf-lib";
 import { runtime } from "./runtime.js";
 import { assert, nowIso, uuid } from "./utils.js";
 import { createNotification, isAdmin, isManager, success } from "./api-base.js";
@@ -820,6 +820,393 @@ export async function generateSignedPdf({
 }
 
 /**
+ * Converte Uint8Array para string de forma segura tanto no browser quanto no Node.js
+ */
+export function uint8ArrayToString(u8) {
+  if (typeof TextDecoder !== "undefined") {
+    try {
+      return new TextDecoder("latin1").decode(u8);
+    } catch {}
+  }
+  let str = "";
+  for (let i = 0; i < u8.length; i++) {
+    str += String.fromCharCode(u8[i]);
+  }
+  return str;
+}
+
+/**
+ * Decodificador de ToUnicode CMap em arquivos PDF contábeis
+ */
+export function parsePdfCMap(cmapStr) {
+  const map = new Map();
+  if (!cmapStr) return map;
+
+  // 1. beginbfchar ... endbfchar
+  const bfcharRegex = /beginbfchar([\s\S]*?)endbfchar/g;
+  let match;
+  while ((match = bfcharRegex.exec(cmapStr)) !== null) {
+    const lines = match[1].trim().split(/\s+/);
+    for (let i = 0; i < lines.length; i += 2) {
+      if (lines[i] && lines[i + 1]) {
+        const src = lines[i].replace(/[<>]/g, "");
+        const dst = lines[i + 1].replace(/[<>]/g, "");
+        map.set(src.toUpperCase(), String.fromCharCode(parseInt(dst, 16)));
+      }
+    }
+  }
+
+  // 2. beginbfrange ... endbfrange
+  const bfrangeRegex = /beginbfrange([\s\S]*?)endbfrange/g;
+  while ((match = bfrangeRegex.exec(cmapStr)) !== null) {
+    const block = match[1].trim();
+    const tokens = block.match(/<[^>]+>|\[[^\]]+\]/g) || [];
+    let i = 0;
+    while (i < tokens.length) {
+      const startHex = tokens[i++]?.replace(/[<>]/g, "");
+      const endHex = tokens[i++]?.replace(/[<>]/g, "");
+      const destToken = tokens[i++];
+      if (!startHex || !endHex || !destToken) break;
+      const start = parseInt(startHex, 16);
+      const end = parseInt(endHex, 16);
+      if (destToken.startsWith("[")) {
+        const arr = destToken.replace(/[\[\]]/g, "").trim().split(/\s+/);
+        for (let code = start; code <= end; code++) {
+          const idx = code - start;
+          if (arr[idx]) {
+            const h = code.toString(16).padStart(startHex.length, "0").toUpperCase();
+            map.set(h, String.fromCharCode(parseInt(arr[idx].replace(/[<>]/g, ""), 16)));
+          }
+        }
+      } else {
+        const destStart = parseInt(destToken.replace(/[<>]/g, ""), 16);
+        for (let code = start; code <= end; code++) {
+          const h = code.toString(16).padStart(startHex.length, "0").toUpperCase();
+          map.set(h, String.fromCharCode(destStart + (code - start)));
+        }
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Decodifica sequência hexadecimal de glifos utilizando mapa ToUnicode ou padrão Latin-1
+ */
+export function decodeHexWithMap(hex, map) {
+  let str = "";
+  if (map && map.size > 0) {
+    for (let i = 0; i < hex.length; i += 4) {
+      const chHex = hex.slice(i, i + 4).toUpperCase();
+      str += map.get(chHex) || (map.get(chHex.slice(2)) || "");
+    }
+  } else {
+    for (let i = 0; i < hex.length; i += 2) {
+      const code = parseInt(hex.slice(i, i + 2), 16);
+      if (!isNaN(code)) str += String.fromCharCode(code);
+    }
+  }
+  return str;
+}
+
+/**
+ * Extrai texto bruto de uma página PDF com suporte nativo a fontes subset e CMaps
+ */
+export function extractTextFromPdfPage(page, pdfDoc) {
+  const resources = page.node.Resources();
+  if (!resources) return "";
+  const fontDict = resources.lookup(PDFName.of("Font"));
+  const fontMaps = {};
+
+  if (fontDict && fontDict.entries) {
+    for (const [fontKeyRef, fontObjRef] of fontDict.entries()) {
+      const fontName = fontKeyRef.asString();
+      const fontObj = pdfDoc.context.lookup(fontObjRef);
+      if (!fontObj) continue;
+      const toUnicodeRef = fontObj.get(PDFName.of("ToUnicode"));
+      if (toUnicodeRef) {
+        try {
+          const stream = pdfDoc.context.lookup(toUnicodeRef);
+          if (stream) {
+            const decoded = decodePDFRawStream(stream).decode();
+            const cmapStr = uint8ArrayToString(decoded);
+            fontMaps[fontName] = parsePdfCMap(cmapStr);
+          }
+        } catch {}
+      }
+    }
+  }
+
+  const contentsRef = page.node.get(PDFName.of("Contents"));
+  if (!contentsRef) return "";
+
+  let contentStr = "";
+  const contentsObj = pdfDoc.context.lookup(contentsRef);
+  if (Array.isArray(contentsObj)) {
+    for (const item of contentsObj) {
+      const s = pdfDoc.context.lookup(item);
+      if (s) {
+        const dec = decodePDFRawStream(s).decode();
+        contentStr += uint8ArrayToString(dec) + "\n";
+      }
+    }
+  } else if (contentsObj) {
+    const dec = decodePDFRawStream(contentsObj).decode();
+    contentStr = uint8ArrayToString(dec);
+  }
+
+  let currentFont = "";
+  const lines = [];
+  let currentLine = "";
+
+  const tokenRegex = /\/F\w+|\[[\s\S]*?\]\s*TJ|<[0-9a-fA-F]+>\s*Tj|\([^\)]*\)\s*Tj|ET|T\*/g;
+  let m;
+  while ((m = tokenRegex.exec(contentStr)) !== null) {
+    const tok = m[0];
+    if (tok.startsWith("/F")) {
+      currentFont = tok;
+    } else if (tok === "T*" || tok === "ET") {
+      if (currentLine.trim()) lines.push(currentLine.trim());
+      currentLine = "";
+    } else if (tok.endsWith("Tj")) {
+      const map = fontMaps[currentFont];
+      if (tok.startsWith("<")) {
+        const hex = tok.slice(1, tok.indexOf(">"));
+        currentLine += decodeHexWithMap(hex, map);
+      } else if (tok.startsWith("(")) {
+        currentLine += tok.slice(1, tok.lastIndexOf(")"));
+      }
+    } else if (tok.endsWith("TJ")) {
+      const map = fontMaps[currentFont];
+      const inner = tok.slice(1, tok.lastIndexOf("]"));
+      const hexParts = inner.match(/<[0-9a-fA-F]+>|\([^\)]*\)/g) || [];
+      for (const part of hexParts) {
+        if (part.startsWith("<")) {
+          const hex = part.slice(1, -1);
+          currentLine += decodeHexWithMap(hex, map);
+        } else if (part.startsWith("(")) {
+          currentLine += part.slice(1, -1);
+        }
+      }
+    }
+  }
+  if (currentLine.trim()) lines.push(currentLine.trim());
+  return lines.join("\n");
+}
+
+/**
+ * Limpa artefatos do texto extraído para isolar o nome do colaborador
+ */
+export function cleanExtractedName(raw) {
+  let s = String(raw || "").trim();
+  s = s.replace(/^.*?código[\s:]*/i, "");
+  s = s.replace(/\s*(nome do funcion[aá]rio|cbo|departamento|filial).*$/i, "");
+  s = s.replace(/^\d+\s*/, "").replace(/\s*\d+$/, "");
+  return s.trim();
+}
+
+/**
+ * Analisa o texto do holerite extraindo Nome, Mês de Referência, Código Contábil e Cargo/CBO
+ */
+export function parsePayrollDataFromText(fullText) {
+  let employeeName = "";
+  const nameMatch =
+    fullText.match(/([A-ZÀ-Ú\s]{3,})Nome do Funcionário/i) ||
+    fullText.match(/Nome do Funcionário[\s:]*([A-ZÀ-Ú\s]{3,})/i) ||
+    fullText.match(/Empregado:?\s*([A-ZÀ-Ú\s]{3,})/i) ||
+    fullText.match(/Funcionário:?\s*([A-ZÀ-Ú\s]{3,})/i);
+
+  if (nameMatch) {
+    employeeName = cleanExtractedName(nameMatch[1]);
+  }
+
+  let referenceMonth = "";
+  const monthMatch = fullText.match(
+    /(Janeiro|Fevereiro|Março|Marco|Abril|Maio|Junho|Julho|Agosto|Setembro|Outubro|Novembro|Dezembro)\s+de\s+(\d{4})/i,
+  );
+  if (monthMatch) {
+    const months = {
+      janeiro: "01",
+      fevereiro: "02",
+      março: "03",
+      marco: "03",
+      abril: "04",
+      maio: "05",
+      junho: "06",
+      julho: "07",
+      agosto: "08",
+      setembro: "09",
+      outubro: "10",
+      novembro: "11",
+      dezembro: "12",
+    };
+    const mNum = months[monthMatch[1].toLowerCase()];
+    referenceMonth = `${monthMatch[2]}-${mNum}`;
+  } else {
+    const dateMatch = fullText.match(/\b(0[1-9]|1[0-2])\/(\d{4})\b/);
+    if (dateMatch) {
+      referenceMonth = `${dateMatch[2]}-${dateMatch[1]}`;
+    }
+  }
+
+  let employeeCode = "";
+  const codeMatch = fullText.match(/(\d+)Código/i) || fullText.match(/Código[:\s]+(\d+)/i);
+  if (codeMatch) employeeCode = codeMatch[1].trim();
+
+  let cbo = "";
+  const cboMatch = fullText.match(/CBO\s*(\d+)/i) || fullText.match(/(\d{4,6})\s*Departamento/i);
+  if (cboMatch) cbo = cboMatch[1].trim();
+
+  return { employeeName, referenceMonth, employeeCode, cbo };
+}
+
+/**
+ * Normaliza string para comparação fonética/alfanumérica de nomes de funcionários
+ */
+export function normalizeNameForMatching(str) {
+  return String(str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Localiza o funcionário correspondente no cadastro do sistema
+ */
+export function findBestEmployeeMatch(cleanedName, employees = []) {
+  if (!cleanedName || !Array.isArray(employees) || employees.length === 0) return null;
+  const normClean = normalizeNameForMatching(cleanedName);
+  if (!normClean) return null;
+
+  // 1. Coincidência exata do nome normalizado
+  const exact = employees.find((e) => normalizeNameForMatching(e.Nome || e.NomeFuncionario) === normClean);
+  if (exact) return exact;
+
+  // 2. Coincidência por substring (nome completo vs nome sem sobrenome do meio)
+  const sub = employees.find((e) => {
+    const eNorm = normalizeNameForMatching(e.Nome || e.NomeFuncionario);
+    return eNorm.includes(normClean) || normClean.includes(eNorm);
+  });
+  if (sub) return sub;
+
+  // 3. Coincidência pelo primeiro e último nome
+  const cleanTokens = normClean.split(" ").filter((t) => t.length >= 2);
+  if (cleanTokens.length >= 2) {
+    const first = cleanTokens[0];
+    const last = cleanTokens[cleanTokens.length - 1];
+    const tokenMatch = employees.find((e) => {
+      const eNorm = normalizeNameForMatching(e.Nome || e.NomeFuncionario);
+      const eTokens = eNorm.split(" ").filter((t) => t.length >= 2);
+      if (eTokens.length < 2) return false;
+      return eTokens[0] === first && eTokens[eTokens.length - 1] === last;
+    });
+    if (tokenMatch) return tokenMatch;
+  }
+
+  return null;
+}
+
+/**
+ * Formata mês de referência no padrão Legível (Ex: 2026-09 -> Setembro/2026)
+ */
+export function formatMonthLabel(monthStr) {
+  if (!monthStr) return "";
+  const match = String(monthStr).match(/^(\d{4})-(\d{2})$/);
+  if (match) {
+    const months = [
+      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    ];
+    const mIdx = parseInt(match[2], 10) - 1;
+    if (mIdx >= 0 && mIdx < 12) {
+      return `${months[mIdx]}/${match[1]}`;
+    }
+  }
+  return String(monthStr);
+}
+
+/**
+ * Processa PDF agrupado em lote:
+ * 1. Separa cada página em um PDF individual isolado de 1 folha
+ * 2. Extrai Nome do Colaborador, Código, Mês de Referência e CBO
+ * 3. Identifica e vincula o colaborador e seu CPF automaticamente no cadastro
+ * 4. Gera hash SHA-256 e payload Base64 para cada holerite individual
+ */
+export async function parseBatchPayrollPdf(pdfBytesOrBase64, employees = [], stores = []) {
+  let bytes;
+  if (typeof pdfBytesOrBase64 === "string") {
+    bytes = base64ToUint8Array(pdfBytesOrBase64);
+  } else if (pdfBytesOrBase64 instanceof ArrayBuffer) {
+    bytes = new Uint8Array(pdfBytesOrBase64);
+  } else if (pdfBytesOrBase64 instanceof Uint8Array) {
+    bytes = pdfBytesOrBase64;
+  } else {
+    throw new Error("Formato de arquivo PDF inválido para processamento em lote.");
+  }
+
+  const batchDoc = await PDFDocument.load(bytes);
+  const totalPages = batchDoc.getPageCount();
+  const parsedItems = [];
+
+  for (let i = 0; i < totalPages; i++) {
+    const page = batchDoc.getPage(i);
+    const text = extractTextFromPdfPage(page, batchDoc);
+    const data = parsePayrollDataFromText(text);
+
+    const cleanedName = cleanExtractedName(data.employeeName);
+    const matchedEmp = findBestEmployeeMatch(cleanedName, employees);
+
+    // Cria documento de 1 única página isolada
+    const singleDoc = await PDFDocument.create();
+    const [copiedPage] = await singleDoc.copyPages(batchDoc, [i]);
+    singleDoc.addPage(copiedPage);
+    const singleBytes = await singleDoc.save();
+    const singleBase64 = uint8ArrayToBase64(singleBytes);
+    const singleHash = await sha256Hex(singleBytes);
+
+    const empIdVal = matchedEmp ? String(matchedEmp.FuncionarioID || matchedEmp.id || "").trim() : "";
+    const empNome = matchedEmp ? String(matchedEmp.Nome || cleanedName).trim() : cleanedName;
+    const empCpf = matchedEmp ? String(matchedEmp.CPF || "").trim() : "";
+    const empCargo = matchedEmp ? String(matchedEmp.Cargo || data.cbo || "").trim() : data.cbo;
+    const lojaIdVal = matchedEmp ? String(matchedEmp.LojaID || "").trim() : (stores[0]?.LojaID || "");
+    const targetStore = stores.find((s) => String(s.LojaID || s.id || "").trim() === String(lojaIdVal).trim());
+    const nomeLoja = targetStore ? String(targetStore.NomeLoja || targetStore.nomeLoja || targetStore.Nome || "").trim() : "";
+
+    const refMonth = data.referenceMonth || "";
+    const title = `Holerite — ${formatMonthLabel(refMonth) || "Mensal"}`;
+
+    parsedItems.push({
+      pageNumber: i + 1,
+      extractedName: cleanedName,
+      rawExtractedName: data.employeeName,
+      extractedCode: data.employeeCode,
+      extractedCbo: data.cbo,
+      extractedMonth: refMonth,
+      matched: Boolean(matchedEmp),
+      FuncionarioID: empIdVal,
+      NomeFuncionario: empNome,
+      CPFFuncionario: empCpf,
+      CargoFuncionario: empCargo,
+      LojaID: lojaIdVal,
+      NomeLoja: nomeLoja,
+      MesReferencia: refMonth,
+      Titulo: title,
+      Tipo: "Holerite",
+      ArquivoOriginalBase64: singleBase64,
+      HashOriginalSHA256: singleHash,
+    });
+  }
+
+  return {
+    totalPages,
+    parsedItems,
+  };
+}
+
+/**
  * Criação dos Handlers de API para Documentos
  */
 export function createDocumentsHandlers() {
@@ -1033,6 +1420,110 @@ export function createDocumentsHandlers() {
         message: "Documento emitido com sucesso.",
         data: saved,
         document: saved,
+      };
+    },
+
+    /**
+     * Importação e Distribuição de Holerites em Lote (RH / Gerente / Admin)
+     */
+    async documentsBatchCreate(args) {
+      const [items] = args || [];
+      assert(Array.isArray(items) && items.length > 0, "Lista de documentos para importação em lote é obrigatória.");
+
+      const profile = await runtime.requireProfile();
+      assert(
+        isAdmin(profile) || isManager(profile),
+        "Apenas gerentes e administradores podem importar lotes de documentos.",
+      );
+
+      const employees = await runtime.list("Funcionarios", { profile }).catch(() => []);
+      const stores = await runtime.list("Lojas", { profile }).catch(() => []);
+
+      const createdDocs = [];
+      const errors = [];
+
+      for (let idx = 0; idx < items.length; idx++) {
+        const item = items[idx];
+        try {
+          assert(item.FuncionarioID, `Colaborador não vinculado para a página ${item.pageNumber || idx + 1}.`);
+          assert(item.ArquivoOriginalBase64, `PDF individual não gerado para a página ${item.pageNumber || idx + 1}.`);
+
+          const targetEmp = employees.find(
+            (e) => String(e.FuncionarioID || e.id || e.Funcionario || "").trim() === String(item.FuncionarioID).trim(),
+          );
+
+          const empIdVal = String(targetEmp?.FuncionarioID || item.FuncionarioID).trim();
+          const empNome = String(targetEmp?.Nome || item.NomeFuncionario || "Colaborador").trim();
+          const empCpf = String(targetEmp?.CPF || item.CPFFuncionario || "").trim();
+          const empCargo = String(targetEmp?.Cargo || item.CargoFuncionario || "").trim();
+          const lojaIdVal = String(targetEmp?.LojaID || item.LojaID || profile.LojaID || "").trim();
+
+          const targetStore = stores.find(
+            (s) => String(s.LojaID || s.id || s.Loja || "").trim() === lojaIdVal,
+          );
+
+          const docId = `DOC_${Date.now()}_${uuid().slice(0, 6)}_${idx + 1}`;
+          let hashOriginal = String(item.HashOriginalSHA256 || "").trim();
+          if (!hashOriginal) {
+            hashOriginal = await sha256Hex(item.ArquivoOriginalBase64);
+          }
+
+          const record = {
+            DocumentoID: docId,
+            DocID: docId,
+            Titulo: String(item.Titulo || `Holerite — ${item.MesReferencia || ""}`).trim(),
+            Tipo: String(item.Tipo || "Holerite").trim(),
+            Descricao: String(item.Descricao || `Importação de lote contábil (Pág. ${item.pageNumber || idx + 1})`).trim(),
+            FuncionarioID: empIdVal,
+            NomeFuncionario: empNome,
+            CPFFuncionario: empCpf,
+            CargoFuncionario: empCargo,
+            LojaID: lojaIdVal,
+            NomeLoja: String(targetStore?.NomeLoja || targetStore?.nomeLoja || targetStore?.Nome || item.NomeLoja || "").trim(),
+            MesReferencia: String(item.MesReferencia || "").trim(),
+            Status: "Pendente",
+            OrigemTipo: "PDF_IMPORTADO",
+            ConteudoTexto: "",
+            ArquivoOriginalBase64: item.ArquivoOriginalBase64,
+            HashOriginalSHA256: hashOriginal,
+            DataEnvio: nowIso(),
+            CriadoPor: String(profile.Email || profile.Nome || "Gestão").trim(),
+          };
+
+          const saved = await runtime.create("Documentos", record);
+          createdDocs.push(saved);
+
+          // Notificação individual para cada colaborador
+          try {
+            await createNotification({
+              employeeId: record.FuncionarioID,
+              storeId: record.LojaID,
+              type: "Documentos",
+              subject: "Novo Holerite Disponível para Assinatura",
+              message: `Seu holerite de ${record.MesReferencia || "referência"} está disponível para assinatura eletrônica.`,
+              relatedId: record.DocumentoID,
+            });
+          } catch (notifyErr) {
+            console.warn("[documents] Falha ao notificar funcionário do lote:", notifyErr);
+          }
+        } catch (itemErr) {
+          errors.push({ pageNumber: item.pageNumber || idx + 1, error: itemErr.message });
+        }
+      }
+
+      assert(createdDocs.length > 0, `Nenhum documento pôde ser importado: ${errors.map((e) => e.error).join(", ")}`);
+
+      return {
+        success: true,
+        message: `${createdDocs.length} holerite(s) importado(s) e disponibilizado(s) com sucesso.`,
+        data: {
+          createdCount: createdDocs.length,
+          documents: createdDocs,
+          errors,
+        },
+        createdCount: createdDocs.length,
+        documents: createdDocs,
+        errors,
       };
     },
 

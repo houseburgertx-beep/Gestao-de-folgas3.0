@@ -3,7 +3,7 @@
 // Grupo House 190 — Sistema Jurídico Avançado (Lei 14.063/2020 e Art. 464 CLT)
 // ==========================================================================
 
-import { DOCUMENT_TEMPLATES, sha256Hex } from "./core/api-documents.js";
+import { DOCUMENT_TEMPLATES, sha256Hex, parseBatchPayrollPdf, formatMonthLabel } from "./core/api-documents.js";
 
 const $ = (selector, parent = document) => parent.querySelector(selector);
 const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
@@ -340,11 +340,15 @@ function renderManagerView() {
             <option value="Pendente" ${state.statusFilter === "Pendente" ? "selected" : ""}>Pendentes</option>
             <option value="Assinado" ${state.statusFilter === "Assinado" ? "selected" : ""}>Assinados</option>
           </select>
-          <button id="docRefreshBtn" class="btn btn-secondary btn-sm">↻ Atualizar</button>
+          <button id="docRefreshBtn" class="btn btn-secondary btn-sm">Atualizar</button>
         </div>
-        <div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          <input type="file" id="docBatchFileInput" accept="application/pdf" style="display: none;" />
+          <button id="docBatchUploadBtn" class="btn btn-secondary btn-sm" style="border-color: #6340d8; color: #6340d8; font-weight: 600;">
+            Importar Lote (Holerites)
+          </button>
           <button id="docNewDocumentBtn" class="btn btn-primary btn-sm">
-            + Novo Documento / Holerite
+            Novo Documento / Holerite
           </button>
         </div>
       </div>
@@ -521,6 +525,21 @@ function bindViewEvents() {
   const refreshBtn = $("#docRefreshBtn");
   if (refreshBtn) {
     refreshBtn.onclick = () => loadDocuments();
+  }
+
+  const batchUploadBtn = $("#docBatchUploadBtn");
+  const batchFileInput = $("#docBatchFileInput");
+  if (batchUploadBtn && batchFileInput) {
+    batchUploadBtn.onclick = () => {
+      batchFileInput.value = "";
+      batchFileInput.click();
+    };
+    batchFileInput.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleBatchFileUpload(file);
+      }
+    };
   }
 
   const newDocBtn = $("#docNewDocumentBtn");
@@ -1358,8 +1377,404 @@ function formatDate(iso) {
   }
 }
 
+/**
+ * Manipula o upload de um arquivo PDF de lote (vários holerites agrupados)
+ */
+async function handleBatchFileUpload(file) {
+  if (!file || !file.name.toLowerCase().endsWith(".pdf")) {
+    alert("Por favor, selecione um arquivo no formato PDF.");
+    return;
+  }
+
+  const dialog = $("#documentBatchConfirmDialog");
+  if (dialog) {
+    dialog.innerHTML = `
+      <div class="dialog-head" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--line, #e2e8f0);">
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text, #1e293b);">Processando Lote de Holerites</h3>
+      </div>
+      <div class="dialog-body" style="padding: 3rem 1.5rem; text-align: center;">
+        <div class="quantum-loader" style="margin: 0 auto 1.25rem;">
+          <i class="quantum-particle"></i><i class="quantum-particle"></i><i class="quantum-particle"></i>
+        </div>
+        <p style="font-weight: 600; color: var(--text, #1e293b); margin: 0 0 6px;">
+          Lendo páginas e identificando colaboradores pelo nome e CPF...
+        </p>
+        <span style="font-size: 13px; color: var(--muted, #64748b);">
+          Separando automaticamente cada folha individual com segurança jurídica.
+        </span>
+      </div>
+    `;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const employeesList = (state.employees && state.employees.length) ? state.employees : (window.state?.employees || []);
+    const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+    state.employees = employeesList;
+    state.stores = storesList;
+
+    const parsed = await parseBatchPayrollPdf(arrayBuffer, employeesList, storesList);
+    openBatchConfirmDialog(parsed, file.name);
+  } catch (err) {
+    console.error("[documents] Falha ao processar lote:", err);
+    alert(`Falha ao processar arquivo PDF: ${err.message}`);
+    dialog?.close();
+  }
+}
+
+/**
+ * Modal de Conferência e Confirmação de Lote de Holerites
+ */
+export function openBatchConfirmDialog(parsedResult, fileName) {
+  const dialog = $("#documentBatchConfirmDialog");
+  if (!dialog) return;
+
+  const employeesList = [...((state.employees && state.employees.length) ? state.employees : (window.state?.employees || []))];
+  employeesList.sort((a, b) => (empName(a) || "").localeCompare(empName(b) || "", "pt-BR"));
+  state.employees = employeesList;
+
+  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+  state.stores = storesList;
+
+  // Clona itens e adiciona flag de seleção
+  const items = parsedResult.parsedItems.map((item) => ({
+    ...item,
+    selected: true,
+  }));
+
+  const detectedMonth = items[0]?.MesReferencia || new Date().toISOString().slice(0, 7);
+
+  const renderTableRows = () => {
+    return items
+      .map((item, idx) => {
+        const hasMatch = Boolean(item.FuncionarioID);
+
+        // Opções de colaboradores
+        const empOptions = [
+          `<option value="">-- Selecione o Colaborador --</option>`,
+          ...employeesList.map((emp) => {
+            const id = empId(emp);
+            const name = empName(emp);
+            const cpf = empCpf(emp);
+            const isSel = String(id) === String(item.FuncionarioID);
+            return `<option value="${esc(id)}" ${isSel ? "selected" : ""}>${esc(name)}${cpf ? ` (CPF: ${esc(cpf)})` : ""}</option>`;
+          }),
+        ].join("");
+
+        return `
+          <tr data-index="${idx}">
+            <td style="text-align: center; width: 40px;">
+              <input type="checkbox" class="doc-batch-row-check" data-index="${idx}" ${item.selected ? "checked" : ""} />
+            </td>
+            <td style="font-weight: 700; color: var(--muted, #64748b); text-align: center; width: 50px;">
+              #${item.pageNumber}
+            </td>
+            <td>
+              <strong style="color: var(--text, #1e293b);">${esc(item.extractedName || "Nome não identificado")}</strong>
+              <div style="font-size: 11px; color: var(--muted, #64748b);">
+                Código: ${esc(item.extractedCode || "---")} | Cargo/CBO: ${esc(item.extractedCbo || "---")}
+              </div>
+            </td>
+            <td style="min-width: 220px;">
+              <select class="doc-batch-emp-select" data-index="${idx}" style="width: 100%; border-radius: 8px; padding: 6px 10px; font-size: 12.5px; border: 1px solid var(--line, #cbd5e1);">
+                ${empOptions}
+              </select>
+            </td>
+            <td style="font-size: 12px; font-family: monospace;" class="doc-batch-cpf-cell">
+              ${esc(item.CPFFuncionario || "---")}
+            </td>
+            <td style="font-size: 12px;" class="doc-batch-store-cell">
+              ${esc(item.NomeLoja || item.LojaID || "---")}
+            </td>
+            <td style="text-align: center;" class="doc-batch-status-cell">
+              <span class="doc-batch-status-badge ${hasMatch ? "doc-batch-status-matched" : "doc-batch-status-pending"}">
+                ${hasMatch ? "Vinculado" : "Pendente"}
+              </span>
+            </td>
+            <td style="text-align: right; width: 90px;">
+              <button type="button" class="btn btn-secondary btn-sm doc-batch-preview-btn" data-index="${idx}" style="padding: 4px 10px; font-size: 11.5px;">
+                Ver Folha
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  };
+
+  const updateFooterSummary = () => {
+    const selectedItems = items.filter((it) => it.selected);
+    const readyItems = selectedItems.filter((it) => Boolean(it.FuncionarioID));
+    const submitBtn = $("#docBatchSubmitBtn");
+    const summaryLabel = $("#docBatchSummaryLabel");
+
+    if (summaryLabel) {
+      summaryLabel.innerHTML = `<strong>${readyItems.length}</strong> de <strong>${items.length}</strong> holerite(s) vinculados e prontos`;
+    }
+    if (submitBtn) {
+      submitBtn.disabled = readyItems.length === 0;
+      submitBtn.textContent = `Confirmar e Distribuir (${readyItems.length}) Holerites`;
+    }
+  };
+
+  dialog.innerHTML = `
+    <div class="dialog-head" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--line, #e2e8f0);">
+      <div>
+        <span class="eyebrow" style="color: #6340d8; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;">IMPORTAÇÃO EM LOTE</span>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text, #1e293b);">Conferência de Holerites</h3>
+        <p style="margin: 4px 0 0; font-size: 13px; color: var(--muted, #64748b);">
+          Arquivo: <strong>${esc(fileName)}</strong> (${items.length} folhas identificadas). Revise o vínculo de cada colaborador antes de confirmar.
+        </p>
+      </div>
+      <button type="button" class="icon-btn" data-close="documentBatchConfirmDialog" aria-label="Fechar">&times;</button>
+    </div>
+
+    <div class="dialog-body" style="padding: 1.25rem 1.5rem; max-height: 60vh; overflow-y: auto;">
+      <!-- Barra de Controle Global -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; background: var(--surface-2, #f8fafc); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--line, #e2e8f0);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 12.5px; font-weight: 600; color: var(--text, #1e293b);">Mês de Referência Geral:</label>
+          <input type="month" id="docBatchGlobalMonth" value="${esc(detectedMonth)}" style="border-radius: 8px; padding: 6px 12px; font-size: 13px; border: 1px solid var(--line, #cbd5e1);" />
+          <button type="button" id="docBatchApplyMonthBtn" class="btn btn-ghost btn-sm" style="font-size: 12px;">Aplicar a Todos</button>
+        </div>
+        <div style="font-size: 12px; color: var(--muted, #64748b);">
+          Os holerites serão separados individualmente e enviados para a aba Meus Documentos de cada colaborador.
+        </div>
+      </div>
+
+      <!-- Tabela de Holerites -->
+      <div style="overflow-x: auto; border: 1px solid var(--line, #e2e8f0); border-radius: 12px;">
+        <table class="doc-batch-table">
+          <thead>
+            <tr>
+              <th style="text-align: center; width: 40px;">
+                <input type="checkbox" id="docBatchCheckAll" checked title="Selecionar Todos" />
+              </th>
+              <th style="text-align: center; width: 50px;">Pág.</th>
+              <th>Nome Extraído do PDF</th>
+              <th>Colaborador no Sistema</th>
+              <th>CPF</th>
+              <th>Unidade</th>
+              <th style="text-align: center;">Status</th>
+              <th style="text-align: right;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="docBatchTableBody">
+            ${renderTableRows()}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dialog-actions" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-top: 1px solid var(--line, #e2e8f0); flex-wrap: wrap; gap: 1rem;">
+      <div id="docBatchSummaryLabel" style="font-size: 13px; color: var(--muted, #64748b);">
+        Carregando...
+      </div>
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <button type="button" class="btn btn-secondary" data-close="documentBatchConfirmDialog">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="docBatchSubmitBtn" style="background: #6340d8; border-color: #6340d8;">
+          Confirmar e Distribuir Holerites
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Handlers do Modal
+  dialog.querySelectorAll('[data-close="documentBatchConfirmDialog"]').forEach((btn) => {
+    btn.onclick = () => dialog.close();
+  });
+
+  // Checkbox Selecionar Todos
+  const checkAll = $("#docBatchCheckAll", dialog);
+  if (checkAll) {
+    checkAll.onchange = (e) => {
+      const isChecked = e.target.checked;
+      items.forEach((it) => (it.selected = isChecked));
+      dialog.querySelectorAll(".doc-batch-row-check").forEach((cb) => (cb.checked = isChecked));
+      updateFooterSummary();
+    };
+  }
+
+  // Checkboxes individuais
+  dialog.querySelectorAll(".doc-batch-row-check").forEach((cb) => {
+    cb.onchange = (e) => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      if (items[idx]) {
+        items[idx].selected = e.target.checked;
+        updateFooterSummary();
+      }
+    };
+  });
+
+  // Dropdown de seleção de colaborador
+  dialog.querySelectorAll(".doc-batch-emp-select").forEach((sel) => {
+    sel.onchange = (e) => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      const chosenEmpId = e.target.value;
+      const item = items[idx];
+      if (!item) return;
+
+      const matchedEmp = employeesList.find((emp) => String(empId(emp)) === String(chosenEmpId));
+      if (matchedEmp) {
+        item.FuncionarioID = empId(matchedEmp);
+        item.NomeFuncionario = empName(matchedEmp);
+        item.CPFFuncionario = empCpf(matchedEmp);
+        item.CargoFuncionario = matchedEmp.Cargo || item.extractedCbo || "";
+        item.LojaID = empStoreId(matchedEmp) || item.LojaID;
+        const targetStore = storesList.find((s) => String(storeId(s)) === String(item.LojaID));
+        item.NomeLoja = targetStore ? storeName(targetStore) : "";
+      } else {
+        item.FuncionarioID = "";
+        item.NomeFuncionario = item.extractedName;
+        item.CPFFuncionario = "";
+      }
+
+      // Atualiza a linha da tabela
+      const row = dialog.querySelector(`tr[data-index="${idx}"]`);
+      if (row) {
+        const cpfCell = row.querySelector(".doc-batch-cpf-cell");
+        if (cpfCell) cpfCell.textContent = item.CPFFuncionario || "---";
+
+        const storeCell = row.querySelector(".doc-batch-store-cell");
+        if (storeCell) storeCell.textContent = item.NomeLoja || item.LojaID || "---";
+
+        const statusCell = row.querySelector(".doc-batch-status-cell");
+        if (statusCell) {
+          const has = Boolean(item.FuncionarioID);
+          statusCell.innerHTML = `
+            <span class="doc-batch-status-badge ${has ? "doc-batch-status-matched" : "doc-batch-status-pending"}">
+              ${has ? "Vinculado" : "Pendente"}
+            </span>
+          `;
+        }
+      }
+
+      updateFooterSummary();
+    };
+  });
+
+  // Botões Ver Folha
+  dialog.querySelectorAll(".doc-batch-preview-btn").forEach((btn) => {
+    btn.onclick = (e) => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      const item = items[idx];
+      if (item) {
+        openBatchPagePreview(item);
+      }
+    };
+  });
+
+  // Aplicar mês a todos
+  const applyMonthBtn = $("#docBatchApplyMonthBtn", dialog);
+  const globalMonthInput = $("#docBatchGlobalMonth", dialog);
+  if (applyMonthBtn && globalMonthInput) {
+    applyMonthBtn.onclick = () => {
+      const newMonth = globalMonthInput.value;
+      if (!newMonth) return;
+      items.forEach((it) => {
+        it.MesReferencia = newMonth;
+        it.Titulo = `Holerite — ${formatMonthLabel(newMonth) || "Mensal"}`;
+      });
+      alert(`Mês de referência ${formatMonthLabel(newMonth)} aplicado a todos os holerites do lote.`);
+    };
+  }
+
+  // Botão Submeter / Confirmar
+  const submitBtn = $("#docBatchSubmitBtn", dialog);
+  if (submitBtn) {
+    submitBtn.onclick = async () => {
+      const selectedItems = items.filter((it) => it.selected);
+      const readyItems = selectedItems.filter((it) => Boolean(it.FuncionarioID));
+
+      if (readyItems.length === 0) {
+        alert("Nenhum holerite vinculado selecionado para importação.");
+        return;
+      }
+
+      if (readyItems.length < selectedItems.length) {
+        const diff = selectedItems.length - readyItems.length;
+        if (!confirm(`Existem ${diff} folha(s) selecionada(s) sem colaborador vinculado. Deseja importar apenas as ${readyItems.length} folhas vinculadas?`)) {
+          return;
+        }
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Importando e distribuindo holerites...";
+
+      try {
+        const payload = readyItems.map((it) => ({
+          FuncionarioID: it.FuncionarioID,
+          NomeFuncionario: it.NomeFuncionario,
+          CPFFuncionario: it.CPFFuncionario,
+          CargoFuncionario: it.CargoFuncionario,
+          LojaID: it.LojaID,
+          NomeLoja: it.NomeLoja,
+          MesReferencia: it.MesReferencia || globalMonthInput?.value || "",
+          Titulo: it.Titulo || `Holerite — ${formatMonthLabel(it.MesReferencia || globalMonthInput?.value)}`,
+          Tipo: "Holerite",
+          Descricao: `Importação em lote contábil (Folha #${it.pageNumber})`,
+          ArquivoOriginalBase64: it.ArquivoOriginalBase64,
+          HashOriginalSHA256: it.HashOriginalSHA256,
+          pageNumber: it.pageNumber,
+        }));
+
+        const res = await callApi("documentsBatchCreate", payload);
+        dialog.close();
+        alert(`${res.createdCount || payload.length} holerite(s) importado(s) e disponibilizado(s) com sucesso!\nCada colaborador já pode assinar em Meus Documentos.`);
+        await loadDocuments();
+      } catch (err) {
+        console.error("[documents] Falha ao importar lote:", err);
+        alert(`Erro ao importar lote: ${err.message}`);
+        submitBtn.disabled = false;
+        submitBtn.textContent = `Confirmar e Distribuir (${readyItems.length}) Holerites`;
+      }
+    };
+  }
+
+  updateFooterSummary();
+  if (typeof dialog.showModal === "function") dialog.showModal();
+}
+
+/**
+ * Visualizador rápido da folha individual antes da confirmação
+ */
+export function openBatchPagePreview(item) {
+  const dialog = $("#documentBatchPreviewDialog");
+  if (!dialog) return;
+
+  const blobUrl = base64ToBlobUrl(item.ArquivoOriginalBase64, "application/pdf");
+
+  dialog.innerHTML = `
+    <div class="dialog-head" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--line, #e2e8f0);">
+      <div>
+        <span class="eyebrow" style="color: #6340d8; font-weight: 700; font-size: 11px; text-transform: uppercase;">CONFERÊNCIA INDIVIDUAL</span>
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text, #1e293b);">Pág. ${esc(item.pageNumber)} — ${esc(item.NomeFuncionario || item.extractedName)}</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="documentBatchPreviewDialog" aria-label="Fechar">&times;</button>
+    </div>
+    <div class="dialog-body" style="padding: 1rem;">
+      <div class="doc-viewer-container" style="height: 65vh; min-height: 420px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line, #e2e8f0);">
+        <iframe class="doc-pdf-iframe" src="${blobUrl}#toolbar=0&navpanes=0" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
+    </div>
+    <div class="dialog-actions" style="display: flex; justify-content: flex-end; padding: 1rem 1.5rem; border-top: 1px solid var(--line, #e2e8f0);">
+      <button type="button" class="btn btn-secondary" data-close="documentBatchPreviewDialog">Fechar</button>
+    </div>
+  `;
+
+  dialog.querySelectorAll('[data-close="documentBatchPreviewDialog"]').forEach((btn) => {
+    btn.onclick = () => dialog.close();
+  });
+
+  if (typeof dialog.showModal === "function") dialog.showModal();
+}
+
 // Expõe no escopo global para compatibilidade com Scripts.html
 window.initDocumentsModule = initDocumentsModule;
+window.openBatchConfirmDialog = openBatchConfirmDialog;
+window.openBatchPagePreview = openBatchPagePreview;
 window.addEventListener("gestao-documents-open", (e) => {
   initDocumentsModule(e.detail);
 });
+

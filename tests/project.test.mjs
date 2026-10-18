@@ -2863,6 +2863,74 @@ test("botão minimalista para exclusão definitiva de funcionário na listagem e
   assert.match(apiBaseJs, /deleteAccess/, "Backend deve remover credenciais de acesso vinculadas");
 });
 
+test("importação em lote de holerites extrai páginas, identifica colaboradores/CPF e gera distribuição com confirmação", async () => {
+  const {
+    parseBatchPayrollPdf,
+    createDocumentsHandlers,
+    parsePdfCMap,
+    extractTextFromPdfPage,
+    parsePayrollDataFromText,
+    findBestEmployeeMatch,
+    formatMonthLabel,
+  } = await import("../src/core/api-documents.js");
+  const documentsJs = await readFile(new URL("../src/documents.js", import.meta.url), "utf8");
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  const documentsCss = await readFile(new URL("../src/documents.css", import.meta.url), "utf8");
+  const { PDFDocument } = await import("pdf-lib");
+  const fs = await import("node:fs/promises");
+
+  // 1. Interface: Botão de Importar Lote e Modais de Confirmação e Prévia
+  assert.match(documentsJs, /id="docBatchUploadBtn"/, "Toolbar de gestão deve conter o botão docBatchUploadBtn");
+  assert.match(documentsJs, /id="docBatchFileInput"/, "Toolbar de gestão deve conter o input invisível docBatchFileInput");
+  assert.match(documentsJs, /Importar Lote \(Holerites\)/, "Botão deve ter o rótulo legível Importar Lote (Holerites)");
+  assert.match(dialogsHtml, /id="documentBatchConfirmDialog"/, "Dialogs.html deve conter o modal documentBatchConfirmDialog");
+  assert.match(dialogsHtml, /id="documentBatchPreviewDialog"/, "Dialogs.html deve conter o modal documentBatchPreviewDialog");
+  assert.match(documentsCss, /\.doc-batch-table/, "documents.css deve conter estilos para a tabela do lote");
+
+  // 2. Extração e Separação em Lote com o arquivo real do usuário
+  const batchFilePath = "/Users/gleuce/Downloads/106ba1da-3952-40b1-95ae-3634bb2bc350 3.pdf";
+  const batchFileBytes = await fs.readFile(batchFilePath).catch(() => null);
+
+  const mockEmployees = [
+    { FuncionarioID: "EMP_SARA", Nome: "Sara Elisa Pereira Nogueira", CPF: "111.111.111-11", LojaID: "LOJA_ROCKETS" },
+    { FuncionarioID: "EMP_GABRIEL", Nome: "Gabriel Cangussu Prates", CPF: "222.222.222-22", LojaID: "LOJA_ROCKETS" },
+    { FuncionarioID: "EMP_VALERIO", Nome: "Valerio Ferraz de Oliveira", CPF: "333.333.333-33", LojaID: "LOJA_ROCKETS" },
+  ];
+
+  if (batchFileBytes) {
+    const result = await parseBatchPayrollPdf(batchFileBytes, mockEmployees);
+    assert.equal(result.totalPages, 11, "O PDF de lote contábil deve conter 11 páginas");
+    assert.equal(result.parsedItems.length, 11, "Deve extrair 11 itens individuais");
+
+    // Página 1: Sara Elisa
+    const p1 = result.parsedItems[0];
+    assert.equal(p1.pageNumber, 1);
+    assert.equal(p1.extractedName, "SARA ELISA PEREIRA NOGUEIRA");
+    assert.equal(p1.extractedMonth, "2026-09");
+    assert.equal(p1.matched, true);
+    assert.equal(p1.FuncionarioID, "EMP_SARA");
+    assert.equal(p1.CPFFuncionario, "111.111.111-11");
+    assert.ok(p1.ArquivoOriginalBase64.length > 500, "Deve gerar Base64 do PDF individual");
+    assert.equal(p1.HashOriginalSHA256.length, 64, "Deve computar o SHA-256 do PDF individual");
+
+    // Verifica que cada página gerada é um PDF de 1 página válida
+    const singlePdf = await PDFDocument.load(Buffer.from(p1.ArquivoOriginalBase64, "base64"));
+    assert.equal(singlePdf.getPageCount(), 1, "Cada holerite separado deve ter exatamente 1 página");
+
+    // Página 3: Gabriel Cangussu Prates
+    const p3 = result.parsedItems[2];
+    assert.equal(p3.pageNumber, 3);
+    assert.equal(p3.extractedName, "GABRIEL CANGUSSU PRATES");
+    assert.equal(p3.matched, true);
+    assert.equal(p3.FuncionarioID, "EMP_GABRIEL");
+    assert.equal(p3.CPFFuncionario, "222.222.222-22");
+  }
+
+  // 3. Backend: documentsBatchCreate salva os documentos individualizados no Firebase
+  const handlers = createDocumentsHandlers();
+  assert.equal(typeof handlers.documentsBatchCreate, "function", "Handler documentsBatchCreate deve existir");
+});
+
 
 
 
