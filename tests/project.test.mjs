@@ -2926,7 +2926,24 @@ test("importação em lote de holerites extrai páginas, identifica colaboradore
     assert.equal(p3.CPFFuncionario, "222.222.222-22");
   }
 
-  // 3. Backend: documentsBatchCreate salva os documentos individualizados no Firebase
+  // 3. Suporte a PDFArray em Contents (arquivo 3bb840de-400f-4fa2-a114-96a24fb8d5f3.pdf)
+  const batchFilePath2 = "/Users/gleuce/Downloads/3bb840de-400f-4fa2-a114-96a24fb8d5f3.pdf";
+  const batchFileBytes2 = await fs.readFile(batchFilePath2).catch(() => null);
+  if (batchFileBytes2) {
+    const mockEmployees2 = [
+      { FuncionarioID: "EMP_MARCIA", Nome: "Marcia Ferreira Oliveira", CPF: "444.444.444-44", LojaID: "LOJA_ROCKETS" },
+      { FuncionarioID: "EMP_GLEUCE", Nome: "Gleuce Dias de Souza", CPF: "555.555.555-55", LojaID: "LOJA_ROCKETS" },
+    ];
+    const result2 = await parseBatchPayrollPdf(batchFileBytes2, mockEmployees2);
+    assert.equal(result2.totalPages, 8, "O segundo lote contábil deve conter 8 páginas");
+    assert.equal(result2.parsedItems.length, 8, "Deve extrair 8 itens individuais sem erro de stream/length");
+    assert.equal(result2.parsedItems[0].extractedName, "MARCIA FERREIRA OLIVEIRA");
+    assert.equal(result2.parsedItems[0].matched, true);
+    assert.equal(result2.parsedItems[5].extractedName, "GLEUCE DIAS DE SOUZA");
+    assert.equal(result2.parsedItems[5].matched, true);
+  }
+
+  // 4. Backend: documentsBatchCreate salva os documentos individualizados no Firebase
   const handlers = createDocumentsHandlers();
   assert.equal(typeof handlers.documentsBatchCreate, "function", "Handler documentsBatchCreate deve existir");
 });

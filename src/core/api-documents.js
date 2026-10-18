@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees, PDFName, decodePDFRawStream } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFArray, decodePDFRawStream } from "pdf-lib";
 import { runtime } from "./runtime.js";
 import { assert, nowIso, uuid } from "./utils.js";
 import { createNotification, isAdmin, isManager, success } from "./api-base.js";
@@ -927,7 +927,7 @@ export function extractTextFromPdfPage(page, pdfDoc) {
       if (toUnicodeRef) {
         try {
           const stream = pdfDoc.context.lookup(toUnicodeRef);
-          if (stream) {
+          if (stream && (typeof stream.getContents === "function" || stream.contents)) {
             const decoded = decodePDFRawStream(stream).decode();
             const cmapStr = uint8ArrayToString(decoded);
             fontMaps[fontName] = parsePdfCMap(cmapStr);
@@ -942,17 +942,35 @@ export function extractTextFromPdfPage(page, pdfDoc) {
 
   let contentStr = "";
   const contentsObj = pdfDoc.context.lookup(contentsRef);
-  if (Array.isArray(contentsObj)) {
+  const rawStreams = [];
+
+  if (contentsObj instanceof PDFArray || typeof contentsObj?.size === "function") {
+    for (let i = 0; i < contentsObj.size(); i++) {
+      try {
+        const item = pdfDoc.context.lookup(contentsObj.get(i));
+        if (item) rawStreams.push(item);
+      } catch {}
+    }
+  } else if (Array.isArray(contentsObj)) {
     for (const item of contentsObj) {
-      const s = pdfDoc.context.lookup(item);
-      if (s) {
+      try {
+        const s = pdfDoc.context.lookup(item);
+        if (s) rawStreams.push(s);
+      } catch {}
+    }
+  } else if (contentsObj) {
+    rawStreams.push(contentsObj);
+  }
+
+  for (const s of rawStreams) {
+    try {
+      if (typeof s?.getContents === "function" || s?.contents) {
         const dec = decodePDFRawStream(s).decode();
         contentStr += uint8ArrayToString(dec) + "\n";
       }
+    } catch (err) {
+      console.warn("[documents] Falha ao decodificar stream:", err);
     }
-  } else if (contentsObj) {
-    const dec = decodePDFRawStream(contentsObj).decode();
-    contentStr = uint8ArrayToString(dec);
   }
 
   let currentFont = "";

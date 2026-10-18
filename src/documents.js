@@ -1418,8 +1418,8 @@ async function handleBatchFileUpload(file) {
     openBatchConfirmDialog(parsed, file.name);
   } catch (err) {
     console.error("[documents] Falha ao processar lote:", err);
-    alert(`Falha ao processar arquivo PDF: ${err.message}`);
     dialog?.close();
+    alert(`Falha ao processar arquivo PDF: ${err.message}`);
   }
 }
 
