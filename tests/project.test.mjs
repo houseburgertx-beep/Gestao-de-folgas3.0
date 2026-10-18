@@ -2948,6 +2948,39 @@ test("importação em lote de holerites extrai páginas, identifica colaboradore
   assert.equal(typeof handlers.documentsBatchCreate, "function", "Handler documentsBatchCreate deve existir");
 });
 
+test("PDF.js nativo para visualização mobile e carimbo vertical no canhoto sem sobreposição", async () => {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  // 1. Arquivos estáticos do PDF.js existem e estão no pacote
+  const pdfJsPath = path.resolve("public/vendor/pdfjs/pdf.min.js");
+  const pdfWorkerPath = path.resolve("public/vendor/pdfjs/pdf.worker.min.js");
+  const hasPdfJs = await fs.stat(pdfJsPath).then(() => true).catch(() => false);
+  const hasPdfWorker = await fs.stat(pdfWorkerPath).then(() => true).catch(() => false);
+  assert.ok(hasPdfJs, "public/vendor/pdfjs/pdf.min.js deve existir");
+  assert.ok(hasPdfWorker, "public/vendor/pdfjs/pdf.worker.min.js deve existir");
+
+  // 2. Service Worker e scripts incluem pdf.min.js
+  const swCode = await fs.readFile(path.resolve("public/sw.js"), "utf8");
+  assert.match(swCode, /vendor\/pdfjs\/pdf\.min\.js/, "Service worker deve armazenar em cache pdf.min.js");
+  assert.match(swCode, /vendor\/pdfjs\/pdf\.worker\.min\.js/, "Service worker deve armazenar em cache pdf.worker.min.js");
+
+  const buildIndexCode = await fs.readFile(path.resolve("scripts/build-index.mjs"), "utf8");
+  assert.match(buildIndexCode, /vendor\/pdfjs\/pdf\.min\.js/, "build-index.mjs deve incluir tag script para pdf.min.js");
+
+  // 3. documents.js expõe renderPdfToContainer e loadPdfJs
+  const docModule = await import("../src/documents.js");
+  assert.equal(typeof docModule.loadPdfJs, "function", "loadPdfJs deve ser exportada");
+  assert.equal(typeof docModule.renderPdfToContainer, "function", "renderPdfToContainer deve ser exportada");
+  assert.equal(typeof docModule.openPreviewDialog, "function", "openPreviewDialog deve ser exportada");
+
+  // 4. Carimbo do canhoto: garante que a assinatura fica no vão limpo sem sobrepor o nome ou texto
+  const apiDocCode = await fs.readFile(path.resolve("src/core/api-documents.js"), "utf8");
+  assert.match(apiDocCode, /signSlotX\s*=\s*517\s*\*\s*scaleX/, "signSlotX deve posicionar a rubrica no vão [505..517]");
+  assert.match(apiDocCode, /maxH\s*=\s*12/, "maxH deve ser restrito a 12pt para não ultrapassar a linha divisória");
+});
+
+
 
 
 

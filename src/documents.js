@@ -571,6 +571,146 @@ function base64ToBlobUrl(base64Data, contentType = "application/pdf") {
   }
 }
 
+let pdfJsPromise = null;
+
+/**
+ * Carrega a biblioteca PDF.js de forma assíncrona com fallback
+ */
+export async function loadPdfJs() {
+  if (typeof window !== "undefined" && window.pdfjsLib) {
+    try {
+      const workerUrl = new URL("./vendor/pdfjs/pdf.worker.min.js", window.location.href).href;
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+    } catch (_) {}
+    return window.pdfjsLib;
+  }
+  if (typeof document === "undefined") {
+    return null;
+  }
+  if (!pdfJsPromise) {
+    pdfJsPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "./vendor/pdfjs/pdf.min.js";
+      script.onload = () => {
+        if (typeof window !== "undefined" && window.pdfjsLib) {
+          try {
+            const workerUrl = new URL("./vendor/pdfjs/pdf.worker.min.js", window.location.href).href;
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+          } catch (_) {}
+          resolve(window.pdfjsLib);
+        } else {
+          reject(new Error("PDF.js não pôde ser inicializado"));
+        }
+      };
+      script.onerror = () => reject(new Error("Falha ao carregar script do PDF.js"));
+      document.head.appendChild(script);
+    });
+  }
+  return pdfJsPromise;
+}
+
+/**
+ * Converte base64 para Uint8Array para carregamento direto no PDF.js
+ */
+function base64ToUint8Array(base64Data) {
+  let clean = base64Data;
+  if (clean.includes(",")) {
+    clean = clean.split(",")[1];
+  }
+  const binary = atob(clean);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Renderiza todas as páginas do PDF em elementos canvas nativos com escala de alta resolução para celulares e desktop
+ */
+export async function renderPdfToContainer(containerEl, base64Pdf, blobUrl = "") {
+  if (!containerEl) return;
+
+  containerEl.innerHTML = `
+    <div class="doc-pdf-loading-state">
+      <div class="spinner" style="width:28px; height:28px; border:3px solid #cbd5e1; border-top-color:#4f46e5; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+      <span style="font-size:12px; font-weight:600; color:#475569;">Carregando visualização do documento...</span>
+    </div>
+  `;
+
+  try {
+    const pdfjs = await loadPdfJs();
+    if (!pdfjs) throw new Error("PDF.js indisponível");
+
+    let loadingTask;
+    if (base64Pdf) {
+      const data = base64ToUint8Array(base64Pdf);
+      loadingTask = pdfjs.getDocument({ data });
+    } else if (blobUrl) {
+      loadingTask = pdfjs.getDocument(blobUrl);
+    } else {
+      throw new Error("Arquivo PDF não fornecido");
+    }
+
+    const pdfDoc = await loadingTask.promise;
+    const numPages = pdfDoc.numPages;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "doc-pdf-canvas-wrapper";
+
+    // Mede a largura do contêiner para calcular a escala nítida
+    const containerWidth = Math.max(containerEl.clientWidth - 24, 300);
+
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const unscaledViewport = page.getViewport({ scale: 1.0 });
+
+      // Escala para caber perfeitamente na largura do dispositivo
+      const fitScale = containerWidth / unscaledViewport.width;
+      // Multiplica pelo pixel ratio da tela (Retina / AMOLED) para nitidez máxima
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const renderScale = fitScale * dpr;
+
+      const viewport = page.getViewport({ scale: renderScale });
+
+      const pageContainer = document.createElement("div");
+      pageContainer.className = "doc-pdf-page-container";
+      pageContainer.style.maxWidth = `${Math.round(unscaledViewport.width * fitScale)}px`;
+
+      const canvas = document.createElement("canvas");
+      canvas.className = "doc-pdf-page-canvas";
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      const ctx = canvas.getContext("2d", { alpha: false });
+      pageContainer.appendChild(canvas);
+      wrapper.appendChild(pageContainer);
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: viewport,
+      }).promise;
+    }
+
+    containerEl.innerHTML = "";
+    containerEl.appendChild(wrapper);
+    containerEl.scrollTop = 0;
+  } catch (err) {
+    console.warn("[documents] Falha ao renderizar PDF via canvas:", err);
+    if (blobUrl) {
+      containerEl.innerHTML = `<iframe class="doc-pdf-iframe" src="${blobUrl}#toolbar=0&navpanes=0"></iframe>`;
+    } else {
+      containerEl.innerHTML = `
+        <div style="padding: 24px 16px; text-align: center; color: #64748b; font-size: 13px;">
+          Não foi possível renderizar a visualização neste dispositivo.
+        </div>
+      `;
+    }
+  }
+}
+
+
 /**
  * Abre o Modal de Leitura Obrigatória e Assinatura Eletrônica
  */
@@ -611,11 +751,10 @@ export async function openSignDialog(docId) {
       </div>
 
       <div class="doc-viewer-tip">
-        Toque em <strong>Abrir em Tela Cheia</strong> para ver o documento completo com zoom pelo celular.
+        Role o documento abaixo para conferir o conteúdo e liberar o campo de assinatura.
       </div>
 
-      <div id="docViewerBox" class="doc-viewer-container">
-        <iframe class="doc-pdf-iframe" src="${pdfBlobUrl}#toolbar=0&navpanes=0"></iframe>
+      <div id="docViewerBox" class="doc-viewer-container" style="overflow-y: auto;">
       </div>
     `;
   } else {
@@ -736,23 +875,28 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
   if (viewerBox) {
     viewerBox.addEventListener("scroll", () => {
       const scrollTotal = viewerBox.scrollHeight - viewerBox.clientHeight;
-      if (scrollTotal <= 10) {
+      if (scrollTotal <= 20) {
         unlockSignature();
         return;
       }
       const current = viewerBox.scrollTop;
       const pct = Math.min(100, Math.round((current / scrollTotal) * 100));
       if (progressFill) progressFill.style.width = `${pct}%`;
-      if (pct >= 85) {
+      if (pct >= 80) {
         unlockSignature();
       }
     });
 
-    // Em mobile/iOS iframe, o evento de rolagem externa não propaga.
-    // Garante liberação automática em breve intervalo.
+    // Se o documento for de página única ou altura reduzida, desbloqueia automaticamente
     setTimeout(() => {
-      unlockSignature();
-    }, 1800);
+      if (viewerBox.scrollHeight <= viewerBox.clientHeight + 40) {
+        unlockSignature();
+      }
+    }, 1500);
+
+    if (doc.ArquivoOriginalBase64) {
+      renderPdfToContainer(viewerBox, doc.ArquivoOriginalBase64, pdfBlobUrl);
+    }
   }
 
   // Canvas de Rubrica
@@ -1327,19 +1471,80 @@ export function downloadPdf(docId) {
 }
 
 /**
- * Abre pré-visualização de documento
+ * Abre pré-visualização de documento em alta resolução com PDF.js nativo
  */
-function openPreviewDialog(docId) {
+export async function openPreviewDialog(docId) {
   const doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
   if (!doc) return;
+
+  const dialog = $("#documentPreviewDialog");
+  if (!dialog) return;
+
   const base64 = doc.ArquivoFinalBase64 || doc.ArquivoOriginalBase64;
+  let blobUrl = "";
   if (base64) {
-    const win = window.open();
-    if (win) {
-      win.document.write(`<iframe src="${base64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+    blobUrl = base64ToBlobUrl(base64, "application/pdf");
+  }
+
+  const isSigned = doc.StatusAssinatura === "ASSINADO";
+
+  dialog.innerHTML = `
+    <div class="dialog-head" style="display:flex; justify-content:space-between; align-items:center; padding:1.15rem 1.4rem; border-bottom:1px solid var(--line, #e2e8f0);">
+      <div>
+        <span class="eyebrow" style="color:${isSigned ? '#16a34a' : '#4f46e5'}; font-weight:700; font-size:11px; text-transform:uppercase;">
+          ${isSigned ? "DOCUMENTO ASSINADO" : "DOCUMENTO PENDENTE"}
+        </span>
+        <h3 style="margin:2px 0 0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">${esc(doc.Titulo)}</h3>
+        <div style="font-size:12px; color:#64748b; margin-top:3px;">
+          Colaborador: <strong>${esc(doc.NomeFuncionario)}</strong> ${doc.CPFFuncionario ? `(CPF: ${esc(doc.CPFFuncionario)})` : ""}
+        </div>
+      </div>
+      <button type="button" class="icon-btn" data-close="documentPreviewDialog" aria-label="Fechar">&times;</button>
+    </div>
+
+    <div class="dialog-body" style="padding:1rem;">
+      ${base64 ? `
+        <div class="doc-viewer-action-row" style="margin-bottom:8px;">
+          <span style="font-size:12px; color:#64748b;">Visualização de Alta Resolução</span>
+          <button type="button" id="docPreviewDownloadBtn" class="doc-btn-fullscreen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Baixar PDF
+          </button>
+        </div>
+        <div id="docPreviewBox" class="doc-viewer-container" style="height:65vh; min-height:420px; border-radius:12px; overflow-y:auto; border:1px solid var(--line, #e2e8f0);">
+        </div>
+      ` : `
+        <div class="doc-viewer-container doc-text-viewer">
+          <div style="white-space:pre-wrap; font-family:inherit;">${esc(doc.ConteudoTexto || "Sem conteúdo para visualização.")}</div>
+        </div>
+      `}
+    </div>
+
+    <div class="dialog-actions" style="display:flex; justify-content:flex-end; padding:1rem 1.4rem; border-top:1px solid var(--line, #e2e8f0);">
+      <button type="button" class="btn btn-secondary" data-close="documentPreviewDialog">Fechar</button>
+    </div>
+  `;
+
+  const close = () => {
+    if (blobUrl && blobUrl.startsWith("blob:")) {
+      try { URL.revokeObjectURL(blobUrl); } catch (_) {}
     }
-  } else {
-    alert(doc.ConteudoTexto || "Sem visualização.");
+    dialog.close?.() || dialog.removeAttribute("open");
+  };
+
+  dialog.querySelectorAll('[data-close="documentPreviewDialog"]').forEach((btn) => {
+    btn.onclick = close;
+  });
+
+  $("#docPreviewDownloadBtn")?.addEventListener("click", () => {
+    downloadSignedDocument(docId);
+  });
+
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "true");
+
+  if (base64) {
+    renderPdfToContainer($("#docPreviewBox"), base64, blobUrl);
   }
 }
 
@@ -1754,8 +1959,7 @@ export function openBatchPagePreview(item) {
       <button type="button" class="icon-btn" data-close="documentBatchPreviewDialog" aria-label="Fechar">&times;</button>
     </div>
     <div class="dialog-body" style="padding: 1rem;">
-      <div class="doc-viewer-container" style="height: 65vh; min-height: 420px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line, #e2e8f0);">
-        <iframe class="doc-pdf-iframe" src="${blobUrl}#toolbar=0&navpanes=0" style="width: 100%; height: 100%; border: none;"></iframe>
+      <div id="docBatchPreviewBox" class="doc-viewer-container" style="height: 65vh; min-height: 420px; border-radius: 12px; overflow-y: auto; border: 1px solid var(--line, #e2e8f0);">
       </div>
     </div>
     <div class="dialog-actions" style="display: flex; justify-content: flex-end; padding: 1rem 1.5rem; border-top: 1px solid var(--line, #e2e8f0);">
@@ -1764,17 +1968,27 @@ export function openBatchPagePreview(item) {
   `;
 
   dialog.querySelectorAll('[data-close="documentBatchPreviewDialog"]').forEach((btn) => {
-    btn.onclick = () => dialog.close();
+    btn.onclick = () => {
+      if (blobUrl && blobUrl.startsWith("blob:")) {
+        try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+      }
+      dialog.close();
+    };
   });
 
   if (typeof dialog.showModal === "function") dialog.showModal();
+  renderPdfToContainer($("#docBatchPreviewBox"), item.ArquivoOriginalBase64, blobUrl);
 }
 
 // Expõe no escopo global para compatibilidade com Scripts.html
-window.initDocumentsModule = initDocumentsModule;
-window.openBatchConfirmDialog = openBatchConfirmDialog;
-window.openBatchPagePreview = openBatchPagePreview;
-window.addEventListener("gestao-documents-open", (e) => {
-  initDocumentsModule(e.detail);
-});
+if (typeof window !== "undefined") {
+  window.initDocumentsModule = initDocumentsModule;
+  window.openBatchConfirmDialog = openBatchConfirmDialog;
+  window.openBatchPagePreview = openBatchPagePreview;
+  window.openPreviewDialog = openPreviewDialog;
+  window.renderPdfToContainer = renderPdfToContainer;
+  window.addEventListener?.("gestao-documents-open", (e) => {
+    initDocumentsModule(e.detail);
+  });
+}
 

@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.34" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.35" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.34-firebase-github" />
+    <meta name="app-version" content="6.16.35-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -17030,13 +17030,54 @@ dialog#documentUploadDialog input[type="month"] {
   height: 48vh;
   min-height: 340px;
   max-height: 520px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 14px;
   padding: 0 !important;
   position: relative;
   -webkit-overflow-scrolling: touch;
+}
+
+.doc-pdf-canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  background: #334155;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.doc-pdf-page-container {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+}
+
+.doc-pdf-page-canvas {
+  width: 100% !important;
+  max-width: 100%;
+  height: auto !important;
+  display: block;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: #ffffff;
+}
+
+.doc-pdf-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 240px;
+  color: #64748b;
+  gap: 10px;
 }
 
 .doc-pdf-iframe {
@@ -21858,6 +21899,9 @@ dialog#documentUploadDialog input[type="month"] {
 <!-- Modal de Visualização Rápida de Página Individual do Lote -->
 <dialog id="documentBatchPreviewDialog" class="document-modal" style="max-width: 840px; width: 92vw;"></dialog>
 
+<!-- Modal de Visualização de Documentos em Alta Resolução -->
+<dialog id="documentPreviewDialog" class="document-modal" style="max-width: 880px; width: 94vw;"></dialog>
+
 
 
     <script>
@@ -21877,7 +21921,8 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.34"></script>
+<script src="./vendor/pdfjs/pdf.min.js"></script>
+<script type="module" src="./src/main.js?v=6.16.35"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];

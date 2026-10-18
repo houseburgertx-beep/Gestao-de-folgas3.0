@@ -275,15 +275,18 @@ async function stampHoleriteVerticalStub({
     }
   }
 
+  const signSlotX = 517 * scaleX;
+  const textSlotX = 514 * scaleX;
+
   for (const slip of slips) {
-    // 1. Rubrica Manuscrita rotacionada 90° diretamente em cima da linha "Assinatura do Funcionário"
+    // 1. Rubrica Manuscrita rotacionada 90° assentada no espaço reservado para assinatura
     if (rubricImg) {
-      const maxW = 75; // comprimento ao longo da linha
-      const maxH = 15; // altura perpendicular à linha (dentro do vão do canhoto)
+      const maxW = 85; // comprimento ao longo da linha
+      const maxH = 12; // altura perpendicular à linha (dentro do vão do canhoto, sem encavalar no texto)
       const scale = Math.min(maxW / rubricImg.width, maxH / rubricImg.height, 1);
       const drawW = rubricImg.width * scale;
       const drawH = rubricImg.height * scale;
-      const drawX = baseX + 0.5; // assenta diretamente sobre a linha impressa
+      const drawX = signSlotX; // repousa no vão limpo, sem tocar em "Assinatura do Funcionário"
       const drawY = slip.centerY - drawW / 2;
 
       targetPage.drawImage(rubricImg, {
@@ -294,9 +297,9 @@ async function stampHoleriteVerticalStub({
         rotate: degrees(90),
       });
     } else {
-      // Fallback elegante se não houver imagem de rubrica
+      // Fallback: se não houver rubrica gráfica, escreve o nome em itálico de forma limpa
       targetPage.drawText(nameLabel, {
-        x: baseX + 1,
+        x: textSlotX,
         y: slip.centerY - nameW / 2,
         size: 7.5,
         font: helveticaOblique,
@@ -305,21 +308,11 @@ async function stampHoleriteVerticalStub({
       });
     }
 
-    // 2. Identificação do colaborador ao lado da rubrica
-    targetPage.drawText(nameLabel, {
-      x: baseX - 3.8,
-      y: slip.centerY - nameW / 2,
-      size: 6.0,
-      font: helveticaBold,
-      color: rgb(0.1, 0.15, 0.35),
-      rotate: degrees(90),
-    });
-
-    // 3. Data carimbada diretamente sobre o campo "___/___/___ Data"
+    // 2. Data carimbada diretamente sobre o campo "___/___/___ Data"
     targetPage.drawText(dateStr, {
-      x: baseX - 6,
+      x: textSlotX,
       y: slip.dateY - dateW / 2,
-      size: 7.2,
+      size: 7.0,
       font: helveticaBold,
       color: rgb(0.08, 0.12, 0.22),
       rotate: degrees(90),
