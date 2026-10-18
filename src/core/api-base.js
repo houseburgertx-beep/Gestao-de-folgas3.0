@@ -1751,16 +1751,10 @@ export function createBaseHandlers() {
           .catch(() => {});
       }
 
-      await runtime
-        .audit({
-          table: "Funcionarios",
-          action: "DELETE",
-          entityId: id,
-          profile,
-          before: current,
-          after: null,
-        })
-        .catch(() => {});
+      await audit("Excluir funcionário", "Funcionarios", id, {
+        before: current,
+        after: null,
+      }).catch(() => {});
 
       return success(
         { FuncionarioID: id },

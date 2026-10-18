@@ -858,6 +858,14 @@ export class FirebaseRuntime {
     return this.getById(table, id);
   }
 
+  async audit(entry = {}) {
+    return this.create("Auditoria", {
+      AuditoriaID: uuid(),
+      DataHora: nowIso(),
+      ...entry,
+    }).catch(() => {});
+  }
+
   async getById(table, id) {
     if (!id) return null;
     const normalizedId = String(id);
