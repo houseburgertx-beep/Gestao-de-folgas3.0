@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { runtime } from "./runtime.js";
 import { assert, nowIso, uuid } from "./utils.js";
 import { createNotification, isAdmin, isManager, success } from "./api-base.js";
@@ -113,27 +113,53 @@ export function formatBrasiliaDateTime(isoString) {
 }
 
 /**
+ * Formata somente a data (DD/MM/AAAA) no horário oficial de Brasília
+ */
+export function formatBrasiliaDateOnly(isoString) {
+  try {
+    const d = isoString ? new Date(isoString) : new Date();
+    return new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Bahia",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Quebra de linha inteligente para pdf-lib
  */
 function drawWrappedText(page, text, { x, y, width, font, size, lineHeight, color }) {
   const sanitized = sanitizeTextForPdf(text);
-  const words = sanitized.split(" ");
-  let line = "";
+  const rawParagraphs = sanitized.split(/\r?\n/);
   let currentY = y;
-  for (const word of words) {
-    const testLine = line ? `${line} ${word}` : word;
-    const testWidth = font.widthOfTextAtSize(testLine, size);
-    if (testWidth > width && line) {
-      page.drawText(line, { x, y: currentY, size, font, color });
-      line = word;
-      currentY -= lineHeight;
-    } else {
-      line = testLine;
+
+  for (const para of rawParagraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) {
+      currentY -= lineHeight * 0.6;
+      continue;
     }
-  }
-  if (line) {
-    page.drawText(line, { x, y: currentY, size, font, color });
-    currentY -= lineHeight;
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    let line = "";
+    for (const word of words) {
+      const testLine = line ? `${line} ${word}` : word;
+      const testWidth = font.widthOfTextAtSize(testLine, size);
+      if (testWidth > width && line) {
+        page.drawText(line, { x, y: currentY, size, font, color });
+        line = word;
+        currentY -= lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) {
+      page.drawText(line, { x, y: currentY, size, font, color });
+      currentY -= lineHeight;
+    }
   }
   return currentY;
 }
@@ -196,10 +222,286 @@ Comprometo-me a utilizar os EPIs durante toda a jornada, zelar pela sua conserva
 });
 
 /**
- * Estampa o selo pericial de assinatura diretamente na folha do documento
- * Sem gerar página avulsa/separada, garantindo conformidade com a Lei 14.063/2020 e Art. 464 CLT.
+ * Estampa a assinatura eletrônica avançada diretamente no canhoto oficial de Holerites/Contracheques
+ * (coluna lateral vertical à direita: "Declaro ter recebido a importância..." / "Assinatura do Funcionário" / "Data")
+ * Sem poluir o contracheque, posicionando a rubrica e a data literalmente sobre os campos reservados.
  */
-async function stampSignatureDirectly({
+async function stampHoleriteVerticalStub({
+  pdfDoc,
+  targetPage,
+  docInfo,
+  signInfo,
+  rubricPngBytes,
+}) {
+  const { width: pWidth, height: pHeight } = targetPage.getSize();
+  const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+  // Coordenadas milimétricas baseadas no padrão oficial de holerites A4 brasileiros (ex: Domínio, Totvs, Alterdata, Fortes)
+  // Largura A4 padrão = 595.28 pt, Altura = 841.89 pt
+  const scaleX = pWidth / 595.28;
+  const scaleY = pHeight / 841.89;
+  const baseX = 521.16 * scaleX;
+
+  // Se o documento tiver altura de folha completa (>= 600 pt), costuma conter 2 vias (via da empresa e via do empregado)
+  const slips = [];
+  // Recibo Inferior (Via Principal / Recibo do Empregador)
+  slips.push({
+    centerY: 316.8 * scaleY,
+    dateY: 178.0 * scaleY,
+  });
+  // Recibo Superior (Via do Empregado / Duplicata)
+  if (pHeight >= 600) {
+    slips.push({
+      centerY: 678.5 * scaleY,
+      dateY: 545.0 * scaleY,
+    });
+  }
+
+  const nomeSignatario = docInfo.NomeFuncionario || "Colaborador";
+  const dateStr = formatBrasiliaDateOnly(signInfo.DataHoraAssinatura) || "Data Registrada";
+  const dateW = helveticaBold.widthOfTextAtSize(dateStr, 7.2);
+  const nameLabel = sanitizeTextForPdf(nomeSignatario);
+  const nameW = helveticaBold.widthOfTextAtSize(nameLabel, 6.2);
+
+  // Decodifica rubrica manuscrita se enviada
+  let rubricImg = null;
+  if (rubricPngBytes && rubricPngBytes.length > 0) {
+    try {
+      rubricImg = await pdfDoc.embedPng(rubricPngBytes);
+    } catch {
+      rubricImg = null;
+    }
+  }
+
+  for (const slip of slips) {
+    // 1. Rubrica Manuscrita rotacionada 90° diretamente em cima da linha "Assinatura do Funcionário"
+    if (rubricImg) {
+      const maxW = 75; // comprimento ao longo da linha
+      const maxH = 15; // altura perpendicular à linha (dentro do vão do canhoto)
+      const scale = Math.min(maxW / rubricImg.width, maxH / rubricImg.height, 1);
+      const drawW = rubricImg.width * scale;
+      const drawH = rubricImg.height * scale;
+      const drawX = baseX + 0.5; // assenta diretamente sobre a linha impressa
+      const drawY = slip.centerY - drawW / 2;
+
+      targetPage.drawImage(rubricImg, {
+        x: drawX,
+        y: drawY,
+        width: drawW,
+        height: drawH,
+        rotate: degrees(90),
+      });
+    } else {
+      // Fallback elegante se não houver imagem de rubrica
+      targetPage.drawText(nameLabel, {
+        x: baseX + 1,
+        y: slip.centerY - nameW / 2,
+        size: 7.5,
+        font: helveticaOblique,
+        color: rgb(0.08, 0.12, 0.35),
+        rotate: degrees(90),
+      });
+    }
+
+    // 2. Identificação do colaborador ao lado da rubrica
+    targetPage.drawText(nameLabel, {
+      x: baseX - 3.8,
+      y: slip.centerY - nameW / 2,
+      size: 6.0,
+      font: helveticaBold,
+      color: rgb(0.1, 0.15, 0.35),
+      rotate: degrees(90),
+    });
+
+    // 3. Data carimbada diretamente sobre o campo "___/___/___ Data"
+    targetPage.drawText(dateStr, {
+      x: baseX - 6,
+      y: slip.dateY - dateW / 2,
+      size: 7.2,
+      font: helveticaBold,
+      color: rgb(0.08, 0.12, 0.22),
+      rotate: degrees(90),
+    });
+  }
+
+  // 4. Faixa de Auditoria Pericial Minimalista no Rodapé da Página
+  // Ultracompacta (12 pt), ocupando apenas a margem vazia inferior sem cobrir nenhum dado contábil
+  const auditY = 4;
+  const auditHeight = 12;
+  const rawHash = docInfo.HashOriginalSHA256 || "";
+  const displayHash = rawHash ? `${rawHash.slice(0, 24)}...` : "SHA-256 Registrado";
+  const dtStr = formatBrasiliaDateTime(signInfo.DataHoraAssinatura);
+  const ipStr = signInfo.EnderecoIP || "Dispositivo PWA";
+  const valCode = signInfo.CodigoValidacao || "VAL";
+
+  targetPage.drawRectangle({
+    x: 25,
+    y: auditY,
+    width: pWidth - 50,
+    height: auditHeight,
+    color: rgb(0.97, 0.98, 1.0),
+    borderColor: rgb(0.8, 0.85, 0.92),
+    borderWidth: 0.5,
+  });
+
+  const auditLine = sanitizeTextForPdf(
+    `ASSINATURA ELETRONICA AVANCADA (LEI 14.063/2020 E ART. 464 CLT) - VAL: ${valCode} - HASH SHA-256: ${displayHash} - DATA: ${dtStr} - IP: ${ipStr}`
+  );
+  targetPage.drawText(auditLine, {
+    x: 32,
+    y: auditY + 3.2,
+    size: 5.2,
+    font: helvetica,
+    color: rgb(0.2, 0.25, 0.35),
+  });
+}
+
+/**
+ * Estampa a assinatura no fechamento formal de Termos Internos e Contratos (gerados dinamicamente)
+ * Posiciona a rubrica LITERALMENTE sobre a linha oficial de assinatura ao final do texto.
+ */
+async function stampTextTermSignature({
+  pdfDoc,
+  targetPage,
+  docInfo,
+  signInfo,
+  rubricPngBytes,
+  startY,
+}) {
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+  const nomeSignatario = docInfo.NomeFuncionario || "Colaborador";
+  const cpfStr = docInfo.CPFFuncionario || "Nao informado";
+  const dtStr = formatBrasiliaDateTime(signInfo.DataHoraAssinatura);
+  const lojaStr = docInfo.NomeLoja || docInfo.LojaID || "Grupo House 190";
+
+  let y = Math.min(startY || 350, 420);
+  if (y < 160) y = 160;
+
+  // 1. Data e formalização
+  targetPage.drawText(
+    sanitizeTextForPdf(`Documento formalizado e assinado eletronicamente em ${dtStr} (Horario de Brasilia).`),
+    {
+      x: 55,
+      y: y,
+      size: 8.5,
+      font: fontOblique,
+      color: rgb(0.35, 0.4, 0.5),
+    }
+  );
+
+  y -= 45; // Espaço para a rubrica manuscrita
+
+  // 2. Linha oficial de assinatura
+  const lineStartX = 75;
+  const lineEndX = 395;
+  const lineWidth = lineEndX - lineStartX;
+  targetPage.drawLine({
+    start: { x: lineStartX, y: y },
+    end: { x: lineEndX, y: y },
+    thickness: 0.8,
+    color: rgb(0.25, 0.3, 0.4),
+  });
+
+  // 3. Rubrica manuscrita estampada LITERALMENTE em cima da linha
+  let rubricDrawn = false;
+  if (rubricPngBytes && rubricPngBytes.length > 0) {
+    try {
+      const rubricImg = await pdfDoc.embedPng(rubricPngBytes);
+      const maxW = 160;
+      const maxH = 40;
+      const scale = Math.min(maxW / rubricImg.width, maxH / rubricImg.height, 1);
+      const drawW = rubricImg.width * scale;
+      const drawH = rubricImg.height * scale;
+      const drawX = lineStartX + (lineWidth - drawW) / 2;
+      const drawY = y + 2; // descansa diretamente em cima da linha
+
+      targetPage.drawImage(rubricImg, {
+        x: drawX,
+        y: drawY,
+        width: drawW,
+        height: drawH,
+      });
+      rubricDrawn = true;
+    } catch {}
+  }
+
+  if (!rubricDrawn) {
+    targetPage.drawText(sanitizeTextForPdf(nomeSignatario), {
+      x: lineStartX + 20,
+      y: y + 5,
+      size: 11,
+      font: fontOblique,
+      color: rgb(0.08, 0.12, 0.35),
+    });
+  }
+
+  // 4. Identificação sob a linha
+  targetPage.drawText(sanitizeTextForPdf(`${nomeSignatario}  —  CPF: ${cpfStr}`), {
+    x: lineStartX + 10,
+    y: y - 12,
+    size: 8.5,
+    font: fontBold,
+    color: rgb(0.08, 0.12, 0.22),
+  });
+
+  targetPage.drawText(sanitizeTextForPdf(`Colaborador(a) / Titular  —  ${lojaStr}`), {
+    x: lineStartX + 10,
+    y: y - 22,
+    size: 7.5,
+    font: font,
+    color: rgb(0.35, 0.42, 0.52),
+  });
+
+  // 5. Card de Validade Jurídica e Criptografia (Lei 14.063/2020)
+  const cardY = y - 62;
+  targetPage.drawRectangle({
+    x: 55,
+    y: cardY,
+    width: 485,
+    height: 32,
+    color: rgb(0.985, 0.99, 1.0),
+    borderColor: rgb(0.75, 0.82, 0.92),
+    borderWidth: 0.6,
+  });
+
+  const rawHash = docInfo.HashOriginalSHA256 || "";
+  const displayHash = rawHash ? `${rawHash.slice(0, 36)}...` : "SHA-256 Registrado";
+  const valCode = signInfo.CodigoValidacao || "VAL";
+  const ipStr = signInfo.EnderecoIP || "Dispositivo PWA";
+  const dispStr = (signInfo.DispositivoInfo || "Navegador").slice(0, 35);
+
+  targetPage.drawText(
+    sanitizeTextForPdf(`ASSINATURA ELETRONICA AVANCADA (LEI 14.063/2020)  •  CODIGO: ${valCode}`),
+    {
+      x: 65,
+      y: cardY + 19,
+      size: 7.2,
+      font: fontBold,
+      color: rgb(0.08, 0.12, 0.3),
+    }
+  );
+
+  targetPage.drawText(
+    sanitizeTextForPdf(`Hash SHA-256: ${displayHash}  |  IP: ${ipStr}  |  Dispositivo: ${dispStr}`),
+    {
+      x: 65,
+      y: cardY + 7,
+      size: 6.2,
+      font: font,
+      color: rgb(0.25, 0.32, 0.44),
+    }
+  );
+}
+
+/**
+ * Estampa a assinatura para PDFs avulsos/genéricos que não sejam holerites
+ */
+async function stampGeneralDocumentSignature({
   pdfDoc,
   targetPage,
   docInfo,
@@ -214,7 +516,7 @@ async function stampSignatureDirectly({
   const boxX = 15;
   const boxY = 8;
   const boxWidth = pWidth - 30;
-  const boxHeight = 68;
+  const boxHeight = 60;
   const splitX = Math.min(boxX + 195, boxX + boxWidth * 0.42);
 
   // 1. Fundo do card
@@ -228,30 +530,30 @@ async function stampSignatureDirectly({
     borderWidth: 0.8,
   });
 
-  // 2. Faixa superior Navy
+  // 2. Faixa superior
   targetPage.drawRectangle({
     x: boxX,
-    y: boxY + boxHeight - 15,
+    y: boxY + boxHeight - 14,
     width: boxWidth,
-    height: 15,
+    height: 14,
     color: rgb(0.08, 0.12, 0.22),
   });
 
   const headerLeft = "ASSINATURA ELETRONICA AVANCADA - LEI No 14.063/2020 E ART. 464 CLT";
   targetPage.drawText(headerLeft, {
     x: boxX + 8,
-    y: boxY + boxHeight - 11,
-    size: 6.5,
+    y: boxY + boxHeight - 10,
+    size: 6.2,
     font: helveticaBold,
     color: rgb(1, 1, 1),
   });
 
   const valCodeStr = `VALIDADOR: ${signInfo.CodigoValidacao || "VAL"}`;
-  const valWidth = helveticaBold.widthOfTextAtSize(valCodeStr, 6.5);
+  const valWidth = helveticaBold.widthOfTextAtSize(valCodeStr, 6.2);
   targetPage.drawText(sanitizeTextForPdf(valCodeStr), {
     x: boxX + boxWidth - 8 - valWidth,
-    y: boxY + boxHeight - 11,
-    size: 6.5,
+    y: boxY + boxHeight - 10,
+    size: 6.2,
     font: helveticaBold,
     color: rgb(0.68, 0.8, 0.98),
   });
@@ -259,23 +561,23 @@ async function stampSignatureDirectly({
   // 3. Divisória vertical
   targetPage.drawLine({
     start: { x: splitX, y: boxY + 2 },
-    end: { x: splitX, y: boxY + boxHeight - 15 },
+    end: { x: splitX, y: boxY + boxHeight - 14 },
     thickness: 0.6,
     color: rgb(0.8, 0.85, 0.92),
   });
 
-  // 4. Lado Esquerdo: Rubrica Manuscrita do Colaborador
+  // 4. Lado Esquerdo: Rubrica Manuscrita
   let rubricDrawn = false;
   if (rubricPngBytes && rubricPngBytes.length > 0) {
     try {
       const rubricImg = await pdfDoc.embedPng(rubricPngBytes);
       const maxImgW = splitX - boxX - 30;
-      const maxImgH = 32;
+      const maxImgH = 28;
       const imgScale = Math.min(maxImgW / rubricImg.width, maxImgH / rubricImg.height, 1);
       const drawW = rubricImg.width * imgScale;
       const drawH = rubricImg.height * imgScale;
       const drawX = boxX + 15 + (maxImgW - drawW) / 2;
-      const drawY = boxY + 16 + (maxImgH - drawH) / 2;
+      const drawY = boxY + 14 + (maxImgH - drawH) / 2;
 
       targetPage.drawImage(rubricImg, {
         x: drawX,
@@ -284,15 +586,13 @@ async function stampSignatureDirectly({
         height: drawH,
       });
       rubricDrawn = true;
-    } catch {
-      // Ignora falha de decodificação e usa fallback
-    }
+    } catch {}
   }
 
   if (!rubricDrawn) {
     targetPage.drawText("[Rubrica registrada digitalmente]", {
       x: boxX + 18,
-      y: boxY + 24,
+      y: boxY + 22,
       size: 7,
       font: helvetica,
       color: rgb(0.35, 0.4, 0.5),
@@ -300,8 +600,8 @@ async function stampSignatureDirectly({
   }
 
   targetPage.drawLine({
-    start: { x: boxX + 15, y: boxY + 14 },
-    end: { x: splitX - 15, y: boxY + 14 },
+    start: { x: boxX + 15, y: boxY + 12 },
+    end: { x: splitX - 15, y: boxY + 12 },
     thickness: 0.5,
     color: rgb(0.6, 0.65, 0.75),
   });
@@ -311,21 +611,21 @@ async function stampSignatureDirectly({
     sanitizeTextForPdf(`Assinatura de ${nomeSignatario}`),
     {
       x: boxX + 15,
-      y: boxY + 5,
-      size: 6.2,
+      y: boxY + 4,
+      size: 5.8,
       font: helveticaOblique,
       color: rgb(0.3, 0.35, 0.45),
     },
   );
 
-  // 5. Lado Direito: Evidências Técnicas e Legais
+  // 5. Lado Direito: Evidências Técnicas
   const cpfStr = docInfo.CPFFuncionario || "Nao informado";
   targetPage.drawText(
     sanitizeTextForPdf(`Signatario: ${nomeSignatario}  -  CPF: ${cpfStr}`),
     {
       x: splitX + 10,
-      y: boxY + 38,
-      size: 7.2,
+      y: boxY + 32,
+      size: 6.8,
       font: helveticaBold,
       color: rgb(0.08, 0.12, 0.22),
     },
@@ -337,38 +637,60 @@ async function stampSignatureDirectly({
     sanitizeTextForPdf(`Data/Hora: ${dtStr} (Brasilia)  -  IP: ${ipStr}`),
     {
       x: splitX + 10,
-      y: boxY + 27,
-      size: 6.2,
+      y: boxY + 22,
+      size: 5.8,
       font: helvetica,
       color: rgb(0.2, 0.26, 0.36),
-    },
-  );
-
-  const lojaStr = docInfo.NomeLoja || docInfo.LojaID || "Grupo House 190";
-  const dispStr = (signInfo.DispositivoInfo || "Navegador Web / Mobile").slice(0, 40);
-  targetPage.drawText(
-    sanitizeTextForPdf(`Unidade: ${lojaStr}  -  Dispositivo: ${dispStr}`),
-    {
-      x: splitX + 10,
-      y: boxY + 17,
-      size: 6.0,
-      font: helvetica,
-      color: rgb(0.3, 0.38, 0.48),
     },
   );
 
   const rawHash = docInfo.HashOriginalSHA256 || "";
   const displayHash = rawHash ? `${rawHash.slice(0, 32)}...` : "SHA-256 Registrado";
   targetPage.drawText(
-    sanitizeTextForPdf(`Hash SHA-256: ${displayHash}  -  Autoria e Integridade Garantidas`),
+    sanitizeTextForPdf(`Hash SHA-256: ${displayHash}`),
     {
       x: splitX + 10,
-      y: boxY + 7,
-      size: 5.8,
+      y: boxY + 12,
+      size: 5.5,
       font: helvetica,
       color: rgb(0.1, 0.45, 0.22),
     },
   );
+}
+
+/**
+ * Estampa o selo pericial de assinatura diretamente na folha do documento
+ * Sem gerar página avulsa/separada, garantindo conformidade com a Lei 14.063/2020 e Art. 464 CLT.
+ */
+export async function stampSignatureDirectly({
+  pdfDoc,
+  targetPage,
+  docInfo,
+  signInfo,
+  rubricPngBytes,
+}) {
+  const isHolerite =
+    docInfo.Tipo === "Holerite" ||
+    /holerite|contracheque|recibo\s*de\s*pagamento/i.test(docInfo.Titulo || "") ||
+    /holerite|contracheque/i.test(docInfo.Descricao || "");
+
+  if (isHolerite) {
+    return await stampHoleriteVerticalStub({
+      pdfDoc,
+      targetPage,
+      docInfo,
+      signInfo,
+      rubricPngBytes,
+    });
+  }
+
+  return await stampGeneralDocumentSignature({
+    pdfDoc,
+    targetPage,
+    docInfo,
+    signInfo,
+    rubricPngBytes,
+  });
 }
 
 /**
@@ -471,16 +793,17 @@ export async function generateSignedPdf({
         color: rgb(0.15, 0.18, 0.24),
       });
       textY -= 10;
-      if (textY < 95) break;
+      if (textY < 200) break;
     }
 
-    // Estampa o selo de assinatura diretamente na própria folha do termo
-    await stampSignatureDirectly({
+    // Estampa a assinatura no fechamento formal do termo, diretamente sobre a linha oficial
+    await stampTextTermSignature({
       pdfDoc,
       targetPage: docPage,
       docInfo,
       signInfo,
       rubricPngBytes,
+      startY: textY - 20,
     });
   }
 

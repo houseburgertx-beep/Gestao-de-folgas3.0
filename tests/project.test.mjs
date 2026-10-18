@@ -2637,7 +2637,7 @@ test("Auditoria do ponto e performance: fallback de jornada padrão, idempotênc
 });
 
 test("Módulo de Assinatura Eletrônica e Gestão Documental: criptografia, auditoria pericial e piloto", async () => {
-  const { sha256Hex, generateSignedPdf, generateValidationCode, DOCUMENT_TEMPLATES } = await import("../src/core/api-documents.js");
+  const { sha256Hex, generateSignedPdf, generateValidationCode, formatBrasiliaDateOnly, DOCUMENT_TEMPLATES } = await import("../src/core/api-documents.js");
   const { PDFDocument } = await import("pdf-lib");
 
   // 1. Integridade Criptográfica (SHA-256)
@@ -2650,9 +2650,11 @@ test("Módulo de Assinatura Eletrônica e Gestão Documental: criptografia, audi
   const diffHash = await sha256Hex("Contrato de Trabalho - Grupo House 191");
   assert.notEqual(hash1, diffHash, "Qualquer caractere alterado deve mudar completamente o hash");
 
-  // 2. Formato do Código de Validação Pericial
+  // 2. Formato do Código de Validação Pericial e Data
   const valCode = generateValidationCode();
   assert.match(valCode, /^VAL-\d{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/, "Código de validação deve seguir o padrão VAL-AAAA-XXXX-XXXX");
+  const dOnly = formatBrasiliaDateOnly("2026-10-18T15:30:00.000Z");
+  assert.equal(dOnly, "18/10/2026", "Data formatada para carimbo no canhoto deve ser DD/MM/AAAA");
 
   // 3. Modelos Internos do Sistema
   assert.ok(DOCUMENT_TEMPLATES["termo-regulamento"], "Deve conter o modelo de Regulamento Interno");
