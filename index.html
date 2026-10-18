@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.28" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.29" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.28-firebase-github" />
+    <meta name="app-version" content="6.16.29-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -12257,6 +12257,44 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   border-color: rgba(255, 255, 255, 0.25) !important;
 }
 
+/* Botão minimalista para exclusão definitiva de funcionário */
+.btn-delete-employee {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 6px 12px !important;
+  min-height: 32px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(220, 38, 38, 0.25) !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+}
+.btn-delete-employee:hover {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #dc2626 !important;
+  transform: translateY(-1px);
+}
+.btn-delete-employee:active {
+  transform: scale(0.97);
+}
+[data-theme="dark"] .btn-delete-employee {
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.3) !important;
+  background: transparent !important;
+}
+[data-theme="dark"] .btn-delete-employee:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+  border-color: #f87171 !important;
+}
+
 /* ==========================================================================
    COZINHA FLOW 3.0 — CSS Integrado no Folgas 3.0
    Mobile-First, Soft Clay, Gamificação, Selos, Títulos e Loja de Prêmios
@@ -20638,6 +20676,15 @@ dialog#documentUploadDialog input[type="month"] {
     <div class="dialog-actions">
       <button
         type="button"
+        id="employeeDeleteBtn"
+        class="btn-delete-employee"
+        style="margin-right: auto; display: none;"
+        title="Excluir funcionário definitivamente"
+      >
+        Excluir funcionário
+      </button>
+      <button
+        type="button"
         class="btn btn-secondary"
         data-close="employeeDialog"
       >
@@ -21773,7 +21820,7 @@ dialog#documentUploadDialog input[type="month"] {
     }
   }, true);
 </script>
-<script type="module" src="./src/main.js?v=6.16.28"></script>
+<script type="module" src="./src/main.js?v=6.16.29"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21854,6 +21901,7 @@ dialog#documentUploadDialog input[type="month"] {
     updateEmployee: "updateEmployee",
     disableEmployee: "disableEmployee",
     activateEmployee: "activateEmployee",
+    deleteEmployee: "deleteEmployee",
     createTimeOff: "createTimeOff",
     updateTimeOff: "updateTimeOff",
     cancelTimeOff: "cancelTimeOff",
@@ -25511,7 +25559,7 @@ dialog#documentUploadDialog input[type="month"] {
             takeatDebt > 0
               ? `<span title="Débito em aberto no Takeat" style="display:inline-block; margin-top:3px; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">Prazo: - R$ ${takeatDebt.toFixed(2).replace(".", ",")}</span>`
               : "";
-          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -26162,6 +26210,27 @@ dialog#documentUploadDialog input[type="month"] {
       "diaFolgaPreferencial",
     );
     $("#employeeActive").checked = x ? bool(val(x, "Ativo", "ativo")) : true;
+    const deleteBtn = $("#employeeDeleteBtn");
+    if (deleteBtn) {
+      deleteBtn.style.display = id ? "inline-flex" : "none";
+      deleteBtn.onclick = () => {
+        closeDialog("employeeDialog");
+        const empName = val(x, "Nome", "nome") || "";
+        confirmThen(
+          "Excluir definitivamente?",
+          `Tem certeza que deseja apagar permanentemente ${empName ? `"${empName}"` : "este funcionário"}? O cadastro e o acesso ao sistema serão removidos de forma irreversível.`,
+          async () => {
+            try {
+              await call(FN.deleteEmployee, id);
+              toast("Funcionário excluído definitivamente.");
+              await loadApplication(true);
+            } catch (e) {
+              toast(e.message, true);
+            }
+          },
+        );
+      };
+    }
     openDialog("employeeDialog");
     loadClockSettings()
       .then(() => {
@@ -27086,6 +27155,25 @@ dialog#documentUploadDialog input[type="month"] {
         () =>
           changeEntityState(FN.activateEmployee, id, "Funcionário ativado."),
       );
+    if (a === "delete-employee") {
+      const emp = state.employees.find(
+        (x) => String(idOf(x, "Funcionario")) === String(id),
+      );
+      const empName = emp ? (val(emp, "Nome", "nome") || "") : "";
+      confirmThen(
+        "Excluir definitivamente?",
+        `Tem certeza que deseja apagar permanentemente ${empName ? `"${empName}"` : "este funcionário"}? O cadastro e o acesso ao sistema serão removidos de forma irreversível.`,
+        async () => {
+          try {
+            await call(FN.deleteEmployee, id);
+            toast("Funcionário excluído definitivamente.");
+            await loadApplication(true);
+          } catch (e) {
+            toast(e.message, true);
+          }
+        },
+      );
+    }
     if (a === "disable-store")
       confirmThen(
         "Desativar loja?",

@@ -1715,6 +1715,67 @@ export function createBaseHandlers() {
       return success(saved, "Funcionário ativado.");
     },
 
+    async deleteEmployee(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const payload = args[0];
+      const id =
+        typeof payload === "object" && payload !== null
+          ? payload.funcionarioId || payload.FuncionarioID || payload.id
+          : payload;
+      if (!id) throw new Error("ID do funcionário não informado.");
+
+      const current = await runtime.get("Funcionarios", id);
+      if (!current) throw new Error("Funcionário não encontrado.");
+
+      if (
+        profile.Perfil !== "Administrador" &&
+        current.LojaID !== profile.LojaID
+      ) {
+        throw new Error(
+          "Você só pode gerenciar funcionários da sua própria unidade.",
+        );
+      }
+
+      await runtime.delete("Funcionarios", id);
+
+      const accessList = await runtime.listAccess();
+      const access = accessList.find(
+        (item) =>
+          String(item.FuncionarioID) === String(id) ||
+          String(item.funcionarioId) === String(id),
+      );
+      if (access && access.UsuarioID) {
+        await runtime.deleteAccess(access.UsuarioID).catch(() => {});
+      }
+
+      const schedules = await runtime.list("JornadasPonto").catch(() => []);
+      const schedule = schedules.find(
+        (s) => String(s.FuncionarioID) === String(id),
+      );
+      if (schedule && schedule.JornadaID) {
+        await runtime
+          .delete("JornadasPonto", schedule.JornadaID)
+          .catch(() => {});
+      }
+
+      await runtime
+        .audit({
+          table: "Funcionarios",
+          action: "DELETE",
+          entityId: id,
+          profile,
+          before: current,
+          after: null,
+        })
+        .catch(() => {});
+
+      return success(
+        { FuncionarioID: id },
+        "Funcionário excluído definitivamente.",
+      );
+    },
+
     async getTimeOffRecords() {
       return success(await runtime.list("Folgas"));
     },

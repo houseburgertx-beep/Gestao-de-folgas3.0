@@ -2840,6 +2840,26 @@ test("botão minimalista de saída rápida automática preenche saída esquecida
   assert.match(apiClockJs, /horaSaidaPrevista/, "Backend deve calcular horaSaidaPrevista nas métricas de dias");
 });
 
+test("botão minimalista para exclusão definitiva de funcionário na listagem e no modal", async () => {
+  const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const redesignCss = await readFile(new URL("../src/redesign.css", import.meta.url), "utf8");
+  const apiBaseJs = await readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8");
+
+  // 1. Botão minimalista na listagem e no modal de funcionário
+  assert.match(indexHtml, /class="[^"]*btn-delete-employee[^"]*"/, "Deve incluir botão com classe btn-delete-employee");
+  assert.match(indexHtml, /data-action="delete-employee"/, "Deve possuir ação data-action delete-employee");
+  assert.match(indexHtml, /id="employeeDeleteBtn"/, "Deve possuir botão de exclusão no modal de funcionário");
+  assert.match(indexHtml, /deleteEmployee:\s*"deleteEmployee"/, "Deve mapear FN.deleteEmployee");
+
+  // 2. Estilos dedicados no redesign.css
+  assert.match(redesignCss, /\.btn-delete-employee/, "CSS deve conter regras para .btn-delete-employee");
+
+  // 3. Backend api-base implementa deleteEmployee com remoção e auditoria
+  assert.match(apiBaseJs, /async deleteEmployee\(/, "Backend deve possuir o método deleteEmployee");
+  assert.match(apiBaseJs, /runtime\.delete\("Funcionarios"/, "Backend deve deletar registro em Funcionarios");
+  assert.match(apiBaseJs, /deleteAccess/, "Backend deve remover credenciais de acesso vinculadas");
+});
+
 
 
 

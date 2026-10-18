@@ -78,6 +78,7 @@
     updateEmployee: "updateEmployee",
     disableEmployee: "disableEmployee",
     activateEmployee: "activateEmployee",
+    deleteEmployee: "deleteEmployee",
     createTimeOff: "createTimeOff",
     updateTimeOff: "updateTimeOff",
     cancelTimeOff: "cancelTimeOff",
@@ -3735,7 +3736,7 @@
             takeatDebt > 0
               ? `<span title="Débito em aberto no Takeat" style="display:inline-block; margin-top:3px; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">Prazo: - R$ ${takeatDebt.toFixed(2).replace(".", ",")}</span>`
               : "";
-          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button></div></td></tr>`;
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -4386,6 +4387,27 @@
       "diaFolgaPreferencial",
     );
     $("#employeeActive").checked = x ? bool(val(x, "Ativo", "ativo")) : true;
+    const deleteBtn = $("#employeeDeleteBtn");
+    if (deleteBtn) {
+      deleteBtn.style.display = id ? "inline-flex" : "none";
+      deleteBtn.onclick = () => {
+        closeDialog("employeeDialog");
+        const empName = val(x, "Nome", "nome") || "";
+        confirmThen(
+          "Excluir definitivamente?",
+          `Tem certeza que deseja apagar permanentemente ${empName ? `"${empName}"` : "este funcionário"}? O cadastro e o acesso ao sistema serão removidos de forma irreversível.`,
+          async () => {
+            try {
+              await call(FN.deleteEmployee, id);
+              toast("Funcionário excluído definitivamente.");
+              await loadApplication(true);
+            } catch (e) {
+              toast(e.message, true);
+            }
+          },
+        );
+      };
+    }
     openDialog("employeeDialog");
     loadClockSettings()
       .then(() => {
@@ -5310,6 +5332,25 @@
         () =>
           changeEntityState(FN.activateEmployee, id, "Funcionário ativado."),
       );
+    if (a === "delete-employee") {
+      const emp = state.employees.find(
+        (x) => String(idOf(x, "Funcionario")) === String(id),
+      );
+      const empName = emp ? (val(emp, "Nome", "nome") || "") : "";
+      confirmThen(
+        "Excluir definitivamente?",
+        `Tem certeza que deseja apagar permanentemente ${empName ? `"${empName}"` : "este funcionário"}? O cadastro e o acesso ao sistema serão removidos de forma irreversível.`,
+        async () => {
+          try {
+            await call(FN.deleteEmployee, id);
+            toast("Funcionário excluído definitivamente.");
+            await loadApplication(true);
+          } catch (e) {
+            toast(e.message, true);
+          }
+        },
+      );
+    }
     if (a === "disable-store")
       confirmThen(
         "Desativar loja?",

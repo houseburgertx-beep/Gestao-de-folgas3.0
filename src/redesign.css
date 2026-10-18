@@ -3064,3 +3064,41 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   color: #fff !important;
   border-color: rgba(255, 255, 255, 0.25) !important;
 }
+
+/* Botão minimalista para exclusão definitiva de funcionário */
+.btn-delete-employee {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 6px 12px !important;
+  min-height: 32px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(220, 38, 38, 0.25) !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+}
+.btn-delete-employee:hover {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #dc2626 !important;
+  transform: translateY(-1px);
+}
+.btn-delete-employee:active {
+  transform: scale(0.97);
+}
+[data-theme="dark"] .btn-delete-employee {
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.3) !important;
+  background: transparent !important;
+}
+[data-theme="dark"] .btn-delete-employee:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+  border-color: #f87171 !important;
+}
