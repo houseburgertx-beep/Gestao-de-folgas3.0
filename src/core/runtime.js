@@ -854,6 +854,10 @@ export class FirebaseRuntime {
     return [...unique.values()];
   }
 
+  async get(table, id) {
+    return this.getById(table, id);
+  }
+
   async getById(table, id) {
     if (!id) return null;
     const normalizedId = String(id);

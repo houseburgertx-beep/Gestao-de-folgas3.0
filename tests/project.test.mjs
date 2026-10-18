@@ -2856,6 +2856,7 @@ test("botão minimalista para exclusão definitiva de funcionário na listagem e
 
   // 3. Backend api-base implementa deleteEmployee com remoção e auditoria
   assert.match(apiBaseJs, /async deleteEmployee\(/, "Backend deve possuir o método deleteEmployee");
+  assert.match(apiBaseJs, /runtime\.getById\("Funcionarios"/, "Backend deve buscar o funcionário existente via getById");
   assert.match(apiBaseJs, /runtime\.delete\("Funcionarios"/, "Backend deve deletar registro em Funcionarios");
   assert.match(apiBaseJs, /deleteAccess/, "Backend deve remover credenciais de acesso vinculadas");
 });

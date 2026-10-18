@@ -1723,19 +1723,11 @@ export function createBaseHandlers() {
         typeof payload === "object" && payload !== null
           ? payload.funcionarioId || payload.FuncionarioID || payload.id
           : payload;
-      if (!id) throw new Error("ID do funcionário não informado.");
+      assert(id, "ID do funcionário não informado.");
 
-      const current = await runtime.get("Funcionarios", id);
-      if (!current) throw new Error("Funcionário não encontrado.");
-
-      if (
-        profile.Perfil !== "Administrador" &&
-        current.LojaID !== profile.LojaID
-      ) {
-        throw new Error(
-          "Você só pode gerenciar funcionários da sua própria unidade.",
-        );
-      }
+      const current = await runtime.getById("Funcionarios", id);
+      assert(current, "Funcionário não encontrado.");
+      scopeRecord(profile, current);
 
       await runtime.delete("Funcionarios", id);
 

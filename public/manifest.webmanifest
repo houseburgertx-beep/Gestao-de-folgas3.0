@@ -5,7 +5,7 @@
   "description": "Folgas, escalas, ponto e comunicação das equipes do Grupo House 190.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "./?source=pwa&v=6.16.29",
+  "start_url": "./?source=pwa&v=6.16.30",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
