@@ -572,15 +572,30 @@
       if (firebaseRuntime) {
         try {
           await firebaseRuntime.ready();
-          const redirectUser = await firebaseRuntime.checkRedirectResult().catch((e) => {
+          let redirectUser = await firebaseRuntime.checkRedirectResult().catch((e) => {
             console.warn("checkRedirectResult erro:", e);
             return null;
           });
-          const currentUser = firebaseRuntime.auth?.currentUser;
+          let currentUser = firebaseRuntime.auth?.currentUser;
+          if (!redirectUser && !currentUser && isLoggingInWithGoogle) {
+            currentUser = await new Promise((res) => {
+              const tm = setTimeout(() => res(null), 3000);
+              const unsub = firebaseRuntime.auth?.onAuthStateChanged((u) => {
+                if (u) {
+                  clearTimeout(tm);
+                  unsub?.();
+                  res(u);
+                }
+              });
+            });
+          }
           const isGoogleUser = currentUser?.providerData?.some((p) => p.providerId === "google.com");
           const activeUser = redirectUser || ((isLoggingInWithGoogle || isGoogleUser) ? currentUser : null);
           if (activeUser) {
             sessionStorage.removeItem("gf_google_logging_in");
+            if (!firebaseRuntime.profile) {
+              await firebaseRuntime.completeGoogleAuth(activeUser).catch(() => {});
+            }
             const token = await activeUser.getIdToken();
             storeSessionToken_(token, true, Date.now() + PERSISTENT_SESSION_MAX_MS_);
             await loadApplication(false, true, token);

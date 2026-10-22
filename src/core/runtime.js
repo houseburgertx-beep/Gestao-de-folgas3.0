@@ -234,7 +234,8 @@ export class FirebaseRuntime {
     });
 
     this.readyPromise = new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(this.auth, async (user) => {
+      let resolved = false;
+      onAuthStateChanged(this.auth, async (user) => {
         this.authResolved = true;
         if (user) {
           let profile = await this.loadOwnProfile().catch(() => null);
@@ -253,8 +254,10 @@ export class FirebaseRuntime {
         } else {
           this.profile = null;
         }
-        unsubscribe();
-        resolve(user);
+        if (!resolved) {
+          resolved = true;
+          resolve(user);
+        }
       });
     });
     return this;
@@ -445,28 +448,7 @@ export class FirebaseRuntime {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
-    const isStandalone =
-      typeof window !== "undefined" &&
-      (window.navigator?.standalone === true ||
-        window.matchMedia?.("(display-mode: standalone)")?.matches);
-
-    const isMobile =
-      isStandalone ||
-      (typeof navigator !== "undefined" &&
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent,
-        )) ||
-      (typeof window !== "undefined" && window.innerWidth <= 768);
-
     let user = null;
-    if (isMobile) {
-      if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem("gf_google_logging_in", "true");
-      }
-      await signInWithRedirect(this.auth, provider);
-      return null;
-    }
-
     try {
       const credential = await signInWithPopup(this.auth, provider);
       user = credential.user;
@@ -474,11 +456,19 @@ export class FirebaseRuntime {
       const code = String(popupErr?.code || "");
       const msg = String(popupErr?.message || popupErr || "");
       if (
+        code.includes("popup-closed-by-user") ||
+        msg.includes("popup-closed-by-user")
+      ) {
+        return null;
+      }
+      if (
         code.includes("popup-blocked") ||
         code.includes("cancelled-popup-request") ||
-        code.includes("popup-closed-by-user") ||
+        code.includes("operation-not-supported") ||
+        code.includes("auth/internal-error") ||
         msg.includes("popup-blocked") ||
-        msg.includes("cancelled-popup-request")
+        msg.includes("cancelled-popup-request") ||
+        msg.includes("operation-not-supported")
       ) {
         if (typeof sessionStorage !== "undefined") {
           sessionStorage.setItem("gf_google_logging_in", "true");
