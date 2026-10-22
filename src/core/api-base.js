@@ -1431,6 +1431,9 @@ export function createBaseHandlers() {
       const payload = args[0] || {};
       const shouldRemember = payload.remember !== false;
       const user = await runtime.loginWithGoogle(shouldRemember);
+      if (!user) {
+        return success({ redirecting: true }, "Redirecionando para login com o Google...");
+      }
       const data = await bootstrap();
       const token = await user.getIdToken();
       return success(

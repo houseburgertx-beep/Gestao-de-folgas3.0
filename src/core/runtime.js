@@ -11,14 +11,17 @@ import {
   deleteUser,
   EmailAuthProvider,
   getAuth,
+  getRedirectResult,
   GoogleAuthProvider,
   linkWithPopup,
+  linkWithRedirect,
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateEmail,
   updatePassword,
@@ -384,8 +387,58 @@ export class FirebaseRuntime {
     );
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    const credential = await signInWithPopup(this.auth, provider);
-    const user = credential.user;
+
+    const isStandalone =
+      typeof window !== "undefined" &&
+      (window.navigator?.standalone === true ||
+        window.matchMedia?.("(display-mode: standalone)")?.matches);
+
+    let user = null;
+    if (isStandalone) {
+      sessionStorage.setItem("gf_google_logging_in", "true");
+      await signInWithRedirect(this.auth, provider);
+      return null;
+    }
+
+    try {
+      const credential = await signInWithPopup(this.auth, provider);
+      user = credential.user;
+    } catch (popupErr) {
+      const code = String(popupErr?.code || "");
+      const msg = String(popupErr?.message || popupErr || "");
+      if (
+        code.includes("popup-blocked") ||
+        code.includes("cancelled-popup-request") ||
+        code.includes("popup-closed-by-user") ||
+        msg.includes("popup-blocked") ||
+        msg.includes("cancelled-popup-request")
+      ) {
+        sessionStorage.setItem("gf_google_logging_in", "true");
+        await signInWithRedirect(this.auth, provider);
+        return null;
+      }
+      throw popupErr;
+    }
+
+    return await this.completeGoogleAuth(user);
+  }
+
+  async checkRedirectResult() {
+    if (!this.auth) return null;
+    try {
+      const result = await getRedirectResult(this.auth).catch(() => null);
+      if (result?.user) {
+        return await this.completeGoogleAuth(result.user);
+      }
+    } catch (err) {
+      console.warn("Aviso ao processar redirect do Google:", err);
+      throw err;
+    }
+    return null;
+  }
+
+  async completeGoogleAuth(user) {
+    if (!user) return null;
     const normalizedUserEmail = normalizeEmail(user.email);
 
     this.profile = null;
@@ -489,14 +542,33 @@ export class FirebaseRuntime {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
+    const isStandalone =
+      typeof window !== "undefined" &&
+      (window.navigator?.standalone === true ||
+        window.matchMedia?.("(display-mode: standalone)")?.matches);
+
     let linkedUser = this.auth.currentUser;
+    if (isStandalone) {
+      await linkWithRedirect(this.auth.currentUser, provider);
+      return { success: true, pendingRedirect: true };
+    }
+
     try {
       const result = await linkWithPopup(this.auth.currentUser, provider);
       linkedUser = result.user || linkedUser;
     } catch (err) {
       const code = String(err?.code || "");
+      const msg = String(err?.message || err || "");
       if (code.includes("provider-already-linked")) {
         // Já vinculado anteriormente
+      } else if (
+        code.includes("popup-blocked") ||
+        code.includes("cancelled-popup-request") ||
+        msg.includes("popup-blocked") ||
+        msg.includes("cancelled-popup-request")
+      ) {
+        await linkWithRedirect(this.auth.currentUser, provider);
+        return { success: true, pendingRedirect: true };
       } else if (
         code.includes("credential-already-in-use") ||
         code.includes("email-already-in-use")
