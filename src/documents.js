@@ -820,6 +820,9 @@ export async function openSignDialog(docId) {
 
     <div class="dialog-actions">
       <button id="docSignCancelBtn" class="btn btn-secondary" type="button" data-close="documentSignDialog">Cancelar</button>
+      <button id="docPrintPhysicalBtn" class="btn btn-secondary" type="button" title="Imprimir este documento para assinatura física manuscrita em papel">
+        🖨️ Imprimir Via Física
+      </button>
       <button id="docSignConfirmBtn" class="btn btn-primary" type="button" disabled>
         Confirmar e Assinar
       </button>
@@ -846,6 +849,15 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
 
   $("#docSignCloseBtn")?.addEventListener("click", close);
   $("#docSignCancelBtn")?.addEventListener("click", close);
+
+  // Imprimir via física manuscrita em papel
+  $("#docPrintPhysicalBtn")?.addEventListener("click", () => {
+    if (doc.TipoConteudo === "pdf" && pdfBlobUrl) {
+      window.open(pdfBlobUrl, "_blank");
+      return;
+    }
+    printDocumentTextPhysical(doc);
+  });
 
   // Abrir PDF em Tela Cheia no Safari nativo
   $("#docOpenFullScreenPdfBtn")?.addEventListener("click", () => {
@@ -1012,6 +1024,154 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
 }
 
 /**
+ * Abre janela de impressão limpa e padronizada A4 para assinatura física em papel
+ */
+export function printDocumentTextPhysical(doc) {
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Por favor, permita popups para imprimir a folha de assinatura física.");
+    return;
+  }
+  const dateFormatted = new Intl.DateTimeFormat("pt-BR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "America/Bahia",
+  }).format(new Date());
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>${esc(doc.Titulo || "Documento Oficial")}</title>
+  <style>
+    @page { size: A4 portrait; margin: 20mm 15mm 20mm 15mm; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      line-height: 1.5;
+      font-size: 11pt;
+      margin: 0;
+      padding: 24px;
+    }
+    .header {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .header-top {
+      font-size: 13.5pt;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #0f172a;
+    }
+    .header-sub {
+      font-size: 9.5pt;
+      color: #475569;
+      margin-top: 3px;
+    }
+    .title {
+      font-size: 12pt;
+      font-weight: 700;
+      text-align: center;
+      margin: 24px 0 20px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .meta-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 9.5pt;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .content {
+      white-space: pre-wrap;
+      text-align: justify;
+      font-size: 10pt;
+      line-height: 1.6;
+      margin-bottom: 35px;
+    }
+    .location-date {
+      text-align: right;
+      font-size: 10pt;
+      margin-bottom: 45px;
+    }
+    .signatures {
+      display: flex;
+      justify-content: space-around;
+      gap: 30px;
+      page-break-inside: avoid;
+    }
+    .sig-block {
+      flex: 1;
+      text-align: center;
+      font-size: 9.5pt;
+    }
+    .sig-line {
+      border-top: 1px solid #0f172a;
+      margin-bottom: 8px;
+    }
+    @media print {
+      body { padding: 0; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top">GRUPO HOUSE 190</div>
+    <div class="header-sub">Gestão de Recursos Humanos &bull; Unidade: ${esc(doc.NomeLoja || doc.LojaID || "Matriz")}</div>
+  </div>
+
+  <div class="meta-box">
+    <div><strong>Colaborador(a):</strong> ${esc(doc.NomeFuncionario)}</div>
+    <div><strong>CPF:</strong> ${esc(doc.CPFFuncionario || "---")}</div>
+    <div><strong>Emissão:</strong> ${dateFormatted}</div>
+  </div>
+
+  <div class="title">${esc(doc.Titulo)}</div>
+
+  <div class="content">${esc(doc.ConteudoTexto || "")}</div>
+
+  <div class="location-date">
+    Teixeira de Freitas - BA, ${dateFormatted}.
+  </div>
+
+  <div class="signatures">
+    <div class="sig-block">
+      <div class="sig-line"></div>
+      <strong>${esc(doc.NomeFuncionario)}</strong><br />
+      Colaborador(a) &bull; CPF: ${esc(doc.CPFFuncionario || "---")}
+    </div>
+    <div class="sig-block">
+      <div class="sig-line"></div>
+      <strong>GRUPO HOUSE 190</strong><br />
+      Empregador &bull; Recursos Humanos
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 350);
+    };
+  <\/script>
+</body>
+</html>`;
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
+/**
  * Abre o Modal de Emissão de Novo Documento (Upload PDF / Modelo)
  */
 export function openUploadDialog() {
@@ -1121,6 +1281,7 @@ export function openUploadDialog() {
       <div id="docModeTemplateSection" style="display:none; flex-direction:column; gap:0.75rem;">
         <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:4px; color:var(--muted, #64748b);">Modelo Predefinido</label>
         <select id="docTemplateSelect" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;">
+          <option value="termo-lgpd-consentimento">Termo de Consentimento LGPD (Tratamento de Dados e Atestados)</option>
           <option value="termo-regulamento">Termo de Ciência — Regulamento Interno</option>
           <option value="acordo-banco-horas">Acordo de Banco de Horas (Art. 59 CLT)</option>
           <option value="termo-epi-uniforme">Termo de Recebimento de EPI e Uniforme</option>

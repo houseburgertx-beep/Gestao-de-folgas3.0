@@ -3044,6 +3044,35 @@ test("Bootstrap e Google Auth são ultrarrápidos e resilientes a falhas", async
   assert.match(scriptsHtml, /localStorage\.getItem\("gf_google_logging_in"\)/, "Scripts.html deve verificar localStorage ao carregar após redirect");
 });
 
+test("LGPD, Termo de Consentimento Físico e Espelho de Ponto Portaria 671", async () => {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  // 1. Template de consentimento LGPD nos documentos
+  const apiDocs = await fs.readFile(path.resolve("src/core/api-documents.js"), "utf8");
+  assert.match(apiDocs, /"termo-lgpd-consentimento"/, "deve existir modelo de termo LGPD");
+  assert.match(apiDocs, /Lei nº 13\.709\/2018/, "modelo deve citar a LGPD");
+  assert.match(apiDocs, /dados sensíveis de saúde/, "modelo deve contemplar atestados médicos");
+
+  // 2. Opção no dropdown e botão de impressão via física nos documentos
+  const docsJs = await fs.readFile(path.resolve("src/documents.js"), "utf8");
+  assert.match(docsJs, /value="termo-lgpd-consentimento"/, "documents.js deve disponibilizar o modelo LGPD");
+  assert.match(docsJs, /id="docPrintPhysicalBtn"/, "documents.js deve conter botão de impressão via física");
+  assert.match(docsJs, /printDocumentTextPhysical/, "documents.js deve implementar impressão física A4");
+
+  // 3. Espelho de Ponto Portaria MTP 671/2021
+  const indexHtml = await fs.readFile(path.resolve("src/legacy/Index.html"), "utf8");
+  assert.match(indexHtml, /id="clockDownloadMirrorPdfBtn"/, "Index.html deve conter botão do espelho Portaria 671");
+  assert.match(indexHtml, /Portaria 671/, "Index.html deve destacar a Portaria 671");
+
+  const apiClock = await fs.readFile(path.resolve("src/core/api-clock.js"), "utf8");
+  assert.match(apiClock, /getMonthlyTimeClockMirrorData/, "api-clock deve implementar getMonthlyTimeClockMirrorData");
+
+  const scriptsHtml = await fs.readFile(path.resolve("src/legacy/Scripts.html"), "utf8");
+  assert.match(scriptsHtml, /clockMirrorData:\s*"getMonthlyTimeClockMirrorData"/, "Scripts.html deve mapear clockMirrorData");
+  assert.match(scriptsHtml, /openTimeClockMirrorPrint/, "Scripts.html deve implementar emissão e impressão do espelho de ponto");
+});
+
 
 
 

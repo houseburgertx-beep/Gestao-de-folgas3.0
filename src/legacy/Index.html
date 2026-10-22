@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.41" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.42" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -1092,6 +1092,15 @@
                   <p id="clockDaySummary">Mostrando somente o dia selecionado.</p>
                 </div>
                 <div class="clock-day-picker" aria-label="Selecionar dia do ponto">
+                  <button
+                    id="clockDownloadMirrorPdfBtn"
+                    class="btn btn-secondary clock-print-mirror-btn"
+                    type="button"
+                    style="font-size:12.5px; padding:6px 12px; border-radius:10px; display:inline-flex; align-items:center; gap:6px;"
+                    title="Baixar ou imprimir o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
+                  >
+                    📄 Espelho de Ponto (Portaria 671)
+                  </button>
                   <label for="clockDayFilter">Dia exibido</label>
                   <div>
                     <button

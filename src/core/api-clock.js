@@ -1864,6 +1864,67 @@ export function createClockHandlers() {
       });
     },
 
+    async getMonthlyTimeClockMirrorData(args) {
+      const values = dropClientToken(args);
+      const filters = values[0] || {};
+      const profile = await runtime.requireProfile();
+      const isCollab = !isAdmin(profile) && !isManager(profile);
+      const targetEmpId = isCollab
+        ? profile.FuncionarioID
+        : (filters.funcionarioId || profile.FuncionarioID);
+
+      const context = await clockContext({
+        ...filters,
+        funcionarioId: targetEmpId,
+      });
+
+      const employees = await runtime.list("Funcionarios", { profile });
+      const stores = await runtime.list("Lojas", { profile });
+      const employee =
+        employees.find((e) => String(e.FuncionarioID) === String(targetEmpId)) || {};
+      const store =
+        stores.find(
+          (s) => String(s.LojaID) === String(employee.LojaID || profile.LojaID),
+        ) || {};
+
+      return success(
+        {
+          month: context.month,
+          employee: {
+            nome: employee.Nome || profile.Nome || "Colaborador",
+            cpf: employee.CPF || "",
+            cargo: employee.Cargo || profile.Cargo || "Colaborador",
+            loja:
+              store.NomeLoja ||
+              employee.NomeLoja ||
+              profile.NomeLoja ||
+              "Grupo House 190",
+            cnpj: store.CNPJ || "Grupo House 190",
+            endereco: store.Morada
+              ? `${store.Morada}, ${store.Cidade || ""}`
+              : "Teixeira de Freitas - BA",
+          },
+          days: context.days.map((item) => ({
+            data: item.data,
+            entrada: item.entrada || "",
+            saidaIntervalo: item.saidaIntervalo || "",
+            retornoIntervalo: item.retornoIntervalo || "",
+            saida: item.saida || "",
+            trabalhado: item.trabalhadoTexto || "0h 00min",
+            previsto: item.previstoTexto || "0h 00min",
+            saldo: item.saldoTexto || "0h 00min",
+            folga: item.folga,
+            folgaFixa: item.folgaFixa,
+            justificado: item.justificado,
+            justificativa: item.justificativaTipo || "",
+            observacao: item.justificativaObservacao || "",
+          })),
+          summary: context.summary,
+        },
+        "Espelho de ponto apurado com sucesso.",
+      );
+    },
+
     async corrigirEntradasDuplicadasPonto() {
       const profile = await runtime.requireProfile();
       requireAdmin(profile);

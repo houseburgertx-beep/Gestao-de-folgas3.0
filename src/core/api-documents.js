@@ -219,6 +219,24 @@ DECLARO que recebi gratuitamente do GRUPO HOUSE 190, para uso exclusivo no desem
 
 Comprometo-me a utilizar os EPIs durante toda a jornada, zelar pela sua conservação, comunicar imediatamente qualquer avaria e devolvê-los no término do contrato de trabalho, ciente das obrigações da NR-6 e Art. 158 da CLT.`,
   },
+  "termo-lgpd-consentimento": {
+    titulo: "Termo de Consentimento para Tratamento de Dados Pessoais e Sensíveis (LGPD)",
+    tipo: "Consentimento LGPD",
+    conteudo: `TERMO DE CONSENTIMENTO E CIÊNCIA PARA TRATAMENTO DE DADOS PESSOAIS E SENSÍVEIS
+(LEI GERAL DE PROTEÇÃO DE DADOS PESSOAIS — LEI Nº 13.709/2018)
+
+Pelo presente instrumento particular, eu, {NOME}, inscrito(a) no CPF sob o nº {CPF}, admitido(a) na unidade {LOJA} do GRUPO HOUSE 190, manifesto expressamente minha ciência e livre consentimento para o tratamento de meus dados pessoais e dados sensíveis de saúde, nos seguintes termos:
+
+1. FINALIDADE E BASE LEGAL: Autorizo expressamente o GRUPO HOUSE 190 a coletar, tratar, armazenar e arquivar meus dados pessoais (nome, CPF, RG, dados bancários para pagamento, endereço, contatos e registros de jornada de trabalho) e dados sensíveis de saúde (atestados médicos, atestados odontológicos, declarações de comparecimento, licenças e laudos ocupacionais), estritamente para os fins de cumprimento do contrato de trabalho, apuração de escalas, folgas e ponto eletrônico, bem como cumprimento de obrigações legais, trabalhistas e previdenciárias (Art. 7º, incisos I e II, e Art. 11, inciso II, alínea 'a' da Lei nº 13.709/2018).
+
+2. ARMAZENAMENTO E SEGURANÇA: Fico ciente de que todos os meus dados e documentos serão armazenados em base de dados segura e restrita, dotada de controle de acesso, perfis hierárquicos e mecanismos de proteção digital, em estrita observância às diretrizes de segurança da informação previstas no Artigo 46 da LGPD.
+
+3. DADOS DE SAÚDE E SIGILO: A guarda de atestados médicos destina-se unicamente à justificação legal de faltas e abono de jornada de trabalho, comprometendo-se o empregador a manter o estrito sigilo ético e legal sobre diagnósticos e informações de saúde.
+
+4. DIREITOS DO TITULAR: Tenho ciência de que posso, a qualquer momento, exercer os direitos assegurados pelo Artigo 18 da Lei nº 13.709/2018, incluindo a consulta e atualização dos meus dados junto ao departamento de recursos humanos da empresa.
+
+E, por ser a expressão livre e consciente da minha vontade, firmo o presente termo para que produza todos os seus efeitos legais.`,
+  },
 });
 
 /**
