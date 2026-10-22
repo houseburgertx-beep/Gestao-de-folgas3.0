@@ -18876,7 +18876,7 @@ dialog#documentUploadDialog input[type="month"] {
               <span>Entrar com Conta Google</span>
             </button>
             <p id="loginError" class="login-error hidden"></p>
-            <p class="login-version">Folgas 3.0 &middot; CozinhaFlow v1.5.0</p>
+            <p class="login-version">Folgas 3.0 &middot; CozinhaFlow v1.5.0 &middot; <button type="button" id="forcePwaUpdateBtn" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:inherit;text-decoration:underline;padding:0;">Atualizar PWA</button></p>
           </form>
           <form id="resetPasswordForm" class="login-card hidden">
             <button
@@ -23361,6 +23361,25 @@ dialog#documentUploadDialog input[type="month"] {
     $("#loginForm").onsubmit = submitLogin;
     const googleBtn = $("#googleLoginBtn");
     if (googleBtn) googleBtn.onclick = submitGoogleLogin;
+    const forceUpdateBtn = $("#forcePwaUpdateBtn");
+    if (forceUpdateBtn) {
+      forceUpdateBtn.onclick = async () => {
+        setLoading(true);
+        try {
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (const r of regs) await r.unregister();
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            for (const k of keys) await caches.delete(k);
+          }
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch (_) {}
+        window.location.reload(true);
+      };
+    }
     $("#resetPasswordForm").onsubmit = confirmPasswordResetUI_;
     $("#resetPasswordBack").onclick = showLoginForm_;
     $("#resetPasswordResend").onclick = requestPasswordReset;

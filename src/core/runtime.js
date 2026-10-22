@@ -491,7 +491,13 @@ export class FirebaseRuntime {
   async completeGoogleAuth(user) {
     if (!user) return null;
     const normalizedUserEmail = normalizeEmail(user.email);
-    const isAdminEmail = normalizedUserEmail === "houseburgertx@gmail.com";
+    const ADMIN_EMAILS = new Set([
+      "houseburgertx@gmail.com",
+      "gleucedias1@gmail.com",
+      "gleucehouse@gmail.com",
+      "gleucehouse1@gmail.com",
+    ]);
+    const isAdminEmail = ADMIN_EMAILS.has(normalizedUserEmail);
 
     this.profile = null;
     let profile = await this.loadOwnProfile(true);

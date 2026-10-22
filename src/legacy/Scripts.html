@@ -1024,6 +1024,25 @@
     $("#loginForm").onsubmit = submitLogin;
     const googleBtn = $("#googleLoginBtn");
     if (googleBtn) googleBtn.onclick = submitGoogleLogin;
+    const forceUpdateBtn = $("#forcePwaUpdateBtn");
+    if (forceUpdateBtn) {
+      forceUpdateBtn.onclick = async () => {
+        setLoading(true);
+        try {
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (const r of regs) await r.unregister();
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            for (const k of keys) await caches.delete(k);
+          }
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch (_) {}
+        window.location.reload(true);
+      };
+    }
     $("#resetPasswordForm").onsubmit = confirmPasswordResetUI_;
     $("#resetPasswordBack").onclick = showLoginForm_;
     $("#resetPasswordResend").onclick = requestPasswordReset;
