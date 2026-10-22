@@ -12509,6 +12509,37 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   }
 }
 
+/* Status com Ícone Google para usuários migrados */
+.status-cell-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+.google-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+  cursor: help;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
+}
+.google-status-pill:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(66, 133, 244, 0.25);
+  border-color: #4285f4;
+}
+[data-theme="dark"] .google-status-pill {
+  background: var(--surface-2, #1e293b);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
 /* ==========================================================================
    COZINHA FLOW 3.0 — CSS Integrado no Folgas 3.0
    Mobile-First, Soft Clay, Gamificação, Selos, Títulos e Loja de Prêmios
@@ -20185,6 +20216,13 @@ dialog#documentUploadDialog input[type="month"] {
                 <span>Bloqueados</span
                 ><strong id="blockedUsersMetric">0</strong>
               </div>
+              <div class="metric-card">
+                <span style="display:inline-flex;align-items:center;gap:5px;">
+                  <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                  Migrados p/ Google
+                </span>
+                <strong id="googleUsersMetric">0</strong>
+              </div>
             </div>
             <div class="panel table-panel">
               <div class="table-wrap">
@@ -26071,7 +26109,23 @@ dialog#documentUploadDialog input[type="month"] {
             takeatDebt > 0
               ? `<span title="Débito em aberto no Takeat" style="display:inline-block; margin-top:3px; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">Prazo: - R$ ${takeatDebt.toFixed(2).replace(".", ",")}</span>`
               : "";
-          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação">${badge(active ? "Ativo" : "Inativo")}</td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
+          const userAcc = state.users.find(
+            (u) =>
+              String(val(u, "FuncionarioID", "funcionarioId")) === String(id) ||
+              (val(u, "Email", "email") &&
+                String(val(u, "Email", "email")).toLowerCase() ===
+                  String(val(x, "Email", "email")).toLowerCase()),
+          );
+          const isGoogle =
+            bool(val(x, "GoogleLinked", "googleLinked")) ||
+            Boolean(val(x, "EmailGoogle", "emailGoogle")) ||
+            (userAcc &&
+              (bool(val(userAcc, "GoogleLinked", "googleLinked")) ||
+                Boolean(val(userAcc, "EmailGoogle", "emailGoogle"))));
+          const googleIcon = isGoogle
+            ? `<span class="google-status-pill" title="Acesso vinculado à Conta Google" aria-label="Conta Google vinculada"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg></span>`
+            : "";
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação"><div class="status-cell-wrap">${badge(active ? "Ativo" : "Inativo")}${googleIcon}</div></td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -26160,6 +26214,26 @@ dialog#documentUploadDialog input[type="month"] {
     $("#blockedUsersMetric").textContent = users.filter((x) =>
       bool(val(x, "Bloqueado", "bloqueado")),
     ).length;
+    const googleCount = users.filter((x) => {
+      const emp = state.employees.find(
+        (e) =>
+          String(idOf(e, "Funcionario")) ===
+            String(val(x, "FuncionarioID", "funcionarioId")) ||
+          (val(e, "Email", "email") &&
+            String(val(e, "Email", "email")).toLowerCase() ===
+              String(val(x, "Email", "email")).toLowerCase()),
+      );
+      return (
+        bool(val(x, "GoogleLinked", "googleLinked")) ||
+        Boolean(val(x, "EmailGoogle", "emailGoogle")) ||
+        (emp &&
+          (bool(val(emp, "GoogleLinked", "googleLinked")) ||
+            Boolean(val(emp, "EmailGoogle", "emailGoogle"))))
+      );
+    }).length;
+    if ($("#googleUsersMetric")) {
+      $("#googleUsersMetric").textContent = googleCount;
+    }
     $("#accessBody").innerHTML =
       rows
         .map((x) => {
@@ -26168,8 +26242,28 @@ dialog#documentUploadDialog input[type="month"] {
               : idOf(x, "Funcionario"),
             store =
               val(x, "NomeLoja", "nomeLoja") ||
-              storeName(val(x, "LojaID", "lojaId"));
-          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td>${esc(store || "—")}</td><td>${x._hasAccess ? dateBR(val(x, "UltimoAcesso", "ultimoAcesso")) : "—"}</td><td>${x._hasAccess ? badge(bool(val(x, "Ativo", "ativo")) ? "Ativo" : "Inativo") : badge("Sem acesso")}</td><td><div class="row-actions"><button data-action="edit-access" data-id="${esc(id)}">${x._hasAccess ? "Editar" : "Criar acesso"}</button>${x._hasAccess ? `<button data-action="reset-access-pwd" data-id="${esc(id)}" title="Trocar senha">Trocar senha</button>` : ""}</div></td></tr>`;
+              storeName(val(x, "LojaID", "lojaId")),
+            emp = state.employees.find(
+              (e) =>
+                String(idOf(e, "Funcionario")) ===
+                  String(val(x, "FuncionarioID", "funcionarioId")) ||
+                (val(e, "Email", "email") &&
+                  String(val(e, "Email", "email")).toLowerCase() ===
+                    String(val(x, "Email", "email")).toLowerCase()),
+            ),
+            isGoogle =
+              bool(val(x, "GoogleLinked", "googleLinked")) ||
+              Boolean(val(x, "EmailGoogle", "emailGoogle")) ||
+              (emp &&
+                (bool(val(emp, "GoogleLinked", "googleLinked")) ||
+                  Boolean(val(emp, "EmailGoogle", "emailGoogle")))),
+            googleIcon = isGoogle
+              ? `<span class="google-status-pill" title="Acesso vinculado à Conta Google" aria-label="Conta Google vinculada"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg></span>`
+              : "",
+            statusCell = x._hasAccess
+              ? `<div class="status-cell-wrap">${badge(bool(val(x, "Ativo", "ativo")) ? "Ativo" : "Inativo")}${googleIcon}</div>`
+              : badge("Sem acesso");
+          return `<tr><td>${person(val(x, "Nome", "nome"), val(x, "Email", "email"))}</td><td>${esc(val(x, "Perfil", "perfil"))}</td><td>${esc(store || "—")}</td><td>${x._hasAccess ? dateBR(val(x, "UltimoAcesso", "ultimoAcesso")) : "—"}</td><td>${statusCell}</td><td><div class="row-actions"><button data-action="edit-access" data-id="${esc(id)}">${x._hasAccess ? "Editar" : "Criar acesso"}</button>${x._hasAccess ? `<button data-action="reset-access-pwd" data-id="${esc(id)}" title="Trocar senha">Trocar senha</button>` : ""}</div></td></tr>`;
         })
         .join("") || empty(6);
   }

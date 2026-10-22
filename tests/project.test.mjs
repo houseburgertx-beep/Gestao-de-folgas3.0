@@ -3014,7 +3014,13 @@ test("Login com Google e banner de vinculação na tela inicial", async () => {
   const redesignCss = await fs.readFile(path.resolve("src/redesign.css"), "utf8");
   assert.match(redesignCss, /\.google-link-banner/, "redesign.css deve estilizar .google-link-banner");
   assert.match(redesignCss, /\.btn-google/, "redesign.css deve estilizar .btn-google");
+  assert.match(redesignCss, /\.google-status-pill/, "redesign.css deve estilizar .google-status-pill");
+
+  // 6. Ícone do Google ao lado do status Ativo nos Acessos e Funcionários
+  assert.match(scriptsHtml, /google-status-pill/, "Scripts.html deve renderizar .google-status-pill para usuários migrados");
+  assert.match(indexHtml, /id="googleUsersMetric"/, "Index.html deve conter métrica de usuários migrados");
 });
+
 
 
 
