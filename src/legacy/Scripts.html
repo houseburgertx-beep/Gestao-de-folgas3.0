@@ -914,6 +914,7 @@
     $("#app").classList.add("hidden");
     $("#unauthorized").classList.add("hidden");
     $("#loginScreen").classList.remove("hidden");
+    $("#copilotFab")?.classList.add("hidden");
     showLoginForm_();
     setTimeout(() => $("#loginEmail").focus(), 50);
   }
@@ -921,6 +922,7 @@
     $("#loginScreen").classList.add("hidden");
     $("#loginError").classList.add("hidden");
     $("#resetPasswordError")?.classList.add("hidden");
+    $("#copilotFab")?.classList.remove("hidden");
   }
   function loginError(message) {
     const el = $("#loginError");

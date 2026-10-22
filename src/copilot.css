@@ -76,6 +76,10 @@
   .copilot-fab {
     display: flex;
   }
+  #loginScreen:not(.hidden) ~ .copilot-fab,
+  body:has(#loginScreen:not(.hidden)) .copilot-fab {
+    display: none !important;
+  }
 }
 
 /* Drawer Container */

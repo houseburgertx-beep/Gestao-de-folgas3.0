@@ -17631,6 +17631,10 @@ dialog#documentUploadDialog input[type="month"] {
   .copilot-fab {
     display: flex;
   }
+  #loginScreen:not(.hidden) ~ .copilot-fab,
+  body:has(#loginScreen:not(.hidden)) .copilot-fab {
+    display: none !important;
+  }
 }
 
 /* Drawer Container */
@@ -23094,6 +23098,7 @@ dialog#documentUploadDialog input[type="month"] {
     $("#app").classList.add("hidden");
     $("#unauthorized").classList.add("hidden");
     $("#loginScreen").classList.remove("hidden");
+    $("#copilotFab")?.classList.add("hidden");
     showLoginForm_();
     setTimeout(() => $("#loginEmail").focus(), 50);
   }
@@ -23101,6 +23106,7 @@ dialog#documentUploadDialog input[type="month"] {
     $("#loginScreen").classList.add("hidden");
     $("#loginError").classList.add("hidden");
     $("#resetPasswordError")?.classList.add("hidden");
+    $("#copilotFab")?.classList.remove("hidden");
   }
   function loginError(message) {
     const el = $("#loginError");
