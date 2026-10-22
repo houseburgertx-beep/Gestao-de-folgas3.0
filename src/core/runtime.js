@@ -226,10 +226,33 @@ export class FirebaseRuntime {
     this.app = getApps().length ? getApp() : initializeApp(this.config);
     this.auth = getAuth(this.app);
     this.db = getDatabase(this.app);
+
+    // Inicia a captura do redirect do Google imediatamente na inicialização
+    this.redirectPromise = getRedirectResult(this.auth).catch((err) => {
+      console.warn("Aviso ao iniciar getRedirectResult:", err);
+      return null;
+    });
+
     this.readyPromise = new Promise((resolve) => {
       const unsubscribe = onAuthStateChanged(this.auth, async (user) => {
         this.authResolved = true;
-        this.profile = user ? await this.loadOwnProfile().catch(() => null) : null;
+        if (user) {
+          let profile = await this.loadOwnProfile().catch(() => null);
+          const isGoogleUser = user.providerData?.some(
+            (p) => p.providerId === "google.com",
+          );
+          if (!profile && isGoogleUser) {
+            try {
+              await this.completeGoogleAuth(user);
+              profile = this.profile;
+            } catch (err) {
+              console.warn("Auto-completar auth do Google no onAuthStateChanged:", err);
+            }
+          }
+          this.profile = profile;
+        } else {
+          this.profile = null;
+        }
         unsubscribe();
         resolve(user);
       });
@@ -393,9 +416,19 @@ export class FirebaseRuntime {
       (window.navigator?.standalone === true ||
         window.matchMedia?.("(display-mode: standalone)")?.matches);
 
+    const isMobile =
+      isStandalone ||
+      (typeof navigator !== "undefined" &&
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent,
+        )) ||
+      (typeof window !== "undefined" && window.innerWidth <= 768);
+
     let user = null;
-    if (isStandalone) {
-      sessionStorage.setItem("gf_google_logging_in", "true");
+    if (isMobile) {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("gf_google_logging_in", "true");
+      }
       await signInWithRedirect(this.auth, provider);
       return null;
     }
@@ -413,7 +446,9 @@ export class FirebaseRuntime {
         msg.includes("popup-blocked") ||
         msg.includes("cancelled-popup-request")
       ) {
-        sessionStorage.setItem("gf_google_logging_in", "true");
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem("gf_google_logging_in", "true");
+        }
         await signInWithRedirect(this.auth, provider);
         return null;
       }
@@ -426,12 +461,28 @@ export class FirebaseRuntime {
   async checkRedirectResult() {
     if (!this.auth) return null;
     try {
-      const result = await getRedirectResult(this.auth).catch(() => null);
-      if (result?.user) {
-        return await this.completeGoogleAuth(result.user);
+      const result = await (this.redirectPromise || getRedirectResult(this.auth));
+      const user = result?.user || this.auth.currentUser;
+      if (user) {
+        const isGoogleUser =
+          user.providerData?.some((p) => p.providerId === "google.com") ||
+          (typeof sessionStorage !== "undefined" &&
+            sessionStorage.getItem("gf_google_logging_in") === "true");
+        if (isGoogleUser) {
+          if (typeof sessionStorage !== "undefined") {
+            sessionStorage.removeItem("gf_google_logging_in");
+          }
+          return await this.completeGoogleAuth(user);
+        }
       }
     } catch (err) {
       console.warn("Aviso ao processar redirect do Google:", err);
+      if (this.auth.currentUser) {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.removeItem("gf_google_logging_in");
+        }
+        return await this.completeGoogleAuth(this.auth.currentUser);
+      }
       throw err;
     }
     return null;
@@ -440,6 +491,7 @@ export class FirebaseRuntime {
   async completeGoogleAuth(user) {
     if (!user) return null;
     const normalizedUserEmail = normalizeEmail(user.email);
+    const isAdminEmail = normalizedUserEmail === "houseburgertx@gmail.com";
 
     this.profile = null;
     let profile = await this.loadOwnProfile(true);
@@ -471,6 +523,7 @@ export class FirebaseRuntime {
 
       const isFirstUser = !(await this.isInitialized());
       const role =
+        (isAdminEmail ? APP.profiles.admin : null) ||
         linkedEmployee?.Perfil ||
         (isFirstUser ? APP.profiles.admin : APP.profiles.employee);
 
@@ -484,7 +537,7 @@ export class FirebaseRuntime {
         NomeLoja: linkedEmployee?.NomeLoja || "",
         Cargo:
           linkedEmployee?.Cargo ||
-          (isFirstUser ? "Administrador" : "Colaborador"),
+          (isAdminEmail || isFirstUser ? "Administrador" : "Colaborador"),
         PrimeiroAcesso: false,
         Ativo: linkedEmployee ? linkedEmployee.Ativo !== false : true,
         GoogleLinked: true,
@@ -502,12 +555,17 @@ export class FirebaseRuntime {
       this.profile = clone(newProfile);
       profile = newProfile;
     } else {
+      const updateData = {
+        GoogleLinked: true,
+        UltimoAcesso: nowIso(),
+        DataAtualizacao: nowIso(),
+      };
+      if (isAdminEmail && profile.Perfil !== APP.profiles.admin) {
+        updateData.Perfil = APP.profiles.admin;
+        profile.Perfil = APP.profiles.admin;
+      }
       try {
-        await update(this.appRef(`access/${pathKey(user.uid)}`), {
-          GoogleLinked: true,
-          UltimoAcesso: nowIso(),
-          DataAtualizacao: nowIso(),
-        });
+        await update(this.appRef(`access/${pathKey(user.uid)}`), updateData);
         profile.GoogleLinked = true;
         this.profile = profile;
       } catch (updateErr) {

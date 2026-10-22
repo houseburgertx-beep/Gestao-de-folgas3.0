@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.36" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.37" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.36-firebase-github" />
+    <meta name="app-version" content="6.16.37-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -22334,7 +22334,7 @@ dialog#documentUploadDialog input[type="month"] {
   }, true);
 </script>
 <script src="./vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="./src/main.js?v=6.16.36"></script>
+<script type="module" src="./src/main.js?v=6.16.37"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22879,7 +22879,7 @@ dialog#documentUploadDialog input[type="month"] {
       installStartupSafety_();
 
       // Força limpeza de cache obsoleto quando a versão do sistema é atualizada
-      const APP_CLIENT_VERSION_ = "6.16.36";
+      const APP_CLIENT_VERSION_ = "6.16.37";
       const storedVersion = localStorage.getItem("gf_app_version");
       if (storedVersion && storedVersion !== APP_CLIENT_VERSION_) {
         localStorage.removeItem(TURBO_CACHE_KEY_);
@@ -22888,27 +22888,32 @@ dialog#documentUploadDialog input[type="month"] {
       }
       localStorage.setItem("gf_app_version", APP_CLIENT_VERSION_);
 
+      const isLoggingInWithGoogle = sessionStorage.getItem("gf_google_logging_in") === "true";
       const hasInitialSession = !!(sessionStorage.getItem("gf-session-token") || persistentSessionToken_());
       if (hasInitialSession) {
         if (restoreTurboShellCache_()) {
           setLoading(false);
         }
-      } else {
-        // Abertura ultrarrápida: exibe a tela de login em 0ms sem reter o spinner
+      } else if (!isLoggingInWithGoogle) {
+        // Abertura ultrarrápida: exibe a tela de login em 0ms sem reter o spinner (exceto se aguardando retorno do Google)
         showLogin();
         setLoading(false);
+      } else {
+        setLoading(true);
       }
 
       await waitForPortalApi_();
 
-      // Suporte nativo a PWA: processa retorno de redirect do Google
+      // Suporte nativo a mobile/PWA: processa retorno de redirect do Google
       const firebaseRuntime = window.__GESTAO_FIREBASE__?.runtime;
       if (firebaseRuntime) {
         try {
           await firebaseRuntime.ready();
           const redirectUser = await firebaseRuntime.checkRedirectResult().catch(() => null);
-          if (redirectUser) {
-            const token = await redirectUser.getIdToken();
+          const activeUser = redirectUser || (isLoggingInWithGoogle ? firebaseRuntime.auth?.currentUser : null);
+          if (activeUser) {
+            sessionStorage.removeItem("gf_google_logging_in");
+            const token = await activeUser.getIdToken();
             storeSessionToken_(token, true, Date.now() + PERSISTENT_SESSION_MAX_MS_);
             await loadApplication(false, true, token);
             toast("Login com Google realizado com sucesso.");
@@ -22918,6 +22923,7 @@ dialog#documentUploadDialog input[type="month"] {
           console.warn("Verificação de redirect do Google:", redirErr);
         }
       }
+      sessionStorage.removeItem("gf_google_logging_in");
 
       let token = sessionToken();
       if (!token && firebaseRuntime) {

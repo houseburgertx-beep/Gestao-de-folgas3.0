@@ -7,9 +7,21 @@
  * Estes identificadores não são uma senha. A proteção dos dados é feita pelo
  * Firebase Authentication e por database.rules.json.
  */
+const currentHostname =
+  typeof window !== "undefined" && window.location?.hostname
+    ? window.location.hostname
+    : "";
+const isCustomOrWebApp =
+  Boolean(currentHostname) &&
+  !currentHostname.includes("localhost") &&
+  !currentHostname.includes("127.0.0.1") &&
+  !currentHostname.includes("github.io");
+
 export const firebaseConfig = {
   apiKey: "AIzaSyAtjR9loeGSJEwNuciPAS-b2l1mqyKRmQA",
-  authDomain: "github-737ec.firebaseapp.com",
+  authDomain: isCustomOrWebApp
+    ? currentHostname
+    : "github-737ec.firebaseapp.com",
   databaseURL: "https://github-737ec-default-rtdb.firebaseio.com",
   projectId: "github-737ec",
   storageBucket: "github-737ec.firebasestorage.app",
