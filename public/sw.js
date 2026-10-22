@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.16.37";
+const CACHE_NAME = "house-folgas-v6.16.38";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.16.37",
+  "./manifest.webmanifest?v=6.16.38",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -14,11 +14,11 @@ const APP_SHELL = [
 ].map((path) => new URL(path, APP_BASE).href);
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(APP_SHELL)),
   );
 });
 
@@ -64,22 +64,20 @@ const staleWhileRevalidate = async (request) => {
 };
 
 const navigateHandler = async (request) => {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, networkResponse.clone());
+      return networkResponse;
+    }
+  } catch (_) {}
   const cache = await caches.open(CACHE_NAME);
   const cached =
     (await cache.match(request)) ||
     (await cache.match(new URL("./index.html", APP_BASE).href)) ||
     (await cache.match(new URL("./", APP_BASE).href));
-
-  const network = fetch(request)
-    .then(async (response) => {
-      if (response && response.ok) {
-        await cache.put(request, response.clone());
-      }
-      return response;
-    })
-    .catch(() => cached);
-
-  return cached || network;
+  return cached;
 };
 
 const cachedAsset = async (request) => {

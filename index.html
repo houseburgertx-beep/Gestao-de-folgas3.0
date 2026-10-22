@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.37" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.38" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.37-firebase-github" />
+    <meta name="app-version" content="6.16.38-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -22334,7 +22334,7 @@ dialog#documentUploadDialog input[type="month"] {
   }, true);
 </script>
 <script src="./vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="./src/main.js?v=6.16.37"></script>
+<script type="module" src="./src/main.js?v=6.16.38"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22909,8 +22909,13 @@ dialog#documentUploadDialog input[type="month"] {
       if (firebaseRuntime) {
         try {
           await firebaseRuntime.ready();
-          const redirectUser = await firebaseRuntime.checkRedirectResult().catch(() => null);
-          const activeUser = redirectUser || (isLoggingInWithGoogle ? firebaseRuntime.auth?.currentUser : null);
+          const redirectUser = await firebaseRuntime.checkRedirectResult().catch((e) => {
+            console.warn("checkRedirectResult erro:", e);
+            return null;
+          });
+          const currentUser = firebaseRuntime.auth?.currentUser;
+          const isGoogleUser = currentUser?.providerData?.some((p) => p.providerId === "google.com");
+          const activeUser = redirectUser || ((isLoggingInWithGoogle || isGoogleUser) ? currentUser : null);
           if (activeUser) {
             sessionStorage.removeItem("gf_google_logging_in");
             const token = await activeUser.getIdToken();
@@ -23377,7 +23382,8 @@ dialog#documentUploadDialog input[type="month"] {
           localStorage.clear();
           sessionStorage.clear();
         } catch (_) {}
-        window.location.reload(true);
+        const cleanUrl = window.location.origin + window.location.pathname + "?v=" + Date.now();
+        window.location.replace(cleanUrl);
       };
     }
     $("#resetPasswordForm").onsubmit = confirmPasswordResetUI_;

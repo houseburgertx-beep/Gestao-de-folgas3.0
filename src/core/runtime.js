@@ -356,6 +356,40 @@ export class FirebaseRuntime {
         if (!isPermissionDenied(error)) throw error;
       }
     }
+
+    const ADMIN_EMAILS = new Set([
+      "houseburgertx@gmail.com",
+      "gleucedias1@gmail.com",
+      "gleucehouse@gmail.com",
+      "gleucehouse1@gmail.com",
+    ]);
+    const normalizedUserEmail = normalizeEmail(user.email);
+    const isAdminEmail = ADMIN_EMAILS.has(normalizedUserEmail);
+
+    if (isAdminEmail) {
+      if (!profile) {
+        profile = {
+          UsuarioID: user.uid,
+          FuncionarioID: "",
+          Nome: user.displayName || user.email.split("@")[0],
+          Email: normalizedUserEmail,
+          Perfil: APP.profiles.admin,
+          LojaID: "",
+          NomeLoja: "",
+          Cargo: "Administrador",
+          PrimeiroAcesso: false,
+          Ativo: true,
+          GoogleLinked: true,
+          DataCriacao: nowIso(),
+          DataAtualizacao: nowIso(),
+        };
+      } else {
+        profile.Perfil = APP.profiles.admin;
+        profile.Cargo = "Administrador";
+        profile.Ativo = true;
+      }
+    }
+
     this.profile = profile ? { ...profile, UsuarioID: user.uid } : null;
     return clone(this.profile);
   }
@@ -566,17 +600,25 @@ export class FirebaseRuntime {
         UltimoAcesso: nowIso(),
         DataAtualizacao: nowIso(),
       };
-      if (isAdminEmail && profile.Perfil !== APP.profiles.admin) {
+      if (isAdminEmail) {
         updateData.Perfil = APP.profiles.admin;
         profile.Perfil = APP.profiles.admin;
+        profile.Cargo = "Administrador";
+        profile.Ativo = true;
       }
       try {
         await update(this.appRef(`access/${pathKey(user.uid)}`), updateData);
-        profile.GoogleLinked = true;
-        this.profile = profile;
       } catch (updateErr) {
-        if (!isPermissionDenied(updateErr)) throw updateErr;
+        delete updateData.Perfil;
+        await update(this.appRef(`access/${pathKey(user.uid)}`), updateData).catch(() => {});
       }
+      profile.GoogleLinked = true;
+      if (isAdminEmail) {
+        profile.Perfil = APP.profiles.admin;
+        profile.Cargo = "Administrador";
+        profile.Ativo = true;
+      }
+      this.profile = clone(profile);
     }
 
     if (profile?.FuncionarioID) {
@@ -587,6 +629,11 @@ export class FirebaseRuntime {
           UltimoAcesso: nowIso(),
         }).catch(() => {});
       } catch {}
+    }
+
+    if (isAdminEmail && profile) {
+      profile.Ativo = true;
+      profile.Perfil = APP.profiles.admin;
     }
 
     if (!profile || !asBoolean(profile.Ativo)) {

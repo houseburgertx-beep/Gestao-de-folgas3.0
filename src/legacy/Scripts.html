@@ -572,8 +572,13 @@
       if (firebaseRuntime) {
         try {
           await firebaseRuntime.ready();
-          const redirectUser = await firebaseRuntime.checkRedirectResult().catch(() => null);
-          const activeUser = redirectUser || (isLoggingInWithGoogle ? firebaseRuntime.auth?.currentUser : null);
+          const redirectUser = await firebaseRuntime.checkRedirectResult().catch((e) => {
+            console.warn("checkRedirectResult erro:", e);
+            return null;
+          });
+          const currentUser = firebaseRuntime.auth?.currentUser;
+          const isGoogleUser = currentUser?.providerData?.some((p) => p.providerId === "google.com");
+          const activeUser = redirectUser || ((isLoggingInWithGoogle || isGoogleUser) ? currentUser : null);
           if (activeUser) {
             sessionStorage.removeItem("gf_google_logging_in");
             const token = await activeUser.getIdToken();
@@ -1040,7 +1045,8 @@
           localStorage.clear();
           sessionStorage.clear();
         } catch (_) {}
-        window.location.reload(true);
+        const cleanUrl = window.location.origin + window.location.pathname + "?v=" + Date.now();
+        window.location.replace(cleanUrl);
       };
     }
     $("#resetPasswordForm").onsubmit = confirmPasswordResetUI_;
