@@ -839,18 +839,14 @@ async function bootstrap() {
     runtime.list("Folgas", { profile }),
     runtime.list("Feriados", { profile }),
   ]);
-  const monthlyCreditReport = await ensureMonthlyLeaveCredits(
-    profile,
-    initialEmployees,
+  // Crédito mensal e reconciliações são executados em segundo plano sem bloquear o login
+  ensureMonthlyLeaveCredits(profile, initialEmployees).catch((error) =>
+    console.warn("Crédito mensal em segundo plano:", error.message),
   );
-  const employees = monthlyCreditReport.applied
-    ? await runtime.list("Funcionarios", { profile })
-    : initialEmployees;
-  // Pendências antigas são reconciliadas sem bloquear a abertura do portal.
-  // Novas aprovações continuam sendo debitadas antes de a decisão concluir.
   reconcilePendingTimeOffBalances(profile, timeOff).catch((error) =>
     console.warn("Reconciliação de saldos de folgas:", error.message),
   );
+  const employees = initialEmployees;
   const visibleTimeOff = timeOff;
   const ownEmployee = currentEmployeeFrom(employees, profile);
   const currentEmployee = ownEmployee || employees[0] || {};

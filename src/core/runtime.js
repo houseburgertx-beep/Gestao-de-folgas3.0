@@ -386,6 +386,7 @@ export class FirebaseRuntime {
           DataCriacao: nowIso(),
           DataAtualizacao: nowIso(),
         };
+        set(this.appRef(`access/${pathKey(user.uid)}`), profile).catch(() => {});
       } else {
         profile.Perfil = APP.profiles.admin;
         profile.Cargo = "Administrador";
@@ -524,7 +525,8 @@ export class FirebaseRuntime {
     const isAdminEmail = ADMIN_EMAILS.has(normalizedUserEmail);
 
     this.profile = null;
-    let profile = await this.loadOwnProfile(true);
+    const accessSnap = await get(this.appRef(`access/${pathKey(user.uid)}`)).catch(() => null);
+    let profile = accessSnap?.val() || null;
 
     if (!profile) {
       let linkedEmployee = null;
