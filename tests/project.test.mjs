@@ -2980,6 +2980,43 @@ test("PDF.js nativo para visualização mobile e carimbo vertical no canhoto sem
   assert.match(apiDocCode, /maxH\s*=\s*12/, "maxH deve ser restrito a 12pt para não ultrapassar a linha divisória");
 });
 
+test("Login com Google e banner de vinculação na tela inicial", async () => {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  // 1. Botão de login com Google na tela de login
+  const indexHtml = await fs.readFile(path.resolve("src/legacy/Index.html"), "utf8");
+  assert.match(indexHtml, /id="googleLoginBtn"/, "Deve possuir o botão #googleLoginBtn na tela de login");
+  assert.match(indexHtml, /Entrar com Conta Google/, "Texto do botão Google deve estar presente");
+
+  // 2. Banner de vinculação no dashboard
+  assert.match(indexHtml, /id="googleLinkAlertBanner"/, "Deve possuir o banner #googleLinkAlertBanner no dashboard");
+  assert.match(indexHtml, /id="googleLinkBannerActionBtn"/, "Deve possuir botão de ação #googleLinkBannerActionBtn");
+  assert.match(indexHtml, /id="googleLinkBannerDismissBtn"/, "Deve possuir botão de dispensar #googleLinkBannerDismissBtn");
+
+  // 3. Métodos no runtime e api-base
+  const runtimeJs = await fs.readFile(path.resolve("src/core/runtime.js"), "utf8");
+  assert.match(runtimeJs, /async loginWithGoogle\(/, "runtime deve implementar loginWithGoogle");
+  assert.match(runtimeJs, /async linkGoogleAccount\(/, "runtime deve implementar linkGoogleAccount");
+  assert.match(runtimeJs, /GoogleAuthProvider/, "runtime deve instanciar GoogleAuthProvider");
+
+  const apiBaseJs = await fs.readFile(path.resolve("src/core/api-base.js"), "utf8");
+  assert.match(apiBaseJs, /async loginGoogleUser\(/, "api-base deve expor loginGoogleUser");
+  assert.match(apiBaseJs, /async linkGoogleAccount\(/, "api-base deve expor linkGoogleAccount");
+
+  // 4. Lógica no Scripts.html
+  const scriptsHtml = await fs.readFile(path.resolve("src/legacy/Scripts.html"), "utf8");
+  assert.match(scriptsHtml, /checkGoogleLinkBanner_\(\)/, "Scripts.html deve checar banner ao carregar dashboard");
+  assert.match(scriptsHtml, /handleLinkGoogleAccount_/, "Scripts.html deve vincular conta Google");
+  assert.match(scriptsHtml, /handleDismissGoogleBanner_/, "Scripts.html deve permitir dispensar banner");
+
+  // 5. Estilos no redesign.css
+  const redesignCss = await fs.readFile(path.resolve("src/redesign.css"), "utf8");
+  assert.match(redesignCss, /\.google-link-banner/, "redesign.css deve estilizar .google-link-banner");
+  assert.match(redesignCss, /\.btn-google/, "redesign.css deve estilizar .btn-google");
+});
+
+
 
 
 

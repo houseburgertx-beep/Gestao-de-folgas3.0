@@ -12295,6 +12295,220 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   border-color: #f87171 !important;
 }
 
+/* Divisor e Botão de Login com Conta Google */
+.login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 18px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--line);
+}
+.login-divider span {
+  padding: 0 12px;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+.btn-google {
+  width: 100%;
+  min-height: 48px;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.btn-google:hover {
+  background: var(--surface-2, #f8fafc) !important;
+  border-color: var(--primary, #1B365D) !important;
+  color: var(--primary, #1B365D) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+.btn-google:active {
+  transform: scale(0.98);
+}
+.google-icon {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+[data-theme="dark"] .btn-google {
+  background: var(--surface-2, #1e293b) !important;
+  border-color: var(--line, #334155) !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .btn-google:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #fff !important;
+}
+
+/* Banner de incentivo ao login com Google no Dashboard (Apple-like) */
+.google-link-banner {
+  margin: 0 0 20px 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.06) 0%, rgba(52, 168, 83, 0.04) 50%, rgba(251, 188, 5, 0.05) 100%), var(--surface);
+  border: 1px solid rgba(66, 133, 244, 0.25);
+  box-shadow: 0 4px 20px -2px rgba(66, 133, 244, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-bottom 0.3s ease;
+}
+.google-link-banner.banner-fade-out {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  margin-bottom: 0;
+  pointer-events: none;
+}
+.google-link-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+}
+.google-link-banner-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--line);
+}
+.google-link-banner-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.google-link-banner-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1a73e8;
+  background: rgba(66, 133, 244, 0.12);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 4px;
+}
+.google-link-banner-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+.google-link-banner-text {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.google-link-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.btn-google-banner-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  background: #1a73e8;
+  color: #fff !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.35);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+.btn-google-banner-action:hover {
+  background: #1557b0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.45);
+}
+.btn-google-banner-action:active {
+  transform: scale(0.97);
+}
+.btn-google-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-google-banner-dismiss:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+  color: var(--text);
+}
+[data-theme="dark"] .google-link-banner {
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.12) 0%, rgba(52, 168, 83, 0.08) 50%, rgba(251, 188, 5, 0.08) 100%), var(--surface);
+  border-color: rgba(66, 133, 244, 0.35);
+}
+[data-theme="dark"] .google-link-banner-icon {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] .google-link-banner-badge {
+  background: rgba(66, 133, 244, 0.25);
+  color: #8ab4f8;
+}
+@media (max-width: 768px) {
+  .google-link-banner-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 14px;
+  }
+  .google-link-banner-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-google-banner-action {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .btn-google-banner-dismiss {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* ==========================================================================
    COZINHA FLOW 3.0 — CSS Integrado no Folgas 3.0
    Mobile-First, Soft Clay, Gamificação, Selos, Títulos e Loja de Prêmios
@@ -18518,6 +18732,18 @@ dialog#documentUploadDialog input[type="month"] {
             <button class="btn btn-primary login-submit btn-glow" type="submit">
               Entrar no portal
             </button>
+            <div class="login-divider">
+              <span>ou continue com</span>
+            </div>
+            <button id="googleLoginBtn" type="button" class="btn btn-google">
+              <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Entrar com Conta Google</span>
+            </button>
             <p id="loginError" class="login-error hidden"></p>
             <p class="login-version">Folgas 3.0 &middot; CozinhaFlow v1.5.0</p>
           </form>
@@ -18808,6 +19034,35 @@ dialog#documentUploadDialog input[type="month"] {
                 ><button class="btn btn-primary" id="dashboardNewTimeOff">
                   ＋ Criar folga
                 </button>
+              </div>
+            </div>
+            <div id="googleLinkAlertBanner" class="google-link-banner hidden" role="region" aria-label="Aviso de Login com Google">
+              <div class="google-link-banner-inner">
+                <div class="google-link-banner-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
+                </div>
+                <div class="google-link-banner-body">
+                  <div class="google-link-banner-badge">Novo • Acesso Rápido com Google</div>
+                  <strong class="google-link-banner-title">Mude para o login com a Conta Google</strong>
+                  <p class="google-link-banner-text">Conecte sua conta Google para entrar com apenas 1 clique de forma mais rápida e segura. A partir da vinculação, seu acesso será feito diretamente com o Google.</p>
+                </div>
+                <div class="google-link-banner-actions">
+                  <button type="button" id="googleLinkBannerActionBtn" class="btn-google-banner-action">
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span>Vincular Conta Google</span>
+                  </button>
+                  <button type="button" id="googleLinkBannerDismissBtn" class="btn-google-banner-dismiss">Agora não</button>
+                </div>
               </div>
             </div>
             <div id="journeyHome" class="journey-bento"></div>
@@ -21986,6 +22241,8 @@ dialog#documentUploadDialog input[type="month"] {
   window.__GESTAO_STATE__ = state;
   const FN = {
     login: "loginUser",
+    loginGoogle: "loginGoogleUser",
+    linkGoogle: "linkGoogleAccount",
     logout: "logoutUser",
     resetPassword: "requestPasswordReset",
     confirmPasswordReset: "confirmPasswordReset",
@@ -22522,7 +22779,11 @@ dialog#documentUploadDialog input[type="month"] {
       text.includes("session") ||
       text.includes("expirou") ||
       text.includes("token") ||
-      text.includes("entre novamente")
+      text.includes("entre novamente") ||
+      text.includes("não está ativo") ||
+      text.includes("não foi vinculado") ||
+      text.includes("inativo ou não foi configurado") ||
+      text.includes("acesso está inativo")
     );
   }
 
@@ -22900,6 +23161,8 @@ dialog#documentUploadDialog input[type="month"] {
       true,
     );
     $("#loginForm").onsubmit = submitLogin;
+    const googleBtn = $("#googleLoginBtn");
+    if (googleBtn) googleBtn.onclick = submitGoogleLogin;
     $("#resetPasswordForm").onsubmit = confirmPasswordResetUI_;
     $("#resetPasswordBack").onclick = showLoginForm_;
     $("#resetPasswordResend").onclick = requestPasswordReset;
@@ -23074,6 +23337,10 @@ dialog#documentUploadDialog input[type="month"] {
     $("#absencesNewBtn") && ($("#absencesNewBtn").onclick = () => openNewClockJustification_());
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
+    $("#googleLinkBannerActionBtn") &&
+      ($("#googleLinkBannerActionBtn").onclick = handleLinkGoogleAccount_);
+    $("#googleLinkBannerDismissBtn") &&
+      ($("#googleLinkBannerDismissBtn").onclick = handleDismissGoogleBanner_);
     if ($("#adminHourBalanceRefresh")) $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
     if ($("#adminHourBalanceMonth")) $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
     if ($("#adminHourBalanceSearch")) $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
@@ -23349,6 +23616,51 @@ dialog#documentUploadDialog input[type="month"] {
     } finally {
       setLoading(false);
       releaseFormSubmission_($("#loginForm"));
+    }
+  }
+
+  async function submitGoogleLogin() {
+    setLoading(true);
+    loginError("");
+    try {
+      const remember = $("#rememberLogin")?.checked !== false;
+      const result = await call(FN.loginGoogle, { remember });
+      if (!result)
+        throw new Error("Não foi possível autenticar com o Google.");
+      const token = val(result, "token", "sessionToken");
+      if (token) {
+        storeSessionToken_(
+          token,
+          remember && result.rememberPersisted !== false,
+          Number(result.rememberExpiresAt || 0),
+        );
+      }
+      if (result.bootstrap) applyBootstrapData(result.bootstrap);
+      else await loadApplication(false, true, token);
+      toast("Login com Google realizado com sucesso.");
+    } catch (err) {
+      console.error("Falha no login com Google:", err);
+      const code = String(err?.code || "");
+      const msg = String(err?.message || err || "");
+      if (
+        code.includes("popup-closed-by-user") ||
+        msg.includes("popup-closed-by-user") ||
+        msg.includes("cancelled-popup-request")
+      ) {
+        return;
+      }
+      if (
+        code.includes("unauthorized-domain") ||
+        msg.includes("unauthorized-domain")
+      ) {
+        loginError(
+          "Domínio não autorizado no Firebase. Adicione este domínio em Authentication > Settings > Authorized domains no console do Firebase.",
+        );
+        return;
+      }
+      loginError(msg || "Não foi possível autenticar com o Google.");
+    } finally {
+      setLoading(false);
     }
   }
   async function logoutApplication() {
@@ -23807,6 +24119,15 @@ dialog#documentUploadDialog input[type="month"] {
       })
       .catch((error) => {
         console.error("Falha na sincronização dos dados:", error);
+        if (isSessionError_(error?.message)) {
+          clearStoredSession_();
+          showLogin();
+          loginError(
+            error?.message ||
+              "Este acesso não está ativo ou não foi vinculado. Fale com o administrador.",
+          );
+          throw error;
+        }
         toast(
           "A interface abriu, mas os dados não terminaram de sincronizar. " +
             (error?.message || "Tente atualizar."),
@@ -24269,6 +24590,87 @@ dialog#documentUploadDialog input[type="month"] {
       }
     } catch (e) {
       if (alertEl) alertEl.classList.add("hidden");
+    }
+  }
+
+  function checkGoogleLinkBanner_() {
+    const alertEl = $("#googleLinkAlertBanner");
+    if (!alertEl) return;
+    const user = state.user;
+    if (!user || !sessionToken()) {
+      alertEl.classList.add("hidden");
+      return;
+    }
+
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+    const isGoogleLinked = asBoolean(user.GoogleLinked) || asBoolean(user.googleLinked);
+    const isDismissed = localStorage.getItem("gf_google_prompt_dismissed_" + uid) === "true";
+
+    if (isGoogleLinked || isDismissed) {
+      alertEl.classList.add("hidden");
+      return;
+    }
+
+    alertEl.classList.remove("hidden", "banner-fade-out");
+  }
+
+  async function handleLinkGoogleAccount_() {
+    const actionBtn = $("#googleLinkBannerActionBtn");
+    const alertEl = $("#googleLinkAlertBanner");
+    if (actionBtn) {
+      actionBtn.disabled = true;
+      actionBtn.classList.add("action-busy");
+    }
+    try {
+      const res = await call(FN.linkGoogle);
+      if (res && res.user) {
+        state.user = {
+          ...state.user,
+          ...res.user,
+          GoogleLinked: true,
+          googleLinked: true,
+        };
+      } else if (state.user) {
+        state.user.GoogleLinked = true;
+        state.user.googleLinked = true;
+      }
+      const uid = String(state.user?.UsuarioID || state.user?.usuarioId || state.user?.id || "").trim();
+      if (uid) {
+        localStorage.setItem("gf_google_prompt_dismissed_" + uid, "true");
+      }
+      if (alertEl) {
+        alertEl.classList.add("banner-fade-out");
+        setTimeout(() => alertEl.classList.add("hidden"), 300);
+      }
+      toast("Conta Google vinculada com sucesso! Nas próximas vezes, entre diretamente pelo botão Google.");
+    } catch (err) {
+      console.error("Erro ao vincular Conta Google:", err);
+      const msg = String(err?.message || err || "");
+      if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request")) {
+        return;
+      }
+      if (msg.includes("unauthorized-domain")) {
+        toast("Domínio não autorizado no Firebase Authentication.", true);
+        return;
+      }
+      toast(msg || "Não foi possível vincular a Conta Google.", true);
+    } finally {
+      if (actionBtn) {
+        actionBtn.disabled = false;
+        actionBtn.classList.remove("action-busy");
+      }
+    }
+  }
+
+  function handleDismissGoogleBanner_() {
+    const alertEl = $("#googleLinkAlertBanner");
+    const uid = String(state.user?.UsuarioID || state.user?.usuarioId || state.user?.id || "").trim();
+    if (uid) {
+      localStorage.setItem("gf_google_prompt_dismissed_" + uid, "true");
+    }
+    if (alertEl) {
+      alertEl.classList.add("banner-fade-out");
+      setTimeout(() => alertEl.classList.add("hidden"), 300);
     }
   }
 
@@ -25272,6 +25674,7 @@ dialog#documentUploadDialog input[type="month"] {
     renderStoreChart();
     renderPendingCenterSummary_();
     if (typeof renderProximaFolga === "function") renderProximaFolga();
+    checkGoogleLinkBanner_();
     checkIncompletePunches_();
     checkPendingDocuments_();
     loadLivePresence_();

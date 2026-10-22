@@ -3102,3 +3102,217 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   color: #fca5a5 !important;
   border-color: #f87171 !important;
 }
+
+/* Divisor e Botão de Login com Conta Google */
+.login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 18px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--line);
+}
+.login-divider span {
+  padding: 0 12px;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+.btn-google {
+  width: 100%;
+  min-height: 48px;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.btn-google:hover {
+  background: var(--surface-2, #f8fafc) !important;
+  border-color: var(--primary, #1B365D) !important;
+  color: var(--primary, #1B365D) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+.btn-google:active {
+  transform: scale(0.98);
+}
+.google-icon {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+[data-theme="dark"] .btn-google {
+  background: var(--surface-2, #1e293b) !important;
+  border-color: var(--line, #334155) !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .btn-google:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #fff !important;
+}
+
+/* Banner de incentivo ao login com Google no Dashboard (Apple-like) */
+.google-link-banner {
+  margin: 0 0 20px 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.06) 0%, rgba(52, 168, 83, 0.04) 50%, rgba(251, 188, 5, 0.05) 100%), var(--surface);
+  border: 1px solid rgba(66, 133, 244, 0.25);
+  box-shadow: 0 4px 20px -2px rgba(66, 133, 244, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-bottom 0.3s ease;
+}
+.google-link-banner.banner-fade-out {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  margin-bottom: 0;
+  pointer-events: none;
+}
+.google-link-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+}
+.google-link-banner-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--line);
+}
+.google-link-banner-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.google-link-banner-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1a73e8;
+  background: rgba(66, 133, 244, 0.12);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 4px;
+}
+.google-link-banner-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+.google-link-banner-text {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.google-link-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.btn-google-banner-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  background: #1a73e8;
+  color: #fff !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.35);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+.btn-google-banner-action:hover {
+  background: #1557b0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.45);
+}
+.btn-google-banner-action:active {
+  transform: scale(0.97);
+}
+.btn-google-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-google-banner-dismiss:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+  color: var(--text);
+}
+[data-theme="dark"] .google-link-banner {
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.12) 0%, rgba(52, 168, 83, 0.08) 50%, rgba(251, 188, 5, 0.08) 100%), var(--surface);
+  border-color: rgba(66, 133, 244, 0.35);
+}
+[data-theme="dark"] .google-link-banner-icon {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] .google-link-banner-badge {
+  background: rgba(66, 133, 244, 0.25);
+  color: #8ab4f8;
+}
+@media (max-width: 768px) {
+  .google-link-banner-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 14px;
+  }
+  .google-link-banner-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-google-banner-action {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .btn-google-banner-dismiss {
+    width: 100%;
+    justify-content: center;
+  }
+}

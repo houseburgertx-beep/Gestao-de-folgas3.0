@@ -61,6 +61,8 @@
   window.__GESTAO_STATE__ = state;
   const FN = {
     login: "loginUser",
+    loginGoogle: "loginGoogleUser",
+    linkGoogle: "linkGoogleAccount",
     logout: "logoutUser",
     resetPassword: "requestPasswordReset",
     confirmPasswordReset: "confirmPasswordReset",
@@ -597,7 +599,11 @@
       text.includes("session") ||
       text.includes("expirou") ||
       text.includes("token") ||
-      text.includes("entre novamente")
+      text.includes("entre novamente") ||
+      text.includes("não está ativo") ||
+      text.includes("não foi vinculado") ||
+      text.includes("inativo ou não foi configurado") ||
+      text.includes("acesso está inativo")
     );
   }
 
@@ -975,6 +981,8 @@
       true,
     );
     $("#loginForm").onsubmit = submitLogin;
+    const googleBtn = $("#googleLoginBtn");
+    if (googleBtn) googleBtn.onclick = submitGoogleLogin;
     $("#resetPasswordForm").onsubmit = confirmPasswordResetUI_;
     $("#resetPasswordBack").onclick = showLoginForm_;
     $("#resetPasswordResend").onclick = requestPasswordReset;
@@ -1149,6 +1157,10 @@
     $("#absencesNewBtn") && ($("#absencesNewBtn").onclick = () => openNewClockJustification_());
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
+    $("#googleLinkBannerActionBtn") &&
+      ($("#googleLinkBannerActionBtn").onclick = handleLinkGoogleAccount_);
+    $("#googleLinkBannerDismissBtn") &&
+      ($("#googleLinkBannerDismissBtn").onclick = handleDismissGoogleBanner_);
     if ($("#adminHourBalanceRefresh")) $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
     if ($("#adminHourBalanceMonth")) $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
     if ($("#adminHourBalanceSearch")) $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
@@ -1424,6 +1436,51 @@
     } finally {
       setLoading(false);
       releaseFormSubmission_($("#loginForm"));
+    }
+  }
+
+  async function submitGoogleLogin() {
+    setLoading(true);
+    loginError("");
+    try {
+      const remember = $("#rememberLogin")?.checked !== false;
+      const result = await call(FN.loginGoogle, { remember });
+      if (!result)
+        throw new Error("Não foi possível autenticar com o Google.");
+      const token = val(result, "token", "sessionToken");
+      if (token) {
+        storeSessionToken_(
+          token,
+          remember && result.rememberPersisted !== false,
+          Number(result.rememberExpiresAt || 0),
+        );
+      }
+      if (result.bootstrap) applyBootstrapData(result.bootstrap);
+      else await loadApplication(false, true, token);
+      toast("Login com Google realizado com sucesso.");
+    } catch (err) {
+      console.error("Falha no login com Google:", err);
+      const code = String(err?.code || "");
+      const msg = String(err?.message || err || "");
+      if (
+        code.includes("popup-closed-by-user") ||
+        msg.includes("popup-closed-by-user") ||
+        msg.includes("cancelled-popup-request")
+      ) {
+        return;
+      }
+      if (
+        code.includes("unauthorized-domain") ||
+        msg.includes("unauthorized-domain")
+      ) {
+        loginError(
+          "Domínio não autorizado no Firebase. Adicione este domínio em Authentication > Settings > Authorized domains no console do Firebase.",
+        );
+        return;
+      }
+      loginError(msg || "Não foi possível autenticar com o Google.");
+    } finally {
+      setLoading(false);
     }
   }
   async function logoutApplication() {
@@ -1882,6 +1939,15 @@
       })
       .catch((error) => {
         console.error("Falha na sincronização dos dados:", error);
+        if (isSessionError_(error?.message)) {
+          clearStoredSession_();
+          showLogin();
+          loginError(
+            error?.message ||
+              "Este acesso não está ativo ou não foi vinculado. Fale com o administrador.",
+          );
+          throw error;
+        }
         toast(
           "A interface abriu, mas os dados não terminaram de sincronizar. " +
             (error?.message || "Tente atualizar."),
@@ -2344,6 +2410,87 @@
       }
     } catch (e) {
       if (alertEl) alertEl.classList.add("hidden");
+    }
+  }
+
+  function checkGoogleLinkBanner_() {
+    const alertEl = $("#googleLinkAlertBanner");
+    if (!alertEl) return;
+    const user = state.user;
+    if (!user || !sessionToken()) {
+      alertEl.classList.add("hidden");
+      return;
+    }
+
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+    const isGoogleLinked = asBoolean(user.GoogleLinked) || asBoolean(user.googleLinked);
+    const isDismissed = localStorage.getItem("gf_google_prompt_dismissed_" + uid) === "true";
+
+    if (isGoogleLinked || isDismissed) {
+      alertEl.classList.add("hidden");
+      return;
+    }
+
+    alertEl.classList.remove("hidden", "banner-fade-out");
+  }
+
+  async function handleLinkGoogleAccount_() {
+    const actionBtn = $("#googleLinkBannerActionBtn");
+    const alertEl = $("#googleLinkAlertBanner");
+    if (actionBtn) {
+      actionBtn.disabled = true;
+      actionBtn.classList.add("action-busy");
+    }
+    try {
+      const res = await call(FN.linkGoogle);
+      if (res && res.user) {
+        state.user = {
+          ...state.user,
+          ...res.user,
+          GoogleLinked: true,
+          googleLinked: true,
+        };
+      } else if (state.user) {
+        state.user.GoogleLinked = true;
+        state.user.googleLinked = true;
+      }
+      const uid = String(state.user?.UsuarioID || state.user?.usuarioId || state.user?.id || "").trim();
+      if (uid) {
+        localStorage.setItem("gf_google_prompt_dismissed_" + uid, "true");
+      }
+      if (alertEl) {
+        alertEl.classList.add("banner-fade-out");
+        setTimeout(() => alertEl.classList.add("hidden"), 300);
+      }
+      toast("Conta Google vinculada com sucesso! Nas próximas vezes, entre diretamente pelo botão Google.");
+    } catch (err) {
+      console.error("Erro ao vincular Conta Google:", err);
+      const msg = String(err?.message || err || "");
+      if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request")) {
+        return;
+      }
+      if (msg.includes("unauthorized-domain")) {
+        toast("Domínio não autorizado no Firebase Authentication.", true);
+        return;
+      }
+      toast(msg || "Não foi possível vincular a Conta Google.", true);
+    } finally {
+      if (actionBtn) {
+        actionBtn.disabled = false;
+        actionBtn.classList.remove("action-busy");
+      }
+    }
+  }
+
+  function handleDismissGoogleBanner_() {
+    const alertEl = $("#googleLinkAlertBanner");
+    const uid = String(state.user?.UsuarioID || state.user?.usuarioId || state.user?.id || "").trim();
+    if (uid) {
+      localStorage.setItem("gf_google_prompt_dismissed_" + uid, "true");
+    }
+    if (alertEl) {
+      alertEl.classList.add("banner-fade-out");
+      setTimeout(() => alertEl.classList.add("hidden"), 300);
     }
   }
 
@@ -3347,6 +3494,7 @@
     renderStoreChart();
     renderPendingCenterSummary_();
     if (typeof renderProximaFolga === "function") renderProximaFolga();
+    checkGoogleLinkBanner_();
     checkIncompletePunches_();
     checkPendingDocuments_();
     loadLivePresence_();

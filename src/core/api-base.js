@@ -38,6 +38,8 @@ export const sessionUser = (profile) => ({
   NomeLoja: profile.NomeLoja || "",
   Cargo: profile.Cargo || "",
   Ativo: asBoolean(profile.Ativo),
+  GoogleLinked: asBoolean(profile.GoogleLinked),
+  googleLinked: asBoolean(profile.GoogleLinked),
 });
 
 const dropClientToken = (args) => {
@@ -1422,6 +1424,39 @@ export function createBaseHandlers() {
           bootstrap: data,
         },
         "Login realizado.",
+      );
+    },
+
+    async loginGoogleUser(args) {
+      const payload = args[0] || {};
+      const shouldRemember = payload.remember !== false;
+      const user = await runtime.loginWithGoogle(shouldRemember);
+      const data = await bootstrap();
+      const token = await user.getIdToken();
+      return success(
+        {
+          token,
+          sessionToken: token,
+          user: data.user,
+          rememberPersisted: shouldRemember,
+          rememberExpiresAt: shouldRemember
+            ? Date.now() + 180 * 24 * 60 * 60 * 1000
+            : 0,
+          bootstrap: data,
+        },
+        "Login com Google realizado com sucesso.",
+      );
+    },
+
+    async linkGoogleAccount() {
+      const res = await runtime.linkGoogleAccount();
+      const data = await bootstrap();
+      return success(
+        {
+          ...res,
+          user: data.user,
+        },
+        "Conta Google vinculada com sucesso! A partir de agora, entre com o Google.",
       );
     },
 

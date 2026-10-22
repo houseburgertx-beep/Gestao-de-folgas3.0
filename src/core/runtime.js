@@ -11,11 +11,14 @@ import {
   deleteUser,
   EmailAuthProvider,
   getAuth,
+  GoogleAuthProvider,
+  linkWithPopup,
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateEmail,
   updatePassword,
@@ -252,6 +255,48 @@ export class FirebaseRuntime {
     if (this.profile && !force) return clone(this.profile);
     const snapshot = await get(this.appRef(`access/${pathKey(user.uid)}`));
     let profile = snapshot.val();
+    if ((!profile || !profile.FuncionarioID) && user.email) {
+      try {
+        let employeeSnapshot = await get(
+          query(
+            this.appRef("tables/Funcionarios"),
+            orderByChild("AuthUID"),
+            equalTo(user.uid),
+          ),
+        );
+        let employee = snapshotList(employeeSnapshot)[0];
+        if (!employee) {
+          employeeSnapshot = await get(
+            query(
+              this.appRef("tables/Funcionarios"),
+              orderByChild("Email"),
+              equalTo(normalizeEmail(user.email)),
+            ),
+          );
+          employee = snapshotList(employeeSnapshot)[0];
+        }
+        if (employee && employee.Ativo !== false) {
+          profile = {
+            ...(profile || {}),
+            UsuarioID: user.uid,
+            FuncionarioID: employee.FuncionarioID || "",
+            Nome: profile?.Nome || employee.Nome || "",
+            Email: normalizeEmail(user.email),
+            Perfil: profile?.Perfil || employee.Perfil || APP.profiles.employee,
+            LojaID: profile?.LojaID || employee.LojaID || "",
+            NomeLoja: profile?.NomeLoja || employee.NomeLoja || "",
+            Cargo: profile?.Cargo || employee.Cargo || "",
+            PrimeiroAcesso: false,
+            Ativo: true,
+            DataCriacao: profile?.DataCriacao || nowIso(),
+            DataAtualizacao: nowIso(),
+          };
+          await update(this.appRef(`access/${pathKey(user.uid)}`), profile).catch(() => {});
+        }
+      } catch (autoErr) {
+        if (!isPermissionDenied(autoErr)) console.warn("Auto-recuperação de perfil:", autoErr);
+      }
+    }
     if (profile?.FuncionarioID) {
       try {
         const employeeSnapshot = await get(
@@ -330,6 +375,176 @@ export class FirebaseRuntime {
       this.profile = clone(profile);
     }
     return credential.user;
+  }
+
+  async loginWithGoogle(remember = true) {
+    await setPersistence(
+      this.auth,
+      remember !== false ? browserLocalPersistence : browserSessionPersistence,
+    );
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    const credential = await signInWithPopup(this.auth, provider);
+    const user = credential.user;
+    const normalizedUserEmail = normalizeEmail(user.email);
+
+    this.profile = null;
+    let profile = await this.loadOwnProfile(true);
+
+    if (!profile) {
+      let linkedEmployee = null;
+      try {
+        const empSnap = await get(
+          query(
+            this.appRef("tables/Funcionarios"),
+            orderByChild("Email"),
+            equalTo(normalizedUserEmail),
+          ),
+        );
+        linkedEmployee = snapshotList(empSnap)[0];
+        if (!linkedEmployee) {
+          const empSnapAuth = await get(
+            query(
+              this.appRef("tables/Funcionarios"),
+              orderByChild("AuthUID"),
+              equalTo(user.uid),
+            ),
+          );
+          linkedEmployee = snapshotList(empSnapAuth)[0];
+        }
+      } catch (err) {
+        if (!isPermissionDenied(err)) console.warn("Busca de funcionário Google:", err);
+      }
+
+      const isFirstUser = !(await this.isInitialized());
+      const role =
+        linkedEmployee?.Perfil ||
+        (isFirstUser ? APP.profiles.admin : APP.profiles.employee);
+
+      const newProfile = {
+        UsuarioID: user.uid,
+        FuncionarioID: linkedEmployee?.FuncionarioID || "",
+        Nome: linkedEmployee?.Nome || user.displayName || user.email.split("@")[0],
+        Email: normalizedUserEmail,
+        Perfil: role,
+        LojaID: linkedEmployee?.LojaID || "",
+        NomeLoja: linkedEmployee?.NomeLoja || "",
+        Cargo:
+          linkedEmployee?.Cargo ||
+          (isFirstUser ? "Administrador" : "Colaborador"),
+        PrimeiroAcesso: false,
+        Ativo: linkedEmployee ? linkedEmployee.Ativo !== false : true,
+        GoogleLinked: true,
+        DataCriacao: nowIso(),
+        DataAtualizacao: nowIso(),
+        UltimoAcesso: nowIso(),
+      };
+
+      try {
+        await set(this.appRef(`access/${pathKey(user.uid)}`), newProfile);
+      } catch (saveErr) {
+        console.warn("Criação de acesso Google:", saveErr);
+      }
+
+      this.profile = clone(newProfile);
+      profile = newProfile;
+    } else {
+      try {
+        await update(this.appRef(`access/${pathKey(user.uid)}`), {
+          GoogleLinked: true,
+          UltimoAcesso: nowIso(),
+          DataAtualizacao: nowIso(),
+        });
+        profile.GoogleLinked = true;
+        this.profile = profile;
+      } catch (updateErr) {
+        if (!isPermissionDenied(updateErr)) throw updateErr;
+      }
+    }
+
+    if (profile?.FuncionarioID) {
+      try {
+        await update(this.appRef(`tables/Funcionarios/${profile.FuncionarioID}`), {
+          AuthUID: user.uid,
+          GoogleLinked: true,
+          UltimoAcesso: nowIso(),
+        }).catch(() => {});
+      } catch {}
+    }
+
+    if (!profile || !asBoolean(profile.Ativo)) {
+      await signOut(this.auth);
+      throw new Error(
+        "Este acesso está inativo ou não foi vinculado. Fale com o administrador.",
+      );
+    }
+
+    return user;
+  }
+
+  async linkGoogleAccount() {
+    if (!this.auth?.currentUser) {
+      throw new Error("Você precisa estar autenticado para vincular a conta.");
+    }
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    let linkedUser = this.auth.currentUser;
+    try {
+      const result = await linkWithPopup(this.auth.currentUser, provider);
+      linkedUser = result.user || linkedUser;
+    } catch (err) {
+      const code = String(err?.code || "");
+      if (code.includes("provider-already-linked")) {
+        // Já vinculado anteriormente
+      } else if (
+        code.includes("credential-already-in-use") ||
+        code.includes("email-already-in-use")
+      ) {
+        throw new Error(
+          "Esta conta Google já está vinculada a outro usuário. Faça logout e entre diretamente com o botão 'Entrar com Conta Google'.",
+        );
+      } else {
+        throw err;
+      }
+    }
+
+    const uid = linkedUser.uid;
+    const now = nowIso();
+    const updateData = {
+      GoogleLinked: true,
+      GoogleLinkedAt: now,
+      EmailGoogle: linkedUser.email || "",
+      DataAtualizacao: now,
+    };
+
+    try {
+      await update(this.appRef(`access/${pathKey(uid)}`), updateData);
+    } catch (err) {
+      console.warn("Aviso ao salvar vinculação Google no access:", err);
+    }
+
+    if (this.profile) {
+      this.profile = {
+        ...this.profile,
+        ...updateData,
+      };
+    }
+
+    if (this.profile?.FuncionarioID) {
+      try {
+        await update(this.appRef(`tables/Funcionarios/${this.profile.FuncionarioID}`), {
+          AuthUID: uid,
+          GoogleLinked: true,
+          DataAtualizacao: now,
+        }).catch(() => {});
+      } catch {}
+    }
+
+    return {
+      success: true,
+      email: linkedUser.email,
+    };
   }
 
   async logout() {
