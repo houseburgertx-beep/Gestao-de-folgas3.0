@@ -3019,6 +3019,13 @@ test("Login com Google e banner de vinculação na tela inicial", async () => {
   // 6. Ícone do Google ao lado do status Ativo nos Acessos e Funcionários
   assert.match(scriptsHtml, /google-status-pill/, "Scripts.html deve renderizar .google-status-pill para usuários migrados");
   assert.match(indexHtml, /id="googleUsersMetric"/, "Index.html deve conter métrica de usuários migrados");
+
+  // 7. Opção de migração para o Google na tela de Meu Perfil
+  const dialogsHtml = await fs.readFile(path.resolve("src/legacy/Dialogs.html"), "utf8");
+  assert.match(dialogsHtml, /id="profileGoogleActionBtn"/, "Dialogs.html deve conter o botão #profileGoogleActionBtn");
+  assert.match(dialogsHtml, /id="profileGoogleStatusText"/, "Dialogs.html deve conter o texto #profileGoogleStatusText");
+  assert.match(redesignCss, /\.profile-google-card/, "redesign.css deve estilizar .profile-google-card");
+  assert.match(scriptsHtml, /updateProfileGoogleUI_\(\)/, "Scripts.html deve atualizar UI do Google no perfil");
 });
 
 

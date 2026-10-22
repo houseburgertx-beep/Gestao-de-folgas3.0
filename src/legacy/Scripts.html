@@ -1164,6 +1164,8 @@
       ($("#googleLinkBannerActionBtn").onclick = handleLinkGoogleAccount_);
     $("#googleLinkBannerDismissBtn") &&
       ($("#googleLinkBannerDismissBtn").onclick = handleDismissGoogleBanner_);
+    $("#profileGoogleActionBtn") &&
+      ($("#profileGoogleActionBtn").onclick = handleLinkGoogleAccount_);
     if ($("#adminHourBalanceRefresh")) $("#adminHourBalanceRefresh").onclick = () => loadAdminHourBalances_(true);
     if ($("#adminHourBalanceMonth")) $("#adminHourBalanceMonth").onchange = () => loadAdminHourBalances_(true);
     if ($("#adminHourBalanceSearch")) $("#adminHourBalanceSearch").oninput = renderAdminHourBalances_;
@@ -1661,7 +1663,32 @@
     $("#profileEmail").value = val(user, "email", "Email");
     renderAvatarPicker_("profileAvatarPicker", "profileAvatar", employeeAvatarId_(user) || "avatar-00");
     toggleProfilePasswords_();
+    updateProfileGoogleUI_();
     openDialog("profileDialog");
+  }
+  function updateProfileGoogleUI_() {
+    const user = state.user || {};
+    const isGoogle = bool(user.GoogleLinked) || bool(user.googleLinked) || Boolean(user.EmailGoogle);
+    const statusText = $("#profileGoogleStatusText");
+    const actionBtn = $("#profileGoogleActionBtn");
+    if (statusText) {
+      statusText.textContent = isGoogle
+        ? "Conta Google vinculada com sucesso. Você pode entrar diretamente com o Google."
+        : "Vincule sua conta Google para entrar sem senha com apenas 1 clique.";
+    }
+    if (actionBtn) {
+      if (isGoogle) {
+        actionBtn.innerHTML = `✓ Conectado ao Google`;
+        actionBtn.disabled = true;
+        actionBtn.classList.add("btn-google-connected");
+        actionBtn.classList.remove("btn-google-action");
+      } else {
+        actionBtn.innerHTML = `<span>Vincular Conta Google</span>`;
+        actionBtn.disabled = false;
+        actionBtn.classList.remove("btn-google-connected");
+        actionBtn.classList.add("btn-google-action");
+      }
+    }
   }
   function toggleProfilePasswords_() {
     const type = $("#profileShowPasswords")?.checked ? "text" : "password";
@@ -2439,10 +2466,15 @@
 
   async function handleLinkGoogleAccount_() {
     const actionBtn = $("#googleLinkBannerActionBtn");
+    const profileBtn = $("#profileGoogleActionBtn");
     const alertEl = $("#googleLinkAlertBanner");
     if (actionBtn) {
       actionBtn.disabled = true;
       actionBtn.classList.add("action-busy");
+    }
+    if (profileBtn) {
+      profileBtn.disabled = true;
+      profileBtn.classList.add("action-busy");
     }
     try {
       const res = await call(FN.linkGoogle);
@@ -2465,6 +2497,7 @@
         alertEl.classList.add("banner-fade-out");
         setTimeout(() => alertEl.classList.add("hidden"), 300);
       }
+      updateProfileGoogleUI_();
       toast("Conta Google vinculada com sucesso! Nas próximas vezes, entre diretamente pelo botão Google.");
     } catch (err) {
       console.error("Erro ao vincular Conta Google:", err);
@@ -2481,6 +2514,11 @@
       if (actionBtn) {
         actionBtn.disabled = false;
         actionBtn.classList.remove("action-busy");
+      }
+      if (profileBtn) {
+        profileBtn.disabled = false;
+        profileBtn.classList.remove("action-busy");
+        updateProfileGoogleUI_();
       }
     }
   }

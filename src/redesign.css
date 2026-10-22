@@ -3347,3 +3347,99 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   background: var(--surface-2, #1e293b);
   border-color: rgba(255, 255, 255, 0.15);
 }
+
+/* Card de Vinculação com o Google na tela de Meu Perfil */
+.profile-google-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  margin: 16px 0 20px;
+  border-radius: 14px;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+}
+.profile-google-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.profile-google-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.profile-google-texts {
+  min-width: 0;
+}
+.profile-google-texts strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #1e293b);
+  letter-spacing: -0.01em;
+}
+.profile-google-texts p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  line-height: 1.35;
+}
+.btn-profile-google {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.btn-profile-google.btn-google-connected {
+  background: rgba(52, 168, 83, 0.12) !important;
+  color: #1b873f !important;
+  border-color: rgba(52, 168, 83, 0.25) !important;
+  cursor: default;
+}
+.btn-profile-google.btn-google-action {
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.3);
+}
+.btn-profile-google.btn-google-action:hover {
+  background: #1557b0 !important;
+}
+[data-theme="dark"] .profile-google-card {
+  background: var(--surface-2, #1e293b);
+  border-color: var(--line, #334155);
+}
+[data-theme="dark"] .profile-google-icon {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] .btn-profile-google.btn-google-connected {
+  background: rgba(52, 168, 83, 0.2) !important;
+  color: #86efac !important;
+}
+@media (max-width: 600px) {
+  .profile-google-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .btn-profile-google {
+    width: 100%;
+  }
+}
