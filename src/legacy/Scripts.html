@@ -741,6 +741,7 @@
     String(v).toLowerCase() === "true" ||
     String(v) === "1" ||
     String(v).toLowerCase() === "sim";
+  const asBoolean = bool;
   const esc = (v) =>
     String(v ?? "").replace(
       /[&<>'"]/g,
@@ -2425,7 +2426,7 @@
     }
 
     const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
-    const isGoogleLinked = asBoolean(user.GoogleLinked) || asBoolean(user.googleLinked);
+    const isGoogleLinked = bool(user.GoogleLinked) || bool(user.googleLinked);
     const isDismissed = localStorage.getItem("gf_google_prompt_dismissed_" + uid) === "true";
 
     if (isGoogleLinked || isDismissed) {
