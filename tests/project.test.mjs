@@ -3028,6 +3028,22 @@ test("Login com Google e banner de vinculação na tela inicial", async () => {
   assert.match(scriptsHtml, /updateProfileGoogleUI_\(\)/, "Scripts.html deve atualizar UI do Google no perfil");
 });
 
+test("Bootstrap e Google Auth são ultrarrápidos e resilientes a falhas", async () => {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  const apiBase = await fs.readFile(path.resolve("src/core/api-base.js"), "utf8");
+  assert.match(apiBase, /monthlyCreditReport:\s*null/, "bootstrap deve retornar monthlyCreditReport: null sem ReferenceError");
+  assert.match(apiBase, /ensureMonthlyLeaveCredits\(profile,\s*initialEmployees\)\.catch/, "crédito mensal deve rodar em background");
+  assert.match(apiBase, /reconcilePendingTimeOffBalances\(profile,\s*timeOff\)\.catch/, "reconciliação deve rodar em background");
+
+  const runtimeJs = await fs.readFile(path.resolve("src/core/runtime.js"), "utf8");
+  assert.match(runtimeJs, /localStorage\.setItem\("gf_google_logging_in"/, "deve persistir estado de redirect no localStorage para sobrevivência no WebKit PWA");
+
+  const scriptsHtml = await fs.readFile(path.resolve("src/legacy/Scripts.html"), "utf8");
+  assert.match(scriptsHtml, /localStorage\.getItem\("gf_google_logging_in"\)/, "Scripts.html deve verificar localStorage ao carregar após redirect");
+});
+
 
 
 

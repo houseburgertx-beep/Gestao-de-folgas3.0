@@ -225,6 +225,7 @@ export class FirebaseRuntime {
     }
     this.app = getApps().length ? getApp() : initializeApp(this.config);
     this.auth = getAuth(this.app);
+    setPersistence(this.auth, browserLocalPersistence).catch(() => {});
     this.db = getDatabase(this.app);
 
     // Inicia a captura do redirect do Google imediatamente na inicialização
@@ -442,10 +443,9 @@ export class FirebaseRuntime {
   }
 
   async loginWithGoogle(remember = true) {
-    await setPersistence(
-      this.auth,
-      remember !== false ? browserLocalPersistence : browserSessionPersistence,
-    );
+    if (remember === false) {
+      setPersistence(this.auth, browserSessionPersistence).catch(() => {});
+    }
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
@@ -471,9 +471,15 @@ export class FirebaseRuntime {
         msg.includes("cancelled-popup-request") ||
         msg.includes("operation-not-supported")
       ) {
-        if (typeof sessionStorage !== "undefined") {
-          sessionStorage.setItem("gf_google_logging_in", "true");
-        }
+        try {
+          const nowStr = String(Date.now());
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("gf_google_logging_in", nowStr);
+          }
+          if (typeof sessionStorage !== "undefined") {
+            sessionStorage.setItem("gf_google_logging_in", nowStr);
+          }
+        } catch (_) {}
         await signInWithRedirect(this.auth, provider);
         return null;
       }
@@ -489,23 +495,27 @@ export class FirebaseRuntime {
       const result = await (this.redirectPromise || getRedirectResult(this.auth));
       const user = result?.user || this.auth.currentUser;
       if (user) {
+        const hasGoogleFlag =
+          (typeof localStorage !== "undefined" && !!localStorage.getItem("gf_google_logging_in")) ||
+          (typeof sessionStorage !== "undefined" && !!sessionStorage.getItem("gf_google_logging_in"));
         const isGoogleUser =
           user.providerData?.some((p) => p.providerId === "google.com") ||
-          (typeof sessionStorage !== "undefined" &&
-            sessionStorage.getItem("gf_google_logging_in") === "true");
+          hasGoogleFlag;
         if (isGoogleUser) {
-          if (typeof sessionStorage !== "undefined") {
-            sessionStorage.removeItem("gf_google_logging_in");
-          }
+          try {
+            if (typeof localStorage !== "undefined") localStorage.removeItem("gf_google_logging_in");
+            if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("gf_google_logging_in");
+          } catch (_) {}
           return await this.completeGoogleAuth(user);
         }
       }
     } catch (err) {
       console.warn("Aviso ao processar redirect do Google:", err);
       if (this.auth.currentUser) {
-        if (typeof sessionStorage !== "undefined") {
-          sessionStorage.removeItem("gf_google_logging_in");
-        }
+        try {
+          if (typeof localStorage !== "undefined") localStorage.removeItem("gf_google_logging_in");
+          if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("gf_google_logging_in");
+        } catch (_) {}
         return await this.completeGoogleAuth(this.auth.currentUser);
       }
       throw err;

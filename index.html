@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.40" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.41" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.40-firebase-github" />
+    <meta name="app-version" content="6.16.41-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -22334,7 +22334,7 @@ dialog#documentUploadDialog input[type="month"] {
   }, true);
 </script>
 <script src="./vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="./src/main.js?v=6.16.40"></script>
+<script type="module" src="./src/main.js?v=6.16.41"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22888,7 +22888,12 @@ dialog#documentUploadDialog input[type="month"] {
       }
       localStorage.setItem("gf_app_version", APP_CLIENT_VERSION_);
 
-      const isLoggingInWithGoogle = sessionStorage.getItem("gf_google_logging_in") === "true";
+      const googleRedirectTimestamp = Number(
+        localStorage.getItem("gf_google_logging_in") ||
+        sessionStorage.getItem("gf_google_logging_in") ||
+        0
+      );
+      const isLoggingInWithGoogle = googleRedirectTimestamp > 0 && (Date.now() - googleRedirectTimestamp < 300000);
       const hasInitialSession = !!(sessionStorage.getItem("gf-session-token") || persistentSessionToken_());
       if (hasInitialSession) {
         if (restoreTurboShellCache_()) {
@@ -22929,6 +22934,7 @@ dialog#documentUploadDialog input[type="month"] {
           const isGoogleUser = currentUser?.providerData?.some((p) => p.providerId === "google.com");
           const activeUser = redirectUser || ((isLoggingInWithGoogle || isGoogleUser) ? currentUser : null);
           if (activeUser) {
+            localStorage.removeItem("gf_google_logging_in");
             sessionStorage.removeItem("gf_google_logging_in");
             if (!firebaseRuntime.profile) {
               await firebaseRuntime.completeGoogleAuth(activeUser).catch(() => {});
@@ -22943,12 +22949,25 @@ dialog#documentUploadDialog input[type="month"] {
           console.warn("Verificação de redirect do Google:", redirErr);
         }
       }
+      localStorage.removeItem("gf_google_logging_in");
       sessionStorage.removeItem("gf_google_logging_in");
 
       let token = sessionToken();
       if (!token && firebaseRuntime) {
         try {
-          const currentUser = firebaseRuntime.auth?.currentUser;
+          let currentUser = firebaseRuntime.auth?.currentUser;
+          if (!currentUser) {
+            currentUser = await new Promise((res) => {
+              const tm = setTimeout(() => res(null), 1200);
+              const unsub = firebaseRuntime.auth?.onAuthStateChanged((u) => {
+                if (u) {
+                  clearTimeout(tm);
+                  unsub?.();
+                  res(u);
+                }
+              });
+            });
+          }
           if (currentUser) {
             token = await currentUser.getIdToken();
             storeSessionToken_(
@@ -23870,6 +23889,7 @@ dialog#documentUploadDialog input[type="month"] {
         throw new Error("Não foi possível autenticar com o Google.");
       if (result.redirecting) {
         isRedirecting = true;
+        toast("Redirecionando para o login do Google...");
         return;
       }
       const token = val(result, "token", "sessionToken");
@@ -23880,8 +23900,13 @@ dialog#documentUploadDialog input[type="month"] {
           Number(result.rememberExpiresAt || 0),
         );
       }
-      if (result.bootstrap) applyBootstrapData(result.bootstrap);
-      else await loadApplication(false, true, token);
+      if (result.bootstrap) {
+        applyBootstrapData(result.bootstrap);
+        hideLogin();
+        $("#app").classList.remove("hidden");
+      } else {
+        await loadApplication(false, true, token);
+      }
       toast("Login com Google realizado com sucesso.");
     } catch (err) {
       console.error("Falha no login com Google:", err);

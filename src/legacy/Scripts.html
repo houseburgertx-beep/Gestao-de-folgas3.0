@@ -551,7 +551,12 @@
       }
       localStorage.setItem("gf_app_version", APP_CLIENT_VERSION_);
 
-      const isLoggingInWithGoogle = sessionStorage.getItem("gf_google_logging_in") === "true";
+      const googleRedirectTimestamp = Number(
+        localStorage.getItem("gf_google_logging_in") ||
+        sessionStorage.getItem("gf_google_logging_in") ||
+        0
+      );
+      const isLoggingInWithGoogle = googleRedirectTimestamp > 0 && (Date.now() - googleRedirectTimestamp < 300000);
       const hasInitialSession = !!(sessionStorage.getItem("gf-session-token") || persistentSessionToken_());
       if (hasInitialSession) {
         if (restoreTurboShellCache_()) {
@@ -592,6 +597,7 @@
           const isGoogleUser = currentUser?.providerData?.some((p) => p.providerId === "google.com");
           const activeUser = redirectUser || ((isLoggingInWithGoogle || isGoogleUser) ? currentUser : null);
           if (activeUser) {
+            localStorage.removeItem("gf_google_logging_in");
             sessionStorage.removeItem("gf_google_logging_in");
             if (!firebaseRuntime.profile) {
               await firebaseRuntime.completeGoogleAuth(activeUser).catch(() => {});
@@ -606,12 +612,25 @@
           console.warn("Verificação de redirect do Google:", redirErr);
         }
       }
+      localStorage.removeItem("gf_google_logging_in");
       sessionStorage.removeItem("gf_google_logging_in");
 
       let token = sessionToken();
       if (!token && firebaseRuntime) {
         try {
-          const currentUser = firebaseRuntime.auth?.currentUser;
+          let currentUser = firebaseRuntime.auth?.currentUser;
+          if (!currentUser) {
+            currentUser = await new Promise((res) => {
+              const tm = setTimeout(() => res(null), 1200);
+              const unsub = firebaseRuntime.auth?.onAuthStateChanged((u) => {
+                if (u) {
+                  clearTimeout(tm);
+                  unsub?.();
+                  res(u);
+                }
+              });
+            });
+          }
           if (currentUser) {
             token = await currentUser.getIdToken();
             storeSessionToken_(
@@ -1533,6 +1552,7 @@
         throw new Error("Não foi possível autenticar com o Google.");
       if (result.redirecting) {
         isRedirecting = true;
+        toast("Redirecionando para o login do Google...");
         return;
       }
       const token = val(result, "token", "sessionToken");
@@ -1543,8 +1563,13 @@
           Number(result.rememberExpiresAt || 0),
         );
       }
-      if (result.bootstrap) applyBootstrapData(result.bootstrap);
-      else await loadApplication(false, true, token);
+      if (result.bootstrap) {
+        applyBootstrapData(result.bootstrap);
+        hideLogin();
+        $("#app").classList.remove("hidden");
+      } else {
+        await loadApplication(false, true, token);
+      }
       toast("Login com Google realizado com sucesso.");
     } catch (err) {
       console.error("Falha no login com Google:", err);

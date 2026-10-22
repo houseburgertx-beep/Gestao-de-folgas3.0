@@ -833,12 +833,17 @@ const dashboardFrom = (stores, employees, records) => {
 
 async function bootstrap() {
   const profile = await runtime.requireProfile();
-  const [stores, initialEmployees, timeOff, holidays] = await Promise.all([
-    runtime.list("Lojas", { profile }),
-    runtime.list("Funcionarios", { profile }),
-    runtime.list("Folgas", { profile }),
-    runtime.list("Feriados", { profile }),
-  ]);
+  let stores = [], initialEmployees = [], timeOff = [], holidays = [];
+  try {
+    [stores, initialEmployees, timeOff, holidays] = await Promise.all([
+      runtime.list("Lojas", { profile }).catch(() => []),
+      runtime.list("Funcionarios", { profile }).catch(() => []),
+      runtime.list("Folgas", { profile }).catch(() => []),
+      runtime.list("Feriados", { profile }).catch(() => []),
+    ]);
+  } catch (loadErr) {
+    console.warn("Aviso ao carregar dados no bootstrap:", loadErr);
+  }
   // Crédito mensal e reconciliações são executados em segundo plano sem bloquear o login
   ensureMonthlyLeaveCredits(profile, initialEmployees).catch((error) =>
     console.warn("Crédito mensal em segundo plano:", error.message),
@@ -851,16 +856,26 @@ async function bootstrap() {
   const ownEmployee = currentEmployeeFrom(employees, profile);
   const currentEmployee = ownEmployee || employees[0] || {};
   const currentMonth = todayIso().slice(0, 7);
-  const monthlyLeaveReward = await monthlyLeaveRewardFor(
-    profile,
-    ownEmployee,
-    currentMonth,
-  );
-  const holidayLeaveRewards = await holidayLeaveRewardsFor(
-    profile,
-    ownEmployee,
-    holidays,
-  );
+  let monthlyLeaveReward = null;
+  try {
+    monthlyLeaveReward = await monthlyLeaveRewardFor(
+      profile,
+      ownEmployee,
+      currentMonth,
+    );
+  } catch (err) {
+    console.warn("Aviso ao calcular recompensa de folga:", err);
+  }
+  let holidayLeaveRewards = [];
+  try {
+    holidayLeaveRewards = await holidayLeaveRewardsFor(
+      profile,
+      ownEmployee,
+      holidays,
+    );
+  } catch (err) {
+    console.warn("Aviso ao calcular recompensas de feriados:", err);
+  }
   const ownStoreId = String(profile.LojaID || currentEmployee.LojaID || "");
   const ownStoreName = String(
     profile.NomeLoja || currentEmployee.NomeLoja || "",
@@ -889,7 +904,7 @@ async function bootstrap() {
     dashboard: dashboardFrom(visibleStores, employees, visibleTimeOff),
     monthlyLeaveReward,
     holidayLeaveRewards,
-    monthlyCreditReport,
+    monthlyCreditReport: null,
     deferred: false,
     usersDeferred: isAdmin(profile),
     performance: { mode: "firebase-direct", serverMs: 0 },
