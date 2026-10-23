@@ -6055,7 +6055,13 @@
         balanceText = "Equipe: " + balanceText;
       }
     }
-    $("#clockBalanceMetric").textContent = balanceText;
+    $("#clockBalanceMetric").textContent = balanceText === "+0h 00min" ? "0h 00min" : balanceText;
+    const monthBalanceEl = $("#clockMonthBalanceSubtitle");
+    if (monthBalanceEl) {
+      const monthSaldo = summary.saldoTexto || "0h 00min";
+      const cleanMonthSaldo = monthSaldo === "+0h 00min" ? "0h 00min" : monthSaldo;
+      monthBalanceEl.textContent = `No mês: ${cleanMonthSaldo}`;
+    }
     const timelineRecords = (
       teamOnlyView
         ? arr(d.records).filter(
@@ -7396,12 +7402,40 @@
         const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         const wk = weekdayShort[dt.getDay()] || "";
         const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
-        let obs = "";
-        if (d.folga || d.folgaFixa) obs = "Folga";
-        else if (d.justificado) obs = d.justificativa || "Justificado";
-        else if (d.observacao) obs = d.observacao;
+        const worked = d.trabalhado && d.trabalhado !== "0h 00min";
+        const hasPunches = Boolean(d.entrada || d.saida);
 
-        const rowBg = isWeekend ? "background-color:#f8fafc;" : "";
+        let cargaPrevistaCol = "—";
+        let ocorrenciaSaldoCol = "—";
+
+        const saldoLimpo = d.saldo === "+0h 00min" ? "0h 00min" : (d.saldo || "—");
+
+        if (d.justificado) {
+          cargaPrevistaCol = d.previsto && d.previsto !== "0h 00min" ? d.previsto : "0h 00min";
+          ocorrenciaSaldoCol = d.justificativa || "Justificado";
+        } else if (d.folga || d.folgaFixa) {
+          if (worked || hasPunches) {
+            cargaPrevistaCol = "0h 00min (Folga)";
+            const creditoTexto = saldoLimpo !== "—" ? saldoLimpo : `+${d.trabalhado}`;
+            ocorrenciaSaldoCol = `Folga trab. (${creditoTexto})`;
+          } else {
+            cargaPrevistaCol = "Folga";
+            ocorrenciaSaldoCol = "Folga";
+          }
+        } else {
+          cargaPrevistaCol = d.previsto && d.previsto !== "0h 00min" ? d.previsto : "—";
+          if (d.observacao) {
+            ocorrenciaSaldoCol = d.observacao;
+          } else {
+            ocorrenciaSaldoCol = saldoLimpo;
+          }
+        }
+
+        const rowBg = (d.folga || d.folgaFixa)
+          ? "background-color:#f1f5f9;"
+          : isWeekend
+            ? "background-color:#f8fafc;"
+            : "";
         return `
           <tr style="${rowBg}">
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-weight:600;">${parts[2]}/${parts[1]}</td>
@@ -7410,9 +7444,9 @@
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-family:monospace;">${d.saidaIntervalo || "—"}</td>
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-family:monospace;">${d.retornoIntervalo || "—"}</td>
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-family:monospace;">${d.saida || "—"}</td>
-            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-weight:600;">${d.trabalhado !== "0h 00min" ? d.trabalhado : (obs || "—")}</td>
-            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; color:#475569;">${d.previsto !== "0h 00min" ? d.previsto : "—"}</td>
-            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-size:8.5pt;">${obs || d.saldo || "—"}</td>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-weight:600;">${worked ? d.trabalhado : "—"}</td>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; color:#475569;">${cargaPrevistaCol}</td>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-size:8.5pt;">${ocorrenciaSaldoCol}</td>
           </tr>
         `;
       }).join("");
@@ -7578,7 +7612,8 @@
   <div class="summary-box">
     <div><strong>Total Trabalhado no Mês:</strong> ${esc(summary.trabalhadoTexto || "0h 00min")}</div>
     <div><strong>Carga Prevista:</strong> ${esc(summary.previstoTexto || "0h 00min")}</div>
-    <div><strong>Saldo no Banco de Horas:</strong> ${esc(summary.saldoTexto || "0h 00min")}</div>
+    <div><strong>Saldo do Mês (${esc(monthLabel)}):</strong> ${esc(summary.saldoMesTexto || summary.saldoTexto || "0h 00min")}</div>
+    <div><strong>Saldo Acumulado no Banco de Horas:</strong> ${esc(summary.saldoAcumuladoTexto || summary.saldoTexto || "0h 00min")}</div>
   </div>
 
   <div class="legal-text">

@@ -3067,10 +3067,14 @@ test("LGPD, Termo de Consentimento Físico e Espelho de Ponto Portaria 671", asy
 
   const apiClock = await fs.readFile(path.resolve("src/core/api-clock.js"), "utf8");
   assert.match(apiClock, /getMonthlyTimeClockMirrorData/, "api-clock deve implementar getMonthlyTimeClockMirrorData");
+  assert.match(apiClock, /saldoAcumuladoTexto/, "getMonthlyTimeClockMirrorData deve calcular o saldo acumulado de horas");
 
   const scriptsHtml = await fs.readFile(path.resolve("src/legacy/Scripts.html"), "utf8");
   assert.match(scriptsHtml, /clockMirrorData:\s*"getMonthlyTimeClockMirrorData"/, "Scripts.html deve mapear clockMirrorData");
   assert.match(scriptsHtml, /openTimeClockMirrorPrint/, "Scripts.html deve implementar emissão e impressão do espelho de ponto");
+  assert.match(scriptsHtml, /Folga trab\./, "Scripts.html deve evidenciar folgas trabalhadas com crédito de saldo");
+  assert.match(scriptsHtml, /Saldo Acumulado no Banco de Horas/, "Scripts.html deve exibir o saldo acumulado histórico");
+  assert.match(scriptsHtml, /clockMonthBalanceSubtitle/, "Scripts.html deve atualizar o subtítulo com o saldo do mês");
 });
 
 

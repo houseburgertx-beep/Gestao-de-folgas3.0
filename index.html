@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.42" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.43" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.42-firebase-github" />
+    <meta name="app-version" content="6.16.43-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -19804,6 +19804,7 @@ dialog#documentUploadDialog input[type="month"] {
               <div class="metric-card">
                 <span>Saldo acumulado</span
                 ><strong id="clockBalanceMetric">0h 00min</strong>
+                <small id="clockMonthBalanceSubtitle" style="display:block; font-size:11px; color:var(--muted); font-weight:500; margin-top:3px;"></small>
               </div>
             </div>
             <div class="panel table-panel">
@@ -22343,7 +22344,7 @@ dialog#documentUploadDialog input[type="month"] {
   }, true);
 </script>
 <script src="./vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="./src/main.js?v=6.16.42"></script>
+<script type="module" src="./src/main.js?v=6.16.43"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -28401,7 +28402,13 @@ dialog#documentUploadDialog input[type="month"] {
         balanceText = "Equipe: " + balanceText;
       }
     }
-    $("#clockBalanceMetric").textContent = balanceText;
+    $("#clockBalanceMetric").textContent = balanceText === "+0h 00min" ? "0h 00min" : balanceText;
+    const monthBalanceEl = $("#clockMonthBalanceSubtitle");
+    if (monthBalanceEl) {
+      const monthSaldo = summary.saldoTexto || "0h 00min";
+      const cleanMonthSaldo = monthSaldo === "+0h 00min" ? "0h 00min" : monthSaldo;
+      monthBalanceEl.textContent = `No mês: ${cleanMonthSaldo}`;
+    }
     const timelineRecords = (
       teamOnlyView
         ? arr(d.records).filter(
@@ -29742,12 +29749,40 @@ dialog#documentUploadDialog input[type="month"] {
         const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         const wk = weekdayShort[dt.getDay()] || "";
         const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
-        let obs = "";
-        if (d.folga || d.folgaFixa) obs = "Folga";
-        else if (d.justificado) obs = d.justificativa || "Justificado";
-        else if (d.observacao) obs = d.observacao;
+        const worked = d.trabalhado && d.trabalhado !== "0h 00min";
+        const hasPunches = Boolean(d.entrada || d.saida);
 
-        const rowBg = isWeekend ? "background-color:#f8fafc;" : "";
+        let cargaPrevistaCol = "—";
+        let ocorrenciaSaldoCol = "—";
+
+        const saldoLimpo = d.saldo === "+0h 00min" ? "0h 00min" : (d.saldo || "—");
+
+        if (d.justificado) {
+          cargaPrevistaCol = d.previsto && d.previsto !== "0h 00min" ? d.previsto : "0h 00min";
+          ocorrenciaSaldoCol = d.justificativa || "Justificado";
+        } else if (d.folga || d.folgaFixa) {
+          if (worked || hasPunches) {
+            cargaPrevistaCol = "0h 00min (Folga)";
+            const creditoTexto = saldoLimpo !== "—" ? saldoLimpo : `+${d.trabalhado}`;
+            ocorrenciaSaldoCol = `Folga trab. (${creditoTexto})`;
+          } else {
+            cargaPrevistaCol = "Folga";
+            ocorrenciaSaldoCol = "Folga";
+          }
+        } else {
+          cargaPrevistaCol = d.previsto && d.previsto !== "0h 00min" ? d.previsto : "—";
+          if (d.observacao) {
+            ocorrenciaSaldoCol = d.observacao;
+          } else {
+            ocorrenciaSaldoCol = saldoLimpo;
+          }
+        }
+
+        const rowBg = (d.folga || d.folgaFixa)
+          ? "background-color:#f1f5f9;"
+          : isWeekend
+            ? "background-color:#f8fafc;"
+            : "";
         return `
           <tr style="${rowBg}">
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-weight:600;">${parts[2]}/${parts[1]}</td>
@@ -29756,9 +29791,9 @@ dialog#documentUploadDialog input[type="month"] {
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-family:monospace;">${d.saidaIntervalo || "—"}</td>
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-family:monospace;">${d.retornoIntervalo || "—"}</td>
             <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-family:monospace;">${d.saida || "—"}</td>
-            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-weight:600;">${d.trabalhado !== "0h 00min" ? d.trabalhado : (obs || "—")}</td>
-            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; color:#475569;">${d.previsto !== "0h 00min" ? d.previsto : "—"}</td>
-            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-size:8.5pt;">${obs || d.saldo || "—"}</td>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-weight:600;">${worked ? d.trabalhado : "—"}</td>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; color:#475569;">${cargaPrevistaCol}</td>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; text-align:center; font-size:8.5pt;">${ocorrenciaSaldoCol}</td>
           </tr>
         `;
       }).join("");
@@ -29924,7 +29959,8 @@ dialog#documentUploadDialog input[type="month"] {
   <div class="summary-box">
     <div><strong>Total Trabalhado no Mês:</strong> ${esc(summary.trabalhadoTexto || "0h 00min")}</div>
     <div><strong>Carga Prevista:</strong> ${esc(summary.previstoTexto || "0h 00min")}</div>
-    <div><strong>Saldo no Banco de Horas:</strong> ${esc(summary.saldoTexto || "0h 00min")}</div>
+    <div><strong>Saldo do Mês (${esc(monthLabel)}):</strong> ${esc(summary.saldoMesTexto || summary.saldoTexto || "0h 00min")}</div>
+    <div><strong>Saldo Acumulado no Banco de Horas:</strong> ${esc(summary.saldoAcumuladoTexto || summary.saldoTexto || "0h 00min")}</div>
   </div>
 
   <div class="legal-text">

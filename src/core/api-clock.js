@@ -1878,14 +1878,44 @@ export function createClockHandlers() {
         funcionarioId: targetEmpId,
       });
 
-      const employees = await runtime.list("Funcionarios", { profile });
-      const stores = await runtime.list("Lojas", { profile });
+      const [employees, stores, records, schedules, timeOff, justifications, movements] =
+        await Promise.all([
+          runtime.list("Funcionarios", { profile }),
+          runtime.list("Lojas", { profile }),
+          runtime.list("RegistrosPonto", { profile }),
+          runtime.list("JornadasPonto", { profile }),
+          runtime.list("Folgas", { profile }),
+          runtime.list("JustificativasPonto", { profile }),
+          runtime.list("BancoHorasMovimentos", { profile }),
+        ]);
+
       const employee =
         employees.find((e) => String(e.FuncionarioID) === String(targetEmpId)) || {};
       const store =
         stores.find(
           (s) => String(s.LojaID) === String(employee.LojaID || profile.LojaID),
         ) || {};
+
+      const accumResult = accumulatedHourBalance({
+        employees: employee.FuncionarioID ? [employee] : employees,
+        records,
+        schedules,
+        timeOff,
+        justifications,
+        movements,
+        throughMonth: context.month,
+        employeeId: String(targetEmpId),
+      });
+
+      const empAccum = accumResult.employees.find(
+        (e) => String(e.FuncionarioID) === String(targetEmpId),
+      );
+      const saldoAcumuladoTexto = empAccum
+        ? empAccum.saldoTexto
+        : (context.summary?.saldoTexto || "0h 00min");
+      const saldoAcumuladoMinutos = empAccum
+        ? empAccum.saldoMinutos
+        : (context.summary?.saldoMinutos || 0);
 
       return success(
         {
@@ -1915,11 +1945,18 @@ export function createClockHandlers() {
             saldo: item.saldoTexto || "0h 00min",
             folga: item.folga,
             folgaFixa: item.folgaFixa,
+            trabalhou: item.trabalhou,
             justificado: item.justificado,
             justificativa: item.justificativaTipo || "",
             observacao: item.justificativaObservacao || "",
           })),
-          summary: context.summary,
+          summary: {
+            ...context.summary,
+            saldoMesTexto: context.summary?.saldoTexto || "0h 00min",
+            saldoMesMinutos: context.summary?.saldoMinutos || 0,
+            saldoAcumuladoTexto,
+            saldoAcumuladoMinutos,
+          },
         },
         "Espelho de ponto apurado com sucesso.",
       );
