@@ -532,38 +532,57 @@ function renderEmployeeView() {
         if (isMedical) {
           const isApproved = doc.Status === "Aprovado";
           const isRejected = doc.Status === "Rejeitado";
-          const statusText = isApproved ? "Aprovado e Abonado" : isRejected ? "Recusado" : "Aguardando Aprovação";
-          const statusBadgeClass = isApproved ? "doc-status-signed" : isRejected ? "badge-danger" : "badge-amber";
           const fileUrl = doc.ArquivoUrl || (doc.ArquivoOriginalBase64 ? doc.ArquivoOriginalBase64 : "");
+          const periodDisplay = formatMedicalFriendlyPeriod(doc.PeriodoAbono, doc.DataInicio, doc.DataFim);
+          const daysNum = Number(doc.DiasAbono) || 1;
+          const daysText = `${daysNum} dia${daysNum > 1 ? "s" : ""} abonado${daysNum > 1 ? "s" : ""}`;
+          const pendingDaysText = `${daysNum} dia${daysNum > 1 ? "s" : ""} a abonar`;
+
           return `
-            <div class="doc-item-card ${!isApproved && !isRejected ? "doc-item-pending" : ""}">
-              <div class="doc-item-header">
-                <span class="doc-type-pill" style="background:#ecfdf5; color:#065f46; font-weight:700;">Atestado Médico</span>
-                <span class="doc-status-badge ${statusBadgeClass}">
-                  ${statusText}
+            <div class="med-clean-card ${isApproved ? 'is-approved' : isRejected ? 'is-rejected' : 'is-pending'}">
+              <div class="med-clean-top">
+                <div class="med-clean-ident">
+                  <div class="med-clean-icon ${isApproved ? 'success' : isRejected ? 'danger' : 'amber'}">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="12" y1="18" x2="12" y2="12"/>
+                      <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                  </div>
+                  <div class="med-clean-texts">
+                    <h4 class="med-clean-title">Atestado • ${esc(periodDisplay)}</h4>
+                    <span class="med-clean-subtitle">${isApproved ? daysText : pendingDaysText}</span>
+                  </div>
+                </div>
+                <span class="med-clean-pill ${isApproved ? 'pill-success' : isRejected ? 'pill-danger' : 'pill-amber'}">
+                  ${isApproved ? 'Abonado' : isRejected ? 'Recusado' : 'Em análise'}
                 </span>
               </div>
 
-              <div class="doc-item-main">
-                <h4 class="doc-item-title">${esc(doc.Titulo)}</h4>
-                <div class="doc-item-meta">
-                  <span>Período: <strong>${esc(doc.PeriodoAbono || doc.MesReferencia || "Período informado")}</strong></span>
-                  ${doc.DiasAbono ? `<span>•</span><span><strong>${doc.DiasAbono} dia(s) a abonar</strong></span>` : ""}
-                  <span>•</span>
-                  <span>Enviado em ${formatDate(doc.DataEnvio)}</span>
-                  ${isApproved ? `<span>•</span><span>Aprovado em ${formatDate(doc.DataAprovacao)}</span>` : ""}
+              ${doc.CRM || doc.Observacao ? `
+                <div class="med-clean-info">
+                  ${doc.CRM ? `<div>CRM: <strong>${esc(doc.CRM)}</strong></div>` : ''}
+                  ${doc.Observacao ? `<div class="med-clean-obs">${esc(doc.Observacao)}</div>` : ''}
                 </div>
-                ${doc.CRM ? `<div style="font-size:12px; color:var(--muted, #64748b); margin-top:4px;">CRM / Local: <strong>${esc(doc.CRM)}</strong></div>` : ""}
-                ${doc.Observacao ? `<p style="margin:6px 0 0; font-size:13px; color:var(--text, #334155); background:#f8fafc; padding:6px 10px; border-radius:8px;">${esc(doc.Observacao)}</p>` : ""}
-              </div>
+              ` : ''}
 
-              <div class="doc-item-actions">
-                ${fileUrl ? `
-                  <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; min-height:40px; text-decoration:none;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    Ver Comprovante no Drive ↗
-                  </a>
-                ` : ""}
+              <div class="med-clean-footer">
+                <span class="med-clean-meta">
+                  ${isApproved ? `Aprovado pelo gestor em ${formatDateShort(doc.DataAprovacao || doc.DataEnvio)}` : isRejected ? `Recusado pelo gestor` : `Enviado em ${formatDateShort(doc.DataEnvio)}`}
+                </span>
+                <div class="med-clean-actions">
+                  ${fileUrl ? `
+                    <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="med-clean-btn">
+                      <span>Ver Comprovante</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                  ` : `
+                    <button type="button" class="med-clean-btn" data-action="preview" data-id="${esc(doc.DocumentoID)}">
+                      <span>Visualizar</span>
+                    </button>
+                  `}
+                </div>
               </div>
             </div>
           `;
@@ -586,8 +605,8 @@ function renderEmployeeView() {
                 <span>•</span>
                 <span><strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
                 <span>•</span>
-                <span>Enviado em ${formatDate(doc.DataEnvio)}</span>
-                ${isSigned ? `<span>•</span><span>Assinado em ${formatDate(doc.DataAssinatura)}</span>` : ""}
+                <span>Enviado em ${formatDateShort(doc.DataEnvio)}</span>
+                ${isSigned ? `<span>•</span><span>Assinado em ${formatDateShort(doc.DataAssinatura)}</span>` : ""}
               </div>
             </div>
 
@@ -619,17 +638,17 @@ function renderEmployeeView() {
   return `
     <div class="doc-employee-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem;">
       <div>
-        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Meus Documentos & Atestados</h3>
-        <p style="margin:2px 0 0; font-size:13px; color:var(--muted, #64748b);">Assine seus recibos ou envie atestados para abono de ausências.</p>
+        <p style="margin:0; font-size:13.5px; color:var(--muted, #64748b); font-weight:500;">
+          Recibos, holerites e atestados médicos para abono de ausências.
+        </p>
       </div>
-      <button type="button" class="btn btn-primary" id="btnOpenMedicalCertificate" style="border-radius:9999px; min-height:44px; padding:0 1.25rem; font-weight:600; display:inline-flex; align-items:center; gap:8px;">
+      <button type="button" class="btn btn-primary" id="btnOpenMedicalCertificate" style="border-radius:14px; min-height:44px; padding:0 1.25rem; font-weight:600; display:inline-flex; align-items:center; gap:8px; box-shadow:0 2px 8px rgba(99,64,216,0.25);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
         <span>Enviar Atestado Médico</span>
       </button>
     </div>
     <div class="doc-cards-list">
       ${cardsHtml}
-    </div>
     </div>
   `;
 }
@@ -2418,6 +2437,55 @@ function formatDate(iso) {
   } catch {
     return String(iso);
   }
+}
+
+function formatDateShort(iso) {
+  if (!iso) return "---";
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Bahia",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return String(iso).slice(0, 10);
+  }
+}
+
+function formatMedicalFriendlyPeriod(periodoStr, inicio, fim) {
+  const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const p = String(periodoStr || "").trim();
+  let s = inicio || "";
+  let e = fim || "";
+
+  if (!s && p.includes(" a ")) {
+    const parts = p.split(" a ");
+    s = parts[0].trim();
+    e = parts[1].trim();
+  } else if (!s && /^\d{4}-\d{2}-\d{2}$/.test(p)) {
+    s = p;
+    e = p;
+  }
+
+  if (s && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [anoS, mesS, diaS] = s.split("-");
+    const mIndexS = parseInt(mesS, 10) - 1;
+    if (!e || s === e) {
+      return `${parseInt(diaS, 10)} de ${meses[mIndexS] || mesS}`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+      const [anoE, mesE, diaE] = e.split("-");
+      const mIndexE = parseInt(mesE, 10) - 1;
+      if (mesS === mesE && anoS === anoE) {
+        return `${parseInt(diaS, 10)} a ${parseInt(diaE, 10)} de ${meses[mIndexS] || mesS}`;
+      }
+      return `${parseInt(diaS, 10)}/${mesS} a ${parseInt(diaE, 10)}/${mesE}`;
+    }
+  }
+
+  return p.replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3/$2") || "Período informado";
 }
 
 /**
