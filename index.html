@@ -18319,6 +18319,7 @@ body #clockSelfieDialog .dialog-actions div.hidden {
 }
 
 #clockSelfieContingency {
+  display: none !important;
   background: transparent !important;
   color: #b45309 !important;
   border: 1px dashed #fde68a !important;
@@ -32177,24 +32178,15 @@ dialog#medicalCertificateDialog {
       video = $("#clockSelfieVideo"),
       nativeCapture = $("#clockSelfieNative"),
       contingency = $("#clockSelfieContingency");
-    if (status) status.textContent = "Iniciando câmera…";
+    if (status) status.textContent = "Iniciando a câmera frontal…";
     if (!navigator.mediaDevices?.getUserMedia) {
       showNativeClockCamera_(
-        "Câmera incorporada não suportada. Use a câmera do celular abaixo.",
+        "Câmera do navegador não disponível. Toque em 'Abrir câmera do celular' para tirar sua selfie.",
       );
       return;
     }
 
-    // Se demorar mais de 2.2s para responder, libera as alternativas para não travar o colaborador
-    const softFallbackTimer = setTimeout(() => {
-      nativeCapture?.classList.remove("hidden");
-      contingency?.classList.remove("hidden");
-      if (status && !CLOCK_SELFIE_STREAM_) {
-        status.textContent = "A câmera está demorando? Você pode usar a câmera do celular ou contingência abaixo.";
-      }
-    }, 2200);
-
-    const tryGetUserMedia = async (constraints, timeoutMs) => {
+    const tryGetUserMedia = async (constraints, timeoutMs = 12000) => {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("CAMERA_TIMEOUT")), timeoutMs),
       );
@@ -32209,44 +32201,68 @@ dialog#medicalCertificateDialog {
       try {
         // Tentativa 1: frontal com dimensões ideais
         stream = await tryGetUserMedia({
-          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+          video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
           audio: false,
-        }, 2800);
+        }, 12000);
       } catch (err1) {
+        if (/NotAllowedError|PermissionDeniedError/i.test(String(err1?.name || ""))) {
+          throw err1;
+        }
         console.warn("[ponto] Tentativa 1 falhou, tentando frontal simples:", err1?.message);
         try {
-          // Tentativa 2: frontal sem constraints de dimensões
+          // Tentativa 2: frontal simples sem restrições de dimensões
           stream = await tryGetUserMedia({
-            video: { facingMode: "user" },
+            video: { facingMode: { ideal: "user" } },
             audio: false,
-          }, 2200);
+          }, 8000);
         } catch (err2) {
-          console.warn("[ponto] Tentativa 2 falhou, tentando qualquer câmera:", err2?.message);
+          if (/NotAllowedError|PermissionDeniedError/i.test(String(err2?.name || ""))) {
+            throw err2;
+          }
+          console.warn("[ponto] Tentativa 2 falhou, tentando qualquer câmera disponível:", err2?.message);
           // Tentativa 3: qualquer câmera
-          stream = await tryGetUserMedia({ video: true, audio: false }, 2000);
+          stream = await tryGetUserMedia({ video: true, audio: false }, 6000);
         }
       }
 
-      clearTimeout(softFallbackTimer);
       CLOCK_SELFIE_STREAM_ = stream;
       if (video) {
         video.muted = true;
         video.playsInline = true;
         video.setAttribute("playsinline", "");
         video.setAttribute("muted", "");
+        video.setAttribute("autoplay", "");
         video.srcObject = CLOCK_SELFIE_STREAM_;
-        await video.play().catch((playErr) => console.warn("[ponto] video.play() falhou:", playErr));
+        try {
+          await video.play();
+        } catch (playErr) {
+          console.warn("[ponto] video.play() falhou:", playErr);
+        }
+        if (video.readyState < 2) {
+          await new Promise((r) => {
+            video.onloadedmetadata = () => r();
+            setTimeout(r, 600);
+          });
+        }
       }
       placeholder?.classList.add("hidden");
-      if (capture) capture.disabled = false;
+      if (capture) {
+        capture.disabled = false;
+        capture.classList.remove("hidden");
+      }
+      nativeCapture?.classList.add("hidden");
+      contingency?.classList.add("hidden");
       if (status) status.textContent = "Câmera pronta. Centralize o rosto e capture a selfie.";
     } catch (err) {
-      clearTimeout(softFallbackTimer);
       stopClockSelfieStream_();
       const isDenied = /notallowed|denied|permission/i.test(String(err?.name || err?.message || ""));
       const msg = isDenied
-        ? "Permissão de câmera não concedida no navegador. Use a câmera nativa do celular abaixo."
-        : "A câmera incorporada não carregou neste aparelho. Use a câmera do celular ou registre por contingência.";
+        ? "Permissão de câmera não concedida. Toque abaixo para abrir a câmera do celular e tirar a selfie."
+        : "A câmera incorporada não carregou neste aparelho. Toque abaixo para abrir a câmera do celular.";
       showNativeClockCamera_(msg);
     }
   }
@@ -32259,7 +32275,7 @@ dialog#medicalCertificateDialog {
     stopClockSelfieStream_();
     capture?.classList.add("hidden");
     nativeCapture?.classList.remove("hidden");
-    contingency?.classList.remove("hidden");
+    contingency?.classList.add("hidden");
     placeholder?.classList.remove("hidden");
     $("#clockSelfieConfirmRow")?.classList.add("hidden");
     if (status) status.textContent = message;
@@ -32436,6 +32452,13 @@ dialog#medicalCertificateDialog {
   async function captureClockSelfie_() {
     const video = $("#clockSelfieVideo"),
       status = $("#clockSelfieStatus");
+    if (!video || !CLOCK_SELFIE_STREAM_) {
+      toast("Aguarde a câmera iniciar.", true);
+      return;
+    }
+    if (!video.videoWidth || !video.videoHeight) {
+      await new Promise((r) => setTimeout(r, 350));
+    }
     if (!video.videoWidth || !video.videoHeight) {
       toast("A câmera ainda está carregando. Aguarde um instante.", true);
       return;

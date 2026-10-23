@@ -5453,6 +5453,7 @@ body #clockSelfieDialog .dialog-actions div.hidden {
 }
 
 #clockSelfieContingency {
+  display: none !important;
   background: transparent !important;
   color: #b45309 !important;
   border: 1px dashed #fde68a !important;
