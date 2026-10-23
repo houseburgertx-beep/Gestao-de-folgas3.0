@@ -982,7 +982,14 @@
   }
   function closeDialog(id) {
     const d = $("#" + id);
-    if (d?.open) d.close();
+    if (d) {
+      if (d.open) {
+        try {
+          d.close();
+        } catch (_) {}
+      }
+      d.removeAttribute("open");
+    }
     if (id === "clockSelfieDialog") resetClockSelfieCapture_();
   }
   function showUnauthorized(m) {
@@ -7224,82 +7231,115 @@
     const canvas = $("#privacyPolicyCanvas");
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.max(window.devicePixelRatio || 1, 1);
     const w = rect.width || 320;
     const h = rect.height || 130;
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-    const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#1e1b4b";
-    privacyPolicyCanvasCtx_ = ctx;
-    privacyPolicyCanvasHasDrawn_ = false;
 
-    if (canvas.dataset.initialized) return;
-    canvas.dataset.initialized = "true";
+    if (!canvas.dataset.initialized) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#1e1b4b";
+      ctx.fillStyle = "#1e1b4b";
+      privacyPolicyCanvasCtx_ = ctx;
+      canvas.dataset.initialized = "true";
 
-    let isDrawing = false;
-    const getPos = (e) => {
-      const r = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-        x: clientX - r.left,
-        y: clientY - r.top,
+      let isDrawing = false;
+      let lastX = 0;
+      let lastY = 0;
+      let cachedRect = null;
+
+      const getPos = (e) => {
+        const r = cachedRect || canvas.getBoundingClientRect();
+        const touch =
+          e.touches && e.touches.length > 0
+            ? e.touches[0]
+            : e.changedTouches && e.changedTouches.length > 0
+              ? e.changedTouches[0]
+              : e;
+        return {
+          x: touch.clientX - r.left,
+          y: touch.clientY - r.top,
+        };
       };
-    };
 
-    const startDraw = (e) => {
-      isDrawing = true;
-      const pos = getPos(e);
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y);
-    };
+      const startDraw = (e) => {
+        isDrawing = true;
+        cachedRect = canvas.getBoundingClientRect();
+        const pos = getPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+        if (!privacyPolicyCanvasHasDrawn_) {
+          privacyPolicyCanvasHasDrawn_ = true;
+          updatePrivacyPolicySignButtonState_();
+        }
+      };
 
-    const drawMove = (e) => {
-      if (!isDrawing) return;
-      const pos = getPos(e);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-      privacyPolicyCanvasHasDrawn_ = true;
-      updatePrivacyPolicySignButtonState_();
-    };
+      const drawMove = (e) => {
+        if (!isDrawing) return;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+        if (!privacyPolicyCanvasHasDrawn_) {
+          privacyPolicyCanvasHasDrawn_ = true;
+          updatePrivacyPolicySignButtonState_();
+        }
+      };
 
-    const stopDraw = () => {
-      isDrawing = false;
-    };
+      const stopDraw = () => {
+        if (isDrawing) {
+          isDrawing = false;
+          cachedRect = null;
+          updatePrivacyPolicySignButtonState_();
+        }
+      };
 
-    canvas.addEventListener("mousedown", startDraw);
-    canvas.addEventListener("mousemove", drawMove);
-    window.addEventListener("mouseup", stopDraw);
+      canvas.addEventListener("mousedown", startDraw);
+      canvas.addEventListener("mousemove", drawMove);
+      window.addEventListener("mouseup", stopDraw);
 
-    canvas.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        startDraw(e);
-      },
-      { passive: false },
-    );
-    canvas.addEventListener(
-      "touchmove",
-      (e) => {
-        e.preventDefault();
-        drawMove(e);
-      },
-      { passive: false },
-    );
-    canvas.addEventListener("touchend", stopDraw);
+      canvas.addEventListener(
+        "touchstart",
+        (e) => {
+          e.preventDefault();
+          startDraw(e);
+        },
+        { passive: false },
+      );
+      canvas.addEventListener(
+        "touchmove",
+        (e) => {
+          e.preventDefault();
+          drawMove(e);
+        },
+        { passive: false },
+      );
+      canvas.addEventListener("touchend", stopDraw);
+      canvas.addEventListener("touchcancel", stopDraw);
+      window.addEventListener("touchend", stopDraw);
+      window.addEventListener("touchcancel", stopDraw);
+    }
   }
 
   function clearPrivacyPolicyCanvas_() {
     const canvas = $("#privacyPolicyCanvas");
     if (canvas && privacyPolicyCanvasCtx_) {
-      const dpr = window.devicePixelRatio || 1;
-      privacyPolicyCanvasCtx_.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      const dpr = Math.max(window.devicePixelRatio || 1, 1);
+      privacyPolicyCanvasCtx_.save();
+      privacyPolicyCanvasCtx_.setTransform(1, 0, 0, 1, 0, 0);
+      privacyPolicyCanvasCtx_.clearRect(0, 0, canvas.width, canvas.height);
+      privacyPolicyCanvasCtx_.restore();
       privacyPolicyCanvasHasDrawn_ = false;
       updatePrivacyPolicySignButtonState_();
     }
@@ -7310,16 +7350,22 @@
     const checkbox = $("#privacyPolicyConfirmCheckbox");
     if (!ackBtn) return;
     const isChecked = Boolean(checkbox && checkbox.checked);
-    if (!isChecked) {
-      ackBtn.disabled = true;
-    } else {
-      ackBtn.disabled = false;
-    }
+    const hasDrawn = Boolean(privacyPolicyCanvasHasDrawn_);
+    ackBtn.disabled = !(isChecked && hasDrawn);
   }
 
   function openPrivacyPolicyDialog() {
     const isMandatoryPopup = arguments.length > 0 && Boolean(arguments[0]);
     updatePrivacyPolicyAckUI_();
+    const d = $("#privacyPolicyDialog");
+    if (d && !d.dataset.backdropBound) {
+      d.dataset.backdropBound = "true";
+      d.addEventListener("click", (e) => {
+        if (e.target === d) {
+          closeDialog("privacyPolicyDialog");
+        }
+      });
+    }
     openDialog("privacyPolicyDialog");
     setTimeout(() => {
       initPrivacyPolicyCanvas_();
@@ -7449,22 +7495,6 @@
       };
       localStorage.setItem(`gf_privacy_policy_ack_${uid}`, JSON.stringify(ackRecord));
 
-      if (sessionToken()) {
-        await call(FN.acknowledgePrivacyPolicy, {
-          version: "1.0",
-          signature: rubricBase64,
-          device: navigator.userAgent || "",
-        }).catch(() => {
-          return call(FN.patchUser, sessionToken(), {
-            usuarioId: uid,
-            PoliticaPrivacidadeCiente: true,
-            PoliticaPrivacidadeData: now,
-            PoliticaPrivacidadeVersao: "1.0",
-            PoliticaPrivacidadeAssinatura: rubricBase64,
-          }).catch(() => {});
-        });
-      }
-
       if (state.user) {
         state.user.PoliticaPrivacidadeCiente = true;
         state.user.PoliticaPrivacidadeData = now;
@@ -7480,9 +7510,31 @@
 
       updatePrivacyPolicyAckUI_();
       toast("Ciência e assinatura da Política de Privacidade registradas com sucesso.");
-      setTimeout(() => {
-        closeDialog("privacyPolicyDialog");
-      }, 1200);
+
+      // Fecha o diálogo imediatamente para liberar o usuário
+      closeDialog("privacyPolicyDialog");
+
+      // Sincronização em background com proteção de timeout
+      if (sessionToken()) {
+        try {
+          await Promise.race([
+            call(FN.acknowledgePrivacyPolicy, {
+              version: "1.0",
+              signature: rubricBase64,
+              device: navigator.userAgent || "",
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("tempo limite")), 4000)),
+          ]);
+        } catch {
+          await call(FN.patchUser, sessionToken(), {
+            usuarioId: uid,
+            PoliticaPrivacidadeCiente: true,
+            PoliticaPrivacidadeData: now,
+            PoliticaPrivacidadeVersao: "1.0",
+            PoliticaPrivacidadeAssinatura: rubricBase64,
+          }).catch(() => {});
+        }
+      }
     } catch (err) {
       toast("Erro ao registrar ciência: " + err.message, true);
       if (ackBtn) {
