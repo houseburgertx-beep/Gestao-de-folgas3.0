@@ -16496,18 +16496,24 @@ button.btn-danger:hover {
 }
 
 /* Tabelas estilo Apple Inset Grouped */
-.table-panel,
-.table-wrap {
-  border-radius: var(--ios-radius-card, 30px) !important;
+.table-panel {
+  border-radius: var(--ios-radius-card, 24px) !important;
   background: #FFFFFF !important;
   border: 1px solid rgba(40, 45, 70, 0.06) !important;
   box-shadow: 0 8px 24px rgba(40, 45, 70, 0.04) !important;
   overflow: hidden !important;
 }
+.table-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin !important;
+}
 table {
   border-collapse: separate !important;
   border-spacing: 0 !important;
-  width: 100% !important;
 }
 th {
   background: #F8F9FD !important;
@@ -17059,6 +17065,142 @@ button, a, input, select, textarea, .btn, .j-card button {
 #clockSelfieDialog {
   overscroll-behavior: contain;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CORREÇÃO DEFINITIVA — TABELA DE FUNCIONÁRIOS (AÇÕES STICKY 100% VISÍVEIS)
+   ══════════════════════════════════════════════════════════════════════════ */
+#view-employees .table-panel {
+  border-radius: 20px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(40, 45, 70, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+  overflow: hidden !important;
+}
+
+#view-employees .table-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin !important;
+}
+
+#view-employees table.employee-table {
+  width: 100% !important;
+  min-width: 980px !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  table-layout: auto !important;
+}
+
+#view-employees table.employee-table th {
+  padding: 12px 10px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #64748b !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  white-space: nowrap !important;
+}
+
+#view-employees table.employee-table td {
+  padding: 10px 10px !important;
+  font-size: 12.5px !important;
+  color: #334155 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+}
+
+#view-employees table.employee-table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+/* Coluna de Ações Sticky (NUNCA corta em nenhuma resolução) */
+#view-employees table.employee-table th.col-actions,
+#view-employees table.employee-table td.employee-actions-cell {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 5 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  min-width: 220px !important;
+  width: 220px !important;
+  box-shadow: -4px 0 10px -2px rgba(0, 0, 0, 0.07) !important;
+}
+
+#view-employees table.employee-table th.col-actions {
+  background: #f8fafc !important;
+  z-index: 6 !important;
+}
+
+#view-employees table.employee-table td.employee-actions-cell {
+  background: #ffffff !important;
+  padding-right: 14px !important;
+}
+
+#view-employees table.employee-table tbody tr:hover td.employee-actions-cell {
+  background: #f8fafc !important;
+}
+
+#view-employees .row-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+}
+
+#view-employees .row-actions button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 28px !important;
+  padding: 4px 9px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: all 0.12s ease !important;
+}
+
+#view-employees .row-actions button:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+#view-employees .row-actions button[data-action="edit-employee"] {
+  background: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+  color: #6340d8 !important;
+  font-weight: 700 !important;
+}
+
+#view-employees .row-actions button[data-action="edit-employee"]:hover {
+  background: #ede9fe !important;
+  border-color: #c4b5fd !important;
+}
+
+#view-employees .row-actions .btn-delete-employee {
+  background: #fff5f5 !important;
+  border-color: #fee2e2 !important;
+  color: #dc2626 !important;
+}
+
+#view-employees .row-actions .btn-delete-employee:hover {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #991b1b !important;
+}
+
 
 /* ==========================================================================
    MÓDULO DE DOCUMENTOS & ASSINATURA ELETRÔNICA (FOLGAS 3.0)
@@ -20473,14 +20615,14 @@ dialog#documentUploadDialog input[type="month"] {
                 <table class="employee-table">
                   <thead>
                     <tr>
-                      <th style="min-width: 220px;">Funcionário</th>
-                      <th style="min-width: 140px;">Loja</th>
-                      <th style="min-width: 130px;">Cargo</th>
-                      <th style="min-width: 110px;">Perfil</th>
-                      <th style="width: 75px; text-align: center;">Saldo</th>
-                      <th style="min-width: 120px;">Folgas fixas</th>
-                      <th style="min-width: 170px;">Status</th>
-                      <th style="min-width: 260px; width: 260px; text-align: right;">Ações</th>
+                      <th style="min-width: 190px;">Funcionário</th>
+                      <th style="min-width: 130px;">Loja</th>
+                      <th style="min-width: 120px;">Cargo</th>
+                      <th style="min-width: 100px;">Perfil</th>
+                      <th style="width: 65px; text-align: center;">Saldo</th>
+                      <th style="min-width: 110px;">Folgas fixas</th>
+                      <th style="min-width: 160px;">Status</th>
+                      <th class="col-actions" style="min-width: 220px; width: 220px; text-align: right;">Ações</th>
                     </tr>
                   </thead>
                   <tbody id="employeeBody"></tbody>
