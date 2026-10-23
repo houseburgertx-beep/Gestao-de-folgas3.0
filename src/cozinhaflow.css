@@ -4252,7 +4252,7 @@ button, a, input, select, textarea, .btn, .j-card button {
   background: #f8fafc !important;
 }
 
-/* Coluna de Ações Sticky (NUNCA corta em nenhuma resolução) */
+/* Coluna de Ações Sticky Compacta */
 #view-employees table.employee-table th.col-actions,
 #view-employees table.employee-table td.employee-actions-cell {
   position: sticky !important;
@@ -4260,8 +4260,8 @@ button, a, input, select, textarea, .btn, .j-card button {
   z-index: 5 !important;
   text-align: right !important;
   white-space: nowrap !important;
-  min-width: 220px !important;
-  width: 220px !important;
+  min-width: 110px !important;
+  width: 110px !important;
   box-shadow: -4px 0 10px -2px rgba(0, 0, 0, 0.07) !important;
 }
 
@@ -4288,44 +4288,147 @@ button, a, input, select, textarea, .btn, .j-card button {
   white-space: nowrap !important;
 }
 
-#view-employees .row-actions button {
+/* Botão de 3 Pontinhos ao Lado do Nome e nas Ações */
+.employee-menu-btn {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  min-height: 28px !important;
-  padding: 4px 9px !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #94a3b8 !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: all 0.15s ease !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+}
+
+.employee-menu-btn:hover,
+.employee-menu-btn.active {
+  background: #f1f5f9 !important;
+  color: #6340d8 !important;
+  border-color: #cbd5e1 !important;
+  transform: scale(1.05) !important;
+}
+
+.btn-quick-edit {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 26px !important;
+  padding: 4px 10px !important;
   font-size: 11px !important;
   font-weight: 600 !important;
   border-radius: 6px !important;
   border: 1px solid #e2e8f0 !important;
   background: #ffffff !important;
-  color: #334155 !important;
-  white-space: nowrap !important;
+  color: #6340d8 !important;
   cursor: pointer !important;
   transition: all 0.12s ease !important;
 }
 
-#view-employees .row-actions button:hover {
-  background: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
-  color: #0f172a !important;
-}
-
-#view-employees .row-actions button[data-action="edit-employee"] {
+.btn-quick-edit:hover {
   background: #f5f3ff !important;
-  border-color: #ddd6fe !important;
-  color: #6340d8 !important;
-  font-weight: 700 !important;
-}
-
-#view-employees .row-actions button[data-action="edit-employee"]:hover {
-  background: #ede9fe !important;
   border-color: #c4b5fd !important;
 }
 
-#view-employees .row-actions .btn-delete-employee {
-  background: #fff5f5 !important;
-  border-color: #fee2e2 !important;
+/* Dropdown Flutuante Moderno de Ações do Funcionário */
+.employee-action-dropdown {
+  position: fixed !important;
+  z-index: 10000 !important;
+  min-width: 215px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.08) !important;
+  padding: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  animation: dropdownPop 0.12s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transform-origin: top left !important;
+}
+
+@keyframes dropdownPop {
+  from {
+    opacity: 0;
+    transform: scale(0.93) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.employee-action-dropdown .dropdown-header {
+  padding: 8px 10px 6px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  margin-bottom: 4px !important;
+}
+
+.employee-action-dropdown .dropdown-header-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.employee-action-dropdown .dropdown-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  width: 100% !important;
+  padding: 8px 10px !important;
+  border-radius: 8px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #334155 !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: all 0.1s ease !important;
+}
+
+.employee-action-dropdown .dropdown-item:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.employee-action-dropdown .dropdown-item svg {
+  color: #64748b !important;
+  flex-shrink: 0 !important;
+  transition: color 0.1s ease !important;
+}
+
+.employee-action-dropdown .dropdown-item:hover svg {
+  color: #6340d8 !important;
+}
+
+.employee-action-dropdown .dropdown-divider {
+  height: 1px !important;
+  background: #f1f5f9 !important;
+  margin: 4px 0 !important;
+}
+
+.employee-action-dropdown .dropdown-item.text-danger {
+  color: #dc2626 !important;
+}
+
+.employee-action-dropdown .dropdown-item.text-danger:hover {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+.employee-action-dropdown .dropdown-item.text-danger svg {
   color: #dc2626 !important;
 }
 
