@@ -1348,7 +1348,7 @@ export function printDocumentTextPhysical(doc) {
 }
 
 /**
- * Abre o modal para envio de atestado médico com abono de faltas
+ * Abre o modal para envio de atestado médico com abono de faltas — Padrão Apple iOS Sheet
  */
 export function openMedicalCertificateDialog(options = {}) {
   let dialog = $("#medicalCertificateDialog");
@@ -1356,8 +1356,8 @@ export function openMedicalCertificateDialog(options = {}) {
     dialog = document.createElement("dialog");
     dialog.id = "medicalCertificateDialog";
     dialog.className = "document-modal";
-    dialog.style.maxWidth = "580px";
-    dialog.style.width = "94vw";
+    dialog.style.maxWidth = "440px";
+    dialog.style.width = "92vw";
     document.body.appendChild(dialog);
   }
 
@@ -1365,130 +1365,133 @@ export function openMedicalCertificateDialog(options = {}) {
   const defaultDate = options.defaultDate || today;
 
   let isPeriodMode = false;
+  let showOptionals = false;
   let selectedFile = null;
   let fileBase64 = "";
+  let crmValue = "";
+  let reasonValue = "";
 
   const renderModalContent = () => {
     dialog.innerHTML = `
-      <div class="dialog-head" style="display:flex; justify-content:space-between; align-items:center; padding:1.25rem 1.5rem; border-bottom:1px solid var(--line, #e2e8f0);">
+      <div class="med-sheet-handle" aria-hidden="true"></div>
+      
+      <div class="med-header">
         <div>
-          <span class="eyebrow" style="color:#059669; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">JUSTIFICATIVA LEGAL CLT</span>
-          <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Enviar Atestado Médico</h3>
+          <h3 class="med-header-title">Atestado Médico</h3>
+          <p class="med-header-sub">Envie o comprovante para abonar suas faltas</p>
         </div>
-        <button type="button" class="icon-btn" id="medCloseBtn" aria-label="Fechar">&times;</button>
+        <button type="button" class="med-close-pill" id="medCloseBtn" aria-label="Fechar">&times;</button>
       </div>
 
-      <div class="dialog-body" style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:1.15rem;">
-        <!-- Seletor de Período (Segmented Control iOS) -->
-        <div>
-          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Duração do Afastamento</label>
-          <div style="display:flex; background:#f1f5f9; padding:4px; border-radius:12px; gap:4px;">
-            <button type="button" id="medToggleSingle" style="flex:1; border:none; padding:8px 12px; border-radius:9px; font-size:13.5px; font-weight:600; cursor:pointer; background:${!isPeriodMode ? '#ffffff' : 'transparent'}; color:${!isPeriodMode ? '#0f172a' : '#64748b'}; box-shadow:${!isPeriodMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'}; transition:all 0.15s ease;">
-              1 Único Dia
-            </button>
-            <button type="button" id="medTogglePeriod" style="flex:1; border:none; padding:8px 12px; border-radius:9px; font-size:13.5px; font-weight:600; cursor:pointer; background:${isPeriodMode ? '#ffffff' : 'transparent'}; color:${isPeriodMode ? '#0f172a' : '#64748b'}; box-shadow:${isPeriodMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'}; transition:all 0.15s ease;">
-              Vários Dias (Período)
-            </button>
-          </div>
+      <div class="med-body">
+        <!-- Segmented Control iOS -->
+        <div class="med-segmented">
+          <button type="button" id="medToggleSingle" class="med-seg-btn ${!isPeriodMode ? 'active' : ''}">
+            1 Único Dia
+          </button>
+          <button type="button" id="medTogglePeriod" class="med-seg-btn ${isPeriodMode ? 'active' : ''}">
+            Vários Dias (Período)
+          </button>
         </div>
 
-        <!-- Campos de Datas -->
-        <div id="medDatesContainer">
+        <!-- Seletor de Datas -->
+        <div class="med-date-card">
           ${
             !isPeriodMode
               ? `
-            <div>
-              <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Data da Ausência / Atestado</label>
-              <input type="date" id="medSingleDate" value="${defaultDate}" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
+            <div class="med-date-input-wrap">
+              <label class="med-date-label">Data da Ausência</label>
+              <input type="date" id="medSingleDate" class="med-date-field" value="${defaultDate}" />
             </div>
           `
               : `
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-              <div>
-                <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Data de Início</label>
-                <input type="date" id="medStartDate" value="${defaultDate}" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
+            <div class="med-date-row">
+              <div class="med-date-input-wrap">
+                <label class="med-date-label">Início</label>
+                <input type="date" id="medStartDate" class="med-date-field" value="${defaultDate}" />
               </div>
-              <div>
-                <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Data de Término</label>
-                <input type="date" id="medEndDate" value="${defaultDate}" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
+              <div class="med-date-input-wrap">
+                <label class="med-date-label">Término</label>
+                <input type="date" id="medEndDate" class="med-date-field" value="${defaultDate}" />
               </div>
             </div>
-            <div id="medPeriodSummary" style="margin-top:8px; font-size:12.5px; font-weight:600; color:#059669; background:#ecfdf5; padding:6px 12px; border-radius:8px; display:inline-block;">
-              Período: 1 dia a ser abonado
-            </div>
+            <div id="medPeriodSummary" class="med-badge-abono">1 dia a ser abonado</div>
           `
           }
         </div>
 
-        <!-- Área de Upload do Documento / Atestado -->
+        <!-- Card de Anexo Inteligente -->
+        <input type="file" id="medCameraInput" accept="image/*" capture="environment" style="display:none;" />
+        <input type="file" id="medFileInput" accept="image/*,application/pdf" style="display:none;" />
+
+        ${
+          !selectedFile
+            ? `
+          <div class="med-attachment-card">
+            <div style="color: #6340d8; margin-bottom: 4px;">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <strong style="font-size: 13.5px; color: #0f172a; display: block;">Anexar Atestado</strong>
+            <span style="font-size: 11.5px; color: #64748b;">Tire uma foto ou escolha o PDF</span>
+
+            <div class="med-upload-actions-grid">
+              <button type="button" id="medBtnCamera" class="med-upload-btn primary">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Fotografar
+              </button>
+              <button type="button" id="medBtnFile" class="med-upload-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                Arquivo / PDF
+              </button>
+            </div>
+          </div>
+        `
+            : `
+          <div class="med-file-preview-card">
+            <div class="med-file-info">
+              ${
+                fileBase64 && fileBase64.startsWith("data:image/")
+                  ? `<img src="${fileBase64}" class="med-file-thumb" alt="Prévia" />`
+                  : `<div class="med-file-thumb" style="display:flex;align-items:center;justify-content:center;background:#dcfce7;color:#059669;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>`
+              }
+              <div class="med-file-meta">
+                <div class="med-file-name">${esc(selectedFile.name)}</div>
+                <div class="med-file-size">${(selectedFile.size / 1024).toFixed(1)} KB · Anexado com sucesso</div>
+              </div>
+            </div>
+            <button type="button" id="medBtnRemoveFile" class="btn btn-ghost btn-sm" style="color: #ef4444; font-size: 12px; padding: 4px 8px;">Trocar</button>
+          </div>
+        `
+        }
+
+        <!-- Accordion de Opcionais (Sem poluição) -->
         <div>
-          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Foto ou PDF do Atestado</label>
+          <button type="button" id="medToggleOptionals" class="med-optional-trigger">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:${showOptionals ? 'rotate(90deg)' : 'rotate(0)'}; transition:transform 0.2s;"><polyline points="9 18 15 12 9 6"/></svg>
+            <span>${showOptionals ? 'Ocultar detalhes adicionais' : '+ Adicionar CRM ou observações (opcional)'}</span>
+          </button>
           
-          <input type="file" id="medCameraInput" accept="image/*" capture="environment" style="display:none;" />
-          <input type="file" id="medFileInput" accept="image/*,application/pdf" style="display:none;" />
-
           ${
-            !selectedFile
+            showOptionals
               ? `
-            <div style="border:2px dashed #cbd5e1; border-radius:16px; padding:1.5rem 1rem; text-align:center; background:#f8fafc;">
-              <div style="color:#059669; margin-bottom:0.5rem;">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              </div>
-              <strong style="display:block; font-size:14px; color:#1e293b; margin-bottom:4px;">Anexe a comprovação médica</strong>
-              <p style="margin:0 0 1rem; font-size:12px; color:#64748b;">Tire uma foto nítida do atestado ou anexe arquivo da galeria/PDF.</p>
-              
-              <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
-                <button type="button" id="medBtnCamera" class="btn btn-secondary btn-sm" style="min-height:42px; border-radius:10px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                  Tirar Foto Agora
-                </button>
-                <button type="button" id="medBtnFile" class="btn btn-secondary btn-sm" style="min-height:42px; border-radius:10px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                  Escolher Arquivo / PDF
-                </button>
-              </div>
+            <div class="med-optional-panel">
+              <input type="text" id="medCrmInput" class="med-input-subtle" placeholder="CRM do médico ou local (ex: CRM-BA 12345)" value="${esc(crmValue)}" />
+              <textarea id="medReasonInput" class="med-input-subtle" rows="2" placeholder="Observações do afastamento...">${esc(reasonValue)}</textarea>
             </div>
           `
-              : `
-            <div style="border:1px solid #10b981; border-radius:14px; padding:12px 14px; background:#f0fdf4; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-              <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-                ${
-                  fileBase64 && fileBase64.startsWith("data:image/")
-                    ? `<img src="${fileBase64}" alt="Prévia" style="width:52px; height:52px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1; flex-shrink:0;" />`
-                    : `<div style="width:52px; height:52px; border-radius:8px; background:#dcfce7; color:#059669; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      </div>`
-                }
-                <div style="min-width:0;">
-                  <strong style="display:block; font-size:13.5px; color:#065f46; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(selectedFile.name)}</strong>
-                  <span style="font-size:11.5px; color:#047857;">${(selectedFile.size / 1024).toFixed(1)} KB · Pronto para envio</span>
-                </div>
-              </div>
-              <button type="button" id="medBtnRemoveFile" class="btn btn-ghost btn-sm" style="color:#ef4444; flex-shrink:0;">Remover</button>
-            </div>
-          `
+              : ''
           }
         </div>
 
-        <!-- CRM e Observações -->
-        <div>
-          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">CRM do Médico ou Local (Opcional)</label>
-          <input type="text" id="medCrmInput" placeholder="Ex: CRM-BA 12345 / Hospital Geral" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
-        </div>
-
-        <div>
-          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Motivo ou Observações (Opcional)</label>
-          <textarea id="medReasonInput" rows="2" placeholder="Observações sobre o afastamento..." style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:13.5px; background:#f8fafc; box-sizing:border-box; resize:vertical;"></textarea>
-        </div>
-
-        <div id="medFeedbackMsg" style="display:none; font-size:13px; padding:10px 14px; border-radius:10px;"></div>
+        <div id="medFeedbackMsg" style="display:none; font-size:12.5px; padding:10px 12px; border-radius:10px;"></div>
       </div>
 
-      <div class="dialog-actions" style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.5rem; border-top:1px solid var(--line, #e2e8f0);">
-        <button type="button" class="btn btn-secondary" id="medCancelBtn" style="min-height:44px; border-radius:12px;">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="medSubmitBtn" style="min-height:44px; border-radius:12px; font-weight:600; padding:0 1.5rem;">
-          Enviar Atestado para o Gestor
+      <div class="med-footer">
+        <button type="button" id="medSubmitBtn" class="med-submit-btn">
+          <span>Enviar Atestado</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
+        <button type="button" id="medCancelBtn" class="med-cancel-link">Cancelar</button>
       </div>
     `;
 
@@ -1510,6 +1513,15 @@ export function openMedicalCertificateDialog(options = {}) {
       renderModalContent();
     };
 
+    // Toggle de Opcionais
+    $("#medToggleOptionals", dialog)?.addEventListener("click", () => {
+      // Salva os valores atuais antes de re-renderizar
+      crmValue = $("#medCrmInput", dialog)?.value || crmValue;
+      reasonValue = $("#medReasonInput", dialog)?.value || reasonValue;
+      showOptionals = !showOptionals;
+      renderModalContent();
+    });
+
     // Atualização do resumo de dias no modo período
     const updatePeriodDays = () => {
       const s = $("#medStartDate", dialog)?.value;
@@ -1520,11 +1532,13 @@ export function openMedicalCertificateDialog(options = {}) {
           summary.textContent = "Data de término anterior à de início";
           summary.style.color = "#dc2626";
           summary.style.background = "#fef2f2";
+          summary.style.borderColor = "#fecaca";
         } else {
           const diffDays = Math.round((new Date(`${e}T12:00:00`) - new Date(`${s}T12:00:00`)) / 86400000) + 1;
-          summary.textContent = `Período: ${diffDays} dia${diffDays > 1 ? "s" : ""} a ser${diffDays > 1 ? "em" : ""} abonado${diffDays > 1 ? "s" : ""}`;
+          summary.textContent = `${diffDays} dia${diffDays > 1 ? "s" : ""} a ser${diffDays > 1 ? "em" : ""} abonado${diffDays > 1 ? "s" : ""}`;
           summary.style.color = "#059669";
           summary.style.background = "#ecfdf5";
+          summary.style.borderColor = "#a7f3d0";
         }
       }
     };
@@ -1597,13 +1611,13 @@ export function openMedicalCertificateDialog(options = {}) {
         return;
       }
 
-      const crm = $("#medCrmInput", dialog)?.value || "";
-      const reason = $("#medReasonInput", dialog)?.value || "";
+      const crm = $("#medCrmInput", dialog)?.value || crmValue || "";
+      const reason = $("#medReasonInput", dialog)?.value || reasonValue || "";
       const empName = state.user?.Nome || state.user?.nome || "Colaborador";
 
       submitBtn.disabled = true;
-      submitBtn.textContent = "Gravando no Drive da House 190...";
-      showFeedback("Enviando atestado para o Google Drive seguro...", false);
+      submitBtn.innerHTML = `<span>Salvando no Google Drive...</span>`;
+      showFeedback("Enviando atestado para o Drive seguro da House 190...", false);
 
       try {
         // 1. Upload para o Google Drive da conta grupo190house@gmail.com
@@ -1612,7 +1626,7 @@ export function openMedicalCertificateDialog(options = {}) {
         const docBase64 = uploadResult.base64 || fileBase64;
 
         // 2. Invoca a API de atestado médico
-        submitBtn.textContent = "Registrando solicitação de abono...";
+        submitBtn.innerHTML = `<span>Finalizando pedido de abono...</span>`;
         await callApi("submitMedicalCertificate", {
           dataInicio: start,
           dataFim: end,
@@ -1622,7 +1636,7 @@ export function openMedicalCertificateDialog(options = {}) {
           motivo: reason,
         });
 
-        showFeedback("Atestado enviado com sucesso! Aguardando aprovação para abono das faltas.", false);
+        showFeedback("Atestado enviado! As faltas serão abonadas assim que o gestor aprovar.", false);
         setTimeout(() => {
           dialog.close();
           loadDocuments();
@@ -1637,7 +1651,7 @@ export function openMedicalCertificateDialog(options = {}) {
         console.error("[documents] Erro ao enviar atestado:", err);
         showFeedback(`Erro ao enviar: ${err.message}`, true);
         submitBtn.disabled = false;
-        submitBtn.textContent = "Enviar Atestado para o Gestor";
+        submitBtn.innerHTML = `<span>Enviar Atestado</span>`;
       }
     });
   };
