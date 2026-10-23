@@ -1572,12 +1572,27 @@ export function createClockHandlers() {
         assert(expected === next, "A tela estava desatualizada. Atualize o ponto.");
       }
       assert(type, "A jornada de hoje já foi concluída.");
-      const selfie = await uploadClockSelfieToDrive({
-        selfieDataUrl: payload.selfieDataUrl,
-        requestId,
-        day,
-        type,
-      });
+      let selfie;
+      try {
+        selfie = await uploadClockSelfieToDrive({
+          selfieDataUrl: payload.selfieDataUrl,
+          requestId,
+          day,
+          type,
+        });
+      } catch (selfieErr) {
+        console.warn(
+          "[ponto] Falha no upload ao Drive; aplicando contingência segura (CLT/Portaria 671):",
+          selfieErr?.message || selfieErr,
+        );
+        selfie = {
+          fileId: "contingencia_" + requestId,
+          fileUrl: "",
+          fileName: `${day}__${requestId}.jpg`,
+          uploadedAt: nowIso(),
+          offlineFallback: true,
+        };
+      }
       const punchTimestamp = nowIso();
       const punchHash = await sha256Hex(
         `${requestId}|${employee.FuncionarioID}|${employee.LojaID}|${punchTimestamp}|${type}|${latitude.toFixed(6)}|${longitude.toFixed(6)}`,
