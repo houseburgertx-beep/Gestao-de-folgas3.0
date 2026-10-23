@@ -9216,6 +9216,126 @@
       padding: 14px !important;
     }
   }
+  /* ── Gestão de Funcionários — Tabela e Ações ── */
+  #view-employees .table-panel {
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+    overflow: hidden;
+  }
+  #view-employees .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  #view-employees table {
+    width: 100%;
+    min-width: 1120px;
+    border-collapse: collapse;
+    table-layout: auto;
+  }
+  #view-employees th {
+    padding: 14px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted, #64748b);
+    background: var(--bg-hover, #f8fafc);
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    white-space: nowrap;
+  }
+  #view-employees td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+    vertical-align: middle;
+    font-size: 12.5px;
+    color: var(--text-secondary, #334155);
+  }
+  #view-employees tbody tr:hover {
+    background: color-mix(in srgb, var(--primary, #6340d8) 4%, transparent);
+  }
+  #view-employees .status-cell-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  #view-employees .status-cell-wrap .badge {
+    min-height: 24px;
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    border-radius: 6px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
+  #view-employees .employee-actions-cell {
+    text-align: right;
+    min-width: 260px;
+    width: 260px;
+    white-space: nowrap;
+    padding-right: 18px;
+  }
+  #view-employees .row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  #view-employees .row-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 7px;
+    background: var(--surface, #ffffff);
+    color: var(--text-secondary, #475569);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  #view-employees .row-actions button:hover {
+    background: var(--bg-hover, #f1f5f9);
+    color: var(--primary, #6340d8);
+    border-color: var(--primary, #6340d8);
+  }
+  #view-employees .row-actions .btn-delete-employee {
+    color: #dc2626 !important;
+    background: #fff5f5 !important;
+    border-color: #fee2e2 !important;
+  }
+  #view-employees .row-actions .btn-delete-employee:hover {
+    background: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+    color: #b91c1c !important;
+  }
+  #view-employees .toolbar-actions input.search-input {
+    min-width: 220px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  #view-employees .toolbar-actions select {
+    min-width: 160px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  #view-employees .toolbar-actions #newEmployeeBtn {
+    height: 40px;
+    border-radius: 10px;
+    padding: 0 16px;
+    font-weight: 600;
+  }
   @media print {
     body > *:not(dialog[open]) {
       display: none !important;
