@@ -184,11 +184,12 @@ function renderTeam() {
 function renderSchedule() {
  const today=dateKey();
  const own=String(data.user?.funcionarioId || data.user?.FuncionarioID || '');
- const selectedStore=stores().find(s=>storeId(s)===unit);
+ const allStores=stores();
+ const allActiveEmployees=uniquePeople(list(data.employees)).filter(p=>active(p.Ativo));
+ const selectedStore=allStores.find(s=>storeId(s)===unit);
  const selectedStoreName=selectedStore ? storeName(selectedStore).toLowerCase() : '';
- const employees=uniquePeople(list(data.employees)).filter(p=>{
-  if(!active(p.Ativo)) return false;
-  if(!data.manager && String(p.FuncionarioID)!==own) return false;
+ const employees=allActiveEmployees.filter(p=>{
+  if(!data.manager && own && !unit && String(p.FuncionarioID)!==own) return false;
   if(!unit) return true;
   const pStoreId=String(p.LojaID || p.lojaId || '').trim();
   const pStoreName=String(p.NomeLoja || p.nomeLoja || '').trim().toLowerCase();
@@ -204,22 +205,28 @@ function renderSchedule() {
   : `${dateLabel(start)} — ${dateLabel(shiftDate(start,count-1))}`;
  const periodLabel=rawPeriodLabel.charAt(0).toUpperCase() + rawPeriodLabel.slice(1);
 
- const storeBanner=data.manager && stores().length>0 ? `
-  <div class="j-store-nav-wrapper">
+ const storeBanner=allStores.length>0 ? `
+  <div class="j-store-nav-wrapper" role="region" aria-label="Filtro de Escala por Loja">
    <div class="j-store-chips" role="tablist" aria-label="Filtrar escala por loja">
-    <button type="button" class="j-store-chip ${!unit?'active':''}" data-j-unit-chip="" aria-pressed="${!unit}">Todas as lojas (${uniquePeople(list(data.employees)).filter(p=>active(p.Ativo)).length})</button>
-    ${stores().map(s=>{
+    <button type="button" class="j-store-chip ${!unit?'active':''}" data-j-unit-chip="" aria-pressed="${!unit}">
+     <span>Todas as lojas</span>
+     <span class="j-store-chip-badge">${allActiveEmployees.length}</span>
+    </button>
+    ${allStores.map(s=>{
       const sid=storeId(s);
       const sname=storeName(s) || 'Loja';
-      const c=uniquePeople(list(data.employees)).filter(p=>active(p.Ativo)&&(String(p.LojaID||p.lojaId||'').trim()===sid||(sname&&String(p.NomeLoja||p.nomeLoja||'').trim().toLowerCase()===sname.toLowerCase()))).length;
-      return `<button type="button" class="j-store-chip ${unit===sid?'active':''}" data-j-unit-chip="${esc(sid)}" aria-pressed="${unit===sid}">${esc(sname)} (${c})</button>`;
+      const c=allActiveEmployees.filter(p=>(String(p.LojaID||p.lojaId||'').trim()===sid||(sname&&String(p.NomeLoja||p.nomeLoja||'').trim().toLowerCase()===sname.toLowerCase()))).length;
+      return `<button type="button" class="j-store-chip ${unit===sid?'active':''}" data-j-unit-chip="${esc(sid)}" aria-pressed="${unit===sid}">
+       <span>${esc(sname)}</span>
+       <span class="j-store-chip-badge">${c}</span>
+      </button>`;
     }).join('')}
    </div>
   </div>` : '';
 
  const storeSummary=selectedStore
   ? `<div class="j-cal-store-badge"><span>Loja: <strong>${esc(storeName(selectedStore))}</strong> (${employees.length} ${employees.length===1?'colaborador':'colaboradores'})</span><button type="button" class="btn btn-ghost btn-xs" data-j-unit-chip="">Ver todas as lojas</button></div>`
-  : (data.manager ? `<div class="j-cal-store-badge all"><span>Visualizando: <strong>Todas as lojas</strong> (${employees.length} colaboradores ativos)</span></div>` : '');
+  : `<div class="j-cal-store-badge all"><span>Visualizando: <strong>Todas as lojas</strong> (${employees.length} colaboradores ativos)</span></div>`;
 
  let content='';
  if(!data.schedules){

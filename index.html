@@ -17323,83 +17323,107 @@ button, a, input, select, textarea, .btn, .j-card button {
   margin-bottom: 24px !important;
 }
 
-/* Barra de Seleção de Loja */
+/* Barra de Seleção de Loja Apple iOS */
 .j-store-nav-wrapper {
-  margin: 10px 0 14px;
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  margin: 12px 0 16px !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
   scrollbar-width: thin;
+  padding-bottom: 4px !important;
 }
 
 .j-store-chips {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0 8px;
-  width: max-content;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 4px 2px 8px !important;
+  width: max-content !important;
 }
 
 .j-store-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 9999px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-  min-height: 38px;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 16px !important;
+  border-radius: 9999px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+  min-height: 38px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 .j-store-chip:hover {
-  background: var(--surface-2);
-  color: var(--text);
-  border-color: #cbd5e1;
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: #cbd5e1 !important;
 }
 
-.j-store-chip.active {
-  background: #1b365d;
-  color: #ffffff;
-  border-color: #1b365d;
-  box-shadow: 0 4px 12px rgba(27, 54, 93, 0.2);
+.j-store-chip.active,
+.j-store-chip[aria-pressed="true"] {
+  background: #1b365d !important;
+  color: #ffffff !important;
+  border-color: #1b365d !important;
+  box-shadow: 0 4px 12px rgba(27, 54, 93, 0.2) !important;
 }
 
-[data-theme="dark"] .j-store-chip.active {
-  background: #807efa;
-  color: #ffffff;
-  border-color: #807efa;
-  box-shadow: 0 4px 12px rgba(128, 126, 250, 0.3);
+[data-theme="dark"] .j-store-chip.active,
+[data-theme="dark"] .j-store-chip[aria-pressed="true"] {
+  background: #807efa !important;
+  color: #ffffff !important;
+  border-color: #807efa !important;
+  box-shadow: 0 4px 12px rgba(128, 126, 250, 0.3) !important;
+}
+
+.j-store-chip-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 6px !important;
+  border-radius: 10px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  background: rgba(0, 0, 0, 0.07) !important;
+  color: inherit !important;
+}
+
+.j-store-chip.active .j-store-chip-badge,
+.j-store-chip[aria-pressed="true"] .j-store-chip-badge {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
 }
 
 .j-cal-store-badge {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  margin-bottom: 14px;
-  border-radius: 14px;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line);
-  font-size: 12.5px;
-  color: var(--muted);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 16px !important;
+  margin-bottom: 14px !important;
+  border-radius: 14px !important;
+  background: var(--surface-2, #f8fafc) !important;
+  border: 1px solid var(--line) !important;
+  font-size: 12.5px !important;
+  color: var(--muted) !important;
 }
 
 .j-cal-store-badge strong {
-  color: var(--text);
-  font-weight: 700;
+  color: var(--text) !important;
+  font-weight: 700 !important;
 }
 
 .j-cal-store-badge .btn-ghost {
-  padding: 4px 10px;
-  font-size: 11.5px;
-  height: auto;
-  min-height: 28px;
+  padding: 4px 10px !important;
+  font-size: 11.5px !important;
+  height: auto !important;
+  min-height: 28px !important;
 }
 
 /* Barra de Controles (Modos + Navegação por Data) */
@@ -17551,77 +17575,137 @@ button, a, input, select, textarea, .btn, .j-card button {
   flex: 1 !important;
 }
 
-.j-cal-shift-item {
+.j-cal-shift-item,
+.j-cal-shift-item.j-shift {
   border-radius: 14px !important;
   background: var(--surface-2, #f8fafc) !important;
   border: 1px solid var(--line) !important;
-  padding: 10px !important;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 10px 12px !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 6px !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
   min-width: 0 !important;
-  transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  text-align: left !important;
+  flex-wrap: nowrap !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
 }
 
-.j-cal-shift-item:hover {
+.j-cal-shift-item:hover,
+.j-cal-shift-item.j-shift:hover {
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  border-color: #c7b4eb !important;
 }
 
 .j-shift-time-badge {
   font-size: 11px !important;
   font-weight: 700 !important;
-  color: #1e293b !important;
-  background: rgba(0, 0, 0, 0.05) !important;
+  color: var(--primary, #1B365D) !important;
+  background: rgba(27, 54, 93, 0.07) !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
   width: fit-content !important;
+  max-width: 100% !important;
   font-variant-numeric: tabular-nums !important;
   white-space: nowrap !important;
-  display: inline-block !important;
+  display: inline-flex !important;
+  align-items: center !important;
   letter-spacing: 0.02em !important;
+  flex-shrink: 0 !important;
+  margin-bottom: 2px !important;
 }
 
 [data-theme="dark"] .j-shift-time-badge {
-  color: #f1f5f9 !important;
-  background: rgba(255, 255, 255, 0.09) !important;
+  color: #c7b4eb !important;
+  background: rgba(199, 180, 235, 0.15) !important;
 }
 
 .j-shift-main {
   display: flex !important;
+  flex-direction: row !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 9px !important;
+  width: 100% !important;
   min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  flex-wrap: nowrap !important;
+}
+
+.j-cal-shift-item .j-avatar {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  border-radius: 50% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  background: var(--avatar, #807efa) !important;
+  flex-shrink: 0 !important;
+  float: none !important;
+  position: static !important;
+  box-sizing: border-box !important;
+  order: 1 !important;
 }
 
 .j-shift-details {
+  flex: 1 1 auto !important;
   min-width: 0 !important;
-  flex: 1 !important;
+  max-width: calc(100% - 41px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  text-align: left !important;
+  order: 2 !important;
 }
 
 .j-shift-details strong {
   display: block !important;
-  font-size: 12.5px !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
   color: var(--text) !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .j-shift-details small {
   display: block !important;
   font-size: 10.5px !important;
   color: var(--muted) !important;
-  line-height: 1.25 !important;
+  line-height: 1.3 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  margin: 1px 0 0 0 !important;
+  padding: 0 !important;
 }
 
 .j-shift-sub {
   color: #d97706 !important;
   font-weight: 600 !important;
+  font-size: 9.5px !important;
+  margin-top: 2px !important;
 }
 
 .j-cal-col-empty {
@@ -17878,6 +17962,8 @@ button, a, input, select, textarea, .btn, .j-card button {
   display: flex !important;
   align-items: center !important;
   gap: 14px !important;
+  width: 100% !important;
+  min-width: 0 !important;
 }
 
 .j-shift-day-view time {
@@ -17887,6 +17973,30 @@ button, a, input, select, textarea, .btn, .j-card button {
   font-variant-numeric: tabular-nums !important;
   min-width: 95px !important;
   white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.j-shift-day-view .j-avatar {
+  flex: 0 0 38px !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ffffff !important;
+  background: var(--avatar, #807efa) !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+}
+
+.j-shift-day-view .j-shift-meta {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
 }
 
 .j-shift-meta strong {
@@ -17894,6 +18004,9 @@ button, a, input, select, textarea, .btn, .j-card button {
   font-size: 13.5px !important;
   font-weight: 700 !important;
   color: var(--text) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .j-shift-meta small {
@@ -17901,6 +18014,9 @@ button, a, input, select, textarea, .btn, .j-card button {
   font-size: 11px !important;
   color: var(--muted) !important;
   margin-top: 2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 
