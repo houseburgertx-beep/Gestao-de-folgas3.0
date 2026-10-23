@@ -114,3 +114,64 @@ test('card w-wallet destaca saldo devedor, chip de folga semanal e ações simé
  const walletHtml = html.split('w-wallet')[1].split('</article>')[0];
  assert.doesNotMatch(walletHtml,/data-view-target="notifications"/);
 });
+
+test('escala semanal exibe formato de grade de calendário de 7 dias com cabeçalhos e contagem de escalados',()=>{
+ const h=harness();
+ h.send({
+  manager:true,
+  employees:[{FuncionarioID:'1',Nome:'Carlos',Ativo:true,LojaID:'1'}],
+  schedules:[{FuncionarioID:'1',Ativa:true,HoraEntrada:'16:00',HoraSaida:'00:00',DiasTrabalho:'0,1,2,3,4,5,6'}],
+  stores:[{LojaID:'1',NomeLoja:'House Centro'}]
+ });
+ h.events.click({target:{closest(s){return s==='[data-j-mode]'?{dataset:{jMode:'semana'}}:null}}});
+ const html=h.nodes.get('#journeySchedule').innerHTML;
+ assert.match(html,/class="j-cal-week-grid"/);
+ assert.match(html,/class="j-cal-col-weekday"/);
+ assert.match(html,/class="j-cal-headcount has-staff"/);
+ assert.match(html,/<strong>Carlos<\/strong>/);
+ assert.match(html,/16:00 — 00:00/);
+});
+
+test('escala mensal renderiza matriz de dias com cabeçalho de dias da semana e chips de escala',()=>{
+ const h=harness();
+ h.send({
+  manager:true,
+  employees:[{FuncionarioID:'1',Nome:'Mariana',Ativo:true,LojaID:'1'}],
+  schedules:[{FuncionarioID:'1',Ativa:true,HoraEntrada:'09:00',HoraSaida:'17:00',DiasTrabalho:'0,1,2,3,4,5,6'}],
+  stores:[{LojaID:'1',NomeLoja:'House Centro'}]
+ });
+ h.events.click({target:{closest(s){return s==='[data-j-mode]'?{dataset:{jMode:'mês'}}:null}}});
+ const html=h.nodes.get('#journeySchedule').innerHTML;
+ assert.match(html,/class="j-cal-month-weekdays-bar"/);
+ assert.match(html,/<div>Seg<\/div><div>Ter<\/div><div>Qua<\/div><div>Qui<\/div><div>Sex<\/div><div>Sáb<\/div><div>Dom<\/div>/);
+ assert.match(html,/class="j-cal-month-grid"/);
+ assert.match(html,/j-cal-mini-chip/);
+ assert.match(html,/<strong>Mariana<\/strong>/);
+ assert.match(html,/data-j-cal-day=/);
+});
+
+test('filtro por loja na escala isola colaboradores da unidade selecionada via chip e atualiza o resumo',()=>{
+ const h=harness();
+ h.send({
+  manager:true,
+  employees:[
+   {FuncionarioID:'1',Nome:'Ana Centro',Ativo:true,LojaID:'1'},
+   {FuncionarioID:'2',Nome:'Bruno Sul',Ativo:true,LojaID:'2'}
+  ],
+  schedules:[
+   {FuncionarioID:'1',Ativa:true,HoraEntrada:'17:00',HoraSaida:'01:00',DiasTrabalho:'0,1,2,3,4,5,6'},
+   {FuncionarioID:'2',Ativa:true,HoraEntrada:'18:00',HoraSaida:'02:00',DiasTrabalho:'0,1,2,3,4,5,6'}
+  ],
+  stores:[{LojaID:'1',NomeLoja:'Centro'},{LojaID:'2',NomeLoja:'Sul'}]
+ });
+ h.events.click({target:{closest(s){return s==='[data-j-mode]'?{dataset:{jMode:'semana'}}:null}}});
+ assert.match(h.nodes.get('#journeySchedule').innerHTML,/Ana Centro/);
+ assert.match(h.nodes.get('#journeySchedule').innerHTML,/Bruno Sul/);
+
+ // Clica no chip da loja '1' (Centro)
+ h.events.click({target:{closest(s){return s==='[data-j-unit-chip]'?{dataset:{jUnitChip:'1'}}:null}}});
+ const filteredHtml=h.nodes.get('#journeySchedule').innerHTML;
+ assert.match(filteredHtml,/Loja: <strong>Centro<\/strong>/);
+ assert.match(filteredHtml,/Ana Centro/);
+ assert.doesNotMatch(filteredHtml,/Bruno Sul/);
+});

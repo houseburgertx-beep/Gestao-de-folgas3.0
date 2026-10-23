@@ -175,13 +175,144 @@ function renderTeam() {
  $('#journeyTeam').innerHTML=data.manager?`<div class="j-page-head"><div><span class="eyebrow">PESSOAS QUE FAZEM ACONTECER</span><h2>Equipe</h2><p>${rows().length} colaboradores</p></div>${unitSelect()}</div><label class="j-search">Buscar colaborador<input data-j-search type="search" placeholder="Nome, cargo ou unidade…" value="${esc(search)}"></label><div class="j-chips">${[['todos','Todos'],['atrasados','Atrasados'],...Object.entries(names)].map(([k,n])=>`<button data-j-filter="${k}" aria-pressed="${teamFilter===k}">${n}</button>`).join('')}</div><div class="v-layout-switch" aria-label="Formato da equipe">${['quadro','lista'].map(k=>`<button data-j-layout="${k}" aria-pressed="${teamLayout===k}">${k==='quadro'?'Quadro por situação':'Lista compacta'}</button>`).join('')}</div><div id="journeyTeamRows" class="j-team-list">${teamResults(r)}</div>`:'<p class="j-empty">A visualização da equipe está disponível para gestores.</p>';
 }
 function renderSchedule() {
- const today=dateKey(), start=mode==='mês'?anchor.slice(0,7)+'-01':mode==='semana'?shiftDate(anchor,-((new Date(anchor+'T12:00:00Z').getUTCDay()+6)%7)):anchor;
- const count=mode==='mês'?new Date(Number(anchor.slice(0,4)),Number(anchor.slice(5,7)),0).getDate():mode==='semana'?7:1;
+ const today=dateKey();
  const own=String(data.user?.funcionarioId || data.user?.FuncionarioID || '');
- const employees=uniquePeople(list(data.employees)).filter(p=>active(p.Ativo)&&(!unit||String(p.LojaID)===unit)&&(data.manager||String(p.FuncionarioID)===own));
- const blocks=Array.from({length:count},(_,i)=>{const day=shiftDate(start,i);const shifts=employees.map(p=>({p,s:scheduleForDay(list(data.schedules),p.FuncionarioID,day)})).filter(({p,s})=>s&&workday(p,s,day,list(data.timeOff))).sort((a,b)=>String(a.s.HoraEntrada).localeCompare(String(b.s.HoraEntrada)));
- return `<article class="j-card ${day===today?'j-is-today':''}"><span class="eyebrow">${day===today?'HOJE · ':''}${new Date(day+'T12:00:00Z').toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'short',day:'2-digit',month:'short'})}</span>${shifts.map(({p,s})=>`<div class="j-shift"><time>${esc(s.HoraEntrada || '—')} — ${esc(s.HoraSaida || '—')}</time>${avatar(p)}<div><strong>${esc(p.Nome)}</strong><small>${esc(personUnit(p))}</small>${active(s.HorarioFlexivelDoisTurnos)?`<small>Dois turnos · pausa ${esc(s.HoraSaidaIntervalo)} — ${esc(s.HoraRetornoIntervalo)}</small>`:''}</div></div>`).join('')||'<p class="j-empty">Sem jornada prevista nesta seleção.</p>'}</article>`;}).join('');
- $('#journeySchedule').innerHTML=`<div class="j-page-head"><div><span class="eyebrow">SEU PRÓXIMO PASSO</span><h2>Escala</h2><p>Jornadas cadastradas e folgas aprovadas</p></div>${unitSelect()}</div><div class="w-date-nav"><button class="btn btn-secondary" data-j-period="-1" aria-label="Período anterior">←</button><button class="btn btn-ghost" data-j-period="today">Hoje</button><strong>${esc(dateLabel(start))} — ${esc(dateLabel(shiftDate(start,count-1)))}</strong><button class="btn btn-secondary" data-j-period="1" aria-label="Próximo período">→</button></div><div class="j-chips">${['dia','semana','mês'].map(k=>`<button data-j-mode="${k}" aria-pressed="${mode===k}">${k}</button>`).join('')}</div><div class="j-schedule-grid">${data.schedules?blocks:'<p class="j-empty">Carregando jornadas…</p>'}</div><button class="btn btn-secondary" data-view-target="calendar">Consultar e gerenciar folgas →</button>`;
+ const selectedStore=stores().find(s=>storeId(s)===unit);
+ const selectedStoreName=selectedStore ? storeName(selectedStore).toLowerCase() : '';
+ const employees=uniquePeople(list(data.employees)).filter(p=>{
+  if(!active(p.Ativo)) return false;
+  if(!data.manager && String(p.FuncionarioID)!==own) return false;
+  if(!unit) return true;
+  const pStoreId=String(p.LojaID || p.lojaId || '').trim();
+  const pStoreName=String(p.NomeLoja || p.nomeLoja || '').trim().toLowerCase();
+  return pStoreId===unit || (selectedStoreName && pStoreName===selectedStoreName);
+ });
+
+ const y=Number(anchor.slice(0,4));
+ const m=Number(anchor.slice(5,7));
+ const start=mode==='mês' ? `${anchor.slice(0,7)}-01` : mode==='semana' ? shiftDate(anchor,-((new Date(`${anchor}T12:00:00Z`).getUTCDay()+6)%7)) : anchor;
+ const count=mode==='mês' ? new Date(y,m,0).getDate() : mode==='semana' ? 7 : 1;
+ const rawPeriodLabel=mode==='mês'
+  ? new Date(`${start}T12:00:00Z`).toLocaleDateString('pt-BR',{timeZone:'America/Bahia',month:'long',year:'numeric'})
+  : `${dateLabel(start)} — ${dateLabel(shiftDate(start,count-1))}`;
+ const periodLabel=rawPeriodLabel.charAt(0).toUpperCase() + rawPeriodLabel.slice(1);
+
+ const storeBanner=data.manager && stores().length>0 ? `
+  <div class="j-store-nav-wrapper">
+   <div class="j-store-chips" role="tablist" aria-label="Filtrar escala por loja">
+    <button type="button" class="j-store-chip ${!unit?'active':''}" data-j-unit-chip="" aria-pressed="${!unit}">Todas as lojas (${uniquePeople(list(data.employees)).filter(p=>active(p.Ativo)).length})</button>
+    ${stores().map(s=>{
+      const sid=storeId(s);
+      const sname=storeName(s) || 'Loja';
+      const c=uniquePeople(list(data.employees)).filter(p=>active(p.Ativo)&&(String(p.LojaID||p.lojaId||'').trim()===sid||(sname&&String(p.NomeLoja||p.nomeLoja||'').trim().toLowerCase()===sname.toLowerCase()))).length;
+      return `<button type="button" class="j-store-chip ${unit===sid?'active':''}" data-j-unit-chip="${esc(sid)}" aria-pressed="${unit===sid}">${esc(sname)} (${c})</button>`;
+    }).join('')}
+   </div>
+  </div>` : '';
+
+ const storeSummary=selectedStore
+  ? `<div class="j-cal-store-badge"><span>Loja: <strong>${esc(storeName(selectedStore))}</strong> (${employees.length} ${employees.length===1?'colaborador':'colaboradores'})</span><button type="button" class="btn btn-ghost btn-xs" data-j-unit-chip="">Ver todas as lojas</button></div>`
+  : (data.manager ? `<div class="j-cal-store-badge all"><span>Visualizando: <strong>Todas as lojas</strong> (${employees.length} colaboradores ativos)</span></div>` : '');
+
+ let content='';
+ if(!data.schedules){
+  content='<p class="j-empty">Carregando jornadas…</p>';
+ } else if(mode==='semana'){
+  const cols=Array.from({length:7},(_,i)=>{
+   const day=shiftDate(start,i);
+   const dObj=new Date(`${day}T12:00:00Z`);
+   const weekdayName=dObj.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'short'});
+   const dayNum=dObj.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',day:'2-digit',month:'2-digit'});
+   const isToday=day===today;
+   const shifts=employees.map(p=>({p,s:scheduleForDay(list(data.schedules),p.FuncionarioID,day)})).filter(({p,s})=>s&&workday(p,s,day,list(data.timeOff))).sort((a,b)=>String(a.s.HoraEntrada).localeCompare(String(b.s.HoraEntrada)));
+   return `<article class="j-card j-cal-col ${isToday?'j-is-today':''}">
+    <header class="j-cal-col-head">
+     <div class="j-cal-col-date">
+      <span class="j-cal-col-weekday">${esc(weekdayName)}</span>
+      <strong class="j-cal-col-num">${esc(dayNum)}</strong>
+     </div>
+     ${isToday?'<span class="j-cal-today-pill">Hoje</span>':''}
+     <span class="j-cal-headcount ${shifts.length?'has-staff':'empty'}">${shifts.length} ${shifts.length===1?'escalado':'escalados'}</span>
+    </header>
+    <div class="j-cal-shifts-container">
+     ${shifts.map(({p,s})=>`
+      <div class="j-shift j-cal-shift-item">
+       <div class="j-shift-time-badge">${esc(s.HoraEntrada || '—')} — ${esc(s.HoraSaida || '—')}</div>
+       <div class="j-shift-main">
+        ${avatar(p)}
+        <div class="j-shift-details">
+         <strong>${esc(p.Nome)}</strong>
+         <small>${esc(personUnit(p))}${p.Cargo?' · '+esc(p.Cargo):''}</small>
+         ${active(s.HorarioFlexivelDoisTurnos)?`<small class="j-shift-sub">2 turnos · intervalo ${esc(s.HoraSaidaIntervalo)} — ${esc(s.HoraRetornoIntervalo)}</small>`:''}
+        </div>
+       </div>
+      </div>
+     `).join('')||'<div class="j-cal-col-empty"><span>Sem escala</span></div>'}
+    </div>
+   </article>`;
+  }).join('');
+  content=`<div class="j-cal-week-wrapper"><div class="j-cal-week-grid">${cols}</div></div>`;
+ } else if(mode==='mês'){
+  const firstDow=(new Date(`${start}T12:00:00Z`).getUTCDay()+6)%7;
+  const padLeading=Array.from({length:firstDow},()=>`<div class="j-cal-month-cell j-cal-pad" aria-hidden="true"></div>`).join('');
+  const daysCells=Array.from({length:count},(_,i)=>{
+   const day=shiftDate(start,i);
+   const dayNum=i+1;
+   const isToday=day===today;
+   const shifts=employees.map(p=>({p,s:scheduleForDay(list(data.schedules),p.FuncionarioID,day)})).filter(({p,s})=>s&&workday(p,s,day,list(data.timeOff))).sort((a,b)=>String(a.s.HoraEntrada).localeCompare(String(b.s.HoraEntrada)));
+   return `<article class="j-card j-cal-month-cell ${isToday?'j-is-today':''}" data-j-cal-day="${day}" tabindex="0" role="button" aria-label="${dayNum} de ${periodLabel}: ${shifts.length} escalados">
+    <div class="j-cal-month-cell-header">
+     <strong class="j-cal-day-num ${isToday?'is-today':''}">${dayNum}</strong>
+     ${shifts.length?`<span class="j-cal-badge-count ${shifts.length>3?'high':''}">${shifts.length}</span>`:'<span class="j-cal-badge-off">folga</span>'}
+    </div>
+    <div class="j-cal-month-cell-body">
+     ${shifts.slice(0,3).map(({p,s})=>`
+      <div class="j-shift j-cal-mini-chip" title="${esc(p.Nome)}: ${esc(s.HoraEntrada)} — ${esc(s.HoraSaida)}">
+       <i class="j-chip-dot" style="background:${colors[p.status] || '#71cbb0'}"></i>
+       <span class="j-chip-name"><strong>${esc(p.Nome.split(' ')[0])}</strong></span>
+       <time class="j-chip-time">${esc((s.HoraEntrada || '').slice(0,5))}</time>
+      </div>
+     `).join('')}
+     ${shifts.length>3?`<span class="j-cal-more-chip">+${shifts.length-3} mais</span>`:''}
+    </div>
+   </article>`;
+  }).join('');
+  const totalCells=firstDow+count;
+  const trailing=(7-(totalCells%7))%7;
+  const padTrailing=Array.from({length:trailing},()=>`<div class="j-cal-month-cell j-cal-pad" aria-hidden="true"></div>`).join('');
+  content=`<div class="j-cal-month-wrapper"><div class="j-cal-month-weekdays-bar"><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div><div>Dom</div></div><div class="j-cal-month-grid">${padLeading}${daysCells}${padTrailing}</div></div>`;
+ } else {
+  const day=start;
+  const isToday=day===today;
+  const dObj=new Date(`${day}T12:00:00Z`);
+  const shifts=employees.map(p=>({p,s:scheduleForDay(list(data.schedules),p.FuncionarioID,day)})).filter(({p,s})=>s&&workday(p,s,day,list(data.timeOff))).sort((a,b)=>String(a.s.HoraEntrada).localeCompare(String(b.s.HoraEntrada)));
+  content=`<div class="j-cal-day-container">
+   <div class="j-cal-day-banner">
+    <div>
+     <span class="eyebrow">${isToday?'HOJE · ':''}${esc(dObj.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'long'}))}</span>
+     <h3>${esc(dObj.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',day:'2-digit',month:'long',year:'numeric'}))}</h3>
+    </div>
+    <span class="j-cal-headcount ${shifts.length?'has-staff':'empty'}">${shifts.length} ${shifts.length===1?'colaborador escalado':'colaboradores escalados'}</span>
+   </div>
+   <div class="j-cal-day-list">
+    ${shifts.map(({p,s})=>`
+     <article class="j-card j-cal-day-card ${isToday?'j-is-today':''}">
+      <div class="j-shift j-shift-day-view">
+       <time>${esc(s.HoraEntrada || '—')} — ${esc(s.HoraSaida || '—')}</time>
+       ${avatar(p)}
+       <div class="j-shift-meta">
+        <strong>${esc(p.Nome)}</strong>
+        <small>${esc(personUnit(p))}${p.Cargo?' · '+esc(p.Cargo):''}</small>
+        ${active(s.HorarioFlexivelDoisTurnos)?`<small class="j-shift-sub">Dois turnos · pausa ${esc(s.HoraSaidaIntervalo)} — ${esc(s.HoraRetornoIntervalo)}</small>`:''}
+       </div>
+      </div>
+     </article>
+    `).join('')||'<article class="j-card"><p class="j-empty">Sem jornada prevista nesta data.</p></article>'}
+   </div>
+  </div>`;
+ }
+
+ $('#journeySchedule').innerHTML=`<div class="j-page-head"><div><span class="eyebrow">SEU PRÓXIMO PASSO</span><h2>Escala</h2><p>Jornadas cadastradas e folgas aprovadas</p></div>${unitSelect()}</div>${storeBanner}${storeSummary}<div class="w-date-nav"><button class="btn btn-secondary" data-j-period="-1" aria-label="Período anterior">←</button><button class="btn btn-ghost" data-j-period="today">Hoje</button><strong>${esc(periodLabel)}</strong><button class="btn btn-secondary" data-j-period="1" aria-label="Próximo período">→</button></div><div class="j-chips">${['dia','semana','mês'].map(k=>`<button data-j-mode="${k}" aria-pressed="${mode===k}">${k}</button>`).join('')}</div><div class="j-schedule-grid">${content}</div><button class="btn btn-secondary" data-view-target="calendar">Consultar e gerenciar folgas →</button>`;
 }
 
 let journeyDirty = false;
@@ -209,5 +340,17 @@ window.addEventListener('cozinha-tasks-updated', () => render());
 document.addEventListener('change',e=>{if(e.target.matches('[data-j-unit]')){unit=e.target.value;render();}});
 document.addEventListener('input',e=>{if(e.target.matches('[data-j-search]')){search=e.target.value;const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));$('#journeyTeamRows').innerHTML=teamResults(r);}});
 document.addEventListener('pointerdown',e=>{const punch=e.target.closest('[data-j-punch]');if(punch && typeof window.warmClockLocation_==='function'){window.warmClockLocation_();}},{passive:true});
-document.addEventListener('click',e=>{const punch=e.target.closest('[data-j-punch]');if(punch){if(punch.dataset.busy==='true')return;punch.dataset.busy='true';setTimeout(()=>{punch.dataset.busy='';},2500);const action=punch.dataset.jPunch||'';if(typeof window.punchClock==='function'){window.punchClock(action);}else{document.querySelector('[data-view-target="timeclock"]')?.click();}return;}const jump=e.target.closest('[data-jump-team]');if(jump){teamFilter=jump.dataset.jumpTeam;renderTeam();}const layout=e.target.closest('[data-j-layout]'),unitCard=e.target.closest('[data-j-unit-card]');if(layout){teamLayout=layout.dataset.jLayout;renderTeam();}if(unitCard){unit=unit===unitCard.dataset.jUnitCard?'':unitCard.dataset.jUnitCard;render();}const period=e.target.closest('[data-j-period]'),team=e.target.closest('[data-j-open-team]');if(period){const n=period.dataset.jPeriod;if(n==='today')anchor=dateKey();else if(mode==='mês'){const d=new Date(anchor.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+Number(n));anchor=d.toISOString().slice(0,10);}else anchor=shiftDate(anchor,Number(n)*(mode==='semana'?7:1));renderSchedule();}if(team){teamFilter=team.dataset.jOpenTeam;renderTeam();window.dispatchEvent(new CustomEvent('jornada-team-open'));}const f=e.target.closest('[data-j-filter]'),m=e.target.closest('[data-j-mode]');if(f){teamFilter=f.dataset.jFilter;renderTeam();}if(m){mode=m.dataset.jMode;renderSchedule();}});
+document.addEventListener('click',e=>{
+  const punch=e.target.closest('[data-j-punch]');
+  if(punch){if(punch.dataset.busy==='true')return;punch.dataset.busy='true';setTimeout(()=>{punch.dataset.busy='';},2500);const action=punch.dataset.jPunch||'';if(typeof window.punchClock==='function'){window.punchClock(action);}else{document.querySelector('[data-view-target="timeclock"]')?.click();}return;}
+  const unitChip=e.target.closest('[data-j-unit-chip]');
+  if(unitChip){unit=unitChip.dataset.jUnitChip||'';render();return;}
+  const calDay=e.target.closest('[data-j-cal-day]');
+  if(calDay && mode==='mês'){anchor=calDay.dataset.jCalDay;mode='dia';renderSchedule();return;}
+  const jump=e.target.closest('[data-jump-team]');if(jump){teamFilter=jump.dataset.jumpTeam;renderTeam();}
+  const layout=e.target.closest('[data-j-layout]'),unitCard=e.target.closest('[data-j-unit-card]');if(layout){teamLayout=layout.dataset.jLayout;renderTeam();}if(unitCard){unit=unit===unitCard.dataset.jUnitCard?'':unitCard.dataset.jUnitCard;render();}
+  const period=e.target.closest('[data-j-period]'),team=e.target.closest('[data-j-open-team]');if(period){const n=period.dataset.jPeriod;if(n==='today')anchor=dateKey();else if(mode==='mês'){const d=new Date(anchor.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+Number(n));anchor=d.toISOString().slice(0,10);}else anchor=shiftDate(anchor,Number(n)*(mode==='semana'?7:1));renderSchedule();}
+  if(team){teamFilter=team.dataset.jOpenTeam;renderTeam();window.dispatchEvent(new CustomEvent('jornada-team-open'));}
+  const f=e.target.closest('[data-j-filter]'),m=e.target.closest('[data-j-mode]');if(f){teamFilter=f.dataset.jFilter;renderTeam();}if(m){mode=m.dataset.jMode;renderSchedule();}
+});
 setInterval(()=>{if(!document.hidden)tick();},1000);
