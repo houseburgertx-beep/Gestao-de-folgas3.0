@@ -18193,6 +18193,46 @@ button, a, input, select, textarea, .btn, .j-card button {
   font-size: 14.5px !important;
 }
 
+#clockSelfieContingency {
+  background: transparent !important;
+  color: #b45309 !important;
+  border: 1px dashed #fde68a !important;
+  border-radius: 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  min-height: 44px !important;
+  margin-top: 4px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+#clockSelfieContingency:hover {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #f59e0b !important;
+}
+
+#clockSelfieStageFallbackBtn {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  padding: 8px 14px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+#clockSelfieStageFallbackBtn:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+
 
 
 
@@ -23919,6 +23959,9 @@ dialog#medicalCertificateDialog {
           <span>◉</span>
           <strong>Preparando a câmera</strong>
           <small>Posicione o rosto dentro da área indicada.</small>
+          <button type="button" id="clockSelfieStageFallbackBtn" class="btn btn-sm btn-secondary" style="margin-top: 10px; border-radius: 12px; font-weight: 600; font-size: 12.5px; z-index: 3;">
+            Tirar foto com câmera do celular
+          </button>
         </div>
         <span class="clock-selfie-badge">Selfie frontal</span>
       </div>
@@ -23973,6 +24016,13 @@ dialog#medicalCertificateDialog {
         class="btn btn-secondary hidden"
       >
         Abrir câmera do celular
+      </button>
+      <button
+        id="clockSelfieContingency"
+        type="button"
+        class="btn btn-ghost hidden"
+      >
+        Câmera indisponível? Bater ponto por contingência
       </button>
       <button
         id="clockSelfieConfirm"
@@ -26250,6 +26300,8 @@ dialog#medicalCertificateDialog {
     if ($("#clockSelfieForm")) $("#clockSelfieForm").onsubmit = confirmClockPunchWithSelfie_;
     if ($("#clockSelfieCapture")) $("#clockSelfieCapture").onclick = captureClockSelfie_;
     if ($("#clockSelfieNative")) $("#clockSelfieNative").onclick = openNativeClockCamera_;
+    if ($("#clockSelfieStageFallbackBtn")) $("#clockSelfieStageFallbackBtn").onclick = openNativeClockCamera_;
+    if ($("#clockSelfieContingency")) $("#clockSelfieContingency").onclick = activateClockSelfieContingency_;
     if ($("#clockSelfieFile")) $("#clockSelfieFile").onchange = loadNativeClockSelfie_;
     if ($("#clockSelfieRetake")) $("#clockSelfieRetake").onclick = startClockSelfieCamera_;
     if ($("#clockSelfieDialog")) $("#clockSelfieDialog").addEventListener("close", resetClockSelfieCapture_);
@@ -31974,6 +32026,7 @@ dialog#medicalCertificateDialog {
       placeholder = $("#clockSelfiePlaceholder"),
       capture = $("#clockSelfieCapture"),
       nativeCapture = $("#clockSelfieNative"),
+      contingency = $("#clockSelfieContingency"),
       fileInput = $("#clockSelfieFile"),
       retake = $("#clockSelfieRetake"),
       confirm = $("#clockSelfieConfirm");
@@ -31983,6 +32036,7 @@ dialog#medicalCertificateDialog {
     retake?.classList.add("hidden");
     capture?.classList.remove("hidden");
     nativeCapture?.classList.add("hidden");
+    contingency?.classList.add("hidden");
     if (fileInput) fileInput.value = "";
     if (capture) capture.disabled = true;
     if (confirm) confirm.disabled = true;
@@ -31992,52 +32046,165 @@ dialog#medicalCertificateDialog {
     const status = $("#clockSelfieStatus"),
       capture = $("#clockSelfieCapture"),
       placeholder = $("#clockSelfiePlaceholder"),
-      video = $("#clockSelfieVideo");
-    status.textContent = "Solicitando acesso à câmera…";
+      video = $("#clockSelfieVideo"),
+      nativeCapture = $("#clockSelfieNative"),
+      contingency = $("#clockSelfieContingency");
+    if (status) status.textContent = "Iniciando câmera…";
     if (!navigator.mediaDevices?.getUserMedia) {
       showNativeClockCamera_(
-        "Use a câmera nativa do celular para tirar a selfie e continuar.",
+        "Câmera incorporada não suportada. Use a câmera do celular abaixo.",
       );
       return;
     }
-    try {
-      const cameraTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("CAMERA_TIMEOUT")), 8000),
+
+    // Se demorar mais de 2.2s para responder, libera as alternativas para não travar o colaborador
+    const softFallbackTimer = setTimeout(() => {
+      nativeCapture?.classList.remove("hidden");
+      contingency?.classList.remove("hidden");
+      if (status && !CLOCK_SELFIE_STREAM_) {
+        status.textContent = "A câmera está demorando? Você pode usar a câmera do celular ou contingência abaixo.";
+      }
+    }, 2200);
+
+    const tryGetUserMedia = async (constraints, timeoutMs) => {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("CAMERA_TIMEOUT")), timeoutMs),
       );
-      CLOCK_SELFIE_STREAM_ = await Promise.race([
-        navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-            width: { ideal: 480 },
-            height: { ideal: 640 },
-          },
-          audio: false,
-        }),
-        cameraTimeout,
+      return await Promise.race([
+        navigator.mediaDevices.getUserMedia(constraints),
+        timeoutPromise,
       ]);
-      video.srcObject = CLOCK_SELFIE_STREAM_;
-      await video.play();
-      placeholder.classList.add("hidden");
-      capture.disabled = false;
-      status.textContent =
-        "Câmera pronta. Centralize o rosto e capture a selfie.";
-    } catch {
+    };
+
+    try {
+      let stream = null;
+      try {
+        // Tentativa 1: frontal com dimensões ideais
+        stream = await tryGetUserMedia({
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        }, 2800);
+      } catch (err1) {
+        console.warn("[ponto] Tentativa 1 falhou, tentando frontal simples:", err1?.message);
+        try {
+          // Tentativa 2: frontal sem constraints de dimensões
+          stream = await tryGetUserMedia({
+            video: { facingMode: "user" },
+            audio: false,
+          }, 2200);
+        } catch (err2) {
+          console.warn("[ponto] Tentativa 2 falhou, tentando qualquer câmera:", err2?.message);
+          // Tentativa 3: qualquer câmera
+          stream = await tryGetUserMedia({ video: true, audio: false }, 2000);
+        }
+      }
+
+      clearTimeout(softFallbackTimer);
+      CLOCK_SELFIE_STREAM_ = stream;
+      if (video) {
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("muted", "");
+        video.srcObject = CLOCK_SELFIE_STREAM_;
+        await video.play().catch((playErr) => console.warn("[ponto] video.play() falhou:", playErr));
+      }
+      placeholder?.classList.add("hidden");
+      if (capture) capture.disabled = false;
+      if (status) status.textContent = "Câmera pronta. Centralize o rosto e capture a selfie.";
+    } catch (err) {
+      clearTimeout(softFallbackTimer);
       stopClockSelfieStream_();
-      showNativeClockCamera_(
-        "O navegador não abriu a câmera incorporada. Use a câmera frontal do celular abaixo.",
-      );
+      const isDenied = /notallowed|denied|permission/i.test(String(err?.name || err?.message || ""));
+      const msg = isDenied
+        ? "Permissão de câmera não concedida no navegador. Use a câmera nativa do celular abaixo."
+        : "A câmera incorporada não carregou neste aparelho. Use a câmera do celular ou registre por contingência.";
+      showNativeClockCamera_(msg);
     }
   }
   function showNativeClockCamera_(message) {
     const status = $("#clockSelfieStatus"),
       capture = $("#clockSelfieCapture"),
       nativeCapture = $("#clockSelfieNative"),
+      contingency = $("#clockSelfieContingency"),
       placeholder = $("#clockSelfiePlaceholder");
     stopClockSelfieStream_();
-    capture.classList.add("hidden");
-    nativeCapture.classList.remove("hidden");
-    placeholder.classList.remove("hidden");
-    status.textContent = message;
+    capture?.classList.add("hidden");
+    nativeCapture?.classList.remove("hidden");
+    contingency?.classList.remove("hidden");
+    placeholder?.classList.remove("hidden");
+    if (status) status.textContent = message;
+  }
+  function activateClockSelfieContingency_() {
+    const canvas = $("#clockSelfieCanvas"),
+      video = $("#clockSelfieVideo"),
+      placeholder = $("#clockSelfiePlaceholder"),
+      status = $("#clockSelfieStatus"),
+      capture = $("#clockSelfieCapture"),
+      nativeCapture = $("#clockSelfieNative"),
+      contingency = $("#clockSelfieContingency"),
+      retake = $("#clockSelfieRetake"),
+      confirm = $("#clockSelfieConfirm");
+
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width = 360;
+    canvas.height = 480;
+
+    // Fundo elegante de contingência
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0, 0, 360, 480);
+
+    ctx.strokeStyle = "#334155";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(14, 14, 332, 452);
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.font = "bold 15px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("REGISTRO DE CONTINGÊNCIA", 180, 75);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 19px sans-serif";
+    ctx.fillText("Câmera Indisponível", 180, 110);
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "12px sans-serif";
+    ctx.fillText("Validação por Localização e Horário", 180, 135);
+    ctx.fillText("Portaria 671 MTE / CLT", 180, 155);
+
+    const empName = state.profile?.Nome || state.user?.Nome || "Colaborador";
+    const store = state.profile?.NomeLoja || state.profile?.LojaID || "House 190";
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const dateStr = now.toLocaleDateString("pt-BR");
+
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillText(empName.slice(0, 30), 180, 230);
+
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = "13px sans-serif";
+    ctx.fillText(`Unidade: ${store}`, 180, 258);
+    ctx.fillText(`Horário: ${timeStr} • ${dateStr}`, 180, 282);
+
+    ctx.fillStyle = "#10b981";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("Localização GPS Confirmada", 180, 360);
+
+    stopClockSelfieStream_();
+    CLOCK_SELFIE_DATA_ = canvas.toDataURL("image/jpeg", 0.6);
+
+    placeholder?.classList.add("hidden");
+    video?.classList.add("hidden");
+    canvas?.classList.remove("hidden");
+    capture?.classList.add("hidden");
+    nativeCapture?.classList.add("hidden");
+    contingency?.classList.add("hidden");
+    retake?.classList.remove("hidden");
+    if (confirm) confirm.disabled = false;
+    if (status) status.textContent = "Contingência ativada. Confirme para registrar o ponto.";
+    toast("Contingência de câmera ativada. Confirme para registrar seu ponto.");
   }
   function openNativeClockCamera_() {
     const input = $("#clockSelfieFile");

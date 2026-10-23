@@ -646,6 +646,9 @@
           <span>◉</span>
           <strong>Preparando a câmera</strong>
           <small>Posicione o rosto dentro da área indicada.</small>
+          <button type="button" id="clockSelfieStageFallbackBtn" class="btn btn-sm btn-secondary" style="margin-top: 10px; border-radius: 12px; font-weight: 600; font-size: 12.5px; z-index: 3;">
+            Tirar foto com câmera do celular
+          </button>
         </div>
         <span class="clock-selfie-badge">Selfie frontal</span>
       </div>
@@ -700,6 +703,13 @@
         class="btn btn-secondary hidden"
       >
         Abrir câmera do celular
+      </button>
+      <button
+        id="clockSelfieContingency"
+        type="button"
+        class="btn btn-ghost hidden"
+      >
+        Câmera indisponível? Bater ponto por contingência
       </button>
       <button
         id="clockSelfieConfirm"
