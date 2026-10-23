@@ -9153,6 +9153,25 @@
     color: #c92a2a;
     border: 1px solid rgba(229, 72, 77, 0.3);
   }
+  @media print {
+    body > *:not(dialog[open]) {
+      display: none !important;
+    }
+    #clockReceiptDialog[open] {
+      position: static !important;
+      display: block !important;
+      border: 1px solid #000 !important;
+      box-shadow: none !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 16px !important;
+      margin: 0 !important;
+    }
+    #clockReceiptDialog button,
+    #clockReceiptDialog .btn {
+      display: none !important;
+    }
+  }
 </style>
 
 

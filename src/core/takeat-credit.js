@@ -506,3 +506,30 @@ export async function fetchTableSessionDetails(storeKey, sessionId) {
   sessionDetailsCache.set(cacheKey, details);
   return details;
 }
+
+/**
+ * Verifica se o consumo acumulado respeita os limites da conta e a margem de desconto da CLT.
+ */
+export function checkCreditMargin(item, employee = null) {
+  const debt = Number(item?.debt || 0);
+  const limit = Number(item?.limit || 0);
+  const excedeLimiteConta = limit > 0 && debt > limit;
+  const salarioBase = Number(employee?.Salario || employee?.salario || 1518);
+  const margemMaximaRecomendada = Math.round(salarioBase * 0.3);
+  const excedeMargemConsignavel = debt > margemMaximaRecomendada;
+
+  return {
+    debt,
+    limit,
+    excedeLimiteConta,
+    excedeMargemConsignavel,
+    margemMaximaRecomendada,
+    atencao: excedeLimiteConta || excedeMargemConsignavel,
+    motivo: excedeLimiteConta
+      ? "Consumo superior ao limite da conta"
+      : excedeMargemConsignavel
+      ? "Consumo acima de 30% da margem recomendada"
+      : "",
+  };
+}
+

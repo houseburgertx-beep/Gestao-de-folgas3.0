@@ -101,3 +101,31 @@ export const safeFileName = (value) =>
 export const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
+
+export const sha256Hex = async (data) => {
+  let buffer;
+  if (typeof data === "string") {
+    buffer = new TextEncoder().encode(data);
+  } else if (data instanceof Uint8Array) {
+    buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  } else if (data instanceof ArrayBuffer) {
+    buffer = data;
+  } else {
+    buffer = new TextEncoder().encode(String(data || ""));
+  }
+
+  if (globalThis.crypto?.subtle?.digest) {
+    const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  try {
+    const dynamicReq = new Function("module", "return import(module)");
+    const nodeCrypto = await dynamicReq("node:crypto");
+    return nodeCrypto.createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+  } catch {
+    throw new Error("Suporte a SHA-256 indisponível.");
+  }
+};
+

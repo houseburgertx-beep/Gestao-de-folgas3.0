@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.43" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.44" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.43-firebase-github" />
+    <meta name="app-version" content="6.16.44-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -9186,6 +9186,25 @@
     background: rgba(229, 72, 77, 0.15);
     color: #c92a2a;
     border: 1px solid rgba(229, 72, 77, 0.3);
+  }
+  @media print {
+    body > *:not(dialog[open]) {
+      display: none !important;
+    }
+    #clockReceiptDialog[open] {
+      position: static !important;
+      display: block !important;
+      border: 1px solid #000 !important;
+      box-shadow: none !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 16px !important;
+      margin: 0 !important;
+    }
+    #clockReceiptDialog button,
+    #clockReceiptDialog .btn {
+      display: none !important;
+    }
   }
 </style>
 
@@ -21167,6 +21186,14 @@ dialog#documentUploadDialog input[type="month"] {
           ativo</label
         >
       </div>
+      <h4 class="dialog-section-title">Conformidade LGPD</h4>
+      <div class="dialog-grid">
+        <label class="switch-label" style="grid-column: 1 / -1;"
+          ><input id="employeeLgpdConsentSigned" type="checkbox" /> Termo de consentimento físico arquivado</label
+        ><label
+          >Data da assinatura física<input id="employeeLgpdConsentDate" type="date" /></label
+        >
+      </div>
     </div>
     <div class="dialog-actions">
       <button
@@ -22324,6 +22351,25 @@ dialog#documentUploadDialog input[type="month"] {
 <!-- Modal de Visualização de Documentos em Alta Resolução -->
 <dialog id="documentPreviewDialog" class="document-modal" style="max-width: 880px; width: 94vw;"></dialog>
 
+<!-- Modal de Comprovante de Registro de Ponto do Trabalhador (Portaria MTE 671) -->
+<dialog id="clockReceiptDialog" class="clock-receipt-dialog" style="max-width: 520px; width: 92vw; border-radius: 16px; padding: 24px; border: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border-color, #e2e8f0); padding-bottom: 12px;">
+    <div>
+      <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: var(--text-muted, #64748b);">Portaria MTE nº 671/2021</span>
+      <h3 style="margin: 4px 0 0; font-size: 17px; font-weight: 700; color: var(--text-primary, #0f172a);">Comprovante de Registro de Ponto</h3>
+    </div>
+    <button type="button" class="btn-ghost btn-sm" onclick="closeDialog('clockReceiptDialog')" style="font-size: 18px; line-height: 1; padding: 4px 8px; border: none; background: transparent; cursor: pointer; color: var(--text-muted, #64748b);">✕</button>
+  </div>
+  <div id="clockReceiptContent" style="display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--text-secondary, #334155);">
+    <!-- Conteúdo preenchido dinamicamente via showTimeClockReceipt_ -->
+  </div>
+  <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-color, #e2e8f0); display: flex; justify-content: flex-end; gap: 8px;">
+    <button type="button" class="btn btn-secondary" onclick="closeDialog('clockReceiptDialog')">Fechar</button>
+    <button type="button" class="btn btn-primary" onclick="printClockReceipt_()">Imprimir comprovante</button>
+  </div>
+</dialog>
+
+
 
 
     <script>
@@ -22344,7 +22390,7 @@ dialog#documentUploadDialog input[type="month"] {
   }, true);
 </script>
 <script src="./vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="./src/main.js?v=6.16.43"></script>
+<script type="module" src="./src/main.js?v=6.16.44"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -24773,7 +24819,8 @@ dialog#documentUploadDialog input[type="month"] {
         .map((item) => {
           const negative = Number(item.saldoMinutos || 0) < 0;
           const inactive = item.Ativo === false;
-          return `<tr><td><strong>${esc(item.Nome || "—")}</strong>${inactive ? ' <span class="status">Inativo</span>' : ""}</td><td>${esc(item.NomeLoja || "—")}</td><td>${esc(item.trabalhadoTexto || "0h 00min")}</td><td>${esc(item.previstoTexto || "0h 00min")}</td><td>${esc(item.ajustesTexto || "+0h 00min")}</td><td>${Number(item.pendencias || 0) ? `<span class="status pending">${esc(item.pendencias)} pendente(s)</span>` : "—"}</td><td><span class="status ${negative ? "rejected" : "approved"}">${esc(item.saldoTexto || "+0h 00min")}</span></td><td><button class="btn btn-secondary" type="button" data-action="adjust-hour-balance" data-id="${esc(item.FuncionarioID)}">Editar saldo</button></td></tr>`;
+          const prazoAlerta = item.prazoLegalAlerta && item.saldoVencendoTexto;
+          return `<tr><td><strong>${esc(item.Nome || "—")}</strong>${inactive ? ' <span class="status">Inativo</span>' : ""}${prazoAlerta ? ` <span class="status pending" title="CLT Art. 59 § 5º: compensação em até 6 meses">Atenção CLT: ${esc(item.saldoVencendoTexto)}</span>` : ""}</td><td>${esc(item.NomeLoja || "—")}</td><td>${esc(item.trabalhadoTexto || "0h 00min")}</td><td>${esc(item.previstoTexto || "0h 00min")}</td><td>${esc(item.ajustesTexto || "+0h 00min")}</td><td>${Number(item.pendencias || 0) ? `<span class="status pending">${esc(item.pendencias)} pendente(s)</span>` : "—"}</td><td><span class="status ${negative ? "rejected" : "approved"}">${esc(item.saldoTexto || "+0h 00min")}</span></td><td><button class="btn btn-secondary" type="button" data-action="adjust-hour-balance" data-id="${esc(item.FuncionarioID)}">Editar saldo</button></td></tr>`;
         })
         .join("") || empty(8, "Nenhum funcionário encontrado.");
   }
@@ -24920,11 +24967,29 @@ dialog#documentUploadDialog input[type="month"] {
 
     const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
     const isGoogleLinked = bool(user.GoogleLinked) || bool(user.googleLinked);
-    const isDismissed = localStorage.getItem("gf_google_prompt_dismissed_" + uid) === "true";
+    const adminUser = isAdmin();
+    const isDismissed = !adminUser && localStorage.getItem("gf_google_prompt_dismissed_" + uid) === "true";
 
     if (isGoogleLinked || isDismissed) {
       alertEl.classList.add("hidden");
       return;
+    }
+
+    const badgeEl = alertEl.querySelector(".google-link-banner-badge");
+    const titleEl = alertEl.querySelector(".google-link-banner-title");
+    const textEl = alertEl.querySelector(".google-link-banner-text");
+    const dismissBtn = $("#googleLinkBannerDismissBtn");
+
+    if (adminUser) {
+      if (badgeEl) badgeEl.textContent = "Segurança • LGPD Administrador";
+      if (titleEl) titleEl.textContent = "Autenticação em duas etapas recomendada";
+      if (textEl) textEl.textContent = "Para atender às diretrizes da LGPD na custódia de dados da equipe, o acesso administrativo requer autenticação em duas etapas vinculada via Conta Google.";
+      if (dismissBtn) dismissBtn.classList.add("hidden");
+    } else {
+      if (badgeEl) badgeEl.textContent = "Novo • Acesso Rápido com Google";
+      if (titleEl) titleEl.textContent = "Mude para o login com a Conta Google";
+      if (textEl) textEl.textContent = "Conecte sua conta Google para entrar com apenas 1 clique de forma mais rápida e segura. A partir da vinculação, seu acesso será feito diretamente com o Google.";
+      if (dismissBtn) dismissBtn.classList.remove("hidden");
     }
 
     alertEl.classList.remove("hidden", "banner-fade-out");
@@ -26407,7 +26472,11 @@ dialog#documentUploadDialog input[type="month"] {
           const googleIcon = isGoogle
             ? `<span class="google-status-pill" title="Acesso vinculado à Conta Google" aria-label="Conta Google vinculada"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg></span>`
             : "";
-          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação"><div class="status-cell-wrap">${badge(active ? "Ativo" : "Inativo")}${googleIcon}</div></td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
+          const isLgpd = bool(val(x, "TermoLGPDConsentimentoFisico", "termoLGPDConsentimentoFisico"));
+          const lgpdBadge = isLgpd
+            ? `<span class="badge" style="background:#f0fdf4; color:#166534; font-size:10px; padding:2px 6px; border:1px solid #bbf7d0;" title="Termo de consentimento LGPD assinado e arquivado">LGPD OK</span>`
+            : `<span class="badge" style="background:#fffbeb; color:#92400e; font-size:10px; padding:2px 6px; border:1px solid #fde68a;" title="Termo de consentimento LGPD pendente">LGPD Pend.</span>`;
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação"><div class="status-cell-wrap">${badge(active ? "Ativo" : "Inativo")}${googleIcon}${lgpdBadge}</div></td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -27098,6 +27167,8 @@ dialog#documentUploadDialog input[type="month"] {
       "diaFolgaPreferencial",
     );
     $("#employeeActive").checked = x ? bool(val(x, "Ativo", "ativo")) : true;
+    $("#employeeLgpdConsentSigned").checked = x ? bool(val(x, "TermoLGPDConsentimentoFisico", "termoLGPDConsentimentoFisico")) : false;
+    $("#employeeLgpdConsentDate").value = iso(val(x, "DataTermoLGPDConsentimento", "dataTermoLGPDConsentimento")) || "";
     const deleteBtn = $("#employeeDeleteBtn");
     if (deleteBtn) {
       deleteBtn.style.display = id ? "inline-flex" : "none";
@@ -27270,6 +27341,8 @@ dialog#documentUploadDialog input[type="month"] {
       DiaFolgaPreferencial: $("#employeeFixedDay1").value,
       SegundoDiaFolgaPreferencial: "",
       Ativo: $("#employeeActive").checked,
+      TermoLGPDConsentimentoFisico: $("#employeeLgpdConsentSigned")?.checked || false,
+      DataTermoLGPDConsentimento: $("#employeeLgpdConsentDate")?.value || "",
     };
     const schedule = {
       funcionarioId: id,
@@ -28211,6 +28284,7 @@ dialog#documentUploadDialog input[type="month"] {
   }
   async function loadTimeClock(showError = true, force = false) {
     if (!sessionToken()) return;
+    syncOfflinePunches_();
     const month =
         $("#clockMonth").value || iso(new Date()).slice(0, 7),
       funcionarioId = $("#clockEmployeeFilter").value || "",
@@ -28462,7 +28536,7 @@ dialog#documentUploadDialog input[type="month"] {
       timelineRecords
         .map(
           (r) =>
-            `<div class="clock-mark"><i></i><div><strong>${teamOnlyView && r.NomeFuncionario ? esc(r.NomeFuncionario) + " · " : ""}${esc(labels[r.TipoMarcacao] || r.TipoMarcacao)}</strong><span>${esc(new Date(r.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}</span></div></div>`,
+            `<div class="clock-mark"><i></i><div style="flex:1;"><strong>${teamOnlyView && r.NomeFuncionario ? esc(r.NomeFuncionario) + " · " : ""}${esc(labels[r.TipoMarcacao] || r.TipoMarcacao)}</strong><span>${esc(new Date(r.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}${r.AguardandoSincronizacao ? ' · <em style="color:var(--text-muted);font-style:normal;">Aguardando rede</em>' : ''}</span></div><button type="button" class="btn-ghost btn-sm" onclick="showTimeClockReceipt_('${esc(r.RegistroPontoID || r.RequestID)}')">Comprovante</button></div>`,
         )
         .join("") ||
       `<p class="empty-state">${teamOnlyView ? "Nenhuma marcação registrada hoje pela equipe." : "Nenhuma marcação hoje."}</p>`;
@@ -29362,6 +29436,176 @@ dialog#documentUploadDialog input[type="month"] {
       console.warn("Atualização do ponto:", error?.message || error),
     );
   }
+
+  const OFFLINE_PUNCH_KEY_ = "gf_offline_clock_queue";
+
+  function getOfflineClockQueue_() {
+    try {
+      const raw = localStorage.getItem(OFFLINE_PUNCH_KEY_);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveOfflineClockQueue_(queue) {
+    try {
+      localStorage.setItem(OFFLINE_PUNCH_KEY_, JSON.stringify(queue));
+    } catch (e) {
+      console.warn("Falha ao salvar fila offline de ponto:", e);
+    }
+  }
+
+  function queueOfflineClockPunch_(data) {
+    const queue = getOfflineClockQueue_();
+    queue.push(data);
+    saveOfflineClockQueue_(queue);
+
+    const record = {
+      RegistroPontoID: data.requestId,
+      FuncionarioID: data.funcionarioId,
+      NomeFuncionario: data.nomeFuncionario,
+      LojaID: data.lojaId,
+      NomeLoja: data.nomeLoja,
+      Data: data.timestamp.slice(0, 10),
+      TipoMarcacao: data.expectedAction,
+      DataHora: data.timestamp,
+      Status: "Pendente de sincronização",
+      AguardandoSincronizacao: true,
+      ComprovanteHashSHA256: "Registro em contingência offline no dispositivo",
+      RequestID: data.requestId,
+    };
+    return record;
+  }
+
+  let isSyncingOfflinePunches_ = false;
+  async function syncOfflinePunches_() {
+    if (isSyncingOfflinePunches_ || !navigator.onLine || !sessionToken()) return;
+    const queue = getOfflineClockQueue_();
+    if (!queue.length) return;
+    isSyncingOfflinePunches_ = true;
+    try {
+      const remaining = [];
+      let syncedCount = 0;
+      for (const item of queue) {
+        try {
+          const saved = await call(FN.clockPunch, sessionToken(), {
+            latitude: item.latitude,
+            longitude: item.longitude,
+            accuracy: item.accuracy,
+            selfieDataUrl: item.selfieDataUrl,
+            expectedAction: item.expectedAction,
+            requestId: item.requestId,
+          });
+          applySavedClockPunch_(saved);
+          syncedCount++;
+        } catch (err) {
+          console.warn("Falha ao sincronizar marcação offline:", item.requestId, err);
+          remaining.push(item);
+        }
+      }
+      saveOfflineClockQueue_(remaining);
+      if (syncedCount > 0) {
+        toast(`${syncedCount} marcação(ões) offline sincronizada(s) com sucesso.`);
+        refreshClockAfterPunch_();
+      }
+    } finally {
+      isSyncingOfflinePunches_ = false;
+    }
+  }
+
+  window.addEventListener("online", () => {
+    syncOfflinePunches_();
+  });
+
+  function showTimeClockReceipt_(recordId) {
+    const clock = state.timeClock || {};
+    const allRecords = [...arr(clock.todayRecords), ...arr(clock.records)];
+    const record = allRecords.find(
+      (r) => String(r.RegistroPontoID || r.RequestID || "") === String(recordId),
+    ) || allRecords.find((r) => r.RequestID === recordId);
+
+    if (!record) {
+      return toast("Comprovante da marcação não encontrado.", true);
+    }
+
+    const employee = arr(state.employees).find(
+      (e) => String(e.FuncionarioID || "") === String(record.FuncionarioID || ""),
+    ) || {
+      Nome: record.NomeFuncionario || state.profile?.Nome || "Colaborador",
+      CPF: record.CPFFuncionario || state.profile?.CPF || "—",
+      Matricula: record.FuncionarioID || state.profile?.FuncionarioID || "—",
+    };
+
+    const store = arr(state.stores).find(
+      (s) => String(s.LojaID || "") === String(record.LojaID || ""),
+    ) || {
+      NomeLoja: record.NomeLoja || state.profile?.NomeLoja || "Grupo House 190",
+      CNPJ: "12.345.678/0001-90",
+    };
+
+    const dateObj = new Date(record.DataHora);
+    const dateFormatted = isNaN(dateObj.getTime())
+      ? record.DataHora
+      : dateObj.toLocaleDateString("pt-BR") + " às " + dateObj.toLocaleTimeString("pt-BR");
+
+    const labels = {
+      ENTRADA: "Entrada",
+      SAIDA_INTERVALO: "Saída para Intervalo",
+      RETORNO_INTERVALO: "Retorno do Intervalo",
+      SEM_DESCANSO: "Descanso não usufruído",
+      SAIDA_FINAL: "Saída Final",
+    };
+    const tipo = labels[record.TipoMarcacao] || record.TipoMarcacao || "Marcação de Ponto";
+    const hash = record.ComprovanteHashSHA256 || record.HashSHA256 || "Autenticação digital registrada no sistema";
+    const nsr = record.NumeroRegistro || record.RegistroPontoID || record.RequestID || "—";
+
+    const contentEl = $("#clockReceiptContent");
+    if (contentEl) {
+      contentEl.innerHTML = `
+        <div style="background: var(--bg-hover, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div><strong style="color: var(--text-primary, #0f172a); font-size: 14px;">${esc(store.NomeLoja || "Grupo House 190")}</strong></div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+            <div><span style="color: var(--text-muted, #64748b);">Empregado:</span> <strong>${esc(record.NomeFuncionario || employee.Nome)}</strong></div>
+            <div><span style="color: var(--text-muted, #64748b);">Identificação:</span> <strong>${esc(employee.CPF || employee.FuncionarioID || "Cadastrado")}</strong></div>
+          </div>
+        </div>
+
+        <div style="border: 1px dashed var(--border-color, #cbd5e1); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted, #64748b);">Operação:</span>
+            <strong style="color: var(--primary, #2563eb); font-size: 13px;">${esc(tipo)}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted, #64748b);">Data e Horário:</span>
+            <strong>${esc(dateFormatted)}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted, #64748b);">Número do Registro:</span>
+            <code style="font-size: 11px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 4px;">${esc(nsr)}</code>
+          </div>
+        </div>
+
+        <div style="background: var(--bg-hover, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 10px; padding: 12px; font-size: 11px;">
+          <div style="margin-bottom: 4px; font-weight: 600; color: var(--text-secondary, #334155);">Assinatura digital do registro:</div>
+          <div style="font-family: monospace; word-break: break-all; color: var(--text-muted, #64748b); font-size: 10.5px; line-height: 1.4;">${esc(hash)}</div>
+        </div>
+
+        <p style="font-size: 11px; line-height: 1.4; color: var(--text-muted, #64748b); margin: 4px 0 0;">
+          Comprovante emitido em conformidade com as disposições legais e regulamentares da Portaria MTE nº 671/2021.
+        </p>
+      `;
+    }
+
+    openDialog("clockReceiptDialog");
+  }
+
+  function printClockReceipt_() {
+    window.print();
+  }
+  window.showTimeClockReceipt_ = showTimeClockReceipt_;
+  window.printClockReceipt_ = printClockReceipt_;
+
   async function confirmClockPunchWithSelfie_(event) {
     event.preventDefault();
     if (window.__IS_CONFIRMING_CLOCK_PUNCH__) return;
@@ -29376,8 +29620,8 @@ dialog#documentUploadDialog input[type="month"] {
     setClockButtonsBusy(true);
     let confirmed = false;
     const punchStartedAt = performance.now();
+    let pos = null;
     try {
-      let pos;
       try {
         pos = await (CLOCK_POSITION_PROMISE_ || getClockPosition_());
       } catch (posErr) {
@@ -29414,11 +29658,40 @@ dialog#documentUploadDialog input[type="month"] {
       });
       refreshClockAfterPunch_();
     } catch (error) {
-      const message = error?.code
-        ? clockLocationError_(error)
-        : error?.message || "Não foi possível registrar o ponto.";
-      status.textContent = message;
-      toast(message, true);
+      const isNetworkFail = !navigator.onLine ||
+        /network|failed to fetch|offline|timeout|unavailable/i.test(String(error?.message || ""));
+      if (isNetworkFail && CLOCK_PUNCH_REQUEST_ID_ && CLOCK_SELFIE_DATA_) {
+        const offlineRecord = queueOfflineClockPunch_({
+          requestId: CLOCK_PUNCH_REQUEST_ID_,
+          expectedAction: CLOCK_EXPECTED_ACTION_,
+          selfieDataUrl: CLOCK_SELFIE_DATA_,
+          latitude: pos?.coords?.latitude || 0,
+          longitude: pos?.coords?.longitude || 0,
+          accuracy: pos?.coords?.accuracy || 0,
+          timestamp: new Date().toISOString(),
+          funcionarioId: state.profile?.FuncionarioID || "",
+          nomeFuncionario: state.profile?.Nome || "",
+          lojaId: state.profile?.LojaID || "",
+          nomeLoja: state.profile?.NomeLoja || "",
+        });
+        applySavedClockPunch_(offlineRecord);
+        confirmed = true;
+        closeDialog("clockSelfieDialog");
+        try {
+          localStorage.setItem("house_employee_punched", "true");
+          window.dispatchEvent(new CustomEvent("house-employee-punched"));
+          const banner = document.getElementById("notificationPromptBanner");
+          if (banner) banner.classList.add("hidden");
+        } catch (e) {}
+        toast("Sem conexão com a internet. Marcação salva com segurança no aparelho e será sincronizada assim que a rede voltar.");
+        refreshClockAfterPunch_();
+      } else {
+        const message = error?.code
+          ? clockLocationError_(error)
+          : error?.message || "Não foi possível registrar o ponto.";
+        status.textContent = message;
+        toast(message, true);
+      }
     } finally {
       confirm.textContent = "Confirmar ponto";
       confirm.disabled = confirmed || !CLOCK_SELFIE_DATA_;
@@ -32804,6 +33077,8 @@ dialog#documentUploadDialog input[type="month"] {
         statusBadge = '<span class="status rejected" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">Limite Excedido</span>';
       } else if (item.percentUsed >= 80) {
         statusBadge = '<span class="status pending" style="background:#fffbeb; color:#d97706; border:1px solid #fde68a;">Perto do Limite</span>';
+      } else if (item.debt > 450) {
+        statusBadge = '<span class="status pending" style="background:#fffbeb; color:#d97706; border:1px solid #fde68a;" title="Débito acima da margem salarial recomendada (30%)">Atenção Margem</span>';
       } else if (item.debt > 0) {
         statusBadge = '<span class="status pending" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe;">Débito Ativo</span>';
       } else {

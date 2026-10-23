@@ -10,6 +10,7 @@ import {
   nowIso,
   todayIso,
   uuid,
+  sha256Hex,
 } from "./utils.js";
 import {
   audit,
@@ -863,6 +864,12 @@ const accumulatedHourBalance = ({
     let worked = 0;
     let expected = 0;
     let pending = 0;
+    const cltLimitDate = new Date(
+      new Date(`${currentDate || throughDate}T12:00:00`).getTime() - 150 * 86400000,
+    )
+      .toISOString()
+      .slice(0, 10);
+    let olderPositiveMinutes = 0;
     for (let date = start; date && date <= throughDate; date = nextDateKey(date)) {
       const schedule = scheduleFor(employeeSchedules, id, date);
       const rows = recordsByEmployeeDate.get(`${id}|${date}`) || [];
@@ -910,8 +917,15 @@ const accumulatedHourBalance = ({
         worked += Number(metrics.worked || 0);
         expected += Number(metrics.expected || 0);
         balance += Number(state.minutes || 0);
+        if (date <= cltLimitDate && Number(state.minutes || 0) > 0) {
+          olderPositiveMinutes += Number(state.minutes || 0);
+        }
       }
     }
+    const saldoVencendoMinutos =
+      balance > 0 && olderPositiveMinutes > 0
+        ? Math.min(balance, olderPositiveMinutes)
+        : 0;
     totals.push({
       FuncionarioID: employee.FuncionarioID,
       Nome: employee.Nome,
@@ -928,6 +942,10 @@ const accumulatedHourBalance = ({
       pendencias: pending,
       saldoMinutos: balance,
       saldoTexto: (balance >= 0 ? "+" : "") + minutesText(balance),
+      saldoVencendoMinutos,
+      saldoVencendoTexto:
+        saldoVencendoMinutos > 0 ? minutesText(saldoVencendoMinutos) : "",
+      prazoLegalAlerta: saldoVencendoMinutos > 0,
       desde: start || "",
       ate: throughDate,
     });
@@ -1560,6 +1578,10 @@ export function createClockHandlers() {
         day,
         type,
       });
+      const punchTimestamp = nowIso();
+      const punchHash = await sha256Hex(
+        `${requestId}|${employee.FuncionarioID}|${employee.LojaID}|${punchTimestamp}|${type}|${latitude.toFixed(6)}|${longitude.toFixed(6)}`,
+      );
       const record = {
         RegistroPontoID: requestId,
         FuncionarioID: employee.FuncionarioID,
@@ -1569,7 +1591,7 @@ export function createClockHandlers() {
         NomeLoja: employee.NomeLoja,
         Data: day,
         TipoMarcacao: type,
-        DataHora: nowIso(),
+        DataHora: punchTimestamp,
         Latitude: latitude,
         Longitude: longitude,
         PrecisaoMetros: accuracy,
@@ -1581,6 +1603,9 @@ export function createClockHandlers() {
         SelfieDriveURL: selfie.fileUrl,
         SelfieDriveFileName: selfie.fileName,
         SelfieDriveUploadedAt: selfie.uploadedAt,
+        ComprovanteHashSHA256: punchHash,
+        NumeroRegistro: requestId,
+        Portaria671Valido: true,
         Status: "Válido",
         Observacoes:
           type === "SEM_DESCANSO"
@@ -1588,7 +1613,7 @@ export function createClockHandlers() {
             : "",
         Ajustado: false,
         RegistroOriginalID: "",
-        DataCriacao: nowIso(),
+        DataCriacao: punchTimestamp,
         ForaHorario: false,
         CriadoPor: profile.Email,
         RequestID: requestId,

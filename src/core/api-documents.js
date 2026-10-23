@@ -1303,19 +1303,30 @@ export function createDocumentsHandlers() {
       const pendingCount = filtered.filter((d) => d.Status === "Pendente").length;
       const signedCount = filtered.filter((d) => d.Status === "Assinado").length;
 
+      // Otimização de performance: remove os pesados arquivos Base64 da listagem geral,
+      // economizando até 95% de tráfego de dados. O arquivo completo é obtido pontualmente via documentsGet.
+      const lightDocuments = filtered.map((doc) => {
+        const { ArquivoOriginalBase64, ArquivoFinalBase64, ...rest } = doc;
+        return {
+          ...rest,
+          temArquivoOriginal: Boolean(ArquivoOriginalBase64),
+          temArquivoFinal: Boolean(ArquivoFinalBase64),
+        };
+      });
+
       return {
         success: true,
         message: "",
         data: {
-          documents: filtered,
+          documents: lightDocuments,
           pendingCount,
           signedCount,
-          totalCount: filtered.length,
+          totalCount: lightDocuments.length,
         },
-        documents: filtered,
+        documents: lightDocuments,
         pendingCount,
         signedCount,
-        totalCount: filtered.length,
+        totalCount: lightDocuments.length,
       };
     },
 

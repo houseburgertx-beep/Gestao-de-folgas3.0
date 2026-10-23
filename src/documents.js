@@ -80,6 +80,22 @@ async function callApi(method, ...args) {
   throw new Error("API central não inicializada.");
 }
 
+async function ensureDocumentFullPayload(doc) {
+  if (!doc) return doc;
+  if (!doc.ArquivoOriginalBase64 && !doc.ArquivoFinalBase64 && doc.OrigemTipo === "PDF_IMPORTADO") {
+    try {
+      const res = await callApi("documentsGet", doc.DocumentoID);
+      const full = res?.data || res?.document || res;
+      if (full && (full.ArquivoOriginalBase64 || full.ArquivoFinalBase64)) {
+        Object.assign(doc, full);
+      }
+    } catch (err) {
+      console.warn("Falha ao obter payload completo do documento:", err);
+    }
+  }
+  return doc;
+}
+
 /**
  * Inicializador público do módulo
  */
@@ -715,11 +731,12 @@ export async function renderPdfToContainer(containerEl, base64Pdf, blobUrl = "")
  * Abre o Modal de Leitura Obrigatória e Assinatura Eletrônica
  */
 export async function openSignDialog(docId) {
-  const doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
+  let doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
   if (!doc) {
     alert("Documento não localizado.");
     return;
   }
+  await ensureDocumentFullPayload(doc);
 
   state.currentSigningDoc = doc;
   state.hasScrolledToBottom = false;
@@ -1601,9 +1618,10 @@ export async function openAuditDialog(docId) {
 /**
  * Faz download do PDF assinado ou prévio
  */
-export function downloadPdf(docId) {
-  const doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
+export async function downloadPdf(docId) {
+  let doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
   if (!doc) return;
+  await ensureDocumentFullPayload(doc);
 
   const base64 = doc.ArquivoFinalBase64 || doc.ArquivoOriginalBase64;
   if (!base64) {
@@ -1635,8 +1653,9 @@ export function downloadPdf(docId) {
  * Abre pré-visualização de documento em alta resolução com PDF.js nativo
  */
 export async function openPreviewDialog(docId) {
-  const doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
+  let doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
   if (!doc) return;
+  await ensureDocumentFullPayload(doc);
 
   const dialog = $("#documentPreviewDialog");
   if (!dialog) return;

@@ -16,6 +16,7 @@ const dateKey = (d = new Date()) =>
 let state = {
   activeTab: 'tarefas', // 'tarefas' | 'jornada' | 'loja' | 'equipe'
   mobileStatus: 'A fazer', // 'A fazer' | 'Em andamento' | 'Aguardando aprovação' | 'Concluída'
+  statementPeriod: 'mes-atual', // 'mes-atual' | 'mes-anterior' | 'geral'
   attentionFilter: '',
   tasks: [],
   assignees: [],
@@ -700,21 +701,31 @@ function renderJornadaTab({ levelInfo, available, admin }) {
 
     <!-- Extrato de Pontos -->
     <div class="card-surface" style="padding:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
-      <div class="rewards-head">
+      <div class="rewards-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div>
           <small>Transparência</small>
-          <strong>Extrato de Pontos Recentes</strong>
+          <strong>Extrato de Pontos</strong>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="cf-tab-pill ${state.statementPeriod === 'mes-atual' ? 'active' : ''}" data-cf-statement-period="mes-atual" style="padding:4px 10px; font-size:12px; border-radius:8px; border:1px solid var(--cf-line); background:${state.statementPeriod === 'mes-atual' ? 'var(--cf-primary, #7c3aed)' : '#fff'}; color:${state.statementPeriod === 'mes-atual' ? '#fff' : '#475569'}; cursor:pointer;">Mês atual</button>
+          <button type="button" class="cf-tab-pill ${state.statementPeriod === 'mes-anterior' ? 'active' : ''}" data-cf-statement-period="mes-anterior" style="padding:4px 10px; font-size:12px; border-radius:8px; border:1px solid var(--cf-line); background:${state.statementPeriod === 'mes-anterior' ? 'var(--cf-primary, #7c3aed)' : '#fff'}; color:${state.statementPeriod === 'mes-anterior' ? '#fff' : '#475569'}; cursor:pointer;">Mês anterior</button>
+          <button type="button" class="cf-tab-pill ${state.statementPeriod === 'geral' ? 'active' : ''}" data-cf-statement-period="geral" style="padding:4px 10px; font-size:12px; border-radius:8px; border:1px solid var(--cf-line); background:${state.statementPeriod === 'geral' ? 'var(--cf-primary, #7c3aed)' : '#fff'}; color:${state.statementPeriod === 'geral' ? '#fff' : '#475569'}; cursor:pointer;">Geral</button>
         </div>
       </div>
       <div class="point-statement-list">
-        ${renderStatementEntries(myTasks, myAdjusts)}
+        ${renderStatementEntries(myTasks, myAdjusts, state.statementPeriod)}
       </div>
     </div>
   `;
 }
 
-function renderStatementEntries(myTasks, myAdjusts) {
-  const entries = [
+function renderStatementEntries(myTasks, myAdjusts, period = 'mes-atual') {
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
+  let allEntries = [
     ...myTasks.map(t => ({
       date: t.CONCLUIDO_EM || t.ATUALIZADO_EM,
       title: t.TITULO,
@@ -731,13 +742,24 @@ function renderStatementEntries(myTasks, myAdjusts) {
       icon: Number(a.PONTOS || 0) > 0 ? 'workspace_premium' : 'trending_down',
       gain: Number(a.PONTOS || 0) > 0,
     })),
-  ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 15);
+  ];
 
-  if (!entries.length) {
-    return `<p style="color:#8a8da0;font-size:12px;padding:8px 0;">Nenhuma movimentação registrada até o momento.</p>`;
+  if (period === 'mes-atual') {
+    allEntries = allEntries.filter(e => String(e.date || '').slice(0, 7) === currentMonthStr);
+  } else if (period === 'mes-anterior') {
+    allEntries = allEntries.filter(e => String(e.date || '').slice(0, 7) === prevMonthStr);
   }
 
-  return entries.map(e => `
+  const entries = allEntries.sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 20);
+
+  if (!entries.length) {
+    return `<p style="color:#8a8da0;font-size:12px;padding:8px 0;">Nenhuma movimentação registrada no período selecionado.</p>`;
+  }
+
+  const periodTotal = entries.reduce((sum, e) => sum + (e.points || 0), 0);
+  const periodSummary = `<div style="font-size:12px; font-weight:600; color:var(--cf-text); margin-bottom:10px; padding:6px 10px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">Total do período: ${periodTotal > 0 ? '+' : ''}${periodTotal} ponto(s)</div>`;
+
+  return periodSummary + entries.map(e => `
     <article class="${e.gain ? 'is-gain' : 'is-loss'}">
       <span class="material-symbols-rounded">${e.icon}</span>
       <div>
@@ -912,6 +934,14 @@ function bindEvents() {
   $$('[data-cf-tab]', host).forEach(btn => {
     btn.addEventListener('click', () => {
       state.activeTab = btn.dataset.cfTab;
+      renderApp();
+    });
+  });
+
+  // Filtro de período do extrato
+  $$('[data-cf-statement-period]', host).forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.statementPeriod = btn.dataset.cfStatementPeriod;
       renderApp();
     });
   });

@@ -36,7 +36,9 @@ import {
   haversineMeters,
   minutesText,
   todayIso,
+  sha256Hex,
 } from "../src/core/utils.js";
+import { checkCreditMargin } from "../src/core/takeat-credit.js";
 
 test("a API cobre todas as funções declaradas pela interface", async () => {
   const source = await readFile(
@@ -3076,6 +3078,142 @@ test("LGPD, Termo de Consentimento Físico e Espelho de Ponto Portaria 671", asy
   assert.match(scriptsHtml, /Saldo Acumulado no Banco de Horas/, "Scripts.html deve exibir o saldo acumulado histórico");
   assert.match(scriptsHtml, /clockMonthBalanceSubtitle/, "Scripts.html deve atualizar o subtítulo com o saldo do mês");
 });
+
+test("Portaria 671: Comprovante unitário de ponto com SHA-256 e visualização de recibo", async () => {
+  // 1. Função criptográfica SHA-256
+  const hash = await sha256Hex("Portaria-671-Grupo-House-190");
+  assert.equal(typeof hash, "string");
+  assert.equal(hash.length, 64, "Hash SHA-256 deve possuir 64 caracteres hexadecimais");
+  assert.match(hash, /^[a-f0-9]{64}$/, "Hash SHA-256 deve ser composto apenas por hexadecimais");
+
+  // 2. api-clock gera ComprovanteHashSHA256 e atende a Portaria 671
+  const apiClock = await readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8");
+  assert.match(apiClock, /ComprovanteHashSHA256/, "api-clock deve gerar e gravar ComprovanteHashSHA256");
+  assert.match(apiClock, /Portaria671Valido/, "api-clock deve validar registro para Portaria 671");
+
+  // 3. Modal de recibo na interface
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  assert.match(dialogsHtml, /id="clockReceiptDialog"/, "Dialogs.html deve conter o modal do comprovante");
+  assert.match(dialogsHtml, /Portaria MTE nº 671\/2021/, "Modal deve referenciar a Portaria MTE nº 671/2021");
+
+  // 4. Scripts.html implementa showTimeClockReceipt_ e printClockReceipt_
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  assert.match(scriptsHtml, /showTimeClockReceipt_/, "Scripts.html deve implementar exibição do comprovante");
+  assert.match(scriptsHtml, /printClockReceipt_/, "Scripts.html deve implementar impressão do comprovante");
+  assert.match(scriptsHtml, />Comprovante<\/button>/, "Linha do tempo diária deve disponibilizar botão de comprovante");
+});
+
+test("Resiliência de ponto: Fila de contingência offline no dispositivo", async () => {
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  assert.match(scriptsHtml, /gf_offline_clock_queue/, "Scripts.html deve gerenciar chave da fila offline");
+  assert.match(scriptsHtml, /queueOfflineClockPunch_/, "Scripts.html deve implementar enfileiramento de marcações offline");
+  assert.match(scriptsHtml, /syncOfflinePunches_/, "Scripts.html deve implementar sincronização de marcações offline");
+  assert.match(scriptsHtml, /Pendente de sincronização/, "Marcação offline temporária deve ser sinalizada");
+  assert.match(scriptsHtml, /window\.addEventListener\("online"/, "Scripts.html deve monitorar retorno da conexão");
+});
+
+test("Banco de Horas: Alerta de horas prestes a prescrever (Art. 59 § 5º da CLT - 6 meses)", () => {
+  const employee = {
+    FuncionarioID: "emp-clt-1",
+    Nome: "Colaborador Teste CLT",
+    LojaID: "loja-1",
+    Ativo: true,
+  };
+  const schedule = {
+    FuncionarioID: "emp-clt-1",
+    Ativa: true,
+    DiasTrabalho: "6", // Sábado
+    HoraEntrada: "08:00",
+    HoraSaida: "16:00",
+    DuracaoIntervaloMinutos: 0,
+  };
+
+  // 31 de janeiro de 2026 (sábado, mais de 150 dias antes de 01/07/2026)
+  // Fez 2h de hora extra (10h trabalhadas contra 8h previstas)
+  const oldDate = "2026-01-31";
+  const oldRecords = [
+    {
+      FuncionarioID: "emp-clt-1",
+      Data: oldDate,
+      TipoMarcacao: "ENTRADA",
+      DataHora: `${oldDate}T08:00:00-03:00`,
+      Status: "Válido",
+    },
+    {
+      FuncionarioID: "emp-clt-1",
+      Data: oldDate,
+      TipoMarcacao: "SAIDA_FINAL",
+      DataHora: `${oldDate}T18:00:00-03:00`,
+      Status: "Válido",
+    },
+  ];
+
+  const result = accumulatedHourBalance({
+    employees: [employee],
+    records: oldRecords,
+    schedules: [schedule],
+    throughMonth: "2026-01",
+    currentDate: "2026-07-01",
+  });
+
+  const empResult = result.employees[0];
+  assert.equal(empResult.saldoMinutos, 120, "Saldo deve ser de 120 minutos extras");
+  assert.equal(empResult.prazoLegalAlerta, true, "Deve sinalizar alerta de aproximação do prazo legal da CLT");
+  assert.equal(empResult.saldoVencendoMinutos, 120, "Horas acumuladas há mais de 150 dias devem constar como saldo vencendo");
+});
+
+test("Takeat Credit: Verificação de limite e margem consignável legal", () => {
+  // 1. Débito normal dentro do limite e margem
+  const ok = checkCreditMargin(
+    { debt: 150, limit: 300 },
+    { Salario: 2000 },
+  );
+  assert.equal(ok.atencao, false);
+  assert.equal(ok.excedeLimiteConta, false);
+  assert.equal(ok.excedeMargemConsignavel, false);
+
+  // 2. Débito acima do limite configurado na Takeat
+  const overLimit = checkCreditMargin(
+    { debt: 350, limit: 300 },
+    { Salario: 2000 },
+  );
+  assert.equal(overLimit.atencao, true);
+  assert.equal(overLimit.excedeLimiteConta, true);
+
+  // 3. Débito acima de 30% da margem consignável (ex: R$ 600 de consumo para salário de R$ 1.518, margem = R$ 455)
+  const overMargin = checkCreditMargin(
+    { debt: 600, limit: 1000 },
+    { Salario: 1518 },
+  );
+  assert.equal(overMargin.atencao, true);
+  assert.equal(overMargin.excedeMargemConsignavel, true);
+});
+
+test("Segurança / 2FA: Trava de autenticação em dois passos para administradores no banner Google", async () => {
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  assert.match(scriptsHtml, /Segurança • LGPD Administrador/, "Banner deve exibir identificador LGPD para admin");
+  assert.match(scriptsHtml, /Autenticação em duas etapas recomendada/, "Título deve ressaltar autenticação em duas etapas");
+  assert.match(scriptsHtml, /dismissBtn\.classList\.add\("hidden"\)/, "Administradores não devem poder dispensar o aviso");
+});
+
+test("CozinhaFlow: Filtro de extrato por período fechado (mensal / anterior / geral)", async () => {
+  const tasksJs = await readFile(new URL("../src/tasks.js", import.meta.url), "utf8");
+  assert.match(tasksJs, /statementPeriod/, "tasks.js deve manter estado de período do extrato");
+  assert.match(tasksJs, /data-cf-statement-period="mes-atual"/, "deve existir seletor de mês atual");
+  assert.match(tasksJs, /data-cf-statement-period="mes-anterior"/, "deve existir seletor de mês anterior");
+  assert.match(tasksJs, /data-cf-statement-period="geral"/, "deve existir seletor geral");
+  assert.match(tasksJs, /Total do período/, "deve exibir o total consolidado do período");
+});
+
+test("PWA / SW: Injeção de ativos gerados pelo Vite no pré-cache do Service Worker", async () => {
+  const postbuildScript = await readFile(new URL("../scripts/postbuild-sw.mjs", import.meta.url), "utf8");
+  assert.match(postbuildScript, /APP_SHELL/, "postbuild-sw deve atualizar o APP_SHELL");
+  assert.match(postbuildScript, /dist\/assets/, "postbuild-sw deve ler o diretório dist/assets");
+
+  const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.match(pkg.scripts.build, /postbuild-sw\.mjs/, "build deve executar postbuild-sw.mjs");
+});
+
 
 
 

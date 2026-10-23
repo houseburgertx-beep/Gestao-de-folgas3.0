@@ -336,6 +336,14 @@
           ativo</label
         >
       </div>
+      <h4 class="dialog-section-title">Conformidade LGPD</h4>
+      <div class="dialog-grid">
+        <label class="switch-label" style="grid-column: 1 / -1;"
+          ><input id="employeeLgpdConsentSigned" type="checkbox" /> Termo de consentimento físico arquivado</label
+        ><label
+          >Data da assinatura física<input id="employeeLgpdConsentDate" type="date" /></label
+        >
+      </div>
     </div>
     <div class="dialog-actions">
       <button
@@ -1492,5 +1500,24 @@
 
 <!-- Modal de Visualização de Documentos em Alta Resolução -->
 <dialog id="documentPreviewDialog" class="document-modal" style="max-width: 880px; width: 94vw;"></dialog>
+
+<!-- Modal de Comprovante de Registro de Ponto do Trabalhador (Portaria MTE 671) -->
+<dialog id="clockReceiptDialog" class="clock-receipt-dialog" style="max-width: 520px; width: 92vw; border-radius: 16px; padding: 24px; border: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border-color, #e2e8f0); padding-bottom: 12px;">
+    <div>
+      <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: var(--text-muted, #64748b);">Portaria MTE nº 671/2021</span>
+      <h3 style="margin: 4px 0 0; font-size: 17px; font-weight: 700; color: var(--text-primary, #0f172a);">Comprovante de Registro de Ponto</h3>
+    </div>
+    <button type="button" class="btn-ghost btn-sm" onclick="closeDialog('clockReceiptDialog')" style="font-size: 18px; line-height: 1; padding: 4px 8px; border: none; background: transparent; cursor: pointer; color: var(--text-muted, #64748b);">✕</button>
+  </div>
+  <div id="clockReceiptContent" style="display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--text-secondary, #334155);">
+    <!-- Conteúdo preenchido dinamicamente via showTimeClockReceipt_ -->
+  </div>
+  <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-color, #e2e8f0); display: flex; justify-content: flex-end; gap: 8px;">
+    <button type="button" class="btn btn-secondary" onclick="closeDialog('clockReceiptDialog')">Fechar</button>
+    <button type="button" class="btn btn-primary" onclick="printClockReceipt_()">Imprimir comprovante</button>
+  </div>
+</dialog>
+
 
 
