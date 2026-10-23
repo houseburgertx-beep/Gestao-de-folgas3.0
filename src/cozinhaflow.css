@@ -5190,8 +5190,28 @@ button, a, input, select, textarea, .btn, .j-card button {
   letter-spacing: -0.02em !important;
 }
 
+#clockSelfieDialog .dialog-head .icon-btn {
+  background: var(--surface-2, #f1f5f9) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 50% !important;
+  width: 38px !important;
+  height: 38px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--muted) !important;
+  font-size: 15px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+#clockSelfieDialog .dialog-head .icon-btn:hover {
+  background: var(--line) !important;
+  color: var(--text) !important;
+}
+
 #clockSelfieDialog .dialog-body {
-  padding: 0 20px 18px !important;
+  padding: 0 20px 14px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 12px !important;
@@ -5225,7 +5245,7 @@ button, a, input, select, textarea, .btn, .j-card button {
   margin: 0 !important;
   padding: 12px 16px !important;
   border-radius: 14px !important;
-  font-size: 13px !important;
+  font-size: 13.5px !important;
   font-weight: 600 !important;
   text-align: center !important;
   color: var(--text) !important;
@@ -5235,18 +5255,29 @@ button, a, input, select, textarea, .btn, .j-card button {
 }
 
 #clockSelfieDialog .dialog-actions.clock-selfie-actions {
-  padding: 6px 20px 22px !important;
+  padding: 4px 20px 24px !important;
   display: flex !important;
-  flex-direction: column-reverse !important;
+  flex-direction: column !important;
   gap: 10px !important;
   border-top: 0 !important;
 }
 
+/* Regra mestra: elementos ocultos NUNCA podem aparecer */
+#clockSelfieDialog .hidden,
+#clockSelfieDialog .btn.hidden {
+  display: none !important;
+}
+
+/* Antes de capturar a selfie, esconde o botão de confirmar desabilitado para não poluir a tela */
+#clockSelfieDialog:has(#clockSelfieCapture:not(.hidden)) #clockSelfieConfirm {
+  display: none !important;
+}
+
 #clockSelfieDialog .dialog-actions .btn {
   width: 100% !important;
-  min-height: 50px !important;
+  min-height: 52px !important;
   border-radius: 16px !important;
-  font-size: 15px !important;
+  font-size: 15.5px !important;
   font-weight: 700 !important;
   letter-spacing: -0.01em !important;
   display: flex !important;
@@ -5255,14 +5286,27 @@ button, a, input, select, textarea, .btn, .j-card button {
   transition: transform 0.12s ease, box-shadow 0.12s ease !important;
 }
 
-#clockSelfieConfirm {
-  background: #6366f1 !important;
+#clockSelfieCapture {
+  background: #1b365d !important;
   color: #ffffff !important;
   border: 0 !important;
+  box-shadow: 0 4px 16px rgba(27, 54, 93, 0.28) !important;
+}
+
+[data-theme="dark"] #clockSelfieCapture {
+  background: #6366f1 !important;
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35) !important;
 }
 
-#clockSelfieConfirm:not(:disabled):active {
+#clockSelfieConfirm {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.35) !important;
+}
+
+#clockSelfieConfirm:not(:disabled):active,
+#clockSelfieCapture:not(:disabled):active {
   transform: scale(0.98) !important;
 }
 
@@ -5276,11 +5320,11 @@ button, a, input, select, textarea, .btn, .j-card button {
 }
 
 #clockSelfieRetake,
-#clockSelfieCapture,
 #clockSelfieNative {
   background: var(--surface-2, #f1f5f9) !important;
   color: var(--text) !important;
   border: 1px solid var(--line) !important;
+  font-size: 14.5px !important;
 }
 
 
