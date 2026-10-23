@@ -4091,10 +4091,11 @@
             ? `<span class="google-status-pill" title="Acesso vinculado à Conta Google" aria-label="Conta Google vinculada"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg></span>`
             : "";
           const isLgpd = bool(val(x, "TermoLGPDConsentimentoFisico", "termoLGPDConsentimentoFisico"));
-          const lgpdBadge = isLgpd
-            ? `<span class="badge" style="background:#f0fdf4; color:#166534; font-size:10px; padding:2px 6px; border:1px solid #bbf7d0;" title="Termo de consentimento LGPD assinado e arquivado">LGPD OK</span>`
-            : `<span class="badge" style="background:#fffbeb; color:#92400e; font-size:10px; padding:2px 6px; border:1px solid #fde68a;" title="Termo de consentimento LGPD pendente">LGPD Pend.</span>`;
-          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação"><div class="status-cell-wrap">${badge(active ? "Ativo" : "Inativo")}${googleIcon}${lgpdBadge}</div></td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
+          const isPrivacyAck = bool(val(x, "PoliticaPrivacidadeCiente", "politicaPrivacidadeCiente"));
+          const privacyBadge = isPrivacyAck
+            ? `<span class="badge" style="background:#f0fdf4; color:#166534; font-size:10px; padding:2px 6px; border:1px solid #bbf7d0;" title="Política de Privacidade assinada digitalmente com rubrica">Política OK</span>`
+            : `<span class="badge" style="background:#fffbeb; color:#92400e; font-size:10px; padding:2px 6px; border:1px solid #fde68a;" title="Ciência da Política de Privacidade pendente de assinatura">Política Pend.</span>`;
+          return `<tr class="employee-directory-row"><td data-label="Funcionário">${person(val(x, "Nome", "nome"), val(x, "Email", "email"), x)}${debtTag}</td><td data-label="Unidade">${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td data-label="Cargo">${esc(val(x, "Cargo", "cargo"))}</td><td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td><td data-label="Folgas extras"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td><td data-label="Folga fixa">${esc(fixed)}</td><td data-label="Situação"><div class="status-cell-wrap">${badge(active ? "Ativo" : "Inativo")}${googleIcon}${privacyBadge}</div></td><td data-label="Ações"><div class="row-actions"><button data-action="edit-employee" data-id="${esc(id)}">Editar</button><button data-action="reset-employee-pwd" data-id="${esc(id)}" title="Trocar senha">Senha</button><button data-action="${active ? "disable-employee" : "activate-employee"}" data-id="${esc(id)}">${active ? "Desativar" : "Ativar"}</button><button class="btn-delete-employee" data-action="delete-employee" data-id="${esc(id)}" title="Excluir funcionário definitivamente">Excluir</button></div></td></tr>`;
         })
         .join("") || empty(8);
   }
@@ -4787,6 +4788,41 @@
     $("#employeeActive").checked = x ? bool(val(x, "Ativo", "ativo")) : true;
     $("#employeeLgpdConsentSigned").checked = x ? bool(val(x, "TermoLGPDConsentimentoFisico", "termoLGPDConsentimentoFisico")) : false;
     $("#employeeLgpdConsentDate").value = iso(val(x, "DataTermoLGPDConsentimento", "dataTermoLGPDConsentimento")) || "";
+
+    const isPrivacyAck = x ? bool(val(x, "PoliticaPrivacidadeCiente", "politicaPrivacidadeCiente")) : false;
+    const privacyAckDate = x ? val(x, "PoliticaPrivacidadeData", "politicaPrivacidadeData") : "";
+    const privacyAckVer = (x && val(x, "PoliticaPrivacidadeVersao", "politicaPrivacidadeVersao")) || "1.0";
+    const privacyAckSign = x ? val(x, "PoliticaPrivacidadeAssinatura", "politicaPrivacidadeAssinatura") : "";
+
+    const ackStatusEl = $("#employeePrivacyPolicyAckStatus");
+    const ackMetaEl = $("#employeePrivacyPolicyAckMeta");
+    const ackSignWrap = $("#employeePrivacyPolicySignatureWrap");
+    const ackSignImg = $("#employeePrivacyPolicySignatureImg");
+
+    if (isPrivacyAck && privacyAckDate) {
+      const d = new Date(privacyAckDate);
+      const formatted = isNaN(d.getTime()) ? privacyAckDate : d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      if (ackStatusEl) {
+        ackStatusEl.innerHTML = `<span style="color:#059669; font-weight:700;">Ciência formalizada com sucesso</span>`;
+      }
+      if (ackMetaEl) {
+        ackMetaEl.textContent = `Versão ${privacyAckVer} assinada digitalmente em ${formatted}.`;
+      }
+      if (privacyAckSign && ackSignImg && ackSignWrap) {
+        ackSignImg.src = privacyAckSign;
+        ackSignWrap.style.display = "block";
+      } else if (ackSignWrap) {
+        ackSignWrap.style.display = "none";
+      }
+    } else {
+      if (ackStatusEl) {
+        ackStatusEl.innerHTML = `<span style="color:#d97706; font-weight:700;">Pendente de assinatura</span>`;
+      }
+      if (ackMetaEl) {
+        ackMetaEl.textContent = `O colaborador receberá o pop-up com termo e rubrica ao acessar o sistema.`;
+      }
+      if (ackSignWrap) ackSignWrap.style.display = "none";
+    }
     const deleteBtn = $("#employeeDeleteBtn");
     if (deleteBtn) {
       deleteBtn.style.display = id ? "inline-flex" : "none";
