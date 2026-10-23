@@ -3914,12 +3914,21 @@
           const id = idOf(x, "Folga"),
             n = val(x, "NomeFuncionario", "nomeFuncionario"),
             status = val(x, "Status", "status") || "Pendente",
+            tipo = val(x, "TipoFolga", "tipoFolga") || "Folga",
+            isMedical = String(tipo).toLowerCase().includes("atestado"),
+            docUrl = val(x, "DocumentoUrl", "documentoUrl"),
+            crm = val(x, "CRM", "crm"),
+            startD = val(x, "DataInicio", "dataInicio"),
+            endD = val(x, "DataFim", "dataFim") || startD,
+            periodText = startD === endD ? dateBR(startD) : `${dateBR(startD)} até ${dateBR(endD)}`,
+            diffDays = Math.max(1, Math.round((new Date(`${endD}T12:00:00`) - new Date(`${startD}T12:00:00`)) / 86400000) + 1),
+            approveBtnText = isMedical ? "Aprovar e Abonar Faltas" : "Aprovar",
             managerActions = isKitchenChief()
               ? `<div class="request-card-actions"><span class="status">Somente leitura</span></div>`
               : isManager()
-              ? `<div class="request-card-actions"><button class="btn btn-secondary" data-action="reject" data-id="${esc(id)}">Rejeitar</button><button class="btn btn-primary" data-action="approve" data-id="${esc(id)}">Aprovar</button></div>`
+              ? `<div class="request-card-actions"><button class="btn btn-secondary" data-action="reject" data-id="${esc(id)}">Rejeitar</button><button class="btn btn-primary" data-action="approve" data-id="${esc(id)}">${approveBtnText}</button></div>`
               : `<div class="request-card-actions"><button class="btn btn-secondary" data-action="edit-timeoff" data-id="${esc(id)}">Ver detalhes</button>${statusClass(status) === "pending" ? `<button class="btn btn-ghost" data-action="cancel" data-id="${esc(id)}">Cancelar pedido</button>` : ""}</div>`;
-          return `<article class="request-card pending-unified-card"><div class="request-card-head">${person(n)}${badge(status)}</div><div class="pending-card-meta"><span>${dateBR(val(x, "DataInicio", "dataInicio"))}</span><span>${esc(val(x, "TipoFolga", "tipoFolga"))}</span><span>${esc(val(x, "NomeLoja", "nomeLoja") || "Minha loja")}</span></div><p>${esc(val(x, "Motivo", "motivo") || "Sem motivo informado")}</p>${managerActions}</article>`;
+          return `<article class="request-card pending-unified-card"><div class="request-card-head">${person(n)}${isMedical ? `<span class="badge" style="background:#ecfdf5; color:#065f46; font-weight:700;">Atestado Médico</span>` : ""}${badge(status)}</div><div class="pending-card-meta"><span><strong>${periodText}</strong> (${diffDays} dia${diffDays > 1 ? "s" : ""})</span><span>${esc(tipo)}</span><span>${esc(val(x, "NomeLoja", "nomeLoja") || "Minha loja")}</span>${crm ? `<span>CRM: <strong>${esc(crm)}</strong></span>` : ""}</div><p>${esc(val(x, "Motivo", "motivo") || "Sem motivo informado")}</p>${docUrl ? `<div style="margin-bottom:8px;"><a href="${esc(docUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12.5px; padding:6px 12px; border-radius:8px;">Ver Comprovante no Drive ↗</a></div>` : ""}${managerActions}</article>`;
         })
         .join("") ||
       `<div class="panel pending-empty-state"><span>✓</span><strong>${isManager() ? "Nenhum pedido de folga aguardando decisão" : "Você ainda não fez nenhum pedido de folga"}</strong><p>${isManager() ? "Novas solicitações aparecerão aqui automaticamente." : "Use o botão Pedir folga para iniciar."}</p></div>`;
@@ -4673,7 +4682,7 @@
   }
 
   function isTimeOffRangeType() {
-    return ["Férias", "Licença"].includes($("#timeOffType").value);
+    return ["Férias", "Licença", "Atestado Médico"].includes($("#timeOffType").value);
   }
   function updateTimeOffDateFields() {
     const range = isTimeOffRangeType(),

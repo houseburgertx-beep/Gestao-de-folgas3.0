@@ -153,7 +153,7 @@ function personal() {
  <div class="w-punches">${types.map((k,i)=>{const mark=marks.find(x=>x.TipoMarcacao===k);return `<div class="${mark?'done':d?.nextAction===k?'next':''}"><i>${mark?'✓':i+1}</i><strong>${esc(labels[i])}</strong><time>${mark?esc(time(mark.DataHora)):'—'}</time></div>`}).join('')}</div>
  ${d?.nextAction ? `<button class="btn btn-primary j-wide${isExitAction?' btn-punch-exit':''}" data-j-punch="${esc(d.nextAction)}" aria-label="Bater ponto: ${esc(nextLabel)}"><span>Bater ponto · ${esc(nextLabel)}</span> <span aria-hidden="true">◉</span></button>` : `<button class="btn btn-primary j-wide" data-view-target="timeclock"><span>${d?.loadError ? 'Tentar carregar meu ponto' : 'Conferir meus registros'}</span> <span aria-hidden="true">↗</span></button>`}
  ${today?.incompleto?'<p class="w-footnote">Há marcações para conferir. Abra o ponto e solicite a correção.</p>':''}</article>
- <article class="j-card w-wallet"><div class="j-card-top"><div><span class="eyebrow">MEUS DIREITOS E SALDOS</span><h3>Folgas e horas</h3></div></div><div class="w-wallet-values"><button data-view-target="timeoff"><span>Folgas extras disponíveis</span><strong>${data.coreReady?esc(me.SaldoFolgas ?? '—'):'—'}</strong><small>Ver minhas folgas ↗</small></button><button data-view-target="timeclock"${isDebit?' class="is-debit"':isCredit?' class="is-credit"':''}><span>Banco de horas</span><strong class="${balanceClass}">${esc(balance || '—')}</strong><small>${mineBalance?.desde?'Desde '+esc(dateLabel(mineBalance.desde)):'Abra o ponto para conferir o período'} ↗</small></button></div><div class="w-fixed-off-chip"><span>Folga semanal: <strong>${esc(fixedDays || 'Ainda não cadastrada')}</strong></span></div><div class="w-actions"><button class="btn btn-secondary" data-j-request-leave>Pedir folga</button><button class="btn btn-secondary" data-view-target="documents">Meus Documentos</button></div></article>
+ <article class="j-card w-wallet"><div class="j-card-top"><div><span class="eyebrow">MEUS DIREITOS E SALDOS</span><h3>Folgas e horas</h3></div></div><div class="w-wallet-values"><button data-view-target="timeoff"><span>Folgas extras disponíveis</span><strong>${data.coreReady?esc(me.SaldoFolgas ?? '—'):'—'}</strong><small>Ver minhas folgas ↗</small></button><button data-view-target="timeclock"${isDebit?' class="is-debit"':isCredit?' class="is-credit"':''}><span>Banco de horas</span><strong class="${balanceClass}">${esc(balance || '—')}</strong><small>${mineBalance?.desde?'Desde '+esc(dateLabel(mineBalance.desde)):'Abra o ponto para conferir o período'} ↗</small></button></div><div class="w-fixed-off-chip"><span>Folga semanal: <strong>${esc(fixedDays || 'Ainda não cadastrada')}</strong></span></div><div class="w-actions"><button class="btn btn-secondary" data-j-request-leave>Pedir folga</button><button class="btn btn-secondary" data-j-medical-leave>Enviar atestado</button><button class="btn btn-secondary" data-view-target="documents">Meus Documentos</button></div></article>
  <article class="j-card w-myrequests"><div class="j-card-top"><div><span class="eyebrow">ACOMPANHAMENTO</span><h3>Meus pedidos</h3></div><button class="btn btn-ghost" data-view-target="pending-center">Ver todos ↗</button></div>${leaveItems(requests.slice(0,4))||emptyState(data.coreReady?'Você ainda não tem pedidos':'Carregando seus pedidos','Peça uma folga e acompanhe a decisão por aqui.')}<div class="w-next-leave"><span>Próxima folga aprovada</span><strong>${coming.length?esc(dateLabel(coming[0].DataInicio)):'Nenhuma agendada'}</strong></div></article>`;
 }
 function teamResults(r) {
@@ -357,6 +357,16 @@ document.addEventListener('change',e=>{if(e.target.matches('[data-j-unit]')){uni
 document.addEventListener('input',e=>{if(e.target.matches('[data-j-search]')){search=e.target.value;const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));$('#journeyTeamRows').innerHTML=teamResults(r);}});
 document.addEventListener('pointerdown',e=>{const punch=e.target.closest('[data-j-punch]');if(punch && typeof window.warmClockLocation_==='function'){window.warmClockLocation_();}},{passive:true});
 document.addEventListener('click',e=>{
+  const medBtn=e.target.closest('[data-j-medical-leave]');
+  if(medBtn){
+    if(typeof window.openMedicalCertificateDialog==='function'){
+      window.openMedicalCertificateDialog();
+    } else {
+      document.querySelector('[data-view-target="documents"]')?.click();
+      setTimeout(()=>{window.openMedicalCertificateDialog?.();}, 300);
+    }
+    return;
+  }
   const punch=e.target.closest('[data-j-punch]');
   if(punch){if(punch.dataset.busy==='true')return;punch.dataset.busy='true';setTimeout(()=>{punch.dataset.busy='';},2500);const action=punch.dataset.jPunch||'';if(typeof window.punchClock==='function'){window.punchClock(action);}else{document.querySelector('[data-view-target="timeclock"]')?.click();}return;}
   const unitChip=e.target.closest('[data-j-unit-chip]');

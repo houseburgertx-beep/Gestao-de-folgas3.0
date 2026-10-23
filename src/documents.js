@@ -4,6 +4,7 @@
 // ==========================================================================
 
 import { DOCUMENT_TEMPLATES, sha256Hex, parseBatchPayrollPdf, formatMonthLabel } from "./core/api-documents.js";
+import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "./selfie-drive-config.js";
 
 const $ = (selector, parent = document) => parent.querySelector(selector);
 const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
@@ -94,6 +95,106 @@ async function ensureDocumentFullPayload(doc) {
     }
   }
   return doc;
+}
+
+/**
+ * Comprime imagem ou lê PDF para envio seguro ao Google Drive
+ */
+async function compressMedicalDocument(file, maxDimension = 1600, quality = 0.82) {
+  if (!file) throw new Error("Arquivo não fornecido.");
+  if (file.type === "application/pdf") {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ base64: reader.result, mimeType: "application/pdf" });
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve({ base64: dataUrl, mimeType: "image/jpeg" });
+      };
+      img.onerror = () => {
+        resolve({ base64: e.target.result, mimeType: file.type || "image/jpeg" });
+      };
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Envia o atestado para a conta grupo190house@gmail.com no Google Drive
+ */
+async function uploadMedicalCertificateToDrive(file, employeeName = "Colaborador") {
+  const endpoint = SELFIE_DRIVE_UPLOAD_ENDPOINT;
+  const compressed = await compressMedicalDocument(file);
+  const ext = file.type === "application/pdf" ? "pdf" : "jpg";
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const cleanName = String(employeeName || "colaborador")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_");
+  const fileName = `atestado_${cleanName}_${dateStr}_${Date.now()}.${ext}`;
+
+  if (!endpoint) {
+    return { url: compressed.base64, base64: compressed.base64, fileName };
+  }
+
+  const payload = {
+    action: "driveUpload",
+    name: fileName,
+    mimeType: compressed.mimeType,
+    base64: compressed.base64,
+  };
+
+  const formData = new FormData();
+  Object.entries(payload).forEach(([k, v]) => formData.append(k, v));
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Servidor Google Drive indisponível temporariamente.");
+    const json = await res.json().catch(() => ({}));
+    const fileUrl = json.url || json.fileUrl;
+    if (fileUrl) {
+      return {
+        url: fileUrl,
+        fileId: json.fileId || "",
+        base64: compressed.base64,
+        fileName,
+      };
+    }
+    return { url: compressed.base64, base64: compressed.base64, fileName };
+  } catch (err) {
+    console.warn("[documents] Falha no upload para o Google Drive, usando contingência:", err);
+    return { url: compressed.base64, base64: compressed.base64, fileName };
+  }
 }
 
 /**
@@ -427,6 +528,47 @@ function renderEmployeeView() {
   } else {
     cardsHtml = myDocs
       .map((doc) => {
+        const isMedical = doc.Tipo === "Atestado Médico" || String(doc.Titulo || "").toLowerCase().includes("atestado");
+        if (isMedical) {
+          const isApproved = doc.Status === "Aprovado";
+          const isRejected = doc.Status === "Rejeitado";
+          const statusText = isApproved ? "Aprovado e Abonado" : isRejected ? "Recusado" : "Aguardando Aprovação";
+          const statusBadgeClass = isApproved ? "doc-status-signed" : isRejected ? "badge-danger" : "badge-amber";
+          const fileUrl = doc.ArquivoUrl || (doc.ArquivoOriginalBase64 ? doc.ArquivoOriginalBase64 : "");
+          return `
+            <div class="doc-item-card ${!isApproved && !isRejected ? "doc-item-pending" : ""}">
+              <div class="doc-item-header">
+                <span class="doc-type-pill" style="background:#ecfdf5; color:#065f46; font-weight:700;">Atestado Médico</span>
+                <span class="doc-status-badge ${statusBadgeClass}">
+                  ${statusText}
+                </span>
+              </div>
+
+              <div class="doc-item-main">
+                <h4 class="doc-item-title">${esc(doc.Titulo)}</h4>
+                <div class="doc-item-meta">
+                  <span>Período: <strong>${esc(doc.PeriodoAbono || doc.MesReferencia || "Período informado")}</strong></span>
+                  ${doc.DiasAbono ? `<span>•</span><span><strong>${doc.DiasAbono} dia(s) a abonar</strong></span>` : ""}
+                  <span>•</span>
+                  <span>Enviado em ${formatDate(doc.DataEnvio)}</span>
+                  ${isApproved ? `<span>•</span><span>Aprovado em ${formatDate(doc.DataAprovacao)}</span>` : ""}
+                </div>
+                ${doc.CRM ? `<div style="font-size:12px; color:var(--muted, #64748b); margin-top:4px;">CRM / Local: <strong>${esc(doc.CRM)}</strong></div>` : ""}
+                ${doc.Observacao ? `<p style="margin:6px 0 0; font-size:13px; color:var(--text, #334155); background:#f8fafc; padding:6px 10px; border-radius:8px;">${esc(doc.Observacao)}</p>` : ""}
+              </div>
+
+              <div class="doc-item-actions">
+                ${fileUrl ? `
+                  <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; min-height:40px; text-decoration:none;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Ver Comprovante no Drive ↗
+                  </a>
+                ` : ""}
+              </div>
+            </div>
+          `;
+        }
+
         const isSigned = doc.Status === "Assinado";
         return `
           <div class="doc-item-card ${!isSigned ? "doc-item-pending" : ""}">
@@ -475,8 +617,19 @@ function renderEmployeeView() {
   }
 
   return `
+    <div class="doc-employee-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem;">
+      <div>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Meus Documentos & Atestados</h3>
+        <p style="margin:2px 0 0; font-size:13px; color:var(--muted, #64748b);">Assine seus recibos ou envie atestados para abono de ausências.</p>
+      </div>
+      <button type="button" class="btn btn-primary" id="btnOpenMedicalCertificate" style="border-radius:9999px; min-height:44px; padding:0 1.25rem; font-weight:600; display:inline-flex; align-items:center; gap:8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        <span>Enviar Atestado Médico</span>
+      </button>
+    </div>
     <div class="doc-cards-list">
       ${cardsHtml}
+    </div>
     </div>
   `;
 }
@@ -499,6 +652,12 @@ function setupEventListeners() {
         state.activeTab = tab;
         renderDocumentsView();
       }
+      return;
+    }
+
+    const medBtn = e.target.closest("#btnOpenMedicalCertificate, [data-open-medical-cert]");
+    if (medBtn) {
+      openMedicalCertificateDialog();
       return;
     }
 
@@ -1186,6 +1345,305 @@ export function printDocumentTextPhysical(doc) {
   printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();
+}
+
+/**
+ * Abre o modal para envio de atestado médico com abono de faltas
+ */
+export function openMedicalCertificateDialog(options = {}) {
+  let dialog = $("#medicalCertificateDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "medicalCertificateDialog";
+    dialog.className = "document-modal";
+    dialog.style.maxWidth = "580px";
+    dialog.style.width = "94vw";
+    document.body.appendChild(dialog);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultDate = options.defaultDate || today;
+
+  let isPeriodMode = false;
+  let selectedFile = null;
+  let fileBase64 = "";
+
+  const renderModalContent = () => {
+    dialog.innerHTML = `
+      <div class="dialog-head" style="display:flex; justify-content:space-between; align-items:center; padding:1.25rem 1.5rem; border-bottom:1px solid var(--line, #e2e8f0);">
+        <div>
+          <span class="eyebrow" style="color:#059669; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">JUSTIFICATIVA LEGAL CLT</span>
+          <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">Enviar Atestado Médico</h3>
+        </div>
+        <button type="button" class="icon-btn" id="medCloseBtn" aria-label="Fechar">&times;</button>
+      </div>
+
+      <div class="dialog-body" style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:1.15rem;">
+        <!-- Seletor de Período (Segmented Control iOS) -->
+        <div>
+          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Duração do Afastamento</label>
+          <div style="display:flex; background:#f1f5f9; padding:4px; border-radius:12px; gap:4px;">
+            <button type="button" id="medToggleSingle" style="flex:1; border:none; padding:8px 12px; border-radius:9px; font-size:13.5px; font-weight:600; cursor:pointer; background:${!isPeriodMode ? '#ffffff' : 'transparent'}; color:${!isPeriodMode ? '#0f172a' : '#64748b'}; box-shadow:${!isPeriodMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'}; transition:all 0.15s ease;">
+              1 Único Dia
+            </button>
+            <button type="button" id="medTogglePeriod" style="flex:1; border:none; padding:8px 12px; border-radius:9px; font-size:13.5px; font-weight:600; cursor:pointer; background:${isPeriodMode ? '#ffffff' : 'transparent'}; color:${isPeriodMode ? '#0f172a' : '#64748b'}; box-shadow:${isPeriodMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'}; transition:all 0.15s ease;">
+              Vários Dias (Período)
+            </button>
+          </div>
+        </div>
+
+        <!-- Campos de Datas -->
+        <div id="medDatesContainer">
+          ${
+            !isPeriodMode
+              ? `
+            <div>
+              <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Data da Ausência / Atestado</label>
+              <input type="date" id="medSingleDate" value="${defaultDate}" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
+            </div>
+          `
+              : `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>
+                <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Data de Início</label>
+                <input type="date" id="medStartDate" value="${defaultDate}" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
+              </div>
+              <div>
+                <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Data de Término</label>
+                <input type="date" id="medEndDate" value="${defaultDate}" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
+              </div>
+            </div>
+            <div id="medPeriodSummary" style="margin-top:8px; font-size:12.5px; font-weight:600; color:#059669; background:#ecfdf5; padding:6px 12px; border-radius:8px; display:inline-block;">
+              Período: 1 dia a ser abonado
+            </div>
+          `
+          }
+        </div>
+
+        <!-- Área de Upload do Documento / Atestado -->
+        <div>
+          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Foto ou PDF do Atestado</label>
+          
+          <input type="file" id="medCameraInput" accept="image/*" capture="environment" style="display:none;" />
+          <input type="file" id="medFileInput" accept="image/*,application/pdf" style="display:none;" />
+
+          ${
+            !selectedFile
+              ? `
+            <div style="border:2px dashed #cbd5e1; border-radius:16px; padding:1.5rem 1rem; text-align:center; background:#f8fafc;">
+              <div style="color:#059669; margin-bottom:0.5rem;">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </div>
+              <strong style="display:block; font-size:14px; color:#1e293b; margin-bottom:4px;">Anexe a comprovação médica</strong>
+              <p style="margin:0 0 1rem; font-size:12px; color:#64748b;">Tire uma foto nítida do atestado ou anexe arquivo da galeria/PDF.</p>
+              
+              <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+                <button type="button" id="medBtnCamera" class="btn btn-secondary btn-sm" style="min-height:42px; border-radius:10px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  Tirar Foto Agora
+                </button>
+                <button type="button" id="medBtnFile" class="btn btn-secondary btn-sm" style="min-height:42px; border-radius:10px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  Escolher Arquivo / PDF
+                </button>
+              </div>
+            </div>
+          `
+              : `
+            <div style="border:1px solid #10b981; border-radius:14px; padding:12px 14px; background:#f0fdf4; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+              <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                ${
+                  fileBase64 && fileBase64.startsWith("data:image/")
+                    ? `<img src="${fileBase64}" alt="Prévia" style="width:52px; height:52px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1; flex-shrink:0;" />`
+                    : `<div style="width:52px; height:52px; border-radius:8px; background:#dcfce7; color:#059669; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      </div>`
+                }
+                <div style="min-width:0;">
+                  <strong style="display:block; font-size:13.5px; color:#065f46; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(selectedFile.name)}</strong>
+                  <span style="font-size:11.5px; color:#047857;">${(selectedFile.size / 1024).toFixed(1)} KB · Pronto para envio</span>
+                </div>
+              </div>
+              <button type="button" id="medBtnRemoveFile" class="btn btn-ghost btn-sm" style="color:#ef4444; flex-shrink:0;">Remover</button>
+            </div>
+          `
+          }
+        </div>
+
+        <!-- CRM e Observações -->
+        <div>
+          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">CRM do Médico ou Local (Opcional)</label>
+          <input type="text" id="medCrmInput" placeholder="Ex: CRM-BA 12345 / Hospital Geral" style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:14px; background:#f8fafc; box-sizing:border-box; min-height:44px;" />
+        </div>
+
+        <div>
+          <label style="display:block; font-size:12.5px; font-weight:600; color:var(--muted, #64748b); margin-bottom:6px;">Motivo ou Observações (Opcional)</label>
+          <textarea id="medReasonInput" rows="2" placeholder="Observações sobre o afastamento..." style="width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:10px 14px; font-size:13.5px; background:#f8fafc; box-sizing:border-box; resize:vertical;"></textarea>
+        </div>
+
+        <div id="medFeedbackMsg" style="display:none; font-size:13px; padding:10px 14px; border-radius:10px;"></div>
+      </div>
+
+      <div class="dialog-actions" style="display:flex; justify-content:flex-end; gap:10px; padding:1rem 1.5rem; border-top:1px solid var(--line, #e2e8f0);">
+        <button type="button" class="btn btn-secondary" id="medCancelBtn" style="min-height:44px; border-radius:12px;">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="medSubmitBtn" style="min-height:44px; border-radius:12px; font-weight:600; padding:0 1.5rem;">
+          Enviar Atestado para o Gestor
+        </button>
+      </div>
+    `;
+
+    bindModalEvents();
+  };
+
+  const bindModalEvents = () => {
+    // Fechar
+    $("#medCloseBtn", dialog).onclick = () => dialog.close();
+    $("#medCancelBtn", dialog).onclick = () => dialog.close();
+
+    // Alternar Período
+    $("#medToggleSingle", dialog).onclick = () => {
+      isPeriodMode = false;
+      renderModalContent();
+    };
+    $("#medTogglePeriod", dialog).onclick = () => {
+      isPeriodMode = true;
+      renderModalContent();
+    };
+
+    // Atualização do resumo de dias no modo período
+    const updatePeriodDays = () => {
+      const s = $("#medStartDate", dialog)?.value;
+      const e = $("#medEndDate", dialog)?.value;
+      const summary = $("#medPeriodSummary", dialog);
+      if (s && e && summary) {
+        if (e < s) {
+          summary.textContent = "Data de término anterior à de início";
+          summary.style.color = "#dc2626";
+          summary.style.background = "#fef2f2";
+        } else {
+          const diffDays = Math.round((new Date(`${e}T12:00:00`) - new Date(`${s}T12:00:00`)) / 86400000) + 1;
+          summary.textContent = `Período: ${diffDays} dia${diffDays > 1 ? "s" : ""} a ser${diffDays > 1 ? "em" : ""} abonado${diffDays > 1 ? "s" : ""}`;
+          summary.style.color = "#059669";
+          summary.style.background = "#ecfdf5";
+        }
+      }
+    };
+
+    $("#medStartDate", dialog)?.addEventListener("change", updatePeriodDays);
+    $("#medEndDate", dialog)?.addEventListener("change", updatePeriodDays);
+
+    // Botões de upload
+    const cameraInput = $("#medCameraInput", dialog);
+    const fileInput = $("#medFileInput", dialog);
+
+    $("#medBtnCamera", dialog)?.addEventListener("click", () => cameraInput?.click());
+    $("#medBtnFile", dialog)?.addEventListener("click", () => fileInput?.click());
+
+    const handleFileSelected = (file) => {
+      if (!file) return;
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        fileBase64 = e.target.result;
+        renderModalContent();
+      };
+      reader.readAsDataURL(file);
+    };
+
+    cameraInput?.addEventListener("change", (e) => handleFileSelected(e.target.files?.[0]));
+    fileInput?.addEventListener("change", (e) => handleFileSelected(e.target.files?.[0]));
+
+    $("#medBtnRemoveFile", dialog)?.addEventListener("click", () => {
+      selectedFile = null;
+      fileBase64 = "";
+      renderModalContent();
+    });
+
+    // Submissão do atestado
+    $("#medSubmitBtn", dialog)?.addEventListener("click", async () => {
+      const feedback = $("#medFeedbackMsg", dialog);
+      const submitBtn = $("#medSubmitBtn", dialog);
+
+      const showFeedback = (text, isError = false) => {
+        if (!feedback) return;
+        feedback.style.display = "block";
+        feedback.style.color = isError ? "#b91c1c" : "#065f46";
+        feedback.style.background = isError ? "#fef2f2" : "#ecfdf5";
+        feedback.style.border = `1px solid ${isError ? "#fecaca" : "#a7f3d0"}`;
+        feedback.textContent = text;
+      };
+
+      let start = "";
+      let end = "";
+      if (!isPeriodMode) {
+        start = $("#medSingleDate", dialog)?.value;
+        end = start;
+      } else {
+        start = $("#medStartDate", dialog)?.value;
+        end = $("#medEndDate", dialog)?.value;
+      }
+
+      if (!start || !end) {
+        showFeedback("Selecione a(s) data(s) do atestado.", true);
+        return;
+      }
+      if (end < start) {
+        showFeedback("A data de término não pode ser anterior à data de início.", true);
+        return;
+      }
+
+      if (!selectedFile && !fileBase64) {
+        showFeedback("Por favor, anexe a foto ou PDF do atestado.", true);
+        return;
+      }
+
+      const crm = $("#medCrmInput", dialog)?.value || "";
+      const reason = $("#medReasonInput", dialog)?.value || "";
+      const empName = state.user?.Nome || state.user?.nome || "Colaborador";
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Gravando no Drive da House 190...";
+      showFeedback("Enviando atestado para o Google Drive seguro...", false);
+
+      try {
+        // 1. Upload para o Google Drive da conta grupo190house@gmail.com
+        const uploadResult = await uploadMedicalCertificateToDrive(selectedFile, empName);
+        const docUrl = uploadResult.url || "";
+        const docBase64 = uploadResult.base64 || fileBase64;
+
+        // 2. Invoca a API de atestado médico
+        submitBtn.textContent = "Registrando solicitação de abono...";
+        await callApi("submitMedicalCertificate", {
+          dataInicio: start,
+          dataFim: end,
+          documentoUrl: docUrl,
+          documentoBase64: docBase64,
+          crm: crm,
+          motivo: reason,
+        });
+
+        showFeedback("Atestado enviado com sucesso! Aguardando aprovação para abono das faltas.", false);
+        setTimeout(() => {
+          dialog.close();
+          loadDocuments();
+          if (typeof window.renderRequests === "function") {
+            window.renderRequests();
+          }
+          if (typeof window.refreshJourneyData_ === "function") {
+            window.refreshJourneyData_();
+          }
+        }, 1200);
+      } catch (err) {
+        console.error("[documents] Erro ao enviar atestado:", err);
+        showFeedback(`Erro ao enviar: ${err.message}`, true);
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Enviar Atestado para o Gestor";
+      }
+    });
+  };
+
+  renderModalContent();
+  dialog.showModal?.() || dialog.setAttribute("open", "true");
 }
 
 /**
@@ -2167,6 +2625,7 @@ if (typeof window !== "undefined") {
   window.openBatchConfirmDialog = openBatchConfirmDialog;
   window.openBatchPagePreview = openBatchPagePreview;
   window.openPreviewDialog = openPreviewDialog;
+  window.openMedicalCertificateDialog = openMedicalCertificateDialog;
   window.renderPdfToContainer = renderPdfToContainer;
   window.addEventListener?.("gestao-documents-open", (e) => {
     initDocumentsModule(e.detail);

@@ -1020,7 +1020,10 @@ const validateTimeOffPolicies = async ({
   end,
   current = null,
   approving = false,
+  type = "",
 }) => {
+  const isMedical = String(type || current?.TipoFolga || "").toLowerCase().includes("atestado");
+  if (isMedical) return; // Atestados médicos legais não sofrem bloqueio de antecedência, feriado ou limite operacional
   const requestedDays = dateRange(start, end);
   const employeeRequest = role(profile).includes("funcion");
   const [config, holidays] = await Promise.all([
@@ -1217,6 +1220,7 @@ const createOrUpdateTimeOff = async (payload, current = null) => {
     end,
     current,
     approving: intendedStatus === APP.status.approved,
+    type,
   });
   return {
     ...(current || {}),
@@ -1231,7 +1235,10 @@ const createOrUpdateTimeOff = async (payload, current = null) => {
     DataFim: end,
     TipoFolga: type,
     Periodo: period,
-    Motivo: String(payload.Motivo || ""),
+    Motivo: String(payload.Motivo || payload.motivo || ""),
+    DocumentoID: payload.DocumentoID || payload.documentoId || current?.DocumentoID || "",
+    DocumentoUrl: payload.DocumentoUrl || payload.documentoUrl || current?.DocumentoUrl || "",
+    CRM: payload.CRM || payload.crm || current?.CRM || "",
     Origem: employeeRequest ? "Pedido do funcionário" : payload.Origem || "Manual",
     Status: intendedStatus,
     SolicitadoPor: current?.SolicitadoPor || profile.Email,
@@ -1278,6 +1285,7 @@ const timeOffDecision = async (id, approved, observation = "") => {
       end: current.DataFim || current.DataInicio,
       current,
       approving: true,
+      type: current.TipoFolga,
     });
   }
   let updated = await runtime.patch("Folgas", id, {
@@ -1297,6 +1305,7 @@ const timeOffDecision = async (id, approved, observation = "") => {
     ObservacaoAprovacao: String(observation || ""),
     DataAtualizacao: nowIso(),
   });
+  const isMedical = String(updated.TipoFolga || "").toLowerCase().includes("atestado");
   if (approved) {
     try {
       await reconcileTimeOffBalance(updated, profile, employeeEntry);
@@ -1318,17 +1327,69 @@ const timeOffDecision = async (id, approved, observation = "") => {
         error.message,
       );
     }
+
+    if (isMedical) {
+      // Abono automático das faltas no período do atestado (CLT / Portaria 671)
+      const days = dateRange(updated.DataInicio, updated.DataFim || updated.DataInicio);
+      for (const day of days) {
+        const justId = `${updated.FuncionarioID}__${day}`;
+        const existingJust = await runtime.getById("JustificativasPonto", justId).catch(() => null);
+        await runtime.upsert("JustificativasPonto", {
+          ...(existingJust || {}),
+          JustificativaPontoID: justId,
+          FuncionarioID: updated.FuncionarioID,
+          NomeFuncionario: updated.NomeFuncionario,
+          LojaID: updated.LojaID,
+          NomeLoja: updated.NomeLoja,
+          Data: day,
+          Tipo: "Atestado",
+          Observacao: `Atestado médico aprovado (Folga ID: ${id})`,
+          DocumentoUrl: updated.DocumentoUrl || "",
+          DocumentoID: updated.DocumentoID || "",
+          Status: "Aprovada",
+          DataCriacao: existingJust?.DataCriacao || nowIso(),
+          DataAtualizacao: nowIso(),
+          JustificadoPor: profile.Email,
+        });
+      }
+      if (updated.DocumentoID) {
+        await runtime.patch("Documentos", updated.DocumentoID, {
+          Status: "Aprovado",
+          AprovadoPor: profile.Email,
+          DataAprovacao: nowIso(),
+          DataAtualizacao: nowIso(),
+        }).catch(() => {});
+      }
+    }
+  } else if (isMedical && updated.DocumentoID) {
+    await runtime.patch("Documentos", updated.DocumentoID, {
+      Status: "Rejeitado",
+      ObservacaoRejeicao: String(observation || ""),
+      RejeitadoPor: profile.Email,
+      DataRejeicao: nowIso(),
+      DataAtualizacao: nowIso(),
+    }).catch(() => {});
   }
+
   const obsText = updated.ObservacaoDecisao ? ` Motivo: ${updated.ObservacaoDecisao}` : "";
+  const notifSubject = isMedical
+    ? (approved ? "Atestado médico aprovado" : "Atestado médico rejeitado")
+    : (approved ? "Folga aprovada" : "Folga rejeitada");
+  const notifMsg = isMedical
+    ? (approved
+        ? `Seu atestado médico de ${updated.DataInicio}${updated.DataFim && updated.DataFim !== updated.DataInicio ? " até " + updated.DataFim : ""} foi aprovado e as faltas no período foram abonadas!`
+        : `Seu atestado médico para ${updated.DataInicio} foi rejeitado.${obsText}`)
+    : (approved
+        ? `Seu pedido de folga para ${updated.DataInicio} foi aprovado!`
+        : `Seu pedido de folga para ${updated.DataInicio} foi rejeitado.${obsText}`);
+
   await createNotification({
     employeeId: updated.FuncionarioID,
     email: updated.EmailFuncionario,
     storeId: updated.LojaID,
-    subject: approved ? "Folga aprovada" : "Folga rejeitada",
-    message: approved
-      ? `Seu pedido de folga para ${updated.DataInicio} foi aprovado!`
-      : `Seu pedido de folga para ${updated.DataInicio} foi rejeitado.${obsText}`,
-    type: "Folga",
+    subject: notifSubject,
+    message: notifMsg,
+    type: isMedical ? "Atestado" : "Folga",
     relatedId: id,
     severity: approved ? "success" : "warning",
   }).catch((error) =>
@@ -1948,6 +2009,97 @@ export function createBaseHandlers() {
           payload.observacao || payload.ObservacaoAprovacao,
         ),
         approved ? "Pedido aprovado." : "Pedido rejeitado.",
+      );
+    },
+
+    async submitMedicalCertificate(args) {
+      const profile = await runtime.requireProfile();
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const employeeRequest = role(profile).includes("funcion");
+
+      const employeeId = employeeRequest
+        ? profile.FuncionarioID
+        : (payload.funcionarioId || payload.FuncionarioID || profile.FuncionarioID);
+      assert(employeeId, "Identificação do funcionário é obrigatória.");
+
+      const employee = await runtime.getById("Funcionarios", employeeId);
+      assert(employee && asBoolean(employee.Ativo), "Funcionário não encontrado ou inativo.");
+      scopeRecord(profile, employee);
+
+      const start = String(payload.dataInicio || payload.DataInicio || "").trim();
+      const end = String(payload.dataFim || payload.DataFim || start).trim();
+      assert(/^\d{4}-\d{2}-\d{2}$/.test(start), "Informe a data inicial válida.");
+      assert(/^\d{4}-\d{2}-\d{2}$/.test(end), "Informe a data final válida.");
+      assert(end >= start, "A data final não pode ser anterior à data inicial.");
+      assert(dateRange(start, end).length <= 60, "O atestado não pode ultrapassar 60 dias.");
+
+      const docUrl = String(payload.documentoUrl || payload.DocumentoUrl || "").trim();
+      const docBase64 = String(payload.documentoBase64 || payload.base64 || payload.base64Data || "").trim();
+      assert(docUrl || docBase64, "É obrigatório anexar a foto ou PDF do atestado.");
+
+      const docId = `DOC_ATESTADO_${Date.now()}_${uuid().slice(0, 6)}`;
+      const folgaId = uuid();
+      const diasAbono = dateRange(start, end).length;
+
+      // 1. Grava no banco de Documentos
+      const docRecord = {
+        DocumentoID: docId,
+        DocID: docId,
+        Titulo: `Atestado Médico (${start}${end !== start ? " até " + end : ""})`,
+        Tipo: "Atestado Médico",
+        OrigemTipo: "UPLOAD_COLABORADOR",
+        Status: "Pendente",
+        FuncionarioID: employee.FuncionarioID,
+        NomeFuncionario: employee.Nome,
+        CPFFuncionario: employee.CPF || "",
+        LojaID: employee.LojaID,
+        NomeLoja: employee.NomeLoja,
+        DataEnvio: nowIso(),
+        ArquivoUrl: docUrl,
+        ArquivoOriginalBase64: docBase64.length < 500000 ? docBase64 : "",
+        HashOriginalSHA256: payload.hash || "",
+        CRM: String(payload.crm || payload.CRM || "").trim(),
+        Observacao: String(payload.motivo || payload.Motivo || "").trim(),
+        FolgaID: folgaId,
+        PeriodoAbono: `${start} a ${end}`,
+        DiasAbono: diasAbono,
+      };
+      await runtime.upsert("Documentos", docRecord);
+
+      // 2. Grava a solicitação em Folgas para aprovação do gestor
+      const folgaRecord = {
+        FolgaID: folgaId,
+        FuncionarioID: employee.FuncionarioID,
+        NomeFuncionario: employee.Nome,
+        EmailFuncionario: employee.Email,
+        LojaID: employee.LojaID,
+        NomeLoja: employee.NomeLoja,
+        DataInicio: start,
+        DataFim: end,
+        TipoFolga: "Atestado Médico",
+        Periodo: "Dia inteiro",
+        Motivo: String(payload.motivo || payload.Motivo || "Atestado médico").trim(),
+        CRM: String(payload.crm || payload.CRM || "").trim(),
+        DocumentoID: docId,
+        DocumentoUrl: docUrl,
+        DiasAbono: diasAbono,
+        Origem: "Portal do Colaborador - Atestado Médico",
+        Status: APP.status.pending,
+        SolicitadoPor: profile.Email,
+        DataSolicitacao: nowIso(),
+        DataCriacao: nowIso(),
+        DataAtualizacao: nowIso(),
+      };
+      const savedFolga = await runtime.upsert("Folgas", folgaRecord);
+
+      await audit("Enviar atestado médico", "Documentos", docId, {
+        after: { documento: docRecord, folga: savedFolga },
+      });
+
+      return success(
+        { documento: docRecord, folga: savedFolga },
+        "Atestado médico enviado com sucesso! Aguardando aprovação da gerência para abono das faltas.",
       );
     },
 
