@@ -3369,7 +3369,7 @@ test("UX Mobile: botões de confirmação 100% visíveis em todos os modais e se
   assert.match(scriptsHtml, /clockSelfieConfirmRow/, "Scripts devem gerenciar visibilidade da linha de confirmação");
 });
 
-test("Feedback de Reconhecimento (Craque da Semana): atribuição, notificação e gamificação da equipe", async () => {
+test("Feedback de Reconhecimento (Destaque da Semana): atribuição, notificação e gamificação da equipe", async () => {
   const originalRequireProfile = runtime.requireProfile;
   const originalGetById = runtime.getById;
   const originalUpsert = runtime.upsert;

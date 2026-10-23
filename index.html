@@ -12587,99 +12587,96 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
   color: #fff !important;
 }
 
-/* Banner de incentivo ao login com Google no Dashboard (Apple-like) */
+/* Banner de incentivo ao login com Google no Dashboard (Apple-like Slim Strip) */
 .google-link-banner {
-  margin: 0 0 20px 0;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(66, 133, 244, 0.06) 0%, rgba(52, 168, 83, 0.04) 50%, rgba(251, 188, 5, 0.05) 100%), var(--surface);
-  border: 1px solid rgba(66, 133, 244, 0.25);
-  box-shadow: 0 4px 20px -2px rgba(66, 133, 244, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  margin: 0 0 12px 0;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid rgba(66, 133, 244, 0.22);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   position: relative;
   overflow: hidden;
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-bottom 0.3s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease, margin-bottom 0.25s ease;
 }
 .google-link-banner.banner-fade-out {
   opacity: 0;
-  transform: translateY(-10px) scale(0.98);
+  transform: translateY(-6px) scale(0.98);
   margin-bottom: 0;
   pointer-events: none;
 }
 .google-link-banner-inner {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 18px 22px;
+  gap: 12px;
+  padding: 8px 14px;
 }
 .google-link-banner-icon {
   flex-shrink: 0;
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
-  background: var(--surface);
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 .google-link-banner-body {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .google-link-banner-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #1a73e8;
-  background: rgba(66, 133, 244, 0.12);
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-bottom: 4px;
+  display: none !important;
 }
 .google-link-banner-title {
   display: block;
-  font-size: 16px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 2px;
+  line-height: 1.25;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .google-link-banner-text {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 11.5px;
   color: var(--text-muted);
-  line-height: 1.45;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .google-link-banner-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-shrink: 0;
 }
 .btn-google-banner-action {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 6px 14px;
+  min-height: 32px;
+  border-radius: 10px;
   background: #1a73e8;
   color: #fff !important;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   border: none;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.35);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.25);
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
 .btn-google-banner-action:hover {
   background: #1557b0;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.45);
 }
 .btn-google-banner-action:active {
   transform: scale(0.97);
@@ -12687,53 +12684,59 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
 .btn-google-banner-dismiss {
   display: inline-flex;
   align-items: center;
-  padding: 10px 14px;
-  border-radius: 12px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   background: transparent;
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 600;
-  border: 1px solid transparent;
+  border: none;
   cursor: pointer;
   transition: all 0.15s ease;
-  white-space: nowrap;
+  padding: 0;
 }
 .btn-google-banner-dismiss:hover {
-  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+  background: var(--surface-2, rgba(0, 0, 0, 0.06));
   color: var(--text);
 }
 [data-theme="dark"] .google-link-banner {
-  background: linear-gradient(135deg, rgba(66, 133, 244, 0.12) 0%, rgba(52, 168, 83, 0.08) 50%, rgba(251, 188, 5, 0.08) 100%), var(--surface);
-  border-color: rgba(66, 133, 244, 0.35);
+  background: var(--surface);
+  border-color: rgba(66, 133, 244, 0.3);
 }
 [data-theme="dark"] .google-link-banner-icon {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
 }
-[data-theme="dark"] .google-link-banner-badge {
-  background: rgba(66, 133, 244, 0.25);
-  color: #8ab4f8;
-}
 @media (max-width: 768px) {
   .google-link-banner-inner {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 16px;
-    gap: 14px;
-  }
-  .google-link-banner-actions {
-    width: 100%;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    padding: 7px 10px;
     gap: 8px;
   }
+  .google-link-banner-actions {
+    width: auto;
+    flex-direction: row;
+    gap: 4px;
+  }
+  .google-link-banner-text {
+    display: none;
+  }
+  .google-link-banner-title {
+    font-size: 12.5px;
+  }
   .btn-google-banner-action {
-    width: 100%;
-    justify-content: center;
-    min-height: 44px;
+    width: auto;
+    min-height: 30px;
+    padding: 4px 10px;
+    font-size: 11.5px;
   }
   .btn-google-banner-dismiss {
-    width: 100%;
-    justify-content: center;
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
   }
 }
 
@@ -18489,49 +18492,52 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   color: #64748b;
 }
 
-/* Craque da Semana */
+/* Destaque da Semana (Reconhecimento da Equipe House 190) */
 .craque-card {
-  border: 1px solid rgba(245, 158, 11, 0.28) !important;
-  background: linear-gradient(135deg, #fffdfa 0%, #fef8ee 100%) !important;
-  box-shadow: 0 4px 16px -2px rgba(245, 158, 11, 0.12) !important;
-  border-radius: 20px !important;
-  padding: 18px 20px !important;
+  border: 1px solid rgba(217, 119, 6, 0.2) !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 10px -2px rgba(217, 119, 6, 0.08) !important;
+  border-radius: 16px !important;
+  padding: 12px 16px !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
-  margin-bottom: 16px !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
 }
 
 .craque-eyebrow {
   color: #b45309 !important;
   font-weight: 700 !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.06em !important;
 }
 
 .craque-title {
-  margin: 2px 0 0;
-  font-size: 18px;
+  margin: 1px 0 0;
+  font-size: 15.5px;
   font-weight: 800;
   color: #78350f;
+  line-height: 1.25;
 }
 
 .craque-profile {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .craque-avatar {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: linear-gradient(135deg, #d97706, #f59e0b);
   color: #ffffff;
-  font-size: 17px;
+  font-size: 14.5px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.28);
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.22);
   flex-shrink: 0;
 }
 
@@ -18543,7 +18549,7 @@ body #clockSelfieDialog .dialog-actions div.hidden {
 }
 
 .craque-name {
-  font-size: 15.5px;
+  font-size: 14.5px;
   font-weight: 800;
   color: #451a03;
   white-space: nowrap;
@@ -18552,7 +18558,7 @@ body #clockSelfieDialog .dialog-actions div.hidden {
 }
 
 .craque-role {
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #92400e;
 }
@@ -18560,25 +18566,24 @@ body #clockSelfieDialog .dialog-actions div.hidden {
 .craque-category-badge {
   display: inline-block;
   align-self: flex-start;
-  background: rgba(245, 158, 11, 0.18);
+  background: rgba(245, 158, 11, 0.12);
   color: #92400e;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 2px 9px;
+  padding: 1px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(217, 119, 6, 0.25);
-  margin-top: 2px;
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
 .craque-quote {
-  margin: 4px 0;
-  padding: 8px 12px;
-  background: rgba(254, 243, 199, 0.45);
-  border-left: 3px solid #f59e0b;
-  border-radius: 0 10px 10px 0;
-  font-size: 13.5px;
+  margin: 2px 0;
+  padding: 6px 10px;
+  background: #fffcf5;
+  border-left: 2.5px solid #d97706;
+  border-radius: 0 8px 8px 0;
+  font-size: 12.5px;
   font-style: italic;
-  line-height: 1.45;
+  line-height: 1.4;
   color: #78350f;
 }
 
@@ -18586,25 +18591,22 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 11px;
   color: #92400e;
-  padding-top: 8px;
-  border-top: 1px solid rgba(253, 230, 138, 0.7);
+  padding-top: 6px;
+  border-top: 1px solid rgba(253, 230, 138, 0.5);
 }
 
-.craque-motto {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: #92400e;
-  font-style: italic;
+.craque-empty {
+  padding: 10px 14px !important;
+  background: #fffdfa !important;
 }
 
 .craque-desc, .notice-desc {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted, #64748b);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 
@@ -22028,7 +22030,7 @@ dialog#medicalCertificateDialog {
             <div id="googleLinkAlertBanner" class="google-link-banner hidden" role="region" aria-label="Aviso de Login com Google">
               <div class="google-link-banner-inner">
                 <div class="google-link-banner-icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
@@ -22036,21 +22038,15 @@ dialog#medicalCertificateDialog {
                   </svg>
                 </div>
                 <div class="google-link-banner-body">
-                  <div class="google-link-banner-badge">Novo • Acesso Rápido com Google</div>
-                  <strong class="google-link-banner-title">Mude para o login com a Conta Google</strong>
-                  <p class="google-link-banner-text">Conecte sua conta Google para entrar com apenas 1 clique de forma mais rápida e segura. A partir da vinculação, seu acesso será feito diretamente com o Google.</p>
+                  <span class="google-link-banner-badge" style="display:none;">Novo</span>
+                  <strong class="google-link-banner-title">Login rápido com Google</strong>
+                  <p class="google-link-banner-text">Vincule para acessar em 1 clique.</p>
                 </div>
                 <div class="google-link-banner-actions">
                   <button type="button" id="googleLinkBannerActionBtn" class="btn-google-banner-action">
-                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
-                    <span>Vincular Conta Google</span>
+                    <span>Vincular</span>
                   </button>
-                  <button type="button" id="googleLinkBannerDismissBtn" class="btn-google-banner-dismiss">Agora não</button>
+                  <button type="button" id="googleLinkBannerDismissBtn" class="btn-google-banner-dismiss" aria-label="Dispensar aviso">✕</button>
                 </div>
               </div>
             </div>
@@ -25532,13 +25528,13 @@ dialog#medicalCertificateDialog {
   </form>
 </dialog>
 
-<!-- Modal: Homenagear Craque da Semana (Gestores/Admin) -->
+<!-- Modal: Homenagear Destaque da Semana (Gestores/Admin) -->
 <dialog id="recognizeEmployeeDialog" style="max-width: 540px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
   <form id="recognizeEmployeeForm">
     <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
       <div>
         <span class="eyebrow" style="color: #d97706; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">RECONHECIMENTO OPERACIONAL</span>
-        <h3 style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Craque da Semana</h3>
+        <h3 style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Destaque da Semana</h3>
       </div>
       <button type="button" class="icon-btn" data-close="recognizeEmployeeDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
     </div>
@@ -25554,7 +25550,7 @@ dialog#medicalCertificateDialog {
             <option value="Mestre da Chapa">Mestre da Chapa</option>
             <option value="Pontualidade Britânica">Pontualidade Britânica</option>
             <option value="Excelência no Atendimento">Excelência no Atendimento</option>
-            <option value="Craque da Cozinha">Craque da Cozinha</option>
+            <option value="Destaque da Cozinha">Destaque da Cozinha</option>
             <option value="Espírito de Equipe">Espírito de Equipe</option>
             <option value="Capricho & Higiene">Capricho & Higiene</option>
           </select>
@@ -25571,7 +25567,7 @@ dialog#medicalCertificateDialog {
     </div>
     <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: flex-end; gap: 10px;">
       <button type="button" class="btn btn-secondary" data-close="recognizeEmployeeDialog">Cancelar</button>
-      <button type="submit" class="btn btn-primary" style="background: #d97706; border-color: #d97706;">Homenagear Colaborador</button>
+      <button type="submit" class="btn btn-primary" style="background: #d97706; border-color: #d97706;">Registrar Destaque</button>
     </div>
   </form>
 </dialog>
@@ -35829,7 +35825,7 @@ dialog#medicalCertificateDialog {
   async function saveEmployeeRecognition_(e) {
     if (e && e.preventDefault) e.preventDefault();
     const empId = $("#recognizeEmployeeSelect")?.value;
-    const category = $("#recognizeCategorySelect")?.value || "Craque da Semana";
+    const category = $("#recognizeCategorySelect")?.value || "Destaque da Semana";
     const week = $("#recognizeWeekInput")?.value?.trim() || "";
     const reason = $("#recognizeReasonInput")?.value?.trim();
 
@@ -35850,7 +35846,7 @@ dialog#medicalCertificateDialog {
           Semana: week,
           Motivo: reason,
         }),
-        "Craque da Semana homenageado com sucesso!"
+        "Destaque da Semana registrado com sucesso!"
       );
       closeDialog("recognizeEmployeeDialog");
       await loadRecognitions_();

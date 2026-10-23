@@ -165,31 +165,22 @@ function renderCraqueDaSemanaCard() {
 
  const latest = applicable[0];
  if (!latest && !data.manager) {
-  return `<article class="j-card craque-card craque-motivational">
-   <div class="j-card-top">
-    <div>
-     <span class="eyebrow">DESTAQUE OPERACIONAL</span>
-     <h3>Craque da Semana</h3>
-    </div>
-   </div>
-   <p class="craque-motto">Dedicação, agilidade e capricho em cada detalhe do turno. O próximo destaque da House 190 pode ser você!</p>
-  </article>`;
+  return '';
  }
 
  if (!latest && data.manager) {
-  return `<article class="j-card craque-card craque-empty">
-   <div class="j-card-top">
+  return `<article class="j-card craque-card craque-empty" style="padding: 10px 14px; margin-bottom: 12px; border-radius: 14px;">
+   <div class="j-card-top" style="margin-bottom: 0;">
     <div>
-     <span class="eyebrow">RECONHECIMENTO DE EQUIPE</span>
-     <h3>Craque da Semana</h3>
+     <span class="eyebrow" style="color: #b45309; font-size: 10.5px;">RECONHECIMENTO OPERACIONAL</span>
+     <h4 style="margin: 1px 0 0; font-size: 14px; font-weight: 700; color: #78350f;">Destaque da Semana</h4>
     </div>
-    <button class="btn btn-ghost" data-j-new-recognition>+ Homenagear</button>
+    <button class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>
    </div>
-   <p class="craque-desc">Reconheça a dedicação de quem fez a diferença na cozinha, no salão ou na chapa esta semana.</p>
   </article>`;
  }
 
- const initials = String(latest.NomeFuncionario || 'C')
+ const initials = String(latest.NomeFuncionario || 'D')
   .split(' ')
   .filter(Boolean)
   .slice(0, 2)
@@ -199,22 +190,21 @@ function renderCraqueDaSemanaCard() {
  return `<article class="j-card craque-card">
   <div class="j-card-top">
    <div>
-    <span class="eyebrow craque-eyebrow">RECONHECIMENTO OPERACIONAL · ${esc(latest.Semana || 'Semana')}</span>
-    <h3 class="craque-title">Craque da Semana</h3>
+    <span class="eyebrow craque-eyebrow">DESTAQUE DA SEMANA · ${esc(latest.Semana || 'Semana')}</span>
+    <h3 class="craque-title">${esc(latest.NomeFuncionario)}</h3>
    </div>
-   ${data.manager ? `<button class="btn btn-ghost" data-j-new-recognition>+ Homenagear</button>` : ''}
+   ${data.manager ? `<button class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>` : ''}
   </div>
   <div class="craque-profile">
    <div class="craque-avatar">${esc(initials)}</div>
    <div class="craque-info">
-    <strong class="craque-name">${esc(latest.NomeFuncionario)}</strong>
     <span class="craque-role">${esc(latest.Cargo || 'Colaborador')} · ${esc(latest.NomeLoja || 'House 190')}</span>
     <span class="craque-category-badge">${esc(latest.Categoria || 'Destaque')}</span>
    </div>
   </div>
   <blockquote class="craque-quote">"${esc(latest.Motivo)}"</blockquote>
   <div class="craque-footer">
-   <span>Reconhecido por <strong>${esc(String(latest.AtribuidoPor || 'Liderança').split('@')[0])}</strong></span>
+   <span>Homenageado por <strong>${esc(String(latest.AtribuidoPor || 'Liderança').split('@')[0])}</strong></span>
   </div>
  </article>`;
 }

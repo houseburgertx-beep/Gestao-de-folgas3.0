@@ -10228,7 +10228,7 @@
   async function saveEmployeeRecognition_(e) {
     if (e && e.preventDefault) e.preventDefault();
     const empId = $("#recognizeEmployeeSelect")?.value;
-    const category = $("#recognizeCategorySelect")?.value || "Craque da Semana";
+    const category = $("#recognizeCategorySelect")?.value || "Destaque da Semana";
     const week = $("#recognizeWeekInput")?.value?.trim() || "";
     const reason = $("#recognizeReasonInput")?.value?.trim();
 
@@ -10249,7 +10249,7 @@
           Semana: week,
           Motivo: reason,
         }),
-        "Craque da Semana homenageado com sucesso!"
+        "Destaque da Semana registrado com sucesso!"
       );
       closeDialog("recognizeEmployeeDialog");
       await loadRecognitions_();
