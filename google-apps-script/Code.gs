@@ -1,8 +1,8 @@
 const SELFIE_SERVICE_CONFIG_ = Object.freeze({
-  folderId: "1oEclkjctnSxAmuoFc8OxNMus5YwKoyIL",
+  folderId: "", // Se vazio ou inacessível, cria/usa automaticamente "Ponto - Selfies Grupo House 190" no Drive
   databaseUrl: "https://github-737ec-default-rtdb.firebaseio.com",
   appRoot: "gestao-folgas/v2",
-  maxImageBytes: 700000,
+  maxImageBytes: 1500000,
 });
 
 const CLOCK_TYPES_ = Object.freeze([
@@ -17,16 +17,53 @@ function doGet() {
   return jsonResponse_({
     ok: true,
     service: "selfies-ponto-drive",
+    account: "grupo190house@gmail.com",
     storage: "google-drive",
+    timestamp: new Date().toISOString()
   });
 }
 
 function doPost(event) {
   try {
-    const payload = JSON.parse(
-      String(event && event.postData && event.postData.contents || "{}"),
-    );
-    assert_(payload.action === "uploadClockSelfie", "Ação inválida.");
+    let payload = {};
+    if (event && event.postData && event.postData.contents) {
+      try {
+        payload = JSON.parse(event.postData.contents);
+      } catch (parseErr) {
+        payload = event.parameter || {};
+      }
+    } else if (event && event.parameter) {
+      payload = event.parameter;
+    }
+
+    const action = String(payload.action || "").trim();
+
+    // 1. Upload de fotos de tarefas operacionais (CozinhaFlow Tasks)
+    if (action === "driveUpload") {
+      const base64Str = String(payload.base64 || payload.base64Data || "").replace(/^data:image\/[a-z]+;base64,/, "");
+      assert_(base64Str.length > 50, "Foto da tarefa vazia ou inválida.");
+      const bytes = Utilities.base64Decode(base64Str);
+      const root = getRootFolder_();
+      const taskFolder = childFolder_(root, "Tarefas");
+      const fileName = String(payload.name || ("tarefa_" + new Date().toISOString().slice(0,10) + "_" + Date.now() + ".jpg"));
+      const file = taskFolder.createFile(Utilities.newBlob(bytes, payload.mimeType || "image/jpeg", fileName));
+      try {
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (e) {}
+      const fileId = file.getId();
+      const viewUrl = "https://drive.google.com/file/d/" + fileId + "/view";
+      return jsonResponse_({
+        ok: true,
+        fileId: fileId,
+        url: viewUrl,
+        fileUrl: viewUrl,
+        fileName: fileName,
+        uploadedAt: new Date().toISOString(),
+      });
+    }
+
+    // 2. Upload de selfie e comprovação de Ponto Eletrônico (Portaria 671)
+    assert_(action === "uploadClockSelfie", "Ação inválida.");
 
     const token = String(payload.idToken || "");
     const uid = firebaseUid_(token);
@@ -59,12 +96,17 @@ function doPost(event) {
       : destination.createFile(
           Utilities.newBlob(image, "image/jpeg", fileName),
         );
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {}
     const fileId = file.getId();
+    const viewUrl = "https://drive.google.com/file/d/" + fileId + "/view";
 
     return jsonResponse_({
       ok: true,
       fileId: fileId,
-      fileUrl: "https://drive.google.com/file/d/" + fileId + "/view",
+      url: viewUrl,
+      fileUrl: viewUrl,
       fileName: fileName,
       uploadedAt: new Date().toISOString(),
     });
@@ -74,6 +116,17 @@ function doPost(event) {
       error: String(error && error.message || error || "Falha no upload."),
     });
   }
+}
+
+function getRootFolder_() {
+  if (SELFIE_SERVICE_CONFIG_.folderId) {
+    try {
+      return DriveApp.getFolderById(SELFIE_SERVICE_CONFIG_.folderId);
+    } catch (e) {}
+  }
+  const folderName = "Ponto - Selfies Grupo House 190";
+  const existing = DriveApp.getFoldersByName(folderName);
+  return existing.hasNext() ? existing.next() : DriveApp.createFolder(folderName);
 }
 
 function firebaseUid_(token) {
@@ -160,7 +213,7 @@ function destinationFolder_(profile, day) {
         cache.remove(cacheKey);
       }
     }
-    const root = DriveApp.getFolderById(SELFIE_SERVICE_CONFIG_.folderId);
+    const root = getRootFolder_();
     const year = childFolder_(root, day.slice(0, 4));
     const month = childFolder_(year, day.slice(0, 7));
     const destination = childFolder_(month, storeName);
