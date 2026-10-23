@@ -12915,6 +12915,11 @@ dialog {border:1px solid var(--line);border-radius:16px;background:var(--surface
 
 }
 
+/* REGRA GLOBAL INEGOCIÁVEL: modais fechados NUNCA aparecem */
+dialog:not([open]) {
+  display: none !important;
+}
+
 #tasksApp {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Inter", sans-serif;
   color: var(--ios-text);
@@ -15341,7 +15346,10 @@ html, body {
   }
 
   /* Modais móveis como iOS Bottom Sheets Perfeitos & Seguros */
-  dialog {
+  dialog:not([open]) {
+    display: none !important;
+  }
+  dialog[open] {
     margin: auto 0 0 0 !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -18078,7 +18086,11 @@ button, a, input, select, textarea, .btn, .j-card button {
 /* ==========================================================================
    MODAL DE SELFIE DO PONTO: Padrão Apple iOS Minimalista & Clean
    ========================================================================== */
-#clockSelfieDialog.clock-selfie-dialog {
+#clockSelfieDialog:not([open]) {
+  display: none !important;
+}
+
+#clockSelfieDialog.clock-selfie-dialog[open] {
   border-radius: 28px !important;
   border: 1px solid var(--line) !important;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25) !important;
