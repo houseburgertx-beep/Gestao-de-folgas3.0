@@ -83,11 +83,11 @@ async function callApi(method, ...args) {
 
 async function ensureDocumentFullPayload(doc) {
   if (!doc) return doc;
-  if (!doc.ArquivoOriginalBase64 && !doc.ArquivoFinalBase64 && doc.OrigemTipo === "PDF_IMPORTADO") {
+  if (!doc.ArquivoOriginalBase64 && !doc.ArquivoFinalBase64) {
     try {
       const res = await callApi("documentsGet", doc.DocumentoID);
       const full = res?.data || res?.document || res;
-      if (full && (full.ArquivoOriginalBase64 || full.ArquivoFinalBase64)) {
+      if (full) {
         Object.assign(doc, full);
       }
     } catch (err) {
@@ -2151,30 +2151,109 @@ export async function openPreviewDialog(docId) {
   const dialog = $("#documentPreviewDialog");
   if (!dialog) return;
 
-  const base64 = doc.ArquivoFinalBase64 || doc.ArquivoOriginalBase64;
+  const base64 = doc.ArquivoFinalBase64 || doc.ArquivoOriginalBase64 || "";
+  const fileUrl = doc.ArquivoUrl || doc.DocumentoUrl || "";
+  const isMedical = doc.Tipo === "Atestado Médico" || String(doc.Titulo || "").toLowerCase().includes("atestado");
+  const isPdf = Boolean(
+    (base64 && (base64.includes("application/pdf") || base64.startsWith("JVBERi"))) ||
+    (fileUrl && /\.pdf($|\?)/i.test(fileUrl))
+  );
+  const isImage = Boolean(
+    (base64 && base64.startsWith("data:image/")) ||
+    (fileUrl && /\.(jpe?g|png|webp|gif)($|\?)/i.test(fileUrl)) ||
+    (isMedical && !isPdf && (base64 || fileUrl))
+  );
+
   let blobUrl = "";
-  if (base64) {
+  if (base64 && isPdf) {
     blobUrl = base64ToBlobUrl(base64, "application/pdf");
   }
 
-  const isSigned = doc.StatusAssinatura === "ASSINADO";
+  const isSigned = doc.StatusAssinatura === "ASSINADO" || doc.Status === "Assinado" || doc.Status === "Aprovado";
+  const isPending = doc.Status === "Pendente";
+  const canDecide = isMedical && isPending && (state.isManager || state.isAdmin);
+
+  let statusBadgeLabel = "DOCUMENTO PENDENTE";
+  let statusBadgeColor = "#4f46e5";
+  if (isMedical) {
+    if (doc.Status === "Aprovado") {
+      statusBadgeLabel = "ATESTADO APROVADO E ABONADO";
+      statusBadgeColor = "#059669";
+    } else if (doc.Status === "Rejeitado") {
+      statusBadgeLabel = "ATESTADO RECUSADO";
+      statusBadgeColor = "#dc2626";
+    } else {
+      statusBadgeLabel = "ATESTADO PENDENTE DE AVALIAÇÃO";
+      statusBadgeColor = "#d97706";
+    }
+  } else if (isSigned) {
+    statusBadgeLabel = "DOCUMENTO ASSINADO";
+    statusBadgeColor = "#16a34a";
+  }
 
   dialog.innerHTML = `
     <div class="dialog-head" style="display:flex; justify-content:space-between; align-items:center; padding:1.15rem 1.4rem; border-bottom:1px solid var(--line, #e2e8f0);">
       <div>
-        <span class="eyebrow" style="color:${isSigned ? '#16a34a' : '#4f46e5'}; font-weight:700; font-size:11px; text-transform:uppercase;">
-          ${isSigned ? "DOCUMENTO ASSINADO" : "DOCUMENTO PENDENTE"}
+        <span class="eyebrow" style="color:${statusBadgeColor}; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">
+          ${statusBadgeLabel}
         </span>
-        <h3 style="margin:2px 0 0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">${esc(doc.Titulo)}</h3>
+        <h3 style="margin:2px 0 0; font-size:1.15rem; font-weight:700; color:var(--text, #1e293b);">${esc(doc.Titulo || "Visualização de Documento")}</h3>
         <div style="font-size:12px; color:#64748b; margin-top:3px;">
-          Colaborador: <strong>${esc(doc.NomeFuncionario)}</strong> ${doc.CPFFuncionario ? `(CPF: ${esc(doc.CPFFuncionario)})` : ""}
+          Colaborador: <strong>${esc(doc.NomeFuncionario || "Colaborador")}</strong> ${doc.CPFFuncionario ? `(CPF: ${esc(doc.CPFFuncionario)})` : ""} ${doc.NomeLoja ? `• Unidade: ${esc(doc.NomeLoja)}` : ""}
         </div>
       </div>
       <button type="button" class="icon-btn" data-close="documentPreviewDialog" aria-label="Fechar">&times;</button>
     </div>
 
     <div class="dialog-body" style="padding:1rem;">
-      ${base64 ? `
+      ${
+        isMedical
+          ? `
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:12px 14px; margin-bottom:12px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
+          <div>
+            <span style="display:block; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Período do Atestado</span>
+            <strong style="font-size:13.5px; color:#0f172a;">${esc(doc.PeriodoAbono || doc.DataInicio || "Data informada")}</strong>
+          </div>
+          <div>
+            <span style="display:block; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Abono Solicitado</span>
+            <span style="display:inline-block; font-size:12px; font-weight:700; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:999px;">
+              ${doc.DiasAbono ? `${doc.DiasAbono} dia(s) a abonar` : "1 dia a abonar"}
+            </span>
+          </div>
+          ${doc.CRM ? `
+            <div>
+              <span style="display:block; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">CRM do Médico</span>
+              <strong style="font-size:13.5px; color:#0f172a;">${esc(doc.CRM)}</strong>
+            </div>
+          ` : ""}
+          ${doc.Observacao ? `
+            <div style="grid-column: 1 / -1;">
+              <span style="display:block; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Motivo / Observações</span>
+              <p style="margin:2px 0 0; font-size:13px; color:#334155;">${esc(doc.Observacao)}</p>
+            </div>
+          ` : ""}
+        </div>
+      `
+          : ""
+      }
+
+      ${
+        isImage
+          ? `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; color:#64748b; font-weight:600;">Comprovante / Foto do Atestado</span>
+          ${fileUrl ? `
+            <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12px; padding:6px 12px; border-radius:8px;">
+              Ver no Google Drive ↗
+            </a>
+          ` : ""}
+        </div>
+        <div style="text-align:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:12px; max-height:55vh; overflow:auto;">
+          <img src="${base64 || fileUrl}" alt="Atestado Médico" style="max-width:100%; max-height:50vh; object-fit:contain; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />
+        </div>
+      `
+          : isPdf && base64
+          ? `
         <div class="doc-viewer-action-row" style="margin-bottom:8px;">
           <span style="font-size:12px; color:#64748b;">Visualização de Alta Resolução</span>
           <button type="button" id="docPreviewDownloadBtn" class="doc-btn-fullscreen">
@@ -2182,17 +2261,54 @@ export async function openPreviewDialog(docId) {
             Baixar PDF
           </button>
         </div>
-        <div id="docPreviewBox" class="doc-viewer-container" style="height:65vh; min-height:420px; border-radius:12px; overflow-y:auto; border:1px solid var(--line, #e2e8f0);">
+        <div id="docPreviewBox" class="doc-viewer-container" style="height:60vh; min-height:380px; border-radius:12px; overflow-y:auto; border:1px solid var(--line, #e2e8f0);">
         </div>
-      ` : `
+      `
+          : fileUrl
+          ? `
+        <div style="padding:28px 16px; text-align:center; background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:14px;">
+          <div style="color:#6340d8; margin-bottom:8px;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <p style="margin:0 0 4px; font-weight:700; color:#0f172a; font-size:14.5px;">Comprovante Salvo no Google Drive</p>
+          <p style="margin:0 0 16px; font-size:12.5px; color:#64748b;">O documento foi sincronizado e armazenado na conta oficial grupo190house@gmail.com.</p>
+          <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none; padding:10px 20px; border-radius:10px; font-weight:600;">
+            Abrir Comprovante no Google Drive ↗
+          </a>
+        </div>
+      `
+          : `
         <div class="doc-viewer-container doc-text-viewer">
           <div style="white-space:pre-wrap; font-family:inherit;">${esc(doc.ConteudoTexto || "Sem conteúdo para visualização.")}</div>
         </div>
-      `}
+      `
+      }
     </div>
 
-    <div class="dialog-actions" style="display:flex; justify-content:flex-end; padding:1rem 1.4rem; border-top:1px solid var(--line, #e2e8f0);">
-      <button type="button" class="btn btn-secondary" data-close="documentPreviewDialog">Fechar</button>
+    <div class="dialog-actions" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding:1rem 1.4rem; border-top:1px solid var(--line, #e2e8f0);">
+      <div>
+        ${
+          canDecide
+            ? `
+          <button type="button" id="docPreviewRejectBtn" class="btn btn-ghost" style="color:#dc2626; border-color:#fecaca;">
+            Recusar Atestado
+          </button>
+        `
+            : ""
+        }
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-secondary" data-close="documentPreviewDialog">Fechar</button>
+        ${
+          canDecide
+            ? `
+          <button type="button" id="docPreviewApproveBtn" class="btn" style="background:#059669; color:#ffffff; font-weight:700; padding:10px 18px; border-radius:12px; border:none; box-shadow:0 2px 6px rgba(5,150,105,0.25);">
+            Aprovar Atestado e Abonar Faltas
+          </button>
+        `
+            : ""
+        }
+      </div>
     </div>
   `;
 
@@ -2211,10 +2327,61 @@ export async function openPreviewDialog(docId) {
     downloadSignedDocument(docId);
   });
 
+  // Ações de Aprovação e Recusa pelo Gestor/Admin
+  if (canDecide) {
+    $("#docPreviewApproveBtn")?.addEventListener("click", async () => {
+      const confirmApprove = confirm(`Deseja aprovar o atestado de ${doc.NomeFuncionario || "colaborador"} e abonar as faltas do período (${doc.PeriodoAbono || doc.DataInicio || "período selecionado"})?`);
+      if (!confirmApprove) return;
+      const btn = $("#docPreviewApproveBtn");
+      btn.disabled = true;
+      btn.textContent = "Abonando faltas...";
+      try {
+        if (doc.FolgaID) {
+          await callApi("approveTimeOff", doc.FolgaID, "Atestado aprovado via painel de Documentos");
+        } else {
+          await callApi("documentsPatch", doc.DocumentoID, { Status: "Aprovado" });
+        }
+        alert("Atestado aprovado com sucesso! As faltas foram abonadas automaticamente no espelho de ponto.");
+        dialog.close();
+        await loadDocuments();
+        if (typeof window.refreshJourneyData_ === "function") window.refreshJourneyData_();
+        if (typeof window.renderRequests === "function") window.renderRequests();
+      } catch (err) {
+        alert("Erro ao aprovar atestado: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Aprovar Atestado e Abonar Faltas";
+      }
+    });
+
+    $("#docPreviewRejectBtn")?.addEventListener("click", async () => {
+      const motivoRecusa = prompt("Informe o motivo da recusa do atestado:", "Atestado ilegível ou inválido");
+      if (motivoRecusa === null) return;
+      const btn = $("#docPreviewRejectBtn");
+      btn.disabled = true;
+      btn.textContent = "Recusando...";
+      try {
+        if (doc.FolgaID) {
+          await callApi("rejectTimeOff", doc.FolgaID, motivoRecusa);
+        } else {
+          await callApi("documentsPatch", doc.DocumentoID, { Status: "Rejeitado", MotivoRecusa: motivoRecusa });
+        }
+        alert("Atestado recusado.");
+        dialog.close();
+        await loadDocuments();
+        if (typeof window.refreshJourneyData_ === "function") window.refreshJourneyData_();
+        if (typeof window.renderRequests === "function") window.renderRequests();
+      } catch (err) {
+        alert("Erro ao recusar atestado: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Recusar Atestado";
+      }
+    });
+  }
+
   if (typeof dialog.showModal === "function") dialog.showModal();
   else dialog.setAttribute("open", "true");
 
-  if (base64) {
+  if (base64 && isPdf) {
     renderPdfToContainer($("#docPreviewBox"), base64, blobUrl);
   }
 }
