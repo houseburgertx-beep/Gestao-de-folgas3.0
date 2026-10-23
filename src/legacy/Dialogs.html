@@ -1776,6 +1776,117 @@
   </div>
 </dialog>
 
+<!-- Modal: Pop-up de Abertura de Turno (Aviso Operacional) -->
+<dialog id="operationalNoticeDialog" class="operational-notice-modal" style="max-width: 520px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <span class="eyebrow" style="color: #6366f1; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">MURAL DA CASA • ORIENTAÇÃO DO TURNO</span>
+      <h3 id="operationalNoticeModalHeading" style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Aviso Operacional</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="operationalNoticeDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
+  </div>
+  <div class="dialog-body" style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+      <span id="operationalNoticeTypeBadge" class="notice-badge" style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; background: #e0e7ff; color: #4338ca;">Aviso Operacional</span>
+      <span id="operationalNoticeStoreBadge" style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; background: var(--surface-2, #f1f5f9); color: var(--muted, #475569);">Todas as Unidades</span>
+      <small id="operationalNoticeDate" style="color: var(--muted, #64748b); font-size: 12px; font-weight: 600;"></small>
+    </div>
+    <h4 id="operationalNoticeModalTitle" style="font-size: 17px; font-weight: 800; color: var(--text); margin: 0 0 10px; line-height: 1.35;"></h4>
+    <div id="operationalNoticeModalBody" style="font-size: 14.5px; line-height: 1.6; color: var(--text); white-space: pre-wrap; background: var(--surface-2, #f8fafc); padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line, #e2e8f0);"></div>
+    <div id="operationalNoticeModalMeta" style="margin-top: 14px; font-size: 12px; color: var(--muted, #64748b); text-align: right; font-weight: 600;"></div>
+  </div>
+  <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: flex-end; gap: 10px;">
+    <button type="button" class="btn btn-secondary" data-close="operationalNoticeDialog">Fechar</button>
+    <button type="button" id="operationalNoticeAckBtn" class="btn btn-primary" style="min-width: 160px;">Confirmar Ciência</button>
+  </div>
+</dialog>
+
+<!-- Modal: Criação de Novo Aviso Operacional (Gestores/Admin) -->
+<dialog id="newAnnouncementDialog" style="max-width: 540px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <form id="newAnnouncementForm">
+    <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span class="eyebrow" style="color: #6366f1; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">COMUNICAÇÃO INTERNA</span>
+        <h3 style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Novo Aviso Operacional</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="newAnnouncementDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
+    </div>
+    <div class="dialog-body" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto;">
+      <div>
+        <label for="newAnnouncementTitle" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Título do aviso *</label>
+        <input type="text" id="newAnnouncementTitle" class="form-input" placeholder="Ex: Foco na montagem rápida hoje / Treinamento de higiene às 15h" required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label for="newAnnouncementType" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Tipo de mensagem</label>
+          <select id="newAnnouncementType" class="form-input" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+            <option value="Operacional">Operacional</option>
+            <option value="Urgente">Atenção Urgente</option>
+            <option value="Treinamento">Treinamento</option>
+            <option value="Comemorativo">Comemoração / Meta</option>
+          </select>
+        </div>
+        <div>
+          <label for="newAnnouncementStore" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Unidade</label>
+          <select id="newAnnouncementStore" class="form-input" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);"></select>
+        </div>
+      </div>
+      <div>
+        <label for="newAnnouncementBody" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Orientações detalhadas para a equipe *</label>
+        <textarea id="newAnnouncementBody" class="form-input" rows="4" placeholder="Descreva os direcionamentos para a equipe neste turno..." required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line); resize: vertical;"></textarea>
+      </div>
+    </div>
+    <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn btn-secondary" data-close="newAnnouncementDialog">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Publicar no Mural</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal: Homenagear Craque da Semana (Gestores/Admin) -->
+<dialog id="recognizeEmployeeDialog" style="max-width: 540px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <form id="recognizeEmployeeForm">
+    <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span class="eyebrow" style="color: #d97706; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">RECONHECIMENTO OPERACIONAL</span>
+        <h3 style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Craque da Semana</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="recognizeEmployeeDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
+    </div>
+    <div class="dialog-body" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto;">
+      <div>
+        <label for="recognizeEmployeeSelect" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Colaborador homenageado *</label>
+        <select id="recognizeEmployeeSelect" class="form-input" required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);"></select>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
+        <div>
+          <label for="recognizeCategorySelect" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Categoria do mérito</label>
+          <select id="recognizeCategorySelect" class="form-input" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+            <option value="Mestre da Chapa">Mestre da Chapa</option>
+            <option value="Pontualidade Britânica">Pontualidade Britânica</option>
+            <option value="Excelência no Atendimento">Excelência no Atendimento</option>
+            <option value="Craque da Cozinha">Craque da Cozinha</option>
+            <option value="Espírito de Equipe">Espírito de Equipe</option>
+            <option value="Capricho & Higiene">Capricho & Higiene</option>
+          </select>
+        </div>
+        <div>
+          <label for="recognizeWeekInput" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Semana / Período</label>
+          <input type="text" id="recognizeWeekInput" class="form-input" placeholder="Ex: Semana atual" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+        </div>
+      </div>
+      <div>
+        <label for="recognizeReasonInput" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Elogio da liderança (motivo do destaque) *</label>
+        <textarea id="recognizeReasonInput" class="form-input" rows="3" placeholder="Ex: Demonstrou dedicação ímpar no sábado à noite, garantindo agilidade na montagem e organização impecável da praça..." required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line); resize: vertical;"></textarea>
+      </div>
+    </div>
+    <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn btn-secondary" data-close="recognizeEmployeeDialog">Cancelar</button>
+      <button type="submit" class="btn btn-primary" style="background: #d97706; border-color: #d97706;">Homenagear Colaborador</button>
+    </div>
+  </form>
+</dialog>
+
 
 
 

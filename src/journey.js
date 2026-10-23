@@ -97,6 +97,128 @@ function managerCommand() {
  return `<section class="j-command"><div class="j-command-head"><div><span class="eyebrow">GRUPO HOUSE 190 / OPERAÇÃO</span><h2>O que precisa da sua decisão</h2><p>${esc(currentDate)}</p></div>${unitSelect()}</div><div class="j-priority-list">${priority.map(item=>`<button data-view-target="${item.view}"${item.pendingFilter?` data-pending-filter-target="${item.pendingFilter}"`:''}${item.teamFilter?` data-jump-team="${item.teamFilter}"`:''}><strong>${item.count}</strong><span>${esc(item.label)}</span>${item.detail?`<small>${esc(item.detail)}</small>`:''}<b>${item.action} →</b></button>`).join('') || '<div class="j-all-clear"><span>✓</span><div><strong>Nenhuma pendência crítica agora</strong><small>A equipe está dentro do previsto para esta seleção.</small></div></div>'}</div><div class="j-command-actions"><button class="btn btn-secondary" data-view-target="calendar">Abrir calendário</button><button class="btn btn-primary" data-view-target="scheduler">Planejar próximas folgas</button></div></section>`;
 }
 
+function renderOperationalNoticeCard() {
+ const notices = list(data.announcements);
+ const userStore = String(data.user?.LojaID || data.user?.lojaId || '');
+ const applicable = notices.filter(n => {
+  if (unit && n.LojaID && String(n.LojaID) !== unit) return false;
+  if (!data.manager && userStore && n.LojaID && String(n.LojaID) !== userStore) return false;
+  return true;
+ });
+
+ const latest = applicable[0];
+ if (!latest && !data.manager) return '';
+
+ if (!latest && data.manager) {
+  return `<article class="j-card operational-notice-card empty-notice">
+   <div class="j-card-top">
+    <div>
+     <span class="eyebrow">MURAL DA CASA · ORIENTAÇÃO DO TURNO</span>
+     <h3>Avisos da Operação</h3>
+    </div>
+    <button class="btn btn-ghost" data-j-new-notice>+ Novo Comunicado</button>
+   </div>
+   <p class="notice-desc">Nenhum aviso operacional ativo no momento para esta seleção.</p>
+  </article>`;
+ }
+
+ const isAcked = !!latest.jaLido;
+ const requiresAck = !!latest.ExigeConfirmacao;
+ const tipo = esc(latest.Tipo || 'Aviso Operacional');
+ const st = stores().find(s => storeId(s) === String(latest.LojaID));
+ const storeLabel = latest.LojaID ? (st ? storeName(st) : 'Unidade') : 'Todas as Unidades';
+
+ return `<article class="j-card operational-notice-card" data-notice-id="${esc(latest.ComID)}">
+  <div class="j-card-top">
+   <div>
+    <div class="notice-badges">
+     <span class="eyebrow">MURAL DA CASA</span>
+     <span class="notice-type-chip">${tipo}</span>
+     <span class="notice-store-chip">${esc(storeLabel)}</span>
+    </div>
+    <h3 class="notice-title">${esc(latest.Titulo)}</h3>
+   </div>
+   ${data.manager ? `<button class="btn btn-ghost" data-j-new-notice>+ Novo</button>` : ''}
+  </div>
+  <div class="notice-body">
+   <p>${esc(latest.Corpo)}</p>
+  </div>
+  <div class="notice-footer">
+   <span class="notice-meta">Publicado por ${esc(String(latest.Autor || 'Gerência').split('@')[0])}</span>
+   ${requiresAck ? (
+    isAcked 
+     ? `<span class="notice-acked-badge">✓ Ciente</span>`
+     : `<button class="btn btn-primary btn-ack-notice" data-j-ack-notice="${esc(latest.ComID)}">Confirmar Ciência</button>`
+   ) : `<span class="notice-info-badge">Informativo</span>`}
+  </div>
+ </article>`;
+}
+
+function renderCraqueDaSemanaCard() {
+ const recs = list(data.recognitions);
+ const userStore = String(data.user?.LojaID || data.user?.lojaId || '');
+ const applicable = recs.filter(r => {
+  if (unit && r.LojaID && String(r.LojaID) !== unit) return false;
+  if (!data.manager && userStore && r.LojaID && String(r.LojaID) !== userStore) return false;
+  return true;
+ });
+
+ const latest = applicable[0];
+ if (!latest && !data.manager) {
+  return `<article class="j-card craque-card craque-motivational">
+   <div class="j-card-top">
+    <div>
+     <span class="eyebrow">DESTAQUE OPERACIONAL</span>
+     <h3>Craque da Semana</h3>
+    </div>
+   </div>
+   <p class="craque-motto">Dedicação, agilidade e capricho em cada detalhe do turno. O próximo destaque da House 190 pode ser você!</p>
+  </article>`;
+ }
+
+ if (!latest && data.manager) {
+  return `<article class="j-card craque-card craque-empty">
+   <div class="j-card-top">
+    <div>
+     <span class="eyebrow">RECONHECIMENTO DE EQUIPE</span>
+     <h3>Craque da Semana</h3>
+    </div>
+    <button class="btn btn-ghost" data-j-new-recognition>+ Homenagear</button>
+   </div>
+   <p class="craque-desc">Reconheça a dedicação de quem fez a diferença na cozinha, no salão ou na chapa esta semana.</p>
+  </article>`;
+ }
+
+ const initials = String(latest.NomeFuncionario || 'C')
+  .split(' ')
+  .filter(Boolean)
+  .slice(0, 2)
+  .map(w => w[0].toUpperCase())
+  .join('');
+
+ return `<article class="j-card craque-card">
+  <div class="j-card-top">
+   <div>
+    <span class="eyebrow craque-eyebrow">RECONHECIMENTO OPERACIONAL · ${esc(latest.Semana || 'Semana')}</span>
+    <h3 class="craque-title">Craque da Semana</h3>
+   </div>
+   ${data.manager ? `<button class="btn btn-ghost" data-j-new-recognition>+ Homenagear</button>` : ''}
+  </div>
+  <div class="craque-profile">
+   <div class="craque-avatar">${esc(initials)}</div>
+   <div class="craque-info">
+    <strong class="craque-name">${esc(latest.NomeFuncionario)}</strong>
+    <span class="craque-role">${esc(latest.Cargo || 'Colaborador')} · ${esc(latest.NomeLoja || 'House 190')}</span>
+    <span class="craque-category-badge">${esc(latest.Categoria || 'Destaque')}</span>
+   </div>
+  </div>
+  <blockquote class="craque-quote">"${esc(latest.Motivo)}"</blockquote>
+  <div class="craque-footer">
+   <span>Reconhecido por <strong>${esc(String(latest.AtribuidoPor || 'Liderança').split('@')[0])}</strong></span>
+  </div>
+ </article>`;
+}
+
 function operation() {
  const r=rows(), present=r.filter(p=>['trabalhando','intervalo'].includes(p.status));
  const alerts=r.filter(p=>p.alertMessage || delay(p)>0 || p.status==='ausente');
@@ -105,7 +227,7 @@ function operation() {
  const upcoming=scoped(data.timeOff).filter(x=>approved(x)&&String(x.DataFim || x.DataInicio)>=dateKey()).sort((a,b)=>String(a.DataInicio).localeCompare(String(b.DataInicio))).slice(0,5);
  return `<div class="w-summary">
  ${[['trabalhando','Em operação',r.filter(p=>p.status==='trabalhando').length],['intervalo','No intervalo',r.filter(p=>p.status==='intervalo').length],['ausente','Sem entrada',r.filter(p=>p.status==='ausente').length],['atrasados','Entradas atrasadas',r.filter(p=>delay(p)>0).length]].map(([filter,label,count])=>`<button data-j-open-team="${filter}" class="w-stat"><span>${label}</span><strong>${ready?count:'—'}</strong><small>Ver pessoas <span aria-hidden="true">↗</span></small></button>`).join('')}
- </div><article class="j-card w-queue"><div class="j-card-top"><div><span class="eyebrow">CENTRAL DE DECISÕES</span><h3>Pendências da operação</h3></div><span class="w-badge wait">${data.coreReady?requests.length+missing.length:'…'} para revisar</span></div>
+ </div>${renderOperationalNoticeCard()}${renderCraqueDaSemanaCard()}<article class="j-card w-queue"><div class="j-card-top"><div><span class="eyebrow">CENTRAL DE DECISÕES</span><h3>Pendências da operação</h3></div><span class="w-badge wait">${data.coreReady?requests.length+missing.length:'…'} para revisar</span></div>
  <div class="w-queue-tabs"><button data-view-target="pending-center"><strong>${data.coreReady?requests.length:'—'}</strong> pedidos de folga <span>↗</span></button><button data-view-target="timeclock"><strong>${data.pending?missing.length:'—'}</strong> pontos incompletos <span>↗</span></button></div>
  ${missing.slice(0,3).map(x=>`<div class="w-task"><span class="w-task-mark">!</span><div><strong>${esc(x.NomeFuncionario || x.Nome)}</strong><small>${esc(dateLabel(x.Data))} · Ponto incompleto</small><p>Conferir as marcações antes de fechar as horas.</p></div><button class="btn btn-secondary" data-j-clock="${esc(x.FuncionarioID)}" data-j-day="${esc(x.Data)}">Conferir</button></div>`).join('')}
  ${requests.slice(0,3).map(x=>`<div class="w-task"><span class="w-task-mark neutral">✓</span><div><strong>${esc(x.NomeFuncionario)}</strong><small>${esc(dateLabel(x.DataInicio))} · ${esc(x.TipoFolga || 'Folga')}</small><p>${esc(x.Motivo || 'Aguardando sua decisão')}</p></div><button class="btn btn-secondary" data-action="approve" data-id="${esc(x.FolgaID)}">Analisar</button></div>`).join('')}
@@ -153,6 +275,8 @@ function personal() {
  <div class="w-punches">${types.map((k,i)=>{const mark=marks.find(x=>x.TipoMarcacao===k);return `<div class="${mark?'done':d?.nextAction===k?'next':''}"><i>${mark?'✓':i+1}</i><strong>${esc(labels[i])}</strong><time>${mark?esc(time(mark.DataHora)):'—'}</time></div>`}).join('')}</div>
  ${d?.nextAction ? `<button class="btn btn-primary j-wide${isExitAction?' btn-punch-exit':''}" data-j-punch="${esc(d.nextAction)}" aria-label="Bater ponto: ${esc(nextLabel)}"><span>Bater ponto · ${esc(nextLabel)}</span> <span aria-hidden="true">◉</span></button>` : `<button class="btn btn-primary j-wide" data-view-target="timeclock"><span>${d?.loadError ? 'Tentar carregar meu ponto' : 'Conferir meus registros'}</span> <span aria-hidden="true">↗</span></button>`}
  ${today?.incompleto?'<p class="w-footnote">Há marcações para conferir. Abra o ponto e solicite a correção.</p>':''}</article>
+ ${renderOperationalNoticeCard()}
+ ${renderCraqueDaSemanaCard()}
  <article class="j-card w-wallet"><div class="j-card-top"><div><span class="eyebrow">MEUS DIREITOS E SALDOS</span><h3>Folgas e horas</h3></div></div><div class="w-wallet-values"><button data-view-target="timeoff"><span>Folgas extras disponíveis</span><strong>${data.coreReady?esc(me.SaldoFolgas ?? '—'):'—'}</strong><small>Ver minhas folgas ↗</small></button><button data-view-target="timeclock"${isDebit?' class="is-debit"':isCredit?' class="is-credit"':''}><span>Banco de horas</span><strong class="${balanceClass}">${esc(balance || '—')}</strong><small>${mineBalance?.desde?'Desde '+esc(dateLabel(mineBalance.desde)):'Abra o ponto para conferir o período'} ↗</small></button></div><div class="w-fixed-off-chip"><span>Folga semanal: <strong>${esc(fixedDays || 'Ainda não cadastrada')}</strong></span></div><div class="w-actions"><button class="btn btn-secondary" data-j-request-leave>Pedir folga</button><button class="btn btn-secondary" data-j-medical-leave>Enviar atestado</button><button class="btn btn-secondary" data-view-target="documents">Meus Documentos</button></div></article>
  <article class="j-card w-myrequests"><div class="j-card-top"><div><span class="eyebrow">ACOMPANHAMENTO</span><h3>Meus pedidos</h3></div><button class="btn btn-ghost" data-view-target="pending-center">Ver todos ↗</button></div>${leaveItems(requests.slice(0,4))||emptyState(data.coreReady?'Você ainda não tem pedidos':'Carregando seus pedidos','Peça uma folga e acompanhe a decisão por aqui.')}<div class="w-next-leave"><span>Próxima folga aprovada</span><strong>${coming.length?esc(dateLabel(coming[0].DataInicio)):'Nenhuma agendada'}</strong></div></article>`;
 }
@@ -357,6 +481,28 @@ document.addEventListener('change',e=>{if(e.target.matches('[data-j-unit]')){uni
 document.addEventListener('input',e=>{if(e.target.matches('[data-j-search]')){search=e.target.value;const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));$('#journeyTeamRows').innerHTML=teamResults(r);}});
 document.addEventListener('pointerdown',e=>{const punch=e.target.closest('[data-j-punch]');if(punch && typeof window.warmClockLocation_==='function'){window.warmClockLocation_();}},{passive:true});
 document.addEventListener('click',e=>{
+  const ackNotice=e.target.closest('[data-j-ack-notice]');
+  if(ackNotice){
+    const id=ackNotice.dataset.jAckNotice;
+    if(typeof window.acknowledgeCurrentNotice_==='function'){
+      window.acknowledgeCurrentNotice_(id, ackNotice);
+    }
+    return;
+  }
+  const newNotice=e.target.closest('[data-j-new-notice]');
+  if(newNotice){
+    if(typeof window.openNewAnnouncementDialog==='function'){
+      window.openNewAnnouncementDialog();
+    }
+    return;
+  }
+  const newRec=e.target.closest('[data-j-new-recognition]');
+  if(newRec){
+    if(typeof window.openRecognizeEmployeeDialog==='function'){
+      window.openRecognizeEmployeeDialog();
+    }
+    return;
+  }
   const medBtn=e.target.closest('[data-j-medical-leave]');
   if(medBtn){
     if(typeof window.openMedicalCertificateDialog==='function'){

@@ -18370,6 +18370,244 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   border-color: #94a3b8 !important;
 }
 
+/* ==========================================================================
+   MURAL DE AVISOS OPERACIONAIS & CRAQUE DA SEMANA (HOUSE 190 DESIGN SYSTEM)
+   ========================================================================== */
+
+.operational-notice-card {
+  border: 1px solid rgba(99, 102, 241, 0.22) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%) !important;
+  box-shadow: 0 4px 16px -2px rgba(99, 102, 241, 0.08) !important;
+  border-radius: 20px !important;
+  padding: 18px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.notice-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.notice-type-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.notice-store-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+}
+
+.notice-title {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text, #0f172a);
+  line-height: 1.3;
+}
+
+.notice-body p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted, #475569);
+  white-space: pre-line;
+}
+
+.notice-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  flex-wrap: wrap;
+}
+
+.notice-meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.btn-ack-notice {
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28) !important;
+  cursor: pointer !important;
+  transition: transform 0.1s ease, filter 0.15s ease !important;
+}
+
+.btn-ack-notice:active {
+  transform: scale(0.97) !important;
+}
+
+.notice-acked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #16a34a;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.notice-info-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Craque da Semana */
+.craque-card {
+  border: 1px solid rgba(245, 158, 11, 0.28) !important;
+  background: linear-gradient(135deg, #fffdfa 0%, #fef8ee 100%) !important;
+  box-shadow: 0 4px 16px -2px rgba(245, 158, 11, 0.12) !important;
+  border-radius: 20px !important;
+  padding: 18px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.craque-eyebrow {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+}
+
+.craque-title {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #78350f;
+}
+
+.craque-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.craque-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.28);
+  flex-shrink: 0;
+}
+
+.craque-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.craque-name {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: #451a03;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.craque-role {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.craque-category-badge {
+  display: inline-block;
+  align-self: flex-start;
+  background: rgba(245, 158, 11, 0.18);
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  margin-top: 2px;
+}
+
+.craque-quote {
+  margin: 4px 0;
+  padding: 8px 12px;
+  background: rgba(254, 243, 199, 0.45);
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 10px 10px 0;
+  font-size: 13.5px;
+  font-style: italic;
+  line-height: 1.45;
+  color: #78350f;
+}
+
+.craque-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #92400e;
+  padding-top: 8px;
+  border-top: 1px solid rgba(253, 230, 138, 0.7);
+}
+
+.craque-motto {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #92400e;
+  font-style: italic;
+}
+
+.craque-desc, .notice-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #64748b);
+  line-height: 1.4;
+}
+
+
 
 
 
@@ -25227,6 +25465,117 @@ dialog#medicalCertificateDialog {
   </div>
 </dialog>
 
+<!-- Modal: Pop-up de Abertura de Turno (Aviso Operacional) -->
+<dialog id="operationalNoticeDialog" class="operational-notice-modal" style="max-width: 520px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <span class="eyebrow" style="color: #6366f1; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">MURAL DA CASA • ORIENTAÇÃO DO TURNO</span>
+      <h3 id="operationalNoticeModalHeading" style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Aviso Operacional</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="operationalNoticeDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
+  </div>
+  <div class="dialog-body" style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+      <span id="operationalNoticeTypeBadge" class="notice-badge" style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; background: #e0e7ff; color: #4338ca;">Aviso Operacional</span>
+      <span id="operationalNoticeStoreBadge" style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; background: var(--surface-2, #f1f5f9); color: var(--muted, #475569);">Todas as Unidades</span>
+      <small id="operationalNoticeDate" style="color: var(--muted, #64748b); font-size: 12px; font-weight: 600;"></small>
+    </div>
+    <h4 id="operationalNoticeModalTitle" style="font-size: 17px; font-weight: 800; color: var(--text); margin: 0 0 10px; line-height: 1.35;"></h4>
+    <div id="operationalNoticeModalBody" style="font-size: 14.5px; line-height: 1.6; color: var(--text); white-space: pre-wrap; background: var(--surface-2, #f8fafc); padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line, #e2e8f0);"></div>
+    <div id="operationalNoticeModalMeta" style="margin-top: 14px; font-size: 12px; color: var(--muted, #64748b); text-align: right; font-weight: 600;"></div>
+  </div>
+  <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: flex-end; gap: 10px;">
+    <button type="button" class="btn btn-secondary" data-close="operationalNoticeDialog">Fechar</button>
+    <button type="button" id="operationalNoticeAckBtn" class="btn btn-primary" style="min-width: 160px;">Confirmar Ciência</button>
+  </div>
+</dialog>
+
+<!-- Modal: Criação de Novo Aviso Operacional (Gestores/Admin) -->
+<dialog id="newAnnouncementDialog" style="max-width: 540px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <form id="newAnnouncementForm">
+    <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span class="eyebrow" style="color: #6366f1; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">COMUNICAÇÃO INTERNA</span>
+        <h3 style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Novo Aviso Operacional</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="newAnnouncementDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
+    </div>
+    <div class="dialog-body" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto;">
+      <div>
+        <label for="newAnnouncementTitle" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Título do aviso *</label>
+        <input type="text" id="newAnnouncementTitle" class="form-input" placeholder="Ex: Foco na montagem rápida hoje / Treinamento de higiene às 15h" required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label for="newAnnouncementType" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Tipo de mensagem</label>
+          <select id="newAnnouncementType" class="form-input" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+            <option value="Operacional">Operacional</option>
+            <option value="Urgente">Atenção Urgente</option>
+            <option value="Treinamento">Treinamento</option>
+            <option value="Comemorativo">Comemoração / Meta</option>
+          </select>
+        </div>
+        <div>
+          <label for="newAnnouncementStore" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Unidade</label>
+          <select id="newAnnouncementStore" class="form-input" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);"></select>
+        </div>
+      </div>
+      <div>
+        <label for="newAnnouncementBody" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Orientações detalhadas para a equipe *</label>
+        <textarea id="newAnnouncementBody" class="form-input" rows="4" placeholder="Descreva os direcionamentos para a equipe neste turno..." required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line); resize: vertical;"></textarea>
+      </div>
+    </div>
+    <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn btn-secondary" data-close="newAnnouncementDialog">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Publicar no Mural</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal: Homenagear Craque da Semana (Gestores/Admin) -->
+<dialog id="recognizeEmployeeDialog" style="max-width: 540px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <form id="recognizeEmployeeForm">
+    <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span class="eyebrow" style="color: #d97706; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">RECONHECIMENTO OPERACIONAL</span>
+        <h3 style="margin: 2px 0 0; font-size: 19px; font-weight: 800; color: var(--text);">Craque da Semana</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="recognizeEmployeeDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
+    </div>
+    <div class="dialog-body" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto;">
+      <div>
+        <label for="recognizeEmployeeSelect" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Colaborador homenageado *</label>
+        <select id="recognizeEmployeeSelect" class="form-input" required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);"></select>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
+        <div>
+          <label for="recognizeCategorySelect" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Categoria do mérito</label>
+          <select id="recognizeCategorySelect" class="form-input" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+            <option value="Mestre da Chapa">Mestre da Chapa</option>
+            <option value="Pontualidade Britânica">Pontualidade Britânica</option>
+            <option value="Excelência no Atendimento">Excelência no Atendimento</option>
+            <option value="Craque da Cozinha">Craque da Cozinha</option>
+            <option value="Espírito de Equipe">Espírito de Equipe</option>
+            <option value="Capricho & Higiene">Capricho & Higiene</option>
+          </select>
+        </div>
+        <div>
+          <label for="recognizeWeekInput" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Semana / Período</label>
+          <input type="text" id="recognizeWeekInput" class="form-input" placeholder="Ex: Semana atual" style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line);">
+        </div>
+      </div>
+      <div>
+        <label for="recognizeReasonInput" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;">Elogio da liderança (motivo do destaque) *</label>
+        <textarea id="recognizeReasonInput" class="form-input" rows="3" placeholder="Ex: Demonstrou dedicação ímpar no sábado à noite, garantindo agilidade na montagem e organização impecável da praça..." required style="width: 100%; border-radius: 12px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line); resize: vertical;"></textarea>
+      </div>
+    </div>
+    <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn btn-secondary" data-close="recognizeEmployeeDialog">Cancelar</button>
+      <button type="submit" class="btn btn-primary" style="background: #d97706; border-color: #d97706;">Homenagear Colaborador</button>
+    </div>
+  </form>
+</dialog>
+
 
 
 
@@ -25309,6 +25658,8 @@ dialog#medicalCertificateDialog {
       searchQuery: "",
       onlyDebt: true,
     },
+    operationalAnnouncements: [],
+    recognitions: [],
   };
   window.__GESTAO_STATE__ = state;
   const FN = {
@@ -26576,6 +26927,9 @@ dialog#medicalCertificateDialog {
     $$("[data-close]").forEach(
       (b) => (b.onclick = () => closeDialog(b.dataset.close)),
     );
+    if ($("#newAnnouncementForm")) $("#newAnnouncementForm").onsubmit = saveNewAnnouncement_;
+    if ($("#recognizeEmployeeForm")) $("#recognizeEmployeeForm").onsubmit = saveEmployeeRecognition_;
+    if ($("#operationalNoticeAckBtn")) $("#operationalNoticeAckBtn").onclick = () => acknowledgeCurrentNotice_();
     if ($("#timeOffForm")) $("#timeOffForm").onsubmit = saveTimeOff;
     if ($("#timeOffType")) $("#timeOffType").onchange = updateTimeOffDateFields;
     if ($("#employeeForm")) $("#employeeForm").onsubmit = saveEmployee;
@@ -27414,8 +27768,10 @@ dialog#medicalCertificateDialog {
        nem para bater ponto. Rodam quando o navegador estiver ocioso e nunca
        disputam conexão/CPU com o caminho crítico. */
     const baseDelay = isMobileClient_() ? 8000 : 5000;
-    scheduleIdleTask_(() => loadNotifications(), baseDelay);
-    scheduleIdleTask_(() => initNotificationMonitor_(), baseDelay + 4000);
+    scheduleIdleTask_(() => loadOperationalAnnouncements_(), baseDelay + 1000);
+    scheduleIdleTask_(() => loadRecognitions_(), baseDelay + 2500);
+    scheduleIdleTask_(() => loadNotifications(), baseDelay + 4000);
+    scheduleIdleTask_(() => initNotificationMonitor_(), baseDelay + 6000);
     scheduleIdleTask_(() => loadHourBalance(), baseDelay + 9000);
     scheduleIdleTask_(() => loadTakeatCreditData(false, true), baseDelay + 14000);
   }
@@ -28854,7 +29210,7 @@ dialog#medicalCertificateDialog {
     PUBLISH_JOURNEY_PENDING_ = true;
     const dispatch = () => {
       PUBLISH_JOURNEY_PENDING_ = false;
-      window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches}}));
+      window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches, announcements: state.operationalAnnouncements || [], recognitions: state.recognitions || []}}));
     };
     if (typeof requestAnimationFrame === "function") {
       requestAnimationFrame(dispatch);
@@ -28865,6 +29221,11 @@ dialog#medicalCertificateDialog {
   function renderDashboard() {
     window.dispatchEvent(new Event("gestao-dashboard-active"));
     publishJourney_();
+    if (!state.operationalAnnouncementsLoaded_) {
+      state.operationalAnnouncementsLoaded_ = true;
+      loadOperationalAnnouncements_();
+      loadRecognitions_();
+    }
     const cards = Object.assign({}, state.dashboard.cards || computeCards(), {
         conferenciaPonto: state.incompletePunches ? state.incompletePunches.length : "—",
       }),
@@ -35292,6 +35653,217 @@ dialog#medicalCertificateDialog {
       " voto(s)</strong>" +
       advancedResultItems_(rows, ["Nome"]);
   }
+
+  // --- MURAL DE AVISOS OPERACIONAIS & RECONHECIMENTO (HOUSE 190) ---
+  let CURRENT_OPERATIONAL_NOTICE_ID_ = "";
+
+  async function loadOperationalAnnouncements_() {
+    try {
+      const rows = await call("listarComunicadosAtivos", sessionToken());
+      state.operationalAnnouncements = arr(rows);
+      publishJourney_();
+      checkOperationalNoticePopup_();
+    } catch (err) {
+      console.warn("Falha ao carregar comunicados operacionais:", err);
+    }
+  }
+
+  function checkOperationalNoticePopup_() {
+    if (!state.operationalAnnouncements || !state.operationalAnnouncements.length) return;
+    const userStoreId = String(state.user?.LojaID || state.user?.lojaId || "");
+    const pendingNotice = state.operationalAnnouncements.find((item) => {
+      const targetStore = String(item.LojaID || "");
+      const matchesStore = !targetStore || targetStore === userStoreId;
+      const seenInSession = sessionStorage.getItem("operational_notice_seen_" + item.ComID);
+      const isUnread = !item.jaLido;
+      return matchesStore && isUnread && !seenInSession;
+    });
+
+    if (!pendingNotice) return;
+
+    CURRENT_OPERATIONAL_NOTICE_ID_ = pendingNotice.ComID;
+    sessionStorage.setItem("operational_notice_seen_" + pendingNotice.ComID, "true");
+
+    const dialog = $("#operationalNoticeDialog");
+    if (!dialog) return;
+
+    const typeBadge = $("#operationalNoticeTypeBadge");
+    if (typeBadge) typeBadge.textContent = pendingNotice.Tipo || "Aviso Operacional";
+
+    const storeBadge = $("#operationalNoticeStoreBadge");
+    if (storeBadge) {
+      const s = (state.stores || []).find((st) => storeId(st) === String(pendingNotice.LojaID));
+      storeBadge.textContent = s ? storeName(s) : (pendingNotice.LojaID ? "Unidade Específica" : "Todas as Unidades");
+    }
+
+    const titleEl = $("#operationalNoticeModalTitle");
+    if (titleEl) titleEl.textContent = pendingNotice.Titulo || "Aviso Operacional";
+
+    const bodyEl = $("#operationalNoticeModalBody");
+    if (bodyEl) bodyEl.textContent = pendingNotice.Corpo || "";
+
+    const metaEl = $("#operationalNoticeModalMeta");
+    if (metaEl) {
+      const autor = pendingNotice.Autor ? pendingNotice.Autor.split("@")[0] : "Gerência";
+      const dt = pendingNotice.DataHora ? dateBR(pendingNotice.DataHora) : "Hoje";
+      metaEl.textContent = "Publicado por " + autor + " • " + dt;
+    }
+
+    openDialog("operationalNoticeDialog");
+  }
+
+  async function acknowledgeCurrentNotice_(noticeId, btn) {
+    const id = noticeId || CURRENT_OPERATIONAL_NOTICE_ID_;
+    if (!id) {
+      closeDialog("operationalNoticeDialog");
+      return;
+    }
+    const b = btn || $("#operationalNoticeAckBtn");
+    try {
+      await advancedAction_(
+        b,
+        () => call("confirmarLeituraComunicado", sessionToken(), id),
+        "Ciência confirmada. Bom turno de trabalho!"
+      );
+      closeDialog("operationalNoticeDialog");
+      const found = (state.operationalAnnouncements || []).find((c) => c.ComID === id);
+      if (found) found.jaLido = true;
+      publishJourney_();
+    } catch (err) {
+      toast("Não foi possível confirmar: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  function openNewAnnouncementDialog() {
+    const select = $("#announcementStoreSelect");
+    if (select) {
+      select.innerHTML = '<option value="">Todas as Unidades (Geral)</option>' +
+        (state.stores || []).map((s) => `<option value="${esc(storeId(s))}">${esc(storeName(s))}</option>`).join("");
+      if (!isStoreAdmin() && state.user?.LojaID) {
+        select.value = state.user.LojaID;
+      }
+    }
+    const form = $("#newAnnouncementForm");
+    if (form) form.reset();
+    openDialog("newAnnouncementDialog");
+  }
+
+  async function saveNewAnnouncement_(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const title = $("#announcementTitleInput")?.value?.trim();
+    const body = $("#announcementBodyInput")?.value?.trim();
+    const store = $("#announcementStoreSelect")?.value || "";
+    const type = $("#announcementTypeSelect")?.value || "Aviso Operacional";
+    const requireAck = $("#announcementRequireAckCheckbox")?.checked ?? true;
+
+    if (!title || !body) {
+      return toast("Preencha o título e as orientações do aviso.", true);
+    }
+
+    const submitBtn = e?.target?.querySelector ? e.target.querySelector('button[type="submit"]') : null;
+    try {
+      await advancedAction_(
+        submitBtn,
+        () => call("publicarComunicado", sessionToken(), {
+          Titulo: title,
+          Corpo: body,
+          LojaID: store,
+          Tipo: type,
+          ExigeConfirmacao: requireAck,
+          PublicoAlvo: "Todos",
+        }),
+        "Aviso operacional publicado no mural com sucesso!"
+      );
+      closeDialog("newAnnouncementDialog");
+      await loadOperationalAnnouncements_();
+    } catch (err) {
+      toast("Erro ao publicar aviso: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  async function loadRecognitions_() {
+    try {
+      const rows = await call("listarReconhecimentos", sessionToken());
+      state.recognitions = arr(rows);
+      publishJourney_();
+    } catch (err) {
+      console.warn("Falha ao carregar reconhecimentos:", err);
+    }
+  }
+
+  function openRecognizeEmployeeDialog() {
+    const select = $("#recognizeEmployeeSelect");
+    if (select) {
+      const activeEmps = (state.employees || []).filter((emp) => active(emp.Ativo));
+      const userStoreId = String(state.user?.LojaID || "");
+      const filtered = isStoreAdmin()
+        ? activeEmps
+        : activeEmps.filter((emp) => !userStoreId || String(emp.LojaID) === userStoreId);
+
+      select.innerHTML = '<option value="">Selecione um colaborador...</option>' +
+        filtered.map((emp) => {
+          const s = (state.stores || []).find((st) => storeId(st) === String(emp.LojaID));
+          const storeLabel = s ? ` (${storeName(s)})` : "";
+          return `<option value="${esc(emp.FuncionarioID)}">${esc(emp.Nome)} - ${esc(emp.Cargo || "Colaborador")}${esc(storeLabel)}</option>`;
+        }).join("");
+    }
+
+    const weekInput = $("#recognizeWeekInput");
+    if (weekInput) {
+      const now = new Date();
+      const monthShort = now.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+      weekInput.value = `Semana ${now.getDate()} ${monthShort}`;
+    }
+
+    const form = $("#recognizeEmployeeForm");
+    if (form) form.reset();
+    if (weekInput) {
+      const now = new Date();
+      const monthShort = now.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+      weekInput.value = `Semana ${now.getDate()} ${monthShort}`;
+    }
+
+    openDialog("recognizeEmployeeDialog");
+  }
+
+  async function saveEmployeeRecognition_(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const empId = $("#recognizeEmployeeSelect")?.value;
+    const category = $("#recognizeCategorySelect")?.value || "Craque da Semana";
+    const week = $("#recognizeWeekInput")?.value?.trim() || "";
+    const reason = $("#recognizeReasonInput")?.value?.trim();
+
+    if (!empId) {
+      return toast("Selecione o colaborador a ser homenageado.", true);
+    }
+    if (!reason) {
+      return toast("Descreva o elogio da liderança.", true);
+    }
+
+    const submitBtn = e?.target?.querySelector ? e.target.querySelector('button[type="submit"]') : null;
+    try {
+      await advancedAction_(
+        submitBtn,
+        () => call("atribuirReconhecimento", sessionToken(), {
+          FuncionarioID: empId,
+          Categoria: category,
+          Semana: week,
+          Motivo: reason,
+        }),
+        "Craque da Semana homenageado com sucesso!"
+      );
+      closeDialog("recognizeEmployeeDialog");
+      await loadRecognitions_();
+    } catch (err) {
+      toast("Erro ao registrar homenagem: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  window.acknowledgeCurrentNotice_ = acknowledgeCurrentNotice_;
+  window.openNewAnnouncementDialog = openNewAnnouncementDialog;
+  window.openRecognizeEmployeeDialog = openRecognizeEmployeeDialog;
+  window.loadOperationalAnnouncements_ = loadOperationalAnnouncements_;
+  window.loadRecognitions_ = loadRecognitions_;
 
   async function runMonthlyClosing_() {
     var b = $("#closingRunBtn"),

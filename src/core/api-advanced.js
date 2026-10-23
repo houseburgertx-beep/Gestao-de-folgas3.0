@@ -1325,6 +1325,7 @@ export function createAdvancedHandlers() {
         Autor: profile.Email,
         Titulo: String(payload.Titulo || "").trim(),
         Corpo: String(payload.Corpo || "").trim(),
+        Tipo: String(payload.Tipo || "Aviso Operacional").trim(),
         LojaID: payload.LojaID || profile.LojaID || "",
         PublicoAlvo: payload.PublicoAlvo || "Todos",
         ExigeConfirmacao: asBoolean(payload.ExigeConfirmacao),
@@ -1375,6 +1376,61 @@ export function createAdvancedHandlers() {
         UserAgent: navigator.userAgent.slice(0, 300),
       });
       return success(saved, "Leitura confirmada.");
+    },
+
+    async atribuirReconhecimento(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      assert(payload.FuncionarioID, "Selecione o colaborador a ser reconhecido.");
+      assert(String(payload.Motivo || "").trim(), "Informe o motivo do reconhecimento.");
+
+      const emp = await runtime.getById("Funcionarios", payload.FuncionarioID);
+      assert(emp, "Colaborador não encontrado.");
+      if (emp.LojaID) scopeRecord(profile, emp);
+
+      const store = emp.LojaID ? await runtime.getById("Lojas", emp.LojaID) : null;
+      const recId = uuid();
+      const now = nowIso();
+      const saved = await runtime.upsert("Reconhecimentos", {
+        ReconhecimentoID: recId,
+        FuncionarioID: emp.FuncionarioID,
+        NomeFuncionario: emp.Nome,
+        Cargo: emp.Cargo || "Colaborador",
+        LojaID: emp.LojaID || profile.LojaID || "",
+        NomeLoja: store?.NomeLoja || emp.NomeLoja || profile.NomeLoja || "House 190",
+        Categoria: String(payload.Categoria || "Craque da Semana").trim(),
+        Motivo: String(payload.Motivo || "").trim(),
+        Semana: String(payload.Semana || "").trim() || `Semana ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`,
+        AtribuidoPor: profile.Nome || profile.Email,
+        CriadoEm: now,
+        Ativo: true,
+      });
+
+      await runtime.upsert("Notificacoes", {
+        NotificacaoID: uuid(),
+        DestinatarioID: emp.FuncionarioID,
+        LojaID: emp.LojaID || profile.LojaID || "",
+        Titulo: "Reconhecimento: Craque da Semana!",
+        Mensagem: `Parabéns! Você foi reconhecido como "${saved.Categoria}" por ${saved.AtribuidoPor}: "${saved.Motivo}"`,
+        Tipo: "reconhecimento",
+        CriadoEm: now,
+        Status: "NaoLida",
+      }).catch(() => {});
+
+      return success(saved, "Reconhecimento atribuído com sucesso!");
+    },
+
+    async listarReconhecimentos(args) {
+      const profile = await runtime.requireProfile();
+      dropClientToken(args);
+      const rows = await runtime.list("Reconhecimentos", { profile });
+      return success(
+        rows
+          .filter((item) => asBoolean(item.Ativo !== false))
+          .sort((a, b) => String(b.CriadoEm || "").localeCompare(String(a.CriadoEm || ""))),
+      );
     },
 
     async criarEnquete(args) {

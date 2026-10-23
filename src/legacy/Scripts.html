@@ -57,6 +57,8 @@
       searchQuery: "",
       onlyDebt: true,
     },
+    operationalAnnouncements: [],
+    recognitions: [],
   };
   window.__GESTAO_STATE__ = state;
   const FN = {
@@ -1324,6 +1326,9 @@
     $$("[data-close]").forEach(
       (b) => (b.onclick = () => closeDialog(b.dataset.close)),
     );
+    if ($("#newAnnouncementForm")) $("#newAnnouncementForm").onsubmit = saveNewAnnouncement_;
+    if ($("#recognizeEmployeeForm")) $("#recognizeEmployeeForm").onsubmit = saveEmployeeRecognition_;
+    if ($("#operationalNoticeAckBtn")) $("#operationalNoticeAckBtn").onclick = () => acknowledgeCurrentNotice_();
     if ($("#timeOffForm")) $("#timeOffForm").onsubmit = saveTimeOff;
     if ($("#timeOffType")) $("#timeOffType").onchange = updateTimeOffDateFields;
     if ($("#employeeForm")) $("#employeeForm").onsubmit = saveEmployee;
@@ -2162,8 +2167,10 @@
        nem para bater ponto. Rodam quando o navegador estiver ocioso e nunca
        disputam conexão/CPU com o caminho crítico. */
     const baseDelay = isMobileClient_() ? 8000 : 5000;
-    scheduleIdleTask_(() => loadNotifications(), baseDelay);
-    scheduleIdleTask_(() => initNotificationMonitor_(), baseDelay + 4000);
+    scheduleIdleTask_(() => loadOperationalAnnouncements_(), baseDelay + 1000);
+    scheduleIdleTask_(() => loadRecognitions_(), baseDelay + 2500);
+    scheduleIdleTask_(() => loadNotifications(), baseDelay + 4000);
+    scheduleIdleTask_(() => initNotificationMonitor_(), baseDelay + 6000);
     scheduleIdleTask_(() => loadHourBalance(), baseDelay + 9000);
     scheduleIdleTask_(() => loadTakeatCreditData(false, true), baseDelay + 14000);
   }
@@ -3602,7 +3609,7 @@
     PUBLISH_JOURNEY_PENDING_ = true;
     const dispatch = () => {
       PUBLISH_JOURNEY_PENDING_ = false;
-      window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches}}));
+      window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches, announcements: state.operationalAnnouncements || [], recognitions: state.recognitions || []}}));
     };
     if (typeof requestAnimationFrame === "function") {
       requestAnimationFrame(dispatch);
@@ -3613,6 +3620,11 @@
   function renderDashboard() {
     window.dispatchEvent(new Event("gestao-dashboard-active"));
     publishJourney_();
+    if (!state.operationalAnnouncementsLoaded_) {
+      state.operationalAnnouncementsLoaded_ = true;
+      loadOperationalAnnouncements_();
+      loadRecognitions_();
+    }
     const cards = Object.assign({}, state.dashboard.cards || computeCards(), {
         conferenciaPonto: state.incompletePunches ? state.incompletePunches.length : "—",
       }),
@@ -10040,6 +10052,217 @@
       " voto(s)</strong>" +
       advancedResultItems_(rows, ["Nome"]);
   }
+
+  // --- MURAL DE AVISOS OPERACIONAIS & RECONHECIMENTO (HOUSE 190) ---
+  let CURRENT_OPERATIONAL_NOTICE_ID_ = "";
+
+  async function loadOperationalAnnouncements_() {
+    try {
+      const rows = await call("listarComunicadosAtivos", sessionToken());
+      state.operationalAnnouncements = arr(rows);
+      publishJourney_();
+      checkOperationalNoticePopup_();
+    } catch (err) {
+      console.warn("Falha ao carregar comunicados operacionais:", err);
+    }
+  }
+
+  function checkOperationalNoticePopup_() {
+    if (!state.operationalAnnouncements || !state.operationalAnnouncements.length) return;
+    const userStoreId = String(state.user?.LojaID || state.user?.lojaId || "");
+    const pendingNotice = state.operationalAnnouncements.find((item) => {
+      const targetStore = String(item.LojaID || "");
+      const matchesStore = !targetStore || targetStore === userStoreId;
+      const seenInSession = sessionStorage.getItem("operational_notice_seen_" + item.ComID);
+      const isUnread = !item.jaLido;
+      return matchesStore && isUnread && !seenInSession;
+    });
+
+    if (!pendingNotice) return;
+
+    CURRENT_OPERATIONAL_NOTICE_ID_ = pendingNotice.ComID;
+    sessionStorage.setItem("operational_notice_seen_" + pendingNotice.ComID, "true");
+
+    const dialog = $("#operationalNoticeDialog");
+    if (!dialog) return;
+
+    const typeBadge = $("#operationalNoticeTypeBadge");
+    if (typeBadge) typeBadge.textContent = pendingNotice.Tipo || "Aviso Operacional";
+
+    const storeBadge = $("#operationalNoticeStoreBadge");
+    if (storeBadge) {
+      const s = (state.stores || []).find((st) => storeId(st) === String(pendingNotice.LojaID));
+      storeBadge.textContent = s ? storeName(s) : (pendingNotice.LojaID ? "Unidade Específica" : "Todas as Unidades");
+    }
+
+    const titleEl = $("#operationalNoticeModalTitle");
+    if (titleEl) titleEl.textContent = pendingNotice.Titulo || "Aviso Operacional";
+
+    const bodyEl = $("#operationalNoticeModalBody");
+    if (bodyEl) bodyEl.textContent = pendingNotice.Corpo || "";
+
+    const metaEl = $("#operationalNoticeModalMeta");
+    if (metaEl) {
+      const autor = pendingNotice.Autor ? pendingNotice.Autor.split("@")[0] : "Gerência";
+      const dt = pendingNotice.DataHora ? dateBR(pendingNotice.DataHora) : "Hoje";
+      metaEl.textContent = "Publicado por " + autor + " • " + dt;
+    }
+
+    openDialog("operationalNoticeDialog");
+  }
+
+  async function acknowledgeCurrentNotice_(noticeId, btn) {
+    const id = noticeId || CURRENT_OPERATIONAL_NOTICE_ID_;
+    if (!id) {
+      closeDialog("operationalNoticeDialog");
+      return;
+    }
+    const b = btn || $("#operationalNoticeAckBtn");
+    try {
+      await advancedAction_(
+        b,
+        () => call("confirmarLeituraComunicado", sessionToken(), id),
+        "Ciência confirmada. Bom turno de trabalho!"
+      );
+      closeDialog("operationalNoticeDialog");
+      const found = (state.operationalAnnouncements || []).find((c) => c.ComID === id);
+      if (found) found.jaLido = true;
+      publishJourney_();
+    } catch (err) {
+      toast("Não foi possível confirmar: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  function openNewAnnouncementDialog() {
+    const select = $("#announcementStoreSelect");
+    if (select) {
+      select.innerHTML = '<option value="">Todas as Unidades (Geral)</option>' +
+        (state.stores || []).map((s) => `<option value="${esc(storeId(s))}">${esc(storeName(s))}</option>`).join("");
+      if (!isStoreAdmin() && state.user?.LojaID) {
+        select.value = state.user.LojaID;
+      }
+    }
+    const form = $("#newAnnouncementForm");
+    if (form) form.reset();
+    openDialog("newAnnouncementDialog");
+  }
+
+  async function saveNewAnnouncement_(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const title = $("#announcementTitleInput")?.value?.trim();
+    const body = $("#announcementBodyInput")?.value?.trim();
+    const store = $("#announcementStoreSelect")?.value || "";
+    const type = $("#announcementTypeSelect")?.value || "Aviso Operacional";
+    const requireAck = $("#announcementRequireAckCheckbox")?.checked ?? true;
+
+    if (!title || !body) {
+      return toast("Preencha o título e as orientações do aviso.", true);
+    }
+
+    const submitBtn = e?.target?.querySelector ? e.target.querySelector('button[type="submit"]') : null;
+    try {
+      await advancedAction_(
+        submitBtn,
+        () => call("publicarComunicado", sessionToken(), {
+          Titulo: title,
+          Corpo: body,
+          LojaID: store,
+          Tipo: type,
+          ExigeConfirmacao: requireAck,
+          PublicoAlvo: "Todos",
+        }),
+        "Aviso operacional publicado no mural com sucesso!"
+      );
+      closeDialog("newAnnouncementDialog");
+      await loadOperationalAnnouncements_();
+    } catch (err) {
+      toast("Erro ao publicar aviso: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  async function loadRecognitions_() {
+    try {
+      const rows = await call("listarReconhecimentos", sessionToken());
+      state.recognitions = arr(rows);
+      publishJourney_();
+    } catch (err) {
+      console.warn("Falha ao carregar reconhecimentos:", err);
+    }
+  }
+
+  function openRecognizeEmployeeDialog() {
+    const select = $("#recognizeEmployeeSelect");
+    if (select) {
+      const activeEmps = (state.employees || []).filter((emp) => active(emp.Ativo));
+      const userStoreId = String(state.user?.LojaID || "");
+      const filtered = isStoreAdmin()
+        ? activeEmps
+        : activeEmps.filter((emp) => !userStoreId || String(emp.LojaID) === userStoreId);
+
+      select.innerHTML = '<option value="">Selecione um colaborador...</option>' +
+        filtered.map((emp) => {
+          const s = (state.stores || []).find((st) => storeId(st) === String(emp.LojaID));
+          const storeLabel = s ? ` (${storeName(s)})` : "";
+          return `<option value="${esc(emp.FuncionarioID)}">${esc(emp.Nome)} - ${esc(emp.Cargo || "Colaborador")}${esc(storeLabel)}</option>`;
+        }).join("");
+    }
+
+    const weekInput = $("#recognizeWeekInput");
+    if (weekInput) {
+      const now = new Date();
+      const monthShort = now.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+      weekInput.value = `Semana ${now.getDate()} ${monthShort}`;
+    }
+
+    const form = $("#recognizeEmployeeForm");
+    if (form) form.reset();
+    if (weekInput) {
+      const now = new Date();
+      const monthShort = now.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+      weekInput.value = `Semana ${now.getDate()} ${monthShort}`;
+    }
+
+    openDialog("recognizeEmployeeDialog");
+  }
+
+  async function saveEmployeeRecognition_(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const empId = $("#recognizeEmployeeSelect")?.value;
+    const category = $("#recognizeCategorySelect")?.value || "Craque da Semana";
+    const week = $("#recognizeWeekInput")?.value?.trim() || "";
+    const reason = $("#recognizeReasonInput")?.value?.trim();
+
+    if (!empId) {
+      return toast("Selecione o colaborador a ser homenageado.", true);
+    }
+    if (!reason) {
+      return toast("Descreva o elogio da liderança.", true);
+    }
+
+    const submitBtn = e?.target?.querySelector ? e.target.querySelector('button[type="submit"]') : null;
+    try {
+      await advancedAction_(
+        submitBtn,
+        () => call("atribuirReconhecimento", sessionToken(), {
+          FuncionarioID: empId,
+          Categoria: category,
+          Semana: week,
+          Motivo: reason,
+        }),
+        "Craque da Semana homenageado com sucesso!"
+      );
+      closeDialog("recognizeEmployeeDialog");
+      await loadRecognitions_();
+    } catch (err) {
+      toast("Erro ao registrar homenagem: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  window.acknowledgeCurrentNotice_ = acknowledgeCurrentNotice_;
+  window.openNewAnnouncementDialog = openNewAnnouncementDialog;
+  window.openRecognizeEmployeeDialog = openRecognizeEmployeeDialog;
+  window.loadOperationalAnnouncements_ = loadOperationalAnnouncements_;
+  window.loadRecognitions_ = loadRecognitions_;
 
   async function runMonthlyClosing_() {
     var b = $("#closingRunBtn"),

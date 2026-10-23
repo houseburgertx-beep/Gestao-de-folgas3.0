@@ -3369,6 +3369,119 @@ test("UX Mobile: botões de confirmação 100% visíveis em todos os modais e se
   assert.match(scriptsHtml, /clockSelfieConfirmRow/, "Scripts devem gerenciar visibilidade da linha de confirmação");
 });
 
+test("Feedback de Reconhecimento (Craque da Semana): atribuição, notificação e gamificação da equipe", async () => {
+  const originalRequireProfile = runtime.requireProfile;
+  const originalGetById = runtime.getById;
+  const originalUpsert = runtime.upsert;
+  const originalList = runtime.list;
+
+  const mockDb = {
+    Funcionarios: {
+      "emp-1": { FuncionarioID: "emp-1", Nome: "Carlos Chapa", Cargo: "Chapeiro", LojaID: "loja-1" },
+    },
+    Lojas: {
+      "loja-1": { LojaID: "loja-1", NomeLoja: "House Pituba" },
+    },
+    Reconhecimentos: [],
+    Notificacoes: [],
+  };
+
+  runtime.requireProfile = async () => ({
+    Email: "gerente@house190.com",
+    Nome: "Gerente Operacional",
+    Perfil: "Gerente",
+    LojaID: "loja-1",
+  });
+  runtime.getById = async (table, id) => mockDb[table]?.[id] || null;
+  runtime.upsert = async (table, data) => {
+    if (table === "Reconhecimentos") {
+      mockDb.Reconhecimentos.push(data);
+      return data;
+    }
+    if (table === "Notificacoes") {
+      mockDb.Notificacoes.push(data);
+      return data;
+    }
+    return data;
+  };
+  runtime.list = async (table) => {
+    if (table === "Reconhecimentos") return mockDb.Reconhecimentos;
+    return [];
+  };
+
+  try {
+    const handlers = createApi().handlers;
+    assert.equal(typeof handlers.atribuirReconhecimento, "function");
+    assert.equal(typeof handlers.listarReconhecimentos, "function");
+
+    // Atribuição de reconhecimento válida
+    const res = await handlers.atribuirReconhecimento([
+      {
+        FuncionarioID: "emp-1",
+        Categoria: "Mestre da Chapa",
+        Motivo: "Montagem impecável no pico de almoço de sábado.",
+        Semana: "Semana 42 Out",
+      },
+    ]);
+
+    assert.equal(res.success, true);
+    assert.equal(res.data.NomeFuncionario, "Carlos Chapa");
+    assert.equal(res.data.Categoria, "Mestre da Chapa");
+    assert.equal(res.data.LojaID, "loja-1");
+    assert.equal(mockDb.Notificacoes.length, 1);
+    assert.equal(mockDb.Notificacoes[0].DestinatarioID, "emp-1");
+    assert.match(mockDb.Notificacoes[0].Mensagem, /Mestre da Chapa/);
+
+    // Listagem
+    const listRes = await handlers.listarReconhecimentos([]);
+    assert.equal(listRes.success, true);
+    assert.equal(listRes.data.length, 1);
+    assert.equal(listRes.data[0].Categoria, "Mestre da Chapa");
+
+    // Validação de colaborador obrigatório
+    await assert.rejects(
+      async () => handlers.atribuirReconhecimento([{ Motivo: "Sem funcionario" }]),
+      /Selecione o colaborador/,
+    );
+  } finally {
+    runtime.requireProfile = originalRequireProfile;
+    runtime.getById = originalGetById;
+    runtime.upsert = originalUpsert;
+    runtime.list = originalList;
+  }
+});
+
+test("Mural de Avisos Operacionais: publicação, ciência do turno, pop-up de abertura e componentes iOS", async () => {
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  const journeyJs = await readFile(new URL("../src/journey.js", import.meta.url), "utf8");
+  const cozinhaflowCss = await readFile(new URL("../src/cozinhaflow.css", import.meta.url), "utf8");
+
+  // 1. Modais no Dialogs.html
+  assert.match(dialogsHtml, /id="operationalNoticeDialog"/, "Deve existir o modal de aviso operacional");
+  assert.match(dialogsHtml, /id="newAnnouncementDialog"/, "Deve existir o modal para criar comunicados");
+  assert.match(dialogsHtml, /id="recognizeEmployeeDialog"/, "Deve existir o modal para reconhecer craque da semana");
+  assert.match(dialogsHtml, /id="operationalNoticeAckBtn"/, "Deve existir botão de ciência");
+
+  // 2. Scripts.html
+  assert.match(scriptsHtml, /loadOperationalAnnouncements_/, "Deve existir função para carregar avisos operacionais");
+  assert.match(scriptsHtml, /checkOperationalNoticePopup_/, "Deve existir trigger do pop-up de abertura de turno");
+  assert.match(scriptsHtml, /acknowledgeCurrentNotice_/, "Deve existir função para confirmar ciência do aviso");
+  assert.match(scriptsHtml, /openRecognizeEmployeeDialog/, "Deve existir abertura do diálogo de reconhecimento");
+
+  // 3. Journey.js
+  assert.match(journeyJs, /renderOperationalNoticeCard/, "Journey deve conter renderOperationalNoticeCard");
+  assert.match(journeyJs, /renderCraqueDaSemanaCard/, "Journey deve conter renderCraqueDaSemanaCard");
+  assert.match(journeyJs, /data-j-ack-notice/, "Journey deve suportar botão de ciência com data-j-ack-notice");
+  assert.match(journeyJs, /data-j-new-recognition/, "Journey deve suportar atalho de homenagem de gestor");
+
+  // 4. CSS iOS Design System
+  assert.match(cozinhaflowCss, /\.operational-notice-card/, "cozinhaflow.css deve conter estilos para card de aviso");
+  assert.match(cozinhaflowCss, /\.craque-card/, "cozinhaflow.css deve conter estilos para craque da semana");
+  assert.match(cozinhaflowCss, /\.btn-ack-notice/, "cozinhaflow.css deve conter botão de ciência com altura touch");
+});
+
+
 
 
 
