@@ -3325,6 +3325,33 @@ test("LGPD: Pop-up único de leitura, rubrica/assinatura e registro de ciência 
   }
 });
 
+test("Resiliência do Ponto: triplo fallback de câmera, captura nativa e contingência Portaria 671", async () => {
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  const cozinhaflowCss = await readFile(new URL("../src/cozinhaflow.css", import.meta.url), "utf8");
+  const apiClockJs = await readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8");
+
+  // 1. Interface: Elementos de contingência e câmera nativa presentes no Dialogs.html
+  assert.match(dialogsHtml, /id="clockSelfieStageFallbackBtn"/, "Placeholder deve conter botão de fallback imediato");
+  assert.match(dialogsHtml, /id="clockSelfieContingency"/, "Dialog de selfie deve conter botão de contingência");
+  assert.match(dialogsHtml, /id="clockSelfieNative"/, "Dialog deve conter botão de câmera nativa do celular");
+
+  // 2. Scripts.html: Timeout reduzido, fallback em cascata e ativação de contingência
+  assert.match(scriptsHtml, /tryGetUserMedia/, "startClockSelfieCamera_ deve conter função de tentativa com timeout");
+  assert.match(scriptsHtml, /activateClockSelfieContingency_/, "Deve existir função de ativação de contingência de ponto");
+  assert.match(scriptsHtml, /clockSelfieContingency/, "Evento onclick do botão de contingência deve estar registrado");
+  assert.match(scriptsHtml, /clockSelfieStageFallbackBtn/, "Evento onclick do botão do stage deve estar registrado");
+
+  // 3. Estilos: Botão de contingência estilizado
+  assert.match(cozinhaflowCss, /#clockSelfieContingency/, "cozinhaflow.css deve conter estilos para o botão de contingência");
+  assert.match(cozinhaflowCss, /#clockSelfieStageFallbackBtn/, "cozinhaflow.css deve conter estilos para o botão do placeholder");
+
+  // 4. api-clock.js: Backend aceita e trata contingência de selfie sem abortar registro do ponto
+  assert.match(apiClockJs, /contingencia_/, "api-clock.js deve aplicar contingência se upload ao Drive falhar");
+  assert.match(apiClockJs, /Portaria671Valido:\s*true/, "Marcação deve ser registrada como válida perante a Portaria 671");
+});
+
+
 
 
 
