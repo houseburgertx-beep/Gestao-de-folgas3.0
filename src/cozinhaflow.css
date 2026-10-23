@@ -5299,20 +5299,40 @@ button, a, input, select, textarea, .btn, .j-card button {
 }
 
 #clockSelfieDialog .clock-selfie-stage {
-  border-radius: 20px !important;
-  height: 220px !important;
-  max-height: 30vh !important;
-  min-height: 160px !important;
+  border-radius: 24px !important;
+  height: 310px !important;
+  max-height: 42vh !important;
+  min-height: 240px !important;
   border: 2px solid var(--line) !important;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08) !important;
   overflow: hidden !important;
   flex-shrink: 0 !important;
   position: relative !important;
+  background: #0f172a !important;
+}
+
+#clockSelfieDialog .clock-selfie-stage video,
+#clockSelfieDialog .clock-selfie-stage canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
 
 #clockSelfieDialog .clock-selfie-stage:after {
-  border: 2px dashed rgba(255, 255, 255, 0.75) !important;
-  inset: 8% 16% 10% !important;
+  content: "" !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 175px !important;
+  height: 235px !important;
+  max-width: 62% !important;
+  max-height: 80% !important;
+  border: 2px dashed rgba(255, 255, 255, 0.85) !important;
+  border-radius: 50% / 54% 54% 46% 46% !important;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.22) !important;
+  pointer-events: none !important;
 }
 
 #clockSelfieDialog .clock-selfie-badge {
