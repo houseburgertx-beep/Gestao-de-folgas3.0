@@ -961,59 +961,115 @@ dialog#medicalCertificateDialog {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* Card de Datas */
-.med-date-card {
+/* Seletor de Datas Espaçado e Elegante */
+.med-dates-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.med-period-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.med-date-block {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-.med-date-row {
+.med-date-block:focus-within {
+  border-color: #6340d8;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.12);
+}
+
+.med-date-block-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.med-date-input-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.med-date-label {
+.med-date-badge-step {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.med-date-hint {
+  font-size: 11.5px;
   color: #64748b;
-  margin-bottom: 3px;
+  font-weight: 500;
+}
+
+.med-date-flow-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 6px;
+}
+
+.med-date-flow-line {
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.med-date-flow-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .med-date-field {
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #0f172a;
-  background: #ffffff;
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 40px;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  background: #ffffff !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: 48px !important;
+  outline: none !important;
+  -webkit-appearance: none;
+}
+
+.med-date-field:focus {
+  border-color: #6340d8 !important;
+  box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.15) !important;
 }
 
 .med-badge-abono {
+  display: inline-flex;
+  align-items: center;
   align-self: flex-start;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   color: #059669;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-feature-settings: "tnum";
 }

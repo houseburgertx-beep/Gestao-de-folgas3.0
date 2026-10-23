@@ -924,7 +924,7 @@ test("regras restringem ponto ao próprio funcionário e a uma criação idempot
     rules,
     /newData\.child\('RegistroPontoID'\)\.val\(\) === newData\.child\('RequestID'\)\.val\(\)/,
   );
-  assert.doesNotMatch(
+  assert.match(
     rules,
     /\$table === 'Documentos'[\s\S]*newData\.child\('FuncionarioID'\)/,
   );

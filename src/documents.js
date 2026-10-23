@@ -1394,28 +1394,46 @@ export function openMedicalCertificateDialog(options = {}) {
           </button>
         </div>
 
-        <!-- Seletor de Datas -->
-        <div class="med-date-card">
+        <!-- Seletor de Datas Espaçado e Elegante -->
+        <div class="med-dates-wrapper">
           ${
             !isPeriodMode
               ? `
-            <div class="med-date-input-wrap">
-              <label class="med-date-label">Data da Ausência</label>
+            <div class="med-date-block single">
+              <div class="med-date-block-header">
+                <span class="med-date-badge-step">Data da Ausência</span>
+                <span class="med-date-hint">Dia a ser abonado pelo atestado</span>
+              </div>
               <input type="date" id="medSingleDate" class="med-date-field" value="${defaultDate}" />
+              <div class="med-badge-abono" style="margin-top: 4px;">1 dia a ser abonado</div>
             </div>
           `
               : `
-            <div class="med-date-row">
-              <div class="med-date-input-wrap">
-                <label class="med-date-label">Início</label>
+            <div class="med-period-container">
+              <div class="med-date-block">
+                <div class="med-date-block-header">
+                  <span class="med-date-badge-step">Primeiro Dia</span>
+                  <span class="med-date-hint">Início do afastamento</span>
+                </div>
                 <input type="date" id="medStartDate" class="med-date-field" value="${defaultDate}" />
               </div>
-              <div class="med-date-input-wrap">
-                <label class="med-date-label">Término</label>
+
+              <div class="med-date-flow-indicator">
+                <span class="med-date-flow-line"></span>
+                <span class="med-date-flow-label">até</span>
+                <span class="med-date-flow-line"></span>
+              </div>
+
+              <div class="med-date-block">
+                <div class="med-date-block-header">
+                  <span class="med-date-badge-step">Último Dia</span>
+                  <span class="med-date-hint">Término do afastamento</span>
+                </div>
                 <input type="date" id="medEndDate" class="med-date-field" value="${defaultDate}" />
               </div>
+
+              <div id="medPeriodSummary" class="med-badge-abono">1 dia a ser abonado</div>
             </div>
-            <div id="medPeriodSummary" class="med-badge-abono">1 dia a ser abonado</div>
           `
           }
         </div>
