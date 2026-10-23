@@ -39,6 +39,7 @@ let state = {
   isManager: false,
   isAdmin: false,
   activeTab: "minhas", // "minhas" | "gestao"
+  typeFilter: "all", // "all" | "atestado" | "holerite" | "termo"
   statusFilter: "all",
   storeFilter: "all",
   monthFilter: "all",
@@ -359,18 +360,253 @@ export function renderDocumentsView() {
 }
 
 /**
- * Renderiza Visão de Gestão (RH / Gerente / Admin)
+ * Extrai iniciais para avatar estilo Apple iOS
+ */
+function getInitials(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "HD";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Classifica a categoria do documento: atestado, holerite ou termo
+ */
+function getDocCategory(doc) {
+  const tipo = String(doc.Tipo || "").toLowerCase();
+  const titulo = String(doc.Titulo || "").toLowerCase();
+  if (tipo.includes("atestado") || titulo.includes("atestado")) return "atestado";
+  if (tipo.includes("holerite") || titulo.includes("holerite") || Boolean(doc.MesReferencia && doc.MesReferencia !== "---")) return "holerite";
+  return "termo";
+}
+
+/**
+ * Normaliza o nome da loja para agrupamento limpo
+ */
+function canonicalStoreName(rawStore) {
+  const s = String(rawStore || "Central").trim();
+  if (/central/i.test(s)) return "Central";
+  if (/teixeira/i.test(s)) return "House 190 Teixeira";
+  if (/food\s*park/i.test(s)) return "House Food Park";
+  return s;
+}
+
+/**
+ * Renderiza uma linha minimalista de documento no padrão Apple iOS House 190
+ */
+function renderCleanDocRow(doc) {
+  const isMed = getDocCategory(doc) === "atestado";
+  const isHol = getDocCategory(doc) === "holerite";
+  const isSigned = doc.Status === "Assinado" || doc.Status === "Aprovado";
+  const isRejected = doc.Status === "Rejeitado";
+  const isPending = doc.Status === "Pendente";
+
+  const initials = getInitials(doc.NomeFuncionario);
+  const avatarClass = isMed ? "medical" : isHol ? "payroll" : "contract";
+  const tagClass = avatarClass;
+  const tagLabel = isMed ? "Atestado Médico" : isHol ? "Holerite" : (doc.Tipo || "Documento");
+
+  let descText = "";
+  if (isMed) {
+    const dias = doc.DiasAbono ? `${doc.DiasAbono} dia(s) a abonar` : "Abono solicitado";
+    const periodo = doc.PeriodoAbono || doc.DataInicio || "";
+    descText = `${dias} ${periodo ? `(${periodo})` : ""} ${doc.CRM ? `• CRM: ${doc.CRM}` : ""}`;
+  } else if (isHol) {
+    descText = `Mês de Referência: ${doc.MesReferencia || "---"} ${doc.CPFFuncionario ? `• CPF: ${doc.CPFFuncionario}` : ""}`;
+  } else {
+    descText = `${doc.Titulo || "Documento oficial"} ${doc.CPFFuncionario ? `• CPF: ${doc.CPFFuncionario}` : ""}`;
+  }
+
+  const dateDisplay = isSigned
+    ? `Assinado em ${formatDateShort(doc.DataAssinatura || doc.DataEnvio)}`
+    : `Enviado em ${formatDateShort(doc.DataEnvio)}`;
+
+  let statusLabel = "Pendente";
+  let statusClass = "pending";
+  if (isMed) {
+    if (doc.Status === "Aprovado") {
+      statusLabel = "Abonado";
+      statusClass = "approved";
+    } else if (doc.Status === "Rejeitado") {
+      statusLabel = "Recusado";
+      statusClass = "rejected";
+    } else {
+      statusLabel = "Avaliação Pendente";
+      statusClass = "pending";
+    }
+  } else if (isSigned) {
+    statusLabel = "Assinado";
+    statusClass = "signed";
+  }
+
+  return `
+    <div class="doc-clean-row">
+      <div class="doc-clean-left">
+        <div class="doc-avatar ${avatarClass}">
+          ${
+            isMed
+              ? `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          `
+              : initials
+          }
+        </div>
+        <div class="doc-clean-info">
+          <div class="doc-clean-name-row">
+            <span class="doc-clean-name">${esc(doc.NomeFuncionario || "Colaborador")}</span>
+            <span class="doc-clean-tag ${tagClass}">${esc(tagLabel)}</span>
+          </div>
+          <div class="doc-clean-desc">${esc(descText)}</div>
+          <div class="doc-clean-subtext">${esc(dateDisplay)}</div>
+        </div>
+      </div>
+
+      <div class="doc-clean-right">
+        <span class="doc-clean-status ${statusClass}">
+          ${statusLabel}
+        </span>
+        <div class="doc-clean-actions-wrap">
+          ${
+            isMed && isPending
+              ? `
+            <button class="doc-btn-evaluate" data-action="preview" data-id="${esc(doc.DocumentoID)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Avaliar e Abonar</span>
+            </button>
+          `
+              : isSigned
+              ? `
+            <button class="btn btn-secondary btn-sm" data-action="download" data-id="${esc(doc.DocumentoID)}" style="border-radius:10px; font-weight:600; padding:6px 12px; font-size:12.5px;">
+              Baixar PDF
+            </button>
+            <button class="med-clean-icon-btn" data-action="audit" data-id="${esc(doc.DocumentoID)}" title="Ver Certificado e Hash">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </button>
+          `
+              : `
+            <button class="btn btn-secondary btn-sm" data-action="preview" data-id="${esc(doc.DocumentoID)}" style="border-radius:10px; font-weight:600; padding:6px 12px; font-size:12.5px;">
+              Visualizar
+            </button>
+            <button class="med-clean-icon-btn" data-action="delete" data-id="${esc(doc.DocumentoID)}" title="Excluir documento" style="color:#ef4444;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          `
+          }
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Renderiza Visão de Gestão (RH / Gerente / Admin) — Padrão Apple iOS House 190
  */
 function renderManagerView() {
-  const total = state.documents.length;
-  const pendentes = state.documents.filter((d) => d.Status === "Pendente").length;
-  const assinados = state.documents.filter((d) => d.Status === "Assinado").length;
+  const allDocs = state.documents;
+  const total = allDocs.length;
+  const pendentes = allDocs.filter((d) => d.Status === "Pendente").length;
+  const assinados = allDocs.filter((d) => d.Status === "Assinado" || d.Status === "Aprovado").length;
   const compliance = total > 0 ? Math.round((assinados / total) * 100) : 100;
 
-  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
-  state.stores = storesList;
+  // Contadores por Tipo de Documento
+  const atestados = allDocs.filter((d) => getDocCategory(d) === "atestado");
+  const atestadosPendentes = atestados.filter((d) => d.Status === "Pendente").length;
+  const holerites = allDocs.filter((d) => getDocCategory(d) === "holerite");
+  const holeritesPendentes = holerites.filter((d) => d.Status === "Pendente").length;
+  const termos = allDocs.filter((d) => getDocCategory(d) === "termo");
 
-  // Opções de Lojas
+  // Contadores por Loja
+  const storeCounts = new Map();
+  allDocs.forEach((d) => {
+    const sName = canonicalStoreName(d.NomeLoja || d.LojaID);
+    storeCounts.set(sName, (storeCounts.get(sName) || 0) + 1);
+  });
+  const uniqueStoreNames = [...storeCounts.keys()].sort();
+
+  // Filtragem dos Documentos para Exibição
+  const filteredDocs = allDocs.filter((doc) => {
+    // 1. Tipo
+    if (state.typeFilter && state.typeFilter !== "all") {
+      const cat = getDocCategory(doc);
+      if (cat !== state.typeFilter) return false;
+    }
+
+    // 2. Loja
+    if (state.storeFilter && state.storeFilter !== "all") {
+      const docStore = canonicalStoreName(doc.NomeLoja || doc.LojaID).toLowerCase();
+      const target = canonicalStoreName(state.storeFilter).toLowerCase();
+      if (!docStore.includes(target) && docStore !== target && String(doc.LojaID || "").toLowerCase() !== target) {
+        return false;
+      }
+    }
+
+    // 3. Status
+    if (state.statusFilter && state.statusFilter !== "all") {
+      if (state.statusFilter === "Pendente" && doc.Status !== "Pendente") return false;
+      if (state.statusFilter === "Assinado" && doc.Status !== "Assinado" && doc.Status !== "Aprovado") return false;
+    }
+
+    return true;
+  });
+
+  // Agrupamento por Loja
+  const groupsByStore = new Map();
+  filteredDocs.forEach((doc) => {
+    const sName = canonicalStoreName(doc.NomeLoja || doc.LojaID);
+    if (!groupsByStore.has(sName)) {
+      groupsByStore.set(sName, []);
+    }
+    groupsByStore.get(sName).push(doc);
+  });
+
+  // Renderização das Seções por Loja
+  let storeGroupsHtml = "";
+  if (filteredDocs.length === 0) {
+    storeGroupsHtml = `
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:20px; padding:3rem 1.5rem; text-align:center;">
+        <div style="width:48px; height:48px; border-radius:14px; background:#f1f5f9; color:#94a3b8; display:inline-flex; align-items:center; justify-content:center; margin-bottom:12px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <p style="margin:0 0 4px; font-weight:700; color:#0f172a; font-size:15px;">Nenhum documento encontrado</p>
+        <p style="margin:0; font-size:13px; color:#64748b;">Ajuste os filtros de tipo de documento ou de loja para visualizar os registros.</p>
+      </div>
+    `;
+  } else {
+    storeGroupsHtml = [...groupsByStore.entries()]
+      .map(([storeName, storeDocs]) => {
+        const storePending = storeDocs.filter((d) => d.Status === "Pendente").length;
+        return `
+          <div class="doc-store-group">
+            <div class="doc-store-header">
+              <div class="doc-store-title-wrap">
+                <div class="doc-store-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 21h18M3 7v14M21 7v14M6 21V11M18 21V11M6 7l6-4 6 4M10 21v-4a2 2 0 0 1 4 0v4"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="doc-store-title">${esc(storeName)}</h4>
+                </div>
+              </div>
+              <div class="doc-store-meta">
+                <span class="doc-badge-pill">${storeDocs.length} ${storeDocs.length === 1 ? "documento" : "documentos"}</span>
+                ${storePending > 0 ? `<span class="doc-badge-pill doc-badge-pill-amber" style="margin-left:6px;">${storePending} pendente${storePending > 1 ? "s" : ""}</span>` : ""}
+              </div>
+            </div>
+            <div class="doc-store-list">
+              ${storeDocs.map(renderCleanDocRow).join("")}
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  // Opções para o select legado invisível
+  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
   const storeOptions = [
     `<option value="all">Todas as Lojas</option>`,
     ...storesList.map((s) => {
@@ -380,129 +616,112 @@ function renderManagerView() {
     }),
   ].join("");
 
-  // Tabela de Documentos
-  let rowsHtml = "";
-  if (state.documents.length === 0) {
-    rowsHtml = `
-      <tr>
-        <td colspan="7" style="text-align: center; padding: 2.5rem; color: var(--muted, #64748b);">
-          Nenhum documento encontrado para os filtros selecionados.
-        </td>
-      </tr>
-    `;
-  } else {
-    rowsHtml = state.documents
-      .map((doc) => {
-        const isSigned = doc.Status === "Assinado";
-        return `
-          <tr>
-            <td>
-              <strong>${esc(doc.NomeFuncionario)}</strong>
-              <div style="font-size: 11px; color: var(--muted, #64748b);">CPF: ${esc(doc.CPFFuncionario || "---")}</div>
-            </td>
-            <td>
-              <span class="doc-type-pill">${esc(doc.Tipo)}</span>
-              <div style="font-weight: 600; font-size: 13px; margin-top: 3px;">${esc(doc.Titulo)}</div>
-            </td>
-            <td>${esc(doc.MesReferencia || "---")}</td>
-            <td>${esc(doc.NomeLoja || doc.LojaID)}</td>
-            <td>
-              <span class="doc-status-badge ${isSigned ? "doc-status-signed" : "doc-status-pending"}">
-                ${isSigned ? "Assinado" : "Pendente"}
-              </span>
-            </td>
-            <td style="font-size: 12px; color: var(--muted, #64748b);">
-              ${isSigned ? formatDate(doc.DataAssinatura) : formatDate(doc.DataEnvio)}
-            </td>
-            <td style="text-align: right;">
-              <div style="display: inline-flex; gap: 6px;">
-                ${
-                  isSigned
-                    ? `
-                  <button class="btn btn-secondary btn-sm" data-action="download" data-id="${esc(doc.DocumentoID)}">
-                    Baixar PDF
-                  </button>
-                  <button class="btn btn-ghost btn-sm" data-action="audit" data-id="${esc(doc.DocumentoID)}" title="Ver Auditoria Pericial">
-                    Certificado
-                  </button>
-                `
-                    : `
-                  <button class="btn btn-secondary btn-sm" data-action="preview" data-id="${esc(doc.DocumentoID)}">
-                    Visualizar
-                  </button>
-                  <button class="btn btn-ghost btn-sm" data-action="delete" data-id="${esc(doc.DocumentoID)}" style="color: #ef4444;" title="Excluir documento pendente">
-                    Excluir
-                  </button>
-                `
-                }
-              </div>
-            </td>
-          </tr>
-        `;
-      })
-      .join("");
-  }
-
   return `
-    <div class="doc-metric-grid">
-      <div class="doc-metric-card" style="--metric-color: #6340d8;">
-        <span>Total Emitidos</span>
-        <strong>${total}</strong>
-      </div>
-      <div class="doc-metric-card" style="--metric-color: #f59e0b;">
-        <span>Pendentes de Assinatura</span>
-        <strong style="color: #d97706;">${pendentes}</strong>
-      </div>
-      <div class="doc-metric-card" style="--metric-color: #10b981;">
-        <span>Assinados Digitalmente</span>
-        <strong style="color: #059669;">${assinados}</strong>
-      </div>
-      <div class="doc-metric-card" style="--metric-color: #3b82f6;">
-        <span>Taxa de Conformidade</span>
-        <strong>${compliance}%</strong>
-      </div>
-    </div>
-
-    <div class="panel table-panel">
-      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-          <select id="docStoreFilter" style="border-radius: 10px; padding: 7px 12px; font-size: 13px;">
-            ${storeOptions}
-          </select>
-          <select id="docStatusFilter" style="border-radius: 10px; padding: 7px 12px; font-size: 13px;">
-            <option value="all" ${state.statusFilter === "all" ? "selected" : ""}>Todos os Status</option>
-            <option value="Pendente" ${state.statusFilter === "Pendente" ? "selected" : ""}>Pendentes</option>
-            <option value="Assinado" ${state.statusFilter === "Assinado" ? "selected" : ""}>Assinados</option>
-          </select>
-          <button id="docRefreshBtn" class="btn btn-secondary btn-sm">Atualizar</button>
+    <div class="doc-mgmt-container">
+      <!-- 1. Métricas Rápidas Estilo Apple -->
+      <div class="doc-metric-grid">
+        <div class="doc-metric-card" style="--metric-color: #6340d8;">
+          <span>Total de Documentos</span>
+          <strong>${total}</strong>
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <div class="doc-metric-card" style="--metric-color: #f59e0b;">
+          <span>Atestados Pendentes</span>
+          <strong style="color: #d97706;">${atestadosPendentes}</strong>
+        </div>
+        <div class="doc-metric-card" style="--metric-color: #3b82f6;">
+          <span>Holerites Emitidos</span>
+          <strong style="color: #2563eb;">${holerites.length}</strong>
+        </div>
+        <div class="doc-metric-card" style="--metric-color: #10b981;">
+          <span>Taxa de Conformidade</span>
+          <strong style="color: #059669;">${compliance}%</strong>
+        </div>
+      </div>
+
+      <!-- 2. Barra de Controle Superior (Segmented Control de Tipo & Ações) -->
+      <div class="doc-mgmt-header">
+        <div class="doc-segmented-control" role="tablist" aria-label="Tipos de Documentos">
+          <button type="button" class="doc-segment-btn ${state.typeFilter === "all" ? "active" : ""}" data-type-filter="all">
+            Todos
+            <span class="doc-badge-pill">${total}</span>
+          </button>
+          <button type="button" class="doc-segment-btn ${state.typeFilter === "atestado" ? "active" : ""}" data-type-filter="atestado">
+            Atestados Médicos
+            ${atestadosPendentes > 0 ? `<span class="doc-badge-pill doc-badge-pill-amber">${atestadosPendentes}</span>` : `<span class="doc-badge-pill">${atestados.length}</span>`}
+          </button>
+          <button type="button" class="doc-segment-btn ${state.typeFilter === "holerite" ? "active" : ""}" data-type-filter="holerite">
+            Holerites
+            <span class="doc-badge-pill">${holerites.length}</span>
+          </button>
+          <button type="button" class="doc-segment-btn ${state.typeFilter === "termo" ? "active" : ""}" data-type-filter="termo">
+            Contratos & Termos
+            <span class="doc-badge-pill">${termos.length}</span>
+          </button>
+        </div>
+
+        <div class="doc-mgmt-actions">
           <input type="file" id="docBatchFileInput" accept="application/pdf" style="display: none;" />
-          <button id="docBatchUploadBtn" class="btn btn-secondary btn-sm" style="border-color: #6340d8; color: #6340d8; font-weight: 600;">
+          <button type="button" id="docBatchUploadBtn" class="btn btn-secondary btn-sm" style="border-radius:12px; font-weight:600; padding:8px 14px; min-height:38px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Importar Lote (Holerites)
           </button>
-          <button id="docNewDocumentBtn" class="btn btn-primary btn-sm">
+          <button type="button" id="docNewDocumentBtn" class="btn btn-primary btn-sm" style="border-radius:12px; font-weight:600; padding:8px 16px; min-height:38px; box-shadow:0 2px 8px rgba(99,64,216,0.25);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Documento / Holerite
+          </button>
+          <button type="button" id="docRefreshBtn" class="med-clean-icon-btn" title="Atualizar dados" style="width:38px; height:38px; border-radius:12px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           </button>
         </div>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Colaborador</th>
-              <th>Documento</th>
-              <th>Ref.</th>
-              <th>Loja</th>
-              <th>Status</th>
-              <th>Data</th>
-              <th style="text-align: right;">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
+
+      <!-- 3. Sub-barra de Filtro de Lojas e Status -->
+      <div class="doc-filters-subbar">
+        <div class="doc-pills-scroll" role="tablist" aria-label="Filtro por Loja">
+          <button type="button" class="doc-store-pill ${state.storeFilter === "all" ? "active" : ""}" data-store-filter="all">
+            Todas as Unidades
+            <span class="doc-badge-pill">${total}</span>
+          </button>
+          ${uniqueStoreNames
+            .map((sName) => {
+              const count = storeCounts.get(sName) || 0;
+              const isActive = state.storeFilter === sName;
+              return `
+                <button type="button" class="doc-store-pill ${isActive ? "active" : ""}" data-store-filter="${esc(sName)}">
+                  ${esc(sName)}
+                  <span class="doc-badge-pill">${count}</span>
+                </button>
+              `;
+            })
+            .join("")}
+        </div>
+
+        <div class="doc-status-pills" role="tablist" aria-label="Filtro por Status">
+          <button type="button" class="doc-status-pill-btn ${state.statusFilter === "all" ? "active" : ""}" data-status-filter="all">
+            Todos
+          </button>
+          <button type="button" class="doc-status-pill-btn ${state.statusFilter === "Pendente" ? "active" : ""}" data-status-filter="Pendente">
+            Pendentes (${pendentes})
+          </button>
+          <button type="button" class="doc-status-pill-btn ${state.statusFilter === "Assinado" ? "active" : ""}" data-status-filter="Assinado">
+            Assinados (${assinados})
+          </button>
+        </div>
+
+        <!-- Elementos ocultos para sincronização retrocompatível -->
+        <select id="docStoreFilter" style="display:none;">
+          ${storeOptions}
+        </select>
+        <select id="docStatusFilter" style="display:none;">
+          <option value="all" ${state.statusFilter === "all" ? "selected" : ""}>Todos os Status</option>
+          <option value="Pendente" ${state.statusFilter === "Pendente" ? "selected" : ""}>Pendentes</option>
+          <option value="Assinado" ${state.statusFilter === "Assinado" ? "selected" : ""}>Assinados</option>
+        </select>
+      </div>
+
+      <!-- 4. Lista Agrupada por Loja e por Tipo (Sem Poluição) -->
+      <div class="doc-groups-container">
+        ${storeGroupsHtml}
       </div>
     </div>
   `;
@@ -717,6 +936,27 @@ function setupEventListeners() {
     const medBtn = e.target.closest("#btnOpenMedicalCertificate, [data-open-medical-cert]");
     if (medBtn) {
       openMedicalCertificateDialog();
+      return;
+    }
+
+    const typeBtn = e.target.closest("[data-type-filter]");
+    if (typeBtn) {
+      state.typeFilter = typeBtn.getAttribute("data-type-filter") || "all";
+      renderDocumentsView();
+      return;
+    }
+
+    const storeBtn = e.target.closest("[data-store-filter]");
+    if (storeBtn) {
+      state.storeFilter = storeBtn.getAttribute("data-store-filter") || "all";
+      renderDocumentsView();
+      return;
+    }
+
+    const statusBtn = e.target.closest("[data-status-filter]");
+    if (statusBtn) {
+      state.statusFilter = statusBtn.getAttribute("data-status-filter") || "all";
+      renderDocumentsView();
       return;
     }
 
