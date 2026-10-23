@@ -2057,7 +2057,7 @@ export function createBaseHandlers() {
         NomeLoja: employee.NomeLoja,
         DataEnvio: nowIso(),
         ArquivoUrl: docUrl,
-        ArquivoOriginalBase64: docBase64.length < 500000 ? docBase64 : "",
+        ArquivoOriginalBase64: docBase64.length < 2000000 ? docBase64 : "",
         HashOriginalSHA256: payload.hash || "",
         CRM: String(payload.crm || payload.CRM || "").trim(),
         Observacao: String(payload.motivo || payload.Motivo || "").trim(),

@@ -98,9 +98,26 @@ async function ensureDocumentFullPayload(doc) {
 }
 
 /**
+ * Analisa e extrai dados de URLs do Google Drive para visualização direta e segura
+ */
+export function parseDriveUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  const driveMatch = url.match(/(?:\/d\/|id=|open\?id=)([a-zA-Z0-9_-]{25,})/i);
+  if (!driveMatch) return null;
+  const fileId = driveMatch[1];
+  return {
+    fileId,
+    previewUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+    thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`,
+    directViewUrl: `https://lh3.googleusercontent.com/d/${fileId}`,
+    openUrl: `https://drive.google.com/file/d/${fileId}/view?usp=sharing`,
+  };
+}
+
+/**
  * Comprime imagem ou lê PDF para envio seguro ao Google Drive
  */
-async function compressMedicalDocument(file, maxDimension = 1600, quality = 0.82) {
+async function compressMedicalDocument(file, maxDimension = 1280, quality = 0.78) {
   if (!file) throw new Error("Arquivo não fornecido.");
   if (file.type === "application/pdf") {
     return new Promise((resolve, reject) => {
@@ -572,16 +589,15 @@ function renderEmployeeView() {
                   ${isApproved ? `Aprovado pelo gestor em ${formatDateShort(doc.DataAprovacao || doc.DataEnvio)}` : isRejected ? `Recusado pelo gestor` : `Enviado em ${formatDateShort(doc.DataEnvio)}`}
                 </span>
                 <div class="med-clean-actions">
+                  <button type="button" class="med-clean-btn" data-action="preview" data-id="${esc(doc.DocumentoID)}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>Ver Detalhes</span>
+                  </button>
                   ${fileUrl ? `
-                    <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="med-clean-btn">
-                      <span>Ver Comprovante</span>
+                    <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="med-clean-icon-btn" title="Abrir no Google Drive">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                     </a>
-                  ` : `
-                    <button type="button" class="med-clean-btn" data-action="preview" data-id="${esc(doc.DocumentoID)}">
-                      <span>Visualizar</span>
-                    </button>
-                  `}
+                  ` : ""}
                 </div>
               </div>
             </div>
@@ -2196,16 +2212,12 @@ export async function openPreviewDialog(docId) {
 
   const base64 = doc.ArquivoFinalBase64 || doc.ArquivoOriginalBase64 || "";
   const fileUrl = doc.ArquivoUrl || doc.DocumentoUrl || "";
+  const driveInfo = parseDriveUrl(fileUrl);
   const isMedical = doc.Tipo === "Atestado Médico" || String(doc.Titulo || "").toLowerCase().includes("atestado");
-  const isPdf = Boolean(
-    (base64 && (base64.includes("application/pdf") || base64.startsWith("JVBERi"))) ||
-    (fileUrl && /\.pdf($|\?)/i.test(fileUrl))
-  );
-  const isImage = Boolean(
-    (base64 && base64.startsWith("data:image/")) ||
-    (fileUrl && /\.(jpe?g|png|webp|gif)($|\?)/i.test(fileUrl)) ||
-    (isMedical && !isPdf && (base64 || fileUrl))
-  );
+  const hasBase64Image = Boolean(base64 && base64.startsWith("data:image/"));
+  const hasBase64Pdf = Boolean(base64 && (base64.includes("application/pdf") || base64.startsWith("JVBERi")));
+  const isPdf = Boolean(hasBase64Pdf || (fileUrl && /\.pdf($|\?)/i.test(fileUrl)));
+  const isImage = Boolean(hasBase64Image || (fileUrl && /\.(jpe?g|png|webp|gif)($|\?)/i.test(fileUrl)) || (isMedical && !isPdf));
 
   let blobUrl = "";
   if (base64 && isPdf) {
@@ -2283,16 +2295,65 @@ export async function openPreviewDialog(docId) {
       ${
         isImage
           ? `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
           <span style="font-size:12px; color:#64748b; font-weight:600;">Comprovante / Foto do Atestado</span>
-          ${fileUrl ? `
-            <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12px; padding:6px 12px; border-radius:8px;">
-              Ver no Google Drive ↗
-            </a>
-          ` : ""}
+          <div style="display:inline-flex; gap:6px; align-items:center;">
+            ${driveInfo ? `
+              <button type="button" id="btnToggleDriveMode" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:5px 10px; border-radius:8px;">
+                Alternar Visualizador
+              </button>
+              <a href="${esc(driveInfo.openUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:5px; text-decoration:none; font-size:11.5px; padding:5px 10px; border-radius:8px;">
+                Ver no Google Drive ↗
+              </a>
+            ` : fileUrl ? `
+              <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:5px; text-decoration:none; font-size:11.5px; padding:5px 10px; border-radius:8px;">
+                Ver Original ↗
+              </a>
+            ` : ""}
+          </div>
         </div>
-        <div style="text-align:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:12px; max-height:55vh; overflow:auto;">
-          <img src="${base64 || fileUrl}" alt="Atestado Médico" style="max-width:100%; max-height:50vh; object-fit:contain; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />
+        <div style="text-align:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:12px; max-height:55vh; overflow:auto; position:relative;">
+          ${
+            hasBase64Image
+              ? `
+            <img src="${base64}" alt="Atestado Médico" style="max-width:100%; max-height:50vh; object-fit:contain; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />
+          `
+              : driveInfo
+              ? `
+            <div id="driveMediaContainer" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+              <img id="driveDocImage"
+                   src="${driveInfo.thumbnailUrl}"
+                   alt="Comprovante do Atestado"
+                   style="max-width:100%; max-height:50vh; object-fit:contain; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.08); display:block;"
+                   onerror="
+                     if (!this.dataset.triedLh3) {
+                       this.dataset.triedLh3 = '1';
+                       this.src = '${driveInfo.directViewUrl}';
+                     } else {
+                       this.style.display = 'none';
+                       const f = document.getElementById('driveDocIframeWrapper');
+                       if (f) f.style.display = 'block';
+                     }
+                   "
+              />
+              <div id="driveDocIframeWrapper" style="display:none; width:100%; height:50vh; min-height:340px; border-radius:10px; overflow:hidden; border:1px solid #cbd5e1; background:#ffffff;">
+                <iframe src="${driveInfo.previewUrl}" style="width:100%; height:100%; border:none;" allow="autoplay" title="Comprovante Google Drive"></iframe>
+              </div>
+            </div>
+          `
+              : fileUrl
+              ? `
+            <div style="padding:28px 16px; text-align:center;">
+              <p style="margin:0 0 12px; font-weight:600; color:#1e293b;">Comprovante disponível para abertura externa.</p>
+              <a href="${esc(fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:10px; text-decoration:none; font-weight:600;">
+                Abrir Comprovante ↗
+              </a>
+            </div>
+          `
+              : `
+            <p style="color:#64748b; font-size:13px; margin:1rem 0;">Nenhum anexo encontrado para este documento.</p>
+          `
+          }
         </div>
       `
           : isPdf && base64
@@ -2305,6 +2366,18 @@ export async function openPreviewDialog(docId) {
           </button>
         </div>
         <div id="docPreviewBox" class="doc-viewer-container" style="height:60vh; min-height:380px; border-radius:12px; overflow-y:auto; border:1px solid var(--line, #e2e8f0);">
+        </div>
+      `
+          : isPdf && driveInfo
+          ? `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; color:#64748b; font-weight:600;">Documento PDF no Google Drive</span>
+          <a href="${esc(driveInfo.openUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12px; padding:6px 12px; border-radius:8px;">
+            Ver no Google Drive ↗
+          </a>
+        </div>
+        <div style="width:100%; height:55vh; min-height:380px; border-radius:12px; overflow:hidden; border:1px solid #cbd5e1; background:#ffffff;">
+          <iframe src="${driveInfo.previewUrl}" style="width:100%; height:100%; border:none;" allow="autoplay" title="PDF Google Drive"></iframe>
         </div>
       `
           : fileUrl
@@ -2369,6 +2442,25 @@ export async function openPreviewDialog(docId) {
   $("#docPreviewDownloadBtn")?.addEventListener("click", () => {
     downloadSignedDocument(docId);
   });
+
+  const toggleBtn = $("#btnToggleDriveMode");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      const img = $("#driveDocImage");
+      const iframeWrap = $("#driveDocIframeWrapper");
+      if (!img || !iframeWrap) return;
+      const isShowingImg = img.style.display !== "none";
+      if (isShowingImg) {
+        img.style.display = "none";
+        iframeWrap.style.display = "block";
+        toggleBtn.textContent = "Ver como Imagem";
+      } else {
+        img.style.display = "block";
+        iframeWrap.style.display = "none";
+        toggleBtn.textContent = "Alternar Visualizador";
+      }
+    });
+  }
 
   // Ações de Aprovação e Recusa pelo Gestor/Admin
   if (canDecide) {

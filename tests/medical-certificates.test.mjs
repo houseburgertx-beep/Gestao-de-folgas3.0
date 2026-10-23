@@ -3,6 +3,7 @@ import test from "node:test";
 import { createApi } from "../src/core/api.js";
 import { runtime } from "../src/core/runtime.js";
 import { timeOffBalanceUnits } from "../src/core/api-base.js";
+import { parseDriveUrl } from "../src/documents.js";
 
 test("Atestado Médico: envio, preservação de saldo de folgas e abono automático de faltas pelo gestor", async () => {
   const storeId = "loja-teste-atestado";
@@ -254,6 +255,100 @@ test("Atestado Médico: rejeição pelo gestor atualiza o status do documento pa
     const updatedDoc = await runtime.getById("Documentos", documento.DocumentoID);
     assert.equal(updatedDoc.Status, "Rejeitado");
     assert.equal(updatedDoc.ObservacaoRejeicao, "Foto ilegível, apresentar segunda via");
+  } finally {
+    Object.assign(runtime, originalMethods);
+  }
+});
+
+test("Atestado Médico & Google Drive: parseDriveUrl extrai corretamente ID e URLs de visualização direta e preview", () => {
+  const url1 = "https://drive.google.com/file/d/1X5X8v48abcDEF123456789012/view?usp=drivesdk";
+  const res1 = parseDriveUrl(url1);
+  assert.ok(res1);
+  assert.equal(res1.fileId, "1X5X8v48abcDEF123456789012");
+  assert.equal(res1.thumbnailUrl, "https://drive.google.com/thumbnail?id=1X5X8v48abcDEF123456789012&sz=w1600");
+  assert.equal(res1.previewUrl, "https://drive.google.com/file/d/1X5X8v48abcDEF123456789012/preview");
+  assert.equal(res1.directViewUrl, "https://lh3.googleusercontent.com/d/1X5X8v48abcDEF123456789012");
+
+  const url2 = "https://drive.google.com/open?id=1AbCdEfGhIjKlMnOpQrStUvWxYz99";
+  const res2 = parseDriveUrl(url2);
+  assert.ok(res2);
+  assert.equal(res2.fileId, "1AbCdEfGhIjKlMnOpQrStUvWxYz99");
+
+  assert.equal(parseDriveUrl(""), null);
+  assert.equal(parseDriveUrl("https://example.com/arquivo.png"), null);
+});
+
+test("Atestado Médico: preservação de base64 de imagem de alta resolução até 2MB no banco", async () => {
+  const tables = new Map();
+  const getTable = (name) => {
+    if (!tables.has(name)) tables.set(name, new Map());
+    return tables.get(name);
+  };
+
+  const originalMethods = {
+    getById: runtime.getById,
+    list: runtime.list,
+    upsert: runtime.upsert,
+    requireProfile: runtime.requireProfile,
+  };
+
+  runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
+  runtime.list = async (table) => [...getTable(table).values()];
+  runtime.upsert = async (table, record) => {
+    const idKey =
+      table === "Folgas"
+        ? "FolgaID"
+        : table === "Documentos"
+        ? "DocumentoID"
+        : table === "Funcionarios"
+        ? "FuncionarioID"
+        : "id";
+    const id = String(record[idKey] || record.id || `rec_${Date.now()}`);
+    const saved = { ...record, [idKey]: id };
+    getTable(table).set(id, saved);
+    return saved;
+  };
+
+  try {
+    await runtime.upsert("Funcionarios", {
+      FuncionarioID: "func-hd-1",
+      Nome: "Danilo Chapa",
+      Email: "danilo@house.com",
+      LojaID: "loja-hd",
+      Ativo: true,
+      Perfil: "Colaborador",
+    });
+
+    runtime.requireProfile = async () => ({
+      FuncionarioID: "func-hd-1",
+      Nome: "Danilo Chapa",
+      Email: "danilo@house.com",
+      LojaID: "loja-hd",
+      Perfil: "Colaborador",
+      Ativo: true,
+    });
+
+    const handlers = createApi().handlers;
+    // Imagem com 700KB em base64 (passava do limite antigo de 500k e ficava vazia gerando imagem quebrada)
+    const largeBase64 = "data:image/jpeg;base64," + "A".repeat(700000);
+
+    const submitResult = await handlers.submitMedicalCertificate([
+      {
+        dataInicio: "2026-10-23",
+        dataFim: "2026-10-23",
+        documentoUrl: "https://drive.google.com/file/d/1X5X8v48abcDEF123456789012/view?usp=drivesdk",
+        documentoBase64: largeBase64,
+        crm: "CRM-SP 123456",
+        motivo: "Consulta médica",
+      },
+    ]);
+
+    assert.equal(submitResult.success, true);
+    const { documento } = submitResult.data;
+
+    // Confirma que ArquivoOriginalBase64 foi mantido integralmente para renderização instantânea
+    assert.equal(documento.ArquivoOriginalBase64.length, largeBase64.length);
+    assert.equal(documento.ArquivoOriginalBase64, largeBase64);
   } finally {
     Object.assign(runtime, originalMethods);
   }
