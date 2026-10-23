@@ -589,45 +589,69 @@ function renderEmployeeView() {
         }
 
         const isSigned = doc.Status === "Assinado";
+        const isHolerite = doc.Tipo === "Holerite" || String(doc.Titulo || "").toLowerCase().includes("holerite");
+        const docStore = doc.NomeLoja || doc.LojaID || "";
+        const docRef = doc.MesReferencia && doc.MesReferencia !== "Geral" ? `Ref. ${doc.MesReferencia}` : "";
+        const docSubtitle = [docStore, docRef].filter(Boolean).join(" • ") || "Documento oficial";
+
         return `
-          <div class="doc-item-card ${!isSigned ? "doc-item-pending" : ""}">
-            <div class="doc-item-header">
-              <span class="doc-type-pill">${esc(doc.Tipo || "Documento")}</span>
-              <span class="doc-status-badge ${isSigned ? "doc-status-signed" : "doc-status-pending"}">
-                ${isSigned ? "Assinado" : "Pendente"}
+          <div class="med-clean-card ${isSigned ? 'is-approved' : 'is-pending'}">
+            <div class="med-clean-top">
+              <div class="med-clean-ident">
+                <div class="med-clean-icon ${isHolerite ? 'purple' : 'blue'}">
+                  ${
+                    isHolerite
+                      ? `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="4" width="20" height="16" rx="3"/>
+                      <line x1="2" y1="10" x2="22" y2="10"/>
+                      <line x1="6" y1="15" x2="10" y2="15"/>
+                    </svg>
+                  `
+                      : `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                  `
+                  }
+                </div>
+                <div class="med-clean-texts">
+                  <h4 class="med-clean-title">${esc(doc.Titulo || "Documento")}</h4>
+                  <span class="med-clean-subtitle">${esc(docSubtitle)}</span>
+                </div>
+              </div>
+              <span class="med-clean-pill ${isSigned ? 'pill-success' : 'pill-amber'}">
+                ${isSigned ? 'Assinado' : 'Pendente'}
               </span>
             </div>
 
-            <div class="doc-item-main">
-              <h4 class="doc-item-title">${esc(doc.Titulo)}</h4>
-              <div class="doc-item-meta">
-                <span>Ref: <strong>${esc(doc.MesReferencia || "Geral")}</strong></span>
-                <span>•</span>
-                <span><strong>${esc(doc.NomeLoja || doc.LojaID)}</strong></span>
-                <span>•</span>
-                <span>Enviado em ${formatDateShort(doc.DataEnvio)}</span>
-                ${isSigned ? `<span>•</span><span>Assinado em ${formatDateShort(doc.DataAssinatura)}</span>` : ""}
+            <div class="med-clean-footer">
+              <span class="med-clean-meta">
+                ${isSigned ? `Assinado em ${formatDateShort(doc.DataAssinatura || doc.DataEnvio)}` : `Aguardando assinatura`}
+              </span>
+              <div class="med-clean-actions">
+                ${
+                  !isSigned
+                    ? `
+                  <button type="button" class="doc-clean-sign-btn" data-action="sign" data-id="${esc(doc.DocumentoID)}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    <span>Assinar</span>
+                  </button>
+                `
+                    : `
+                  <button type="button" class="med-clean-btn" data-action="download" data-id="${esc(doc.DocumentoID)}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Baixar PDF</span>
+                  </button>
+                  <button type="button" class="med-clean-icon-btn" data-action="audit" data-id="${esc(doc.DocumentoID)}" title="Certificado & Hash">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </button>
+                `
+                }
               </div>
-            </div>
-
-            <div class="doc-item-actions">
-              ${
-                !isSigned
-                  ? `
-                <button class="btn btn-primary doc-btn-sign" data-action="sign" data-id="${esc(doc.DocumentoID)}">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                  Ler e Assinar Documento
-                </button>
-              `
-                  : `
-                <button class="btn btn-secondary btn-sm" data-action="download" data-id="${esc(doc.DocumentoID)}">
-                  Baixar PDF Assinado
-                </button>
-                <button class="btn btn-ghost btn-sm" data-action="audit" data-id="${esc(doc.DocumentoID)}">
-                  Certificado & Hash
-                </button>
-              `
-              }
             </div>
           </div>
         `;
