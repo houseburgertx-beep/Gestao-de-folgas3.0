@@ -597,7 +597,7 @@ body{font-family:Inter,Manrope,system-ui,-apple-system,sans-serif}
 @media(max-width:759px){.content{padding:18px 16px 100px}.hero-row h2{font-size:25px}.hero-row p{font-size:12px}.j-card{padding:20px}.j-toolbar>span{display:none}.mobile-dock{background:var(--surface);box-shadow:0 -4px 24px #38304b06;border-top:1px solid var(--line);padding-bottom:max(8px,env(safe-area-inset-bottom))}.mobile-dock button{min-height:52px;color:var(--muted)}/* .dock-point removido *//* .dock-point.active removido */.mobile-dock button.hidden{display:none}dialog{margin:auto 0 0;max-width:100%;width:100%;border-radius:24px 24px 0 0}.j-donut-wrap{gap:18px}.j-donut{width:130px;height:130px}.j-donut>div{width:92px;height:92px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 [data-theme=dark] .j-clock,[data-theme=dark] .j-attention,[data-theme=dark] .j-insight{background:var(--surface-2)}[data-theme=dark] .j-digital{color:var(--text)}
-.j-schedule-grid{display:grid;gap:14px;margin-bottom:24px}.j-is-today{border-color:#b59adc;background:#faf7ff}@media(min-width:760px){.j-schedule-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(min-width:1200px){.j-schedule-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.j-schedule-grid{display:block;width:100%;margin-bottom:24px}.j-is-today{border-color:#b59adc;background:#faf7ff}
 /* The replacement home owns the presence overview; keep the legacy target for integrations. */
 #view-dashboard>#liveStorePresencePanel{display:none!important}
 #view-dashboard.j-unit-filtered>#cards,#view-dashboard.j-unit-filtered>.dashboard-grid,#view-dashboard.j-unit-filtered>#proxima-folga,#view-dashboard.j-unit-filtered>#incompletePunchesAlert{display:none}

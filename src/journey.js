@@ -41,6 +41,13 @@ function stores() {
   const id = storeId(s);
   if (id && (!unique.has(id) || !storeName(unique.get(id)))) unique.set(id,s);
  }
+ for (const p of list(data.employees)) {
+  const id = String(p.LojaID || p.lojaId || '').trim();
+  const name = String(p.NomeLoja || p.nomeLoja || '').trim();
+  if (id && !unique.has(id)) {
+   unique.set(id, { LojaID: id, NomeLoja: name || `Loja ${id}` });
+  }
+ }
  return [...unique.values()];
 }
 function personUnit(p) { return String(p.NomeLoja || '').trim() || storeName(stores().find(s=>storeId(s)===String(p.LojaID)) || {}) || 'Unidade não informada'; }
@@ -312,30 +319,32 @@ function renderSchedule() {
   </div>`;
  }
 
- $('#journeySchedule').innerHTML=`<div class="j-page-head"><div><span class="eyebrow">SEU PRÓXIMO PASSO</span><h2>Escala</h2><p>Jornadas cadastradas e folgas aprovadas</p></div>${unitSelect()}</div>${storeBanner}${storeSummary}<div class="w-date-nav"><button class="btn btn-secondary" data-j-period="-1" aria-label="Período anterior">←</button><button class="btn btn-ghost" data-j-period="today">Hoje</button><strong>${esc(periodLabel)}</strong><button class="btn btn-secondary" data-j-period="1" aria-label="Próximo período">→</button></div><div class="j-chips">${['dia','semana','mês'].map(k=>`<button data-j-mode="${k}" aria-pressed="${mode===k}">${k}</button>`).join('')}</div><div class="j-schedule-grid">${content}</div><button class="btn btn-secondary" data-view-target="calendar">Consultar e gerenciar folgas →</button>`;
+ $('#journeySchedule').innerHTML=`<div class="j-page-head"><div><span class="eyebrow">SEU PRÓXIMO PASSO</span><h2>Escala</h2><p>Jornadas cadastradas e folgas aprovadas</p></div>${unitSelect()}</div>${storeBanner}${storeSummary}<div class="j-cal-controls-bar"><div class="j-chips" role="tablist" aria-label="Modo de visualização">${['dia','semana','mês'].map(k=>`<button type="button" data-j-mode="${k}" aria-pressed="${mode===k}">${k}</button>`).join('')}</div><div class="w-date-nav"><button type="button" class="btn btn-secondary" data-j-period="-1" aria-label="Período anterior">←</button><button type="button" class="btn btn-ghost" data-j-period="today">Hoje</button><strong>${esc(periodLabel)}</strong><button type="button" class="btn btn-secondary" data-j-period="1" aria-label="Próximo período">→</button></div></div><div class="j-schedule-grid">${content}</div><button class="btn btn-secondary" data-view-target="calendar">Consultar e gerenciar folgas →</button>`;
 }
 
 let journeyDirty = false;
 function render(force = false) {
- if(!$('#journeyHome'))return;
  const dashView = $('#view-dashboard');
  const isDashActive = typeof dashView?.classList?.contains === 'function'
    ? (!dashView.classList.contains('view') || dashView.classList.contains('active'))
    : true;
- if (!force && !isDashActive) {
+ if ($('#journeyHome') && (isDashActive || force)) {
+   journeyDirty = false;
+   $('#journeyHome').innerHTML=`${workspaceHero()}${data.manager?operation():personal()}`;
+   dashView?.classList.toggle('j-unit-filtered',!!unit);
+   $('#journeyHome').classList.toggle('v-personal-home',!data.manager);
+ } else if ($('#journeyHome')) {
    journeyDirty = true;
-   return;
  }
- journeyDirty = false;
- $('#journeyHome').innerHTML=`${workspaceHero()}${data.manager?operation():personal()}`;
- dashView?.classList.toggle('j-unit-filtered',!!unit);
- $('#journeyHome').classList.toggle('v-personal-home',!data.manager);
- renderTeam();renderSchedule();tick();
+ renderTeam();
+ renderSchedule();
+ tick();
  if(typeof window.warmClockLocation_==='function'){if(typeof window.requestIdleCallback==='function'){window.requestIdleCallback(()=>window.warmClockLocation_(),{timeout:3000});}else{setTimeout(()=>window.warmClockLocation_(),800);}}
 }
 function tick(){const now=new Date();document.querySelectorAll('[data-live-clock]').forEach(e=>e.textContent=now.toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}));document.querySelectorAll('[data-live-date]').forEach(e=>e.textContent=now.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'long',day:'2-digit',month:'short',year:'numeric'}));}
 window.addEventListener('house-journey',e=>{const next=e.detail || {};if(String(next.user?.email || next.user?.Email || '')!==String(data.user?.email || data.user?.Email || '')){unit='';search='';teamFilter='todos';}data=next;if(unit && !stores().some(s=>storeId(s)===unit))unit='';render()});
 window.addEventListener('gestao-dashboard-active', () => { if (journeyDirty) render(true); });
+window.addEventListener('gestao-view-change', e => { const v = e.detail?.view; if (v === 'shift-plan' || v === 'live-team') { renderSchedule(); renderTeam(); } });
 window.addEventListener('cozinha-tasks-updated', () => render());
 document.addEventListener('change',e=>{if(e.target.matches('[data-j-unit]')){unit=e.target.value;render();}});
 document.addEventListener('input',e=>{if(e.target.matches('[data-j-search]')){search=e.target.value;const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));$('#journeyTeamRows').innerHTML=teamResults(r);}});
