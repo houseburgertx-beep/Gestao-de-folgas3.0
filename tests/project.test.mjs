@@ -3351,6 +3351,24 @@ test("Resiliência do Ponto: triplo fallback de câmera, captura nativa e contin
   assert.match(apiClockJs, /Portaria671Valido:\s*true/, "Marcação deve ser registrada como válida perante a Portaria 671");
 });
 
+test("UX Mobile: botões de confirmação 100% visíveis em todos os modais e selfie compacta", async () => {
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  const cozinhaflowCss = await readFile(new URL("../src/cozinhaflow.css", import.meta.url), "utf8");
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+
+  // 1. Modais universais mobile possuem altura máxima e rodapé sticky para botões nunca sumirem
+  assert.match(cozinhaflowCss, /max-height:\s*calc\(100dvh\s*-\s*16px\)/, "Modais devem ter max-height para caber na tela");
+  assert.match(cozinhaflowCss, /dialog\s*\.dialog-actions[\s\S]*position:\s*sticky/, "Ações do modal devem ser sticky no rodapé");
+
+  // 2. Selfie do ponto: botões de confirmação agrupados lado a lado após a captura
+  assert.match(dialogsHtml, /id="clockSelfieConfirmRow"/, "Deve existir container para linha de confirmação/retake");
+  assert.match(cozinhaflowCss, /\.clock-selfie-confirm-row[\s\S]*grid-template-columns/, "Retake e Confirmar devem ficar lado a lado");
+  assert.match(cozinhaflowCss, /#clockSelfieDialog \.hidden[\s\S]*display:\s*none\s*!important/, "Elementos ocultos não devem ocupar espaço");
+
+  // 3. Scripts.html: alternância correta de visibilidade dos botões
+  assert.match(scriptsHtml, /clockSelfieConfirmRow/, "Scripts devem gerenciar visibilidade da linha de confirmação");
+});
+
 
 
 

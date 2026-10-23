@@ -6922,6 +6922,7 @@
     video?.classList.remove("hidden");
     placeholder?.classList.remove("hidden");
     retake?.classList.add("hidden");
+    $("#clockSelfieConfirmRow")?.classList.add("hidden");
     capture?.classList.remove("hidden");
     nativeCapture?.classList.add("hidden");
     contingency?.classList.add("hidden");
@@ -7021,6 +7022,7 @@
     nativeCapture?.classList.remove("hidden");
     contingency?.classList.remove("hidden");
     placeholder?.classList.remove("hidden");
+    $("#clockSelfieConfirmRow")?.classList.add("hidden");
     if (status) status.textContent = message;
   }
   function activateClockSelfieContingency_() {
@@ -7090,6 +7092,7 @@
     nativeCapture?.classList.add("hidden");
     contingency?.classList.add("hidden");
     retake?.classList.remove("hidden");
+    $("#clockSelfieConfirmRow")?.classList.remove("hidden");
     if (confirm) confirm.disabled = false;
     if (status) status.textContent = "Contingência ativada. Confirme para registrar o ponto.";
     toast("Contingência de câmera ativada. Confirme para registrar seu ponto.");
@@ -7186,7 +7189,9 @@
     canvas.classList.remove("hidden");
     $("#clockSelfieCapture").classList.add("hidden");
     $("#clockSelfieNative").classList.add("hidden");
+    $("#clockSelfieContingency")?.classList.add("hidden");
     $("#clockSelfieRetake").classList.remove("hidden");
+    $("#clockSelfieConfirmRow")?.classList.remove("hidden");
     $("#clockSelfieConfirm").disabled = false;
   }
   async function captureClockSelfie_() {

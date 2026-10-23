@@ -686,17 +686,27 @@
         Autorize o uso da câmera para continuar.
       </p>
     </div>
-    <div class="dialog-actions clock-selfie-actions">
-      <button
-        id="clockSelfieRetake"
-        type="button"
-        class="btn btn-secondary hidden"
-      >
-        Tirar novamente
-      </button>
+    <div class="dialog-actions clock-selfie-actions" id="clockSelfieActions">
       <button id="clockSelfieCapture" type="button" class="btn btn-secondary">
         Capturar selfie
       </button>
+      <div id="clockSelfieConfirmRow" class="clock-selfie-confirm-row hidden">
+        <button
+          id="clockSelfieRetake"
+          type="button"
+          class="btn btn-secondary hidden"
+        >
+          Tirar novamente
+        </button>
+        <button
+          id="clockSelfieConfirm"
+          class="btn btn-primary"
+          type="submit"
+          disabled
+        >
+          Confirmar ponto
+        </button>
+      </div>
       <button
         id="clockSelfieNative"
         type="button"
@@ -710,14 +720,6 @@
         class="btn btn-ghost hidden"
       >
         Câmera indisponível? Bater ponto por contingência
-      </button>
-      <button
-        id="clockSelfieConfirm"
-        class="btn btn-primary"
-        type="submit"
-        disabled
-      >
-        Confirmar ponto
       </button>
     </div>
   </form>
