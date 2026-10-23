@@ -3214,6 +3214,44 @@ test("PWA / SW: Injeção de ativos gerados pelo Vite no pré-cache do Service W
   assert.match(pkg.scripts.build, /postbuild-sw\.mjs/, "build deve executar postbuild-sw.mjs");
 });
 
+test("LGPD: Política de Privacidade e Proteção de Dados Pessoais do Grupo House 190", async () => {
+  // 1. Template documental no api-documents
+  const apiDocs = await readFile(new URL("../src/core/api-documents.js", import.meta.url), "utf8");
+  assert.match(apiDocs, /"politica-privacidade"/, "deve existir modelo de termo de política de privacidade");
+  assert.match(apiDocs, /TERMO DE CIÊNCIA E RECEBIMENTO DA POLÍTICA DE PRIVACIDADE/, "título oficial do termo");
+
+  // 2. Opção no dropdown do módulo de documentos
+  const docsJs = await readFile(new URL("../src/documents.js", import.meta.url), "utf8");
+  assert.match(docsJs, /value="politica-privacidade"/, "documents.js deve disponibilizar o modelo no select");
+
+  // 3. Modal oficial completo com 23 seções no Dialogs.html
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  assert.match(dialogsHtml, /id="privacyPolicyDialog"/, "Dialogs.html deve conter o modal da política de privacidade");
+  assert.match(dialogsHtml, /1\. APRESENTAÇÃO E OBJETIVO/, "deve conter a Seção 1");
+  assert.match(dialogsHtml, /6\. REGISTRO ELETRÔNICO DE PONTO/, "deve conter a Seção 6");
+  assert.match(dialogsHtml, /7\. UTILIZAÇÃO DE CÂMERA E SELFIE/, "deve conter a Seção 7");
+  assert.match(dialogsHtml, /8\. UTILIZAÇÃO DE LOCALIZAÇÃO/, "deve conter a Seção 8");
+  assert.match(dialogsHtml, /10\. BANCO DE HORAS E COMPENSAÇÕES/, "deve conter a Seção 10");
+  assert.match(dialogsHtml, /11\. ATESTADOS MÉDICOS E DADOS SENSÍVEIS/, "deve conter a Seção 11");
+  assert.match(dialogsHtml, /17\. COMPARTILHAMENTO DE DADOS E FORNECEDORES/, "deve conter a Seção 17");
+  assert.match(dialogsHtml, /22\. DIREITOS DOS COLABORADORES/, "deve conter a Seção 22");
+  assert.match(dialogsHtml, /23\. CANAL DE PRIVACIDADE E DISPOSIÇÕES FINAIS/, "deve conter a Seção 23");
+  assert.match(dialogsHtml, /privacidade@grupohouse190\.com\.br/, "deve informar o e-mail oficial de privacidade");
+
+  // 4. Acessibilidade na tela de login e na barra lateral
+  const indexHtml = await readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8");
+  assert.match(indexHtml, /openPrivacyPolicyDialog\(\)/, "Index.html deve conter gatilhos para abertura da política");
+  assert.match(indexHtml, /Privacidade \(LGPD\)/, "Index.html deve exibir rótulo claro e acessível");
+
+  // 5. Funções de controle e registro de ciência em Scripts.html
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  assert.match(scriptsHtml, /function openPrivacyPolicyDialog\(\)/, "Scripts.html deve implementar openPrivacyPolicyDialog");
+  assert.match(scriptsHtml, /function acknowledgePrivacyPolicy_\(\)/, "Scripts.html deve implementar acknowledgePrivacyPolicy_");
+  assert.match(scriptsHtml, /function printPrivacyPolicy_\(\)/, "Scripts.html deve implementar printPrivacyPolicy_");
+  assert.match(scriptsHtml, /window\.openPrivacyPolicyDialog = openPrivacyPolicyDialog/, "deve expor no window");
+});
+
+
 
 
 

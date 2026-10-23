@@ -154,7 +154,7 @@
               <span>Entrar com Conta Google</span>
             </button>
             <p id="loginError" class="login-error hidden"></p>
-            <p class="login-version">Folgas 3.0 &middot; CozinhaFlow v1.5.0 &middot; <button type="button" id="forcePwaUpdateBtn" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:inherit;text-decoration:underline;padding:0;">Atualizar PWA</button></p>
+            <p class="login-version">Folgas 3.0 &middot; CozinhaFlow v1.5.0 &middot; <button type="button" id="forcePwaUpdateBtn" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:inherit;text-decoration:underline;padding:0;">Atualizar PWA</button> &middot; <button type="button" onclick="openPrivacyPolicyDialog()" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:inherit;text-decoration:underline;padding:0;">Privacidade (LGPD)</button></p>
           </form>
           <form id="resetPasswordForm" class="login-card hidden">
             <button
@@ -303,7 +303,9 @@
           </details>
         </nav>
         <div class="sidebar-foot">
-          <button id="themeToggle" class="nav-item">
+          <button type="button" class="nav-item" onclick="openPrivacyPolicyDialog()">
+            <span>§</span><b>Privacidade (LGPD)</b></button
+          ><button id="themeToggle" class="nav-item">
             <span>◐</span><b>Alternar tema</b></button
           ><button id="logoutBtn" class="nav-item">
             <span>↪</span><b>Sair</b>

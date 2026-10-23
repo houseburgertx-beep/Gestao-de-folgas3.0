@@ -868,6 +868,13 @@
           <span>Vincular Conta Google</span>
         </button>
       </div>
+      <div class="profile-privacy-card" style="background:var(--bg-hover, #f8fafc); border:1px solid var(--border-color, #e2e8f0); border-radius:12px; padding:12px 14px; margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <div>
+          <strong style="font-size:13px; color:var(--text-primary, #0f172a); display:block;">Privacidade e Proteção de Dados (LGPD)</strong>
+          <span style="font-size:11.5px; color:var(--text-muted, #64748b);">Consulte a política oficial e seu registro de ciência</span>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openPrivacyPolicyDialog()">Ver Política</button>
+      </div>
       <h4 class="dialog-section-title">Alterar senha</h4>
       <div class="dialog-grid">
         <label
@@ -1518,6 +1525,176 @@
     <button type="button" class="btn btn-primary" onclick="printClockReceipt_()">Imprimir comprovante</button>
   </div>
 </dialog>
+
+<!-- Modal Oficial de Política de Privacidade e Proteção de Dados Pessoais (LGPD) -->
+<dialog id="privacyPolicyDialog" class="privacy-policy-dialog" style="max-width: 860px; width: 95vw; max-height: 90vh; border-radius: 18px; padding: 0; border: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color, #e2e8f0); background: var(--bg-hover, #f8fafc);">
+    <div>
+      <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: var(--primary, #6340d8);">Conformidade LGPD · Lei nº 13.709/2018</span>
+      <h3 style="margin: 2px 0 0; font-size: 18px; font-weight: 700; color: var(--text-primary, #0f172a);">Política de Privacidade e Proteção de Dados Pessoais</h3>
+      <small style="color: var(--text-muted, #64748b);">Grupo House 190 · Gestão de Folgas 3.0 · Versão 1.0 (Vigência: Outubro de 2026)</small>
+    </div>
+    <button type="button" class="btn-ghost btn-sm" onclick="closeDialog('privacyPolicyDialog')" style="font-size: 18px; line-height: 1; padding: 6px 10px; border: none; background: transparent; cursor: pointer; color: var(--text-muted, #64748b);">✕</button>
+  </div>
+  <div id="privacyPolicyDialogBody" style="padding: 24px 28px; max-height: calc(90vh - 145px); overflow-y: auto; font-size: 13.5px; line-height: 1.65; color: var(--text-secondary, #334155); scrollbar-width: thin;">
+    <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 12.5px;">
+      <strong>Grupo House 190 — Gestão de Folgas 3.0</strong><br>
+      <strong>Controladora(s):</strong> Empresas do Grupo House 190 (House Burger Teixeira, House Burger Eunápolis, House Foodpark)<br>
+      <strong>Canal Oficial de Privacidade:</strong> privacidade@grupohouse190.com.br (e Recursos Humanos)
+    </div>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">1. APRESENTAÇÃO E OBJETIVO</h4>
+    <p>O Grupo House 190, por meio das empresas responsáveis pelas respectivas relações de trabalho, estabelece esta Política de Privacidade e Proteção de Dados Pessoais para orientar o tratamento das informações dos colaboradores que utilizam o sistema Gestão de Folgas 3.0.</p>
+    <p>O sistema é uma plataforma interna de organização operacional e gestão de equipes, destinada ao acompanhamento de jornadas, registros de ponto, folgas, escalas, banco de horas, documentos, solicitações, comunicações e demais atividades profissionais.</p>
+    <p>Esta Política tem como objetivos:</p>
+    <ul style="margin: 6px 0 12px 20px; padding: 0;">
+      <li>Informar quais dados pessoais são tratados e para quais finalidades.</li>
+      <li>Estabelecer critérios de utilização, segurança, acesso e armazenamento.</li>
+      <li>Garantir transparência sobre as funcionalidades de monitoramento e controle de jornada.</li>
+      <li>Proteger a privacidade e os direitos dos colaboradores.</li>
+      <li>Estabelecer procedimentos de registro de ciência da Política.</li>
+      <li>Promover a conformidade com a Lei Geral de Proteção de Dados Pessoais — LGPD (Lei nº 13.709/2018) e demais normas aplicáveis.</li>
+    </ul>
+    <p>A presente Política aplica-se aos colaboradores, gestores, administradores e demais usuários autorizados do sistema, respeitadas as particularidades de cada vínculo profissional.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">2. IDENTIFICAÇÃO DOS RESPONSÁVEIS PELOS DADOS</h4>
+    <p>Cada empresa empregadora integrante do Grupo House 190 será identificada como controladora dos dados pessoais relacionados aos seus respectivos colaboradores, conforme sua atuação efetiva e as decisões sobre o tratamento.</p>
+    <p>Quando houver compartilhamento ou gestão centralizada de dados entre empresas do grupo, deverão ser observadas as responsabilidades de cada participante e a necessidade desse compartilhamento.</p>
+    <p>Os prestadores de serviços tecnológicos poderão atuar como operadores ou controladores independentes, conforme suas responsabilidades contratuais e a natureza do serviço.</p>
+    <p>O colaborador poderá solicitar informações sobre a empresa responsável pelo tratamento de seus dados pelo canal de privacidade indicado nesta Política.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">3. DADOS PESSOAIS TRATADOS</h4>
+    <p>Conforme as funcionalidades utilizadas e o perfil de acesso, o sistema poderá tratar as seguintes categorias de informações:</p>
+    <p><strong>3.1. Dados de identificação e cadastro:</strong> Nome completo, CPF, telefone, e-mail, unidade de trabalho, cargo, função, data de admissão, tipo de contrato, situação cadastral, jornada contratual e identificadores internos.</p>
+    <p><strong>3.2. Dados de autenticação e acesso:</strong> Identificador de usuário, e-mail de acesso, informações de autenticação fornecidas pelo serviço responsável, datas e horários de acesso, registros de sessão, identificadores de dispositivo e informações técnicas de segurança, conforme a configuração efetivamente adotada. As senhas não deverão ser armazenadas em texto legível nos cadastros operacionais do sistema.</p>
+    <p><strong>3.3. Dados de jornada e ponto eletrônico:</strong> Datas e horários de entrada, saída, intervalos, retornos, carga horária prevista, horas trabalhadas, faltas, atrasos, saídas antecipadas, divergências, solicitações de correção, ajustes e histórico das alterações.</p>
+    <p><strong>3.4. Dados de escalas, folgas e banco de horas:</strong> Folgas previstas e realizadas, solicitações, trocas, aprovações, recusas, justificativas, compensações, saldos positivos e negativos, fechamentos de períodos e histórico das decisões administrativas.</p>
+    <p><strong>3.5. Imagens, selfies e localização:</strong> Quando utilizadas as funcionalidades correspondentes, poderão ser tratados registros fotográficos e dados de localização necessários à validação do registro de ponto, à identificação do responsável pela marcação e à verificação da unidade de trabalho.</p>
+    <p><strong>3.6. Dados de saúde e justificativas de ausência:</strong> Quando necessário à administração de afastamentos e ao cumprimento de obrigações legais, poderão ser tratados atestados médicos, períodos de afastamento e outras informações indispensáveis à análise das justificativas. Dados de saúde são considerados sensíveis e exigem proteção reforçada.</p>
+    <p><strong>3.7. Documentos profissionais:</strong> Contratos, termos, holerites, comprovantes, declarações, registros de assinatura eletrônica e documentos relacionados à relação profissional, quando disponibilizados no portal.</p>
+    <p><strong>3.8. Atividades operacionais:</strong> Tarefas designadas, checklists, confirmações de execução, registros fotográficos de atividades, manifestações de ciência, justificativas e aprovações de gestores.</p>
+    <p><strong>3.9. Comunicações internas e benefícios:</strong> Confirmações de leitura, avisos, respostas a enquetes, participação em programas internos, recompensas, pontuações e informações de consumo ou valores quando houver integração autorizada com sistemas de gestão comercial.</p>
+    <p>Serão coletados apenas os dados necessários às finalidades legítimas e informadas.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">4. FINALIDADES DO TRATAMENTO</h4>
+    <p>Os dados pessoais serão tratados para:</p>
+    <ul style="margin: 6px 0 12px 20px; padding: 0;">
+      <li>Administrar a relação de trabalho e os cadastros profissionais.</li>
+      <li>Registrar e acompanhar a jornada de trabalho.</li>
+      <li>Elaborar escalas e organizar folgas.</li>
+      <li>Calcular e conferir saldos do banco de horas.</li>
+      <li>Gerenciar faltas, afastamentos e justificativas.</li>
+      <li>Receber e analisar solicitações dos colaboradores.</li>
+      <li>Fornecer acesso individualizado a informações profissionais.</li>
+      <li>Organizar tarefas e acompanhar a execução de atividades.</li>
+      <li>Administrar documentos e comprovantes.</li>
+      <li>Proteger o sistema contra acessos não autorizados e fraudes.</li>
+      <li>Investigar inconsistências e manter trilhas de auditoria.</li>
+      <li>Cumprir obrigações legais, regulatórias e contratuais.</li>
+      <li>Exercer regularmente direitos em processos administrativos ou judiciais.</li>
+      <li>Administrar programas internos de benefícios e reconhecimento, conforme regras próprias.</li>
+      <li>Produzir relatórios necessários à gestão de pessoal, respeitando critérios de proporcionalidade e acesso restrito.</li>
+    </ul>
+    <p>É proibida a reutilização incompatível dos dados para finalidades não informadas ou não amparadas pela legislação.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">5. BASES LEGAIS</h4>
+    <p>O tratamento dos dados pessoais observará as hipóteses legais previstas nos artigos 7º e 11 da LGPD, conforme a categoria dos dados e a finalidade específica:</p>
+    <ul style="margin: 6px 0 12px 20px; padding: 0;">
+      <li><strong>Cumprimento de obrigação legal ou regulatória:</strong> registro de jornada, documentos trabalhistas e demais obrigações previstas na legislação.</li>
+      <li><strong>Execução contratual:</strong> administração de informações necessárias ao cumprimento da relação contratual, observados os requisitos legais.</li>
+      <li><strong>Exercício regular de direitos:</strong> conservação e utilização de registros necessários à comprovação de direitos e obrigações.</li>
+      <li><strong>Legítimo interesse:</strong> determinadas atividades proporcionais de segurança, prevenção de fraudes e administração operacional, após avaliação dos direitos e expectativas legítimas dos titulares, sem utilização dessa base para dados pessoais sensíveis.</li>
+      <li><strong>Consentimento:</strong> exclusivamente quando for a base legal adequada e houver possibilidade efetiva de manifestação livre, informada e inequívoca.</li>
+    </ul>
+    <p>A ciência desta Política não constitui autorização genérica para qualquer tratamento de dados pessoais. Tratamentos opcionais que dependam de consentimento terão manifestação específica e possibilidade de revogação, conforme a legislação.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">6. REGISTRO ELETRÔNICO DE PONTO</h4>
+    <p>O sistema poderá ser utilizado para registrar entradas, saídas, intervalos e demais eventos relativos à jornada dos colaboradores. Cada marcação deverá representar o horário efetivamente realizado pelo trabalhador, observadas as regras legais aplicáveis. As marcações e os ajustes deverão possuir mecanismos de rastreabilidade. Em caso de esquecimento, erro ou divergência, o colaborador poderá solicitar correção por meio dos procedimentos disponibilizados pela empresa. Os ajustes administrativos deverão identificar o responsável, a data, a justificativa e os dados alterados, preservando o histórico necessário. A utilização do sistema não dispensa a empresa do cumprimento da legislação trabalhista e dos requisitos técnicos aplicáveis ao registro eletrônico de ponto.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">7. UTILIZAÇÃO DE CÂMERA E SELFIE</h4>
+    <p>A funcionalidade de captura de selfie poderá ser utilizada no momento da marcação de ponto para auxiliar a conferência da identidade do colaborador e a prevenção de registros realizados por terceiros. A coleta deve ser limitada às ocasiões necessárias à finalidade informada. As imagens deverão ser protegidas contra acesso não autorizado, utilização indevida e compartilhamento incompatível com sua finalidade. O acesso deverá ficar restrito aos profissionais autorizados que necessitem da informação para executar suas atribuições. As imagens não deverão ser utilizadas para divulgação publicitária, redes sociais ou outras finalidades incompatíveis com o registro de jornada. O uso de tecnologias de reconhecimento facial ou identificação biométrica, caso venha a existir, dependerá de avaliação específica de necessidade, proporcionalidade, segurança e hipótese legal para tratamento de dados sensíveis. A simples captura de fotografia não significa necessariamente que o sistema realize reconhecimento biométrico. A empresa deverá disponibilizar procedimento alternativo para situações de impossibilidade técnica, falha da câmera, acessibilidade ou outras circunstâncias justificadas.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">8. UTILIZAÇÃO DE LOCALIZAÇÃO</h4>
+    <p>O sistema poderá solicitar acesso à localização do dispositivo no momento da marcação de ponto, para verificar a compatibilidade do registro com o local de trabalho autorizado. A localização deverá ser utilizada somente para finalidades relacionadas à validação do registro e à segurança da operação. A coleta deverá respeitar os princípios da necessidade, adequação e minimização de dados. O sistema não deverá realizar rastreamento contínuo da localização pessoal do colaborador fora das situações expressamente informadas e juridicamente justificadas. Os dados efetivamente armazenados, sua precisão e seus prazos de retenção deverão ser documentados. A concessão de permissão técnica de localização pelo dispositivo não representa, por si só, consentimento para outras finalidades. Falhas de GPS e situações excepcionais deverão ser analisadas por procedimento apropriado, sem presumir automaticamente irregularidade praticada pelo colaborador.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">9. ESCALAS, FOLGAS E TROCAS</h4>
+    <p>O sistema poderá registrar escalas, folgas fixas e variáveis, solicitações de alteração, trocas entre colaboradores e decisões dos gestores. As informações serão utilizadas para organizar o funcionamento das unidades, acompanhar solicitações e documentar as decisões. A confirmação de recebimento de uma escala ou de uma alteração não será interpretada, isoladamente, como renúncia a direitos trabalhistas. As folgas, os intervalos e as compensações deverão observar a legislação aplicável, os instrumentos coletivos e os acordos válidos. Toda alteração administrativa relevante deverá manter histórico para consulta e conferência.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">10. BANCO DE HORAS E COMPENSAÇÕES</h4>
+    <p>O sistema poderá calcular, apresentar e registrar horas trabalhadas, horas previstas, créditos, débitos, ajustes, compensações e fechamentos de períodos. Os cálculos têm finalidade de acompanhamento e administração da jornada. Qualquer compensação ou regime de banco de horas deverá observar os requisitos legais e os acordos aplicáveis. A consulta ou ciência dos saldos apresentados não constitui concordância definitiva com os cálculos, quitação de valores ou renúncia ao direito de solicitar revisão. O colaborador poderá comunicar inconsistências à administração, que deverá disponibilizar procedimento para análise e resposta. Os registros originais e as alterações relevantes deverão ser preservados conforme as exigências legais e técnicas aplicáveis.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">11. ATESTADOS MÉDICOS E DADOS SENSÍVEIS</h4>
+    <p>Informações relacionadas à saúde serão tratadas somente quando necessárias para analisar afastamentos, justificar ausências ou cumprir obrigações legalmente estabelecidas. A empresa deverá restringir o acesso a esses documentos aos profissionais expressamente autorizados. Diagnósticos, códigos de doenças e demais informações clínicas não deverão ser exigidos ou divulgados indiscriminadamente. O tratamento respeitará as hipóteses legais específicas aplicáveis aos dados sensíveis. Os documentos deverão ser armazenados de maneira protegida, com regras específicas de acesso e retenção. Gestores operacionais deverão receber, preferencialmente, apenas as informações administrativas necessárias à organização da jornada e das escalas.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">12. DOCUMENTOS, HOLERITES E ASSINATURAS</h4>
+    <p>O sistema poderá disponibilizar documentos profissionais para consulta e assinatura eletrônica. Cada assinatura ou confirmação deverá estar associada ao documento correspondente, ao usuário autenticado, à data e hora do evento e aos registros técnicos necessários à rastreabilidade. O método de assinatura deverá ser compatível com a natureza do documento e seus requisitos legais. A confirmação de ciência de documento informativo não deverá ser confundida com assinatura de acordo trabalhista, reconhecimento de dívida, quitação de valores ou alteração contratual. Cada documento que exija manifestação específica deverá possuir apresentação e confirmação próprias.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">13. TAREFAS, CHECKLISTS E ATIVIDADES OPERACIONAIS</h4>
+    <p>O sistema poderá registrar responsáveis por tarefas, horários, orientações, confirmações, fotografias comprobatórias e aprovações de gestores. Esses dados serão utilizados para organizar a operação, comprovar a execução de atividades e identificar pendências. As informações não deverão ser utilizadas para exposição vexatória, tratamento discriminatório ou finalidade incompatível com a atividade profissional. Os registros poderão compor avaliações operacionais, mediante critérios transparentes, objetivos e pertinentes às funções desempenhadas.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">14. INDICADORES, RANKINGS E AUTOMAÇÕES</h4>
+    <p>O sistema poderá apresentar indicadores de assiduidade, organização de equipes, distribuição de folgas, produtividade operacional e outros resultados relacionados às funcionalidades utilizadas. Os critérios relevantes deverão ser transparentes e sujeitos a conferência. Sempre que houver decisões tomadas unicamente com base em tratamento automatizado que afetem interesses do titular, serão observados os direitos previstos na legislação, inclusive o direito de solicitar revisão nos casos aplicáveis. Rankings e pontuações não deverão, isoladamente, fundamentar sanções ou decisões trabalhistas sem avaliação adequada. O uso de recursos de inteligência artificial deverá ser limitado às finalidades previamente informadas, com salvaguardas proporcionais. Dados sensíveis, fotografias de ponto e documentos pessoais não deverão ser enviados indiscriminadamente a serviços de inteligência artificial.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">15. COMUNICAÇÕES INTERNAS</h4>
+    <p>O sistema poderá disponibilizar comunicados, avisos, lembretes, enquetes e confirmações de ciência. As confirmações poderão ser registradas individualmente para comprovar a disponibilização e a manifestação do colaborador. A empresa deverá distinguir ciência de comunicado, aceite de termo, concordância com alteração contratual e consentimento para tratamento de dados. Notificações opcionais poderão ser ativadas ou desativadas conforme as configurações disponíveis.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">16. CONSUMO INTERNO, VALES E RECOMPENSAS</h4>
+    <p>Quando houver integração com sistemas de consumo interno, poderão ser processadas informações necessárias à identificação de contas vinculadas, limites, saldos, movimentações e benefícios aplicáveis. O acesso aos dados financeiros individuais deverá ser limitado aos responsáveis autorizados e ao próprio titular, conforme sua finalidade. A utilização dessas informações deverá observar os critérios legais aplicáveis a descontos, compensações e obrigações trabalhistas. A ciência desta Política não autoriza automaticamente descontos salariais, reconhecimento de dívidas ou compensações financeiras que dependam de fundamento próprio. Programas de recompensas terão critérios específicos, transparentes e comunicados aos participantes.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">17. COMPARTILHAMENTO DE DADOS E FORNECEDORES</h4>
+    <p>Para operar o sistema, determinadas informações poderão ser tratadas por prestadores de serviços tecnológicos, de autenticação, hospedagem, armazenamento, comunicação e gestão empresarial. Conforme as integrações efetivamente utilizadas, esses serviços poderão incluir:</p>
+    <ul style="margin: 6px 0 12px 20px; padding: 0;">
+      <li>Google Firebase e demais serviços Google necessários à operação.</li>
+      <li>Google Drive, para armazenamento documental e imagens.</li>
+      <li>Google Calendar, para eventos e escalas, quando habilitado.</li>
+      <li>Takeat, para dados de consumo interno, quando integrado.</li>
+      <li>WhatsApp e serviços de comunicação, quando utilizados.</li>
+      <li>Serviços de inteligência artificial, quando expressamente habilitados e compatíveis com as finalidades autorizadas.</li>
+    </ul>
+    <p>O compartilhamento deverá limitar-se às informações necessárias e observar os requisitos legais e contratuais. A empresa não comercializará dados pessoais dos colaboradores. Eventuais transferências internacionais de dados deverão observar as condições e os mecanismos exigidos pela LGPD. O uso efetivo de cada fornecedor, as categorias de dados compartilhadas e as condições contratuais deverão ser identificados no inventário de tratamento da empresa.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">18. SEGURANÇA DA INFORMAÇÃO</h4>
+    <p>O Grupo House 190 deverá adotar medidas técnicas e administrativas proporcionais aos riscos envolvidos, incluindo, quando aplicável: autenticação segura; controle de acesso por usuário, perfil e unidade; restrição de acesso a informações sensíveis; registros de auditoria; proteção de dados durante transmissão e armazenamento; controle de permissões administrativas; procedimentos de cópia de segurança e recuperação; revisão e revogação de acessos desnecessários; tratamento de incidentes de segurança; e proteção dos comprovantes eletrônicos e históricos de alterações. A implementação e a efetividade dessas medidas deverão ser verificadas periodicamente. Nenhum ambiente digital está totalmente imune a riscos. Incidentes relevantes serão tratados conforme os procedimentos e as obrigações legais aplicáveis.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">19. RESPONSABILIDADES DOS USUÁRIOS</h4>
+    <p>Cada usuário deverá proteger suas credenciais de acesso e utilizar exclusivamente sua conta individual. Não é permitido compartilhar senhas, utilizar a identidade digital de outro colaborador, falsificar marcações, manipular registros ou acessar informações sem autorização. Suspeitas de acesso indevido, perda de credenciais e possíveis incidentes deverão ser comunicados à administração pelos canais disponibilizados. As medidas disciplinares eventualmente relacionadas ao uso irregular do sistema dependerão de apuração, proporcionalidade e observância da legislação.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">20. COOKIES E ARMAZENAMENTO LOCAL</h4>
+    <p>O sistema poderá utilizar mecanismos de sessão e armazenamento local necessários à autenticação, segurança, funcionamento do aplicativo instalado e manutenção de preferências. Esses recursos poderão envolver cookies, localStorage, IndexedDB ou outros mecanismos técnicos, conforme a implementação. O inventário de tecnologias utilizadas deverá identificar suas finalidades e características. Caso venham a ser utilizados recursos opcionais de publicidade ou rastreamento, deverão ser adotados os controles e as informações exigidos pela legislação.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">21. ARMAZENAMENTO E RETENÇÃO</h4>
+    <p>Os dados serão mantidos pelo período necessário às finalidades legítimas e aos prazos legais aplicáveis. O prazo de conservação poderá variar conforme a natureza dos dados, as obrigações trabalhistas, a necessidade de comprovação de registros, o exercício regular de direitos e outras exigências normativas. O encerramento do vínculo profissional não implica eliminação automática dos registros cuja conservação seja legalmente necessária. Encerrada a finalidade e inexistindo outra hipótese legal de conservação, os dados deverão ser eliminados ou anonimizados, conforme aplicável. A empresa deverá manter uma tabela interna de retenção por categoria de dado, abrangendo também cópias de segurança e registros de auditoria.</p>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">22. DIREITOS DOS COLABORADORES</h4>
+    <p>Nos termos da LGPD (Art. 18 da Lei nº 13.709/2018), o titular poderá solicitar, conforme os requisitos legais:</p>
+    <ul style="margin: 6px 0 12px 20px; padding: 0;">
+      <li>Confirmação de existência de tratamento de dados.</li>
+      <li>Acesso às suas informações pessoais.</li>
+      <li>Correção de dados incompletos, inexatos ou desatualizados.</li>
+      <li>Informação sobre compartilhamentos realizados.</li>
+      <li>Informação sobre as finalidades e hipóteses legais aplicáveis.</li>
+      <li>Anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou tratados em desconformidade com a legislação.</li>
+      <li>Portabilidade dos dados a outro fornecedor, observadas as normas regulamentares e segredos comerciais.</li>
+      <li>Eliminação dos dados pessoais tratados com o consentimento do titular, ressalvadas as hipóteses legais de conservação.</li>
+      <li>Revogação do consentimento, quando esta for a base legal aplicável.</li>
+      <li>Revisão de decisões tomadas unicamente com base em tratamento automatizado, quando aplicável.</li>
+    </ul>
+
+    <h4 style="font-size: 15px; margin: 18px 0 6px; color: var(--text-primary, #0f172a);">23. CANAL DE PRIVACIDADE E DISPOSIÇÕES FINAIS</h4>
+    <p>Para exercer seus direitos, esclarecer dúvidas, solicitar informações sobre a empresa responsável pelo tratamento dos seus dados ou comunicar incidentes de privacidade, o colaborador poderá entrar em contato pelo canal oficial de privacidade:</p>
+    <p><strong>Canal Oficial de Privacidade:</strong> privacidade@grupohouse190.com.br (ou diretamente junto ao departamento de Recursos Humanos do Grupo House 190).</p>
+    <p>Esta Política de Privacidade poderá ser atualizada periodicamente para refletir melhorias técnicas, adequações operacionais e atualizações legislativas, mantendo-se sempre disponível para consulta no aplicativo Gestão de Folgas 3.0.</p>
+  </div>
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-top: 1px solid var(--border-color, #e2e8f0); background: var(--bg-hover, #f8fafc); flex-wrap: wrap; gap: 10px;">
+    <div id="privacyPolicyAckStatus" style="font-size: 12px; color: var(--text-muted, #64748b);"></div>
+    <div style="display: flex; gap: 8px;">
+      <button type="button" class="btn btn-secondary" onclick="printPrivacyPolicy_()">Imprimir via física</button>
+      <button type="button" class="btn btn-secondary" onclick="closeDialog('privacyPolicyDialog')">Fechar</button>
+      <button type="button" class="btn btn-primary" id="privacyPolicyAckBtn" onclick="acknowledgePrivacyPolicy_()">Registrar ciência</button>
+    </div>
+  </div>
+</dialog>
+
 
 
 

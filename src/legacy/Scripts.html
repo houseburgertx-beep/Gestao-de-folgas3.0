@@ -7213,6 +7213,114 @@
   window.showTimeClockReceipt_ = showTimeClockReceipt_;
   window.printClockReceipt_ = printClockReceipt_;
 
+  function openPrivacyPolicyDialog() {
+    updatePrivacyPolicyAckUI_();
+    openDialog("privacyPolicyDialog");
+  }
+
+  function getPrivacyPolicyAck_() {
+    const user = state.user;
+    if (!user) return null;
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+    if (!uid) return null;
+    try {
+      const raw = localStorage.getItem(`gf_privacy_policy_ack_${uid}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function updatePrivacyPolicyAckUI_() {
+    const statusEl = $("#privacyPolicyAckStatus");
+    const ackBtn = $("#privacyPolicyAckBtn");
+    const user = state.user;
+    const ack = getPrivacyPolicyAck_() || (user && user.PoliticaPrivacidadeCiente ? {
+      version: user.PoliticaPrivacidadeVersao || "1.0",
+      acknowledgedAt: user.PoliticaPrivacidadeData || "",
+    } : null);
+
+    if (!user) {
+      if (statusEl) statusEl.textContent = "Disponível para consulta pública.";
+      if (ackBtn) {
+        ackBtn.style.display = "none";
+      }
+      return;
+    }
+
+    if (ack && ack.acknowledgedAt) {
+      const d = new Date(ack.acknowledgedAt);
+      const formatted = isNaN(d.getTime()) ? ack.acknowledgedAt : d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      if (statusEl) statusEl.innerHTML = `<span style="color:#059669; font-weight:600;">✓ Ciência registrada em ${esc(formatted)} (v${esc(ack.version || "1.0")})</span>`;
+      if (ackBtn) {
+        ackBtn.style.display = "inline-block";
+        ackBtn.disabled = true;
+        ackBtn.textContent = "Ciência confirmada";
+        ackBtn.classList.remove("btn-primary");
+        ackBtn.classList.add("btn-secondary");
+      }
+    } else {
+      if (statusEl) statusEl.textContent = "Ciência da política pendente de registro.";
+      if (ackBtn) {
+        ackBtn.style.display = "inline-block";
+        ackBtn.disabled = false;
+        ackBtn.textContent = "Registrar ciência";
+        ackBtn.classList.remove("btn-secondary");
+        ackBtn.classList.add("btn-primary");
+      }
+    }
+  }
+
+  async function acknowledgePrivacyPolicy_() {
+    const user = state.user;
+    if (!user) {
+      return toast("Entre com sua conta para registrar a ciência da política.", true);
+    }
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+    const ackBtn = $("#privacyPolicyAckBtn");
+    if (ackBtn) {
+      ackBtn.disabled = true;
+      ackBtn.textContent = "Registrando…";
+    }
+    const now = new Date().toISOString();
+    try {
+      localStorage.setItem(`gf_privacy_policy_ack_${uid}`, JSON.stringify({
+        version: "1.0",
+        acknowledgedAt: now,
+        email: user.Email || user.email,
+      }));
+      if (sessionToken()) {
+        await call(FN.patchUser, sessionToken(), {
+          usuarioId: uid,
+          PoliticaPrivacidadeCiente: true,
+          PoliticaPrivacidadeData: now,
+          PoliticaPrivacidadeVersao: "1.0",
+        }).catch(() => {});
+      }
+      if (state.user) {
+        state.user.PoliticaPrivacidadeCiente = true;
+        state.user.PoliticaPrivacidadeData = now;
+        state.user.PoliticaPrivacidadeVersao = "1.0";
+      }
+      updatePrivacyPolicyAckUI_();
+      toast("Ciência da Política de Privacidade registrada com sucesso.");
+    } catch (err) {
+      toast("Erro ao registrar ciência: " + err.message, true);
+      if (ackBtn) {
+        ackBtn.disabled = false;
+        ackBtn.textContent = "Registrar ciência";
+      }
+    }
+  }
+
+  function printPrivacyPolicy_() {
+    window.print();
+  }
+
+  window.openPrivacyPolicyDialog = openPrivacyPolicyDialog;
+  window.acknowledgePrivacyPolicy_ = acknowledgePrivacyPolicy_;
+  window.printPrivacyPolicy_ = printPrivacyPolicy_;
+
   async function confirmClockPunchWithSelfie_(event) {
     event.preventDefault();
     if (window.__IS_CONFIRMING_CLOCK_PUNCH__) return;

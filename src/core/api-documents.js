@@ -237,6 +237,24 @@ Pelo presente instrumento particular, eu, {NOME}, inscrito(a) no CPF sob o nº {
 
 E, por ser a expressão livre e consciente da minha vontade, firmo o presente termo para que produza todos os seus efeitos legais.`,
   },
+  "politica-privacidade": {
+    titulo: "Termo de Ciência da Política de Privacidade e Proteção de Dados (LGPD)",
+    tipo: "Política de Privacidade",
+    conteudo: `TERMO DE CIÊNCIA E RECEBIMENTO DA POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS PESSOAIS
+(LEI GERAL DE PROTEÇÃO DE DADOS PESSOAIS — LEI Nº 13.709/2018)
+
+Pelo presente instrumento particular, o(a) colaborador(a) {NOME}, inscrito(a) no CPF sob o nº {CPF}, atuante na unidade {LOJA} do GRUPO HOUSE 190, DECLARA para todos os fins de direito que:
+
+1. Teve acesso integral, leu atentamente e recebeu cópia da Política de Privacidade e Proteção de Dados Pessoais do Grupo House 190 (Versão 1.0), que disciplina o tratamento de informações cadastrais, de autenticação, de jornada e ponto eletrônico, dados de escalas e banco de horas, imagens e selfies, geolocalização no ato da batida de ponto, atestados de saúde, tarefas operacionais e comunicações internas no âmbito do sistema Gestão de Folgas 3.0.
+
+2. Está ciente das finalidades legítimas de cada tratamento de dados, bem como das hipóteses legais fundamentadas na LGPD (execução do contrato de trabalho, cumprimento de obrigações legais e regulatórias trabalhistas e previdenciárias, e exercício regular de direitos).
+
+3. Foi expressamente informado(a) sobre seus direitos como titular de dados (Art. 18 da LGPD), incluindo o acesso às suas informações, confirmação do tratamento, retificação de dados incorretos e canais oficiais de comunicação para atendimento de solicitações de privacidade.
+
+4. Reconhece que os registros eletrônicos de ponto, com captura de selfie e localização no momento da marcação, destinam-se exclusivamente à segurança jurídica da apuração da jornada, prevenção a fraudes e cumprimento das normas trabalhistas (Portaria MTE nº 671/2021).
+
+Por ser a expressão da verdade, firma o presente termo de ciência e recebimento.`,
+  },
 });
 
 /**

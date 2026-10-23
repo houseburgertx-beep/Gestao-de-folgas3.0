@@ -1299,6 +1299,7 @@ export function openUploadDialog() {
         <label class="form-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:4px; color:var(--muted, #64748b);">Modelo Predefinido</label>
         <select id="docTemplateSelect" style="width:100%; border-radius:12px; padding:10px 14px; box-sizing:border-box;">
           <option value="termo-lgpd-consentimento">Termo de Consentimento LGPD (Tratamento de Dados e Atestados)</option>
+          <option value="politica-privacidade">Termo de Ciência da Política de Privacidade (LGPD)</option>
           <option value="termo-regulamento">Termo de Ciência — Regulamento Interno</option>
           <option value="acordo-banco-horas">Acordo de Banco de Horas (Art. 59 CLT)</option>
           <option value="termo-epi-uniforme">Termo de Recebimento de EPI e Uniforme</option>
