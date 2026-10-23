@@ -9153,6 +9153,22 @@
     color: #c92a2a;
     border: 1px solid rgba(229, 72, 77, 0.3);
   }
+  /* ── Privacy Policy Dialog ── */
+  #privacyPolicyDialog {
+    display: flex;
+    flex-direction: column;
+    max-height: 92dvh;
+    max-height: 92vh; /* fallback */
+  }
+  #privacyPolicyDialog[open] {
+    display: flex;
+  }
+  #privacyPolicyDialogBody {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .privacy-policy-canvas-wrap {
     width: 100%;
     height: 130px;
@@ -9168,6 +9184,23 @@
     height: 100%;
     display: block;
     cursor: crosshair;
+  }
+  @media (max-width: 600px) {
+    #privacyPolicyDialog {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      max-height: 95dvh !important;
+      max-height: 95vh !important;
+      border-radius: 18px 18px 0 0 !important;
+      margin-bottom: 0 !important;
+      align-self: flex-end !important;
+    }
+    .privacy-policy-canvas-wrap {
+      height: 110px;
+    }
+    #privacyPolicySignSection {
+      padding: 14px !important;
+    }
   }
   @media print {
     body > *:not(dialog[open]) {

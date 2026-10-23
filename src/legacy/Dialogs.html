@@ -1527,16 +1527,16 @@
 </dialog>
 
 <!-- Modal Oficial de Política de Privacidade e Proteção de Dados Pessoais (LGPD) -->
-<dialog id="privacyPolicyDialog" class="privacy-policy-dialog" style="max-width: 860px; width: 95vw; max-height: 90vh; border-radius: 18px; padding: 0; border: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
-  <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color, #e2e8f0); background: var(--bg-hover, #f8fafc);">
+<dialog id="privacyPolicyDialog" class="privacy-policy-dialog" style="max-width: 860px; width: 95vw; max-height: 92dvh; border-radius: 18px; padding: 0; border: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; display: flex; flex-direction: column;">
+  <div style="flex: none; display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 18px; border-bottom: 1px solid var(--border-color, #e2e8f0); background: var(--bg-hover, #f8fafc); gap: 10px;">
     <div>
-      <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: var(--primary, #6340d8);">Conformidade LGPD · Lei nº 13.709/2018</span>
-      <h3 style="margin: 2px 0 0; font-size: 18px; font-weight: 700; color: var(--text-primary, #0f172a);">Política de Privacidade e Proteção de Dados Pessoais</h3>
-      <small style="color: var(--text-muted, #64748b);">Grupo House 190 · Gestão de Folgas 3.0 · Versão 1.0 (Vigência: Outubro de 2026)</small>
+      <span style="font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: var(--primary, #6340d8);">Conformidade LGPD · Lei nº 13.709/2018</span>
+      <h3 style="margin: 2px 0 0; font-size: 16px; font-weight: 700; color: var(--text-primary, #0f172a);">Política de Privacidade e Proteção de Dados Pessoais</h3>
+      <small style="color: var(--text-muted, #64748b); font-size: 11px;">Grupo House 190 · Gestão de Folgas 3.0 · Versão 1.0 (Vigência: Outubro de 2026)</small>
     </div>
-    <button type="button" class="btn-ghost btn-sm" onclick="closeDialog('privacyPolicyDialog')" style="font-size: 18px; line-height: 1; padding: 6px 10px; border: none; background: transparent; cursor: pointer; color: var(--text-muted, #64748b);">✕</button>
+    <button type="button" class="btn-ghost btn-sm" onclick="closeDialog('privacyPolicyDialog')" style="flex: none; font-size: 18px; line-height: 1; padding: 6px 10px; border: none; background: transparent; cursor: pointer; color: var(--text-muted, #64748b);">✕</button>
   </div>
-  <div id="privacyPolicyDialogBody" style="padding: 24px 28px; max-height: calc(90vh - 145px); overflow-y: auto; font-size: 13.5px; line-height: 1.65; color: var(--text-secondary, #334155); scrollbar-width: thin;">
+  <div id="privacyPolicyDialogBody" style="flex: 1; min-height: 0; padding: 18px 18px; overflow-y: auto; font-size: 13px; line-height: 1.65; color: var(--text-secondary, #334155); scrollbar-width: thin; -webkit-overflow-scrolling: touch;">
     <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 12.5px;">
       <strong>Grupo House 190 — Gestão de Folgas 3.0</strong><br>
       <strong>Controladora(s):</strong> Empresas do Grupo House 190 (House Burger Teixeira, House Burger Eunápolis, House Foodpark)<br>
@@ -1737,12 +1737,12 @@
       </div>
     </div>
   </div>
-  <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-top: 1px solid var(--border-color, #e2e8f0); background: var(--bg-hover, #f8fafc); flex-wrap: wrap; gap: 10px;">
-    <div id="privacyPolicyAckStatus" style="font-size: 12px; color: var(--text-muted, #64748b);"></div>
-    <div style="display: flex; gap: 8px;">
-      <button type="button" class="btn btn-secondary" onclick="printPrivacyPolicy_()">Imprimir via física</button>
-      <button type="button" class="btn btn-secondary" id="privacyPolicyCloseBtn" onclick="closeDialog('privacyPolicyDialog')">Fechar</button>
-      <button type="button" class="btn btn-primary" id="privacyPolicyAckBtn" onclick="acknowledgePrivacyPolicy_()">Assinar e confirmar ciência</button>
+  <div style="flex: none; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-top: 1px solid var(--border-color, #e2e8f0); background: var(--bg-hover, #f8fafc); flex-wrap: wrap; gap: 8px;">
+    <div id="privacyPolicyAckStatus" style="font-size: 11px; color: var(--text-muted, #64748b); flex: 1; min-width: 0;"></div>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+      <button type="button" class="btn btn-secondary" onclick="printPrivacyPolicy_()" style="font-size: 13px; padding: 8px 14px;">Imprimir</button>
+      <button type="button" class="btn btn-secondary" id="privacyPolicyCloseBtn" onclick="closeDialog('privacyPolicyDialog')" style="font-size: 13px; padding: 8px 14px;">Fechar</button>
+      <button type="button" class="btn btn-primary" id="privacyPolicyAckBtn" onclick="acknowledgePrivacyPolicy_()" style="font-size: 13px; padding: 8px 16px;">Assinar e confirmar ciência</button>
     </div>
   </div>
 </dialog>
