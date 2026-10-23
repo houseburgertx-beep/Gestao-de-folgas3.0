@@ -70,6 +70,7 @@
     sessionBootstrap: "getBootstrapDataWithSession",
     acknowledgeMonthlyLeaveReward: "acknowledgeMonthlyLeaveReward",
     acknowledgeHolidayLeaveReward: "acknowledgeHolidayLeaveReward",
+    acknowledgePrivacyPolicy: "acknowledgePrivacyPolicy",
     employeeRequest: "createEmployeeTimeOffRequest",
     dashboard: "getDashboardData",
     createStore: "createStore",
@@ -1608,6 +1609,7 @@
       console.warn("Logout:", e.message);
     } finally {
       clearStoredSession_();
+      window.__PRIVACY_POLICY_POPUP_DISMISSED__ = false;
       state.bootstrap = null;
       state.user = null;
       state.timeClock = null;
@@ -3445,6 +3447,7 @@
       .join("");
     $("#storeChart")?.closest(".panel")?.classList.add("hidden");
     renderEmployeeClockDashboard();
+    checkPrivacyPolicyPopup_();
   }
   function employeeTakeatSubtitle_() {
     if (!state.takeatCredit?.loaded) return "Carregando Takeat…";
@@ -3676,6 +3679,7 @@
     checkGoogleLinkBanner_();
     checkIncompletePunches_();
     checkPendingDocuments_();
+    checkPrivacyPolicyPopup_();
     loadLivePresence_();
   }
   function activity(x) {
@@ -7213,15 +7217,123 @@
   window.showTimeClockReceipt_ = showTimeClockReceipt_;
   window.printClockReceipt_ = printClockReceipt_;
 
+  let privacyPolicyCanvasCtx_ = null;
+  let privacyPolicyCanvasHasDrawn_ = false;
+
+  function initPrivacyPolicyCanvas_() {
+    const canvas = $("#privacyPolicyCanvas");
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = rect.width || 320;
+    const h = rect.height || 130;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#1e1b4b";
+    privacyPolicyCanvasCtx_ = ctx;
+    privacyPolicyCanvasHasDrawn_ = false;
+
+    if (canvas.dataset.initialized) return;
+    canvas.dataset.initialized = "true";
+
+    let isDrawing = false;
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - r.left,
+        y: clientY - r.top,
+      };
+    };
+
+    const startDraw = (e) => {
+      isDrawing = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    };
+
+    const drawMove = (e) => {
+      if (!isDrawing) return;
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      privacyPolicyCanvasHasDrawn_ = true;
+      updatePrivacyPolicySignButtonState_();
+    };
+
+    const stopDraw = () => {
+      isDrawing = false;
+    };
+
+    canvas.addEventListener("mousedown", startDraw);
+    canvas.addEventListener("mousemove", drawMove);
+    window.addEventListener("mouseup", stopDraw);
+
+    canvas.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        startDraw(e);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener(
+      "touchmove",
+      (e) => {
+        e.preventDefault();
+        drawMove(e);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener("touchend", stopDraw);
+  }
+
+  function clearPrivacyPolicyCanvas_() {
+    const canvas = $("#privacyPolicyCanvas");
+    if (canvas && privacyPolicyCanvasCtx_) {
+      const dpr = window.devicePixelRatio || 1;
+      privacyPolicyCanvasCtx_.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      privacyPolicyCanvasHasDrawn_ = false;
+      updatePrivacyPolicySignButtonState_();
+    }
+  }
+
+  function updatePrivacyPolicySignButtonState_() {
+    const ackBtn = $("#privacyPolicyAckBtn");
+    const checkbox = $("#privacyPolicyConfirmCheckbox");
+    if (!ackBtn) return;
+    const isChecked = Boolean(checkbox && checkbox.checked);
+    if (!isChecked) {
+      ackBtn.disabled = true;
+    } else {
+      ackBtn.disabled = false;
+    }
+  }
+
   function openPrivacyPolicyDialog() {
+    const isMandatoryPopup = arguments.length > 0 && Boolean(arguments[0]);
     updatePrivacyPolicyAckUI_();
     openDialog("privacyPolicyDialog");
+    setTimeout(() => {
+      initPrivacyPolicyCanvas_();
+      if (isMandatoryPopup) {
+        const bodyEl = $("#privacyPolicyDialogBody");
+        if (bodyEl) bodyEl.scrollTop = 0;
+      }
+    }, 60);
   }
 
   function getPrivacyPolicyAck_() {
     const user = state.user;
     if (!user) return null;
-    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
     if (!uid) return null;
     try {
       const raw = localStorage.getItem(`gf_privacy_policy_ack_${uid}`);
@@ -7234,24 +7346,40 @@
   function updatePrivacyPolicyAckUI_() {
     const statusEl = $("#privacyPolicyAckStatus");
     const ackBtn = $("#privacyPolicyAckBtn");
+    const metaEl = $("#privacyPolicySignMeta");
+    const pendingBlock = $("#privacyPolicyPendingSignatureBlock");
+    const signedCard = $("#privacyPolicySignedCard");
+    const signedDetails = $("#privacyPolicySignedDetails");
+    const signedImgWrap = $("#privacyPolicySignedImageWrap");
+    const signedImg = $("#privacyPolicySignedImage");
+    const checkbox = $("#privacyPolicyConfirmCheckbox");
+
     const user = state.user;
+    const userName = user?.NomeCompleto || user?.Nome || user?.nome || state.profile?.Nome || "Colaborador";
+    const userCpf = user?.CPF || user?.cpf || state.profile?.CPF || "";
+
+    if (metaEl) {
+      metaEl.innerHTML = `<div style="font-weight:700; color:var(--text-primary, #0f172a);">${esc(userName)}</div>${userCpf ? `<div>CPF: ${esc(userCpf)}</div>` : ""}`;
+    }
+
     const ack = getPrivacyPolicyAck_() || (user && user.PoliticaPrivacidadeCiente ? {
       version: user.PoliticaPrivacidadeVersao || "1.0",
       acknowledgedAt: user.PoliticaPrivacidadeData || "",
+      signature: user.PoliticaPrivacidadeAssinatura || "",
     } : null);
 
     if (!user) {
       if (statusEl) statusEl.textContent = "Disponível para consulta pública.";
-      if (ackBtn) {
-        ackBtn.style.display = "none";
-      }
+      if (ackBtn) ackBtn.style.display = "none";
+      if (pendingBlock) pendingBlock.classList.add("hidden");
+      if (signedCard) signedCard.classList.add("hidden");
       return;
     }
 
     if (ack && ack.acknowledgedAt) {
       const d = new Date(ack.acknowledgedAt);
       const formatted = isNaN(d.getTime()) ? ack.acknowledgedAt : d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      if (statusEl) statusEl.innerHTML = `<span style="color:#059669; font-weight:600;">✓ Ciência registrada em ${esc(formatted)} (v${esc(ack.version || "1.0")})</span>`;
+      if (statusEl) statusEl.innerHTML = `<span style="color:#059669; font-weight:600;">Ciência registrada em ${esc(formatted)} (v${esc(ack.version || "1.0")})</span>`;
       if (ackBtn) {
         ackBtn.style.display = "inline-block";
         ackBtn.disabled = true;
@@ -7259,15 +7387,30 @@
         ackBtn.classList.remove("btn-primary");
         ackBtn.classList.add("btn-secondary");
       }
+      if (pendingBlock) pendingBlock.classList.add("hidden");
+      if (signedCard) signedCard.classList.remove("hidden");
+      if (signedDetails) {
+        signedDetails.textContent = `Registrado por ${userName} em ${formatted} (Versão ${ack.version || "1.0"}).`;
+      }
+      if (ack.signature && signedImg && signedImgWrap) {
+        signedImg.src = ack.signature;
+        signedImgWrap.style.display = "block";
+      } else if (signedImgWrap) {
+        signedImgWrap.style.display = "none";
+      }
     } else {
-      if (statusEl) statusEl.textContent = "Ciência da política pendente de registro.";
+      if (statusEl) statusEl.textContent = "Ciência da política pendente de assinatura.";
       if (ackBtn) {
         ackBtn.style.display = "inline-block";
-        ackBtn.disabled = false;
-        ackBtn.textContent = "Registrar ciência";
+        ackBtn.disabled = true;
+        ackBtn.textContent = "Assinar e confirmar ciência";
         ackBtn.classList.remove("btn-secondary");
         ackBtn.classList.add("btn-primary");
       }
+      if (pendingBlock) pendingBlock.classList.remove("hidden");
+      if (signedCard) signedCard.classList.add("hidden");
+      if (checkbox) checkbox.checked = false;
+      clearPrivacyPolicyCanvas_();
     }
   }
 
@@ -7276,41 +7419,99 @@
     if (!user) {
       return toast("Entre com sua conta para registrar a ciência da política.", true);
     }
-    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+
+    const checkbox = $("#privacyPolicyConfirmCheckbox");
+    if (!checkbox || !checkbox.checked) {
+      return toast("Marque a declaração de que leu e compreendeu a Política de Privacidade.", true);
+    }
+
+    const canvas = $("#privacyPolicyCanvas");
+    if (!canvas || !privacyPolicyCanvasHasDrawn_) {
+      return toast("Desenhe sua rubrica no quadro para confirmar a assinatura.", true);
+    }
+
+    const rubricBase64 = canvas.toDataURL("image/png");
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
     const ackBtn = $("#privacyPolicyAckBtn");
     if (ackBtn) {
       ackBtn.disabled = true;
-      ackBtn.textContent = "Registrando…";
+      ackBtn.textContent = "Registrando assinatura…";
     }
     const now = new Date().toISOString();
     try {
-      localStorage.setItem(`gf_privacy_policy_ack_${uid}`, JSON.stringify({
+      const ackRecord = {
         version: "1.0",
         acknowledgedAt: now,
-        email: user.Email || user.email,
-      }));
+        email: user.Email || user.email || "",
+        name: user.NomeCompleto || user.Nome || user.nome || "",
+        signature: rubricBase64,
+        device: navigator.userAgent || "",
+      };
+      localStorage.setItem(`gf_privacy_policy_ack_${uid}`, JSON.stringify(ackRecord));
+
       if (sessionToken()) {
-        await call(FN.patchUser, sessionToken(), {
-          usuarioId: uid,
-          PoliticaPrivacidadeCiente: true,
-          PoliticaPrivacidadeData: now,
-          PoliticaPrivacidadeVersao: "1.0",
-        }).catch(() => {});
+        await call(FN.acknowledgePrivacyPolicy, {
+          version: "1.0",
+          signature: rubricBase64,
+          device: navigator.userAgent || "",
+        }).catch(() => {
+          return call(FN.patchUser, sessionToken(), {
+            usuarioId: uid,
+            PoliticaPrivacidadeCiente: true,
+            PoliticaPrivacidadeData: now,
+            PoliticaPrivacidadeVersao: "1.0",
+            PoliticaPrivacidadeAssinatura: rubricBase64,
+          }).catch(() => {});
+        });
       }
+
       if (state.user) {
         state.user.PoliticaPrivacidadeCiente = true;
         state.user.PoliticaPrivacidadeData = now;
         state.user.PoliticaPrivacidadeVersao = "1.0";
+        state.user.PoliticaPrivacidadeAssinatura = rubricBase64;
       }
+      if (state.profile) {
+        state.profile.PoliticaPrivacidadeCiente = true;
+        state.profile.PoliticaPrivacidadeData = now;
+        state.profile.PoliticaPrivacidadeVersao = "1.0";
+        state.profile.PoliticaPrivacidadeAssinatura = rubricBase64;
+      }
+
       updatePrivacyPolicyAckUI_();
-      toast("Ciência da Política de Privacidade registrada com sucesso.");
+      toast("Ciência e assinatura da Política de Privacidade registradas com sucesso.");
+      setTimeout(() => {
+        closeDialog("privacyPolicyDialog");
+      }, 1200);
     } catch (err) {
       toast("Erro ao registrar ciência: " + err.message, true);
       if (ackBtn) {
         ackBtn.disabled = false;
-        ackBtn.textContent = "Registrar ciência";
+        ackBtn.textContent = "Assinar e confirmar ciência";
       }
     }
+  }
+
+  function checkPrivacyPolicyPopup_() {
+    if (!state.user) return;
+    const user = state.user;
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
+    if (!uid) return;
+
+    const ackLocal = getPrivacyPolicyAck_();
+    const ackRemote = Boolean(state.user.PoliticaPrivacidadeCiente || state.profile?.PoliticaPrivacidadeCiente);
+    if (ackLocal || ackRemote) {
+      return;
+    }
+
+    if (window.__PRIVACY_POLICY_POPUP_DISMISSED__) {
+      return;
+    }
+
+    window.__PRIVACY_POLICY_POPUP_DISMISSED__ = true;
+    setTimeout(() => {
+      openPrivacyPolicyDialog(true);
+    }, 500);
   }
 
   function printPrivacyPolicy_() {
@@ -7319,6 +7520,9 @@
 
   window.openPrivacyPolicyDialog = openPrivacyPolicyDialog;
   window.acknowledgePrivacyPolicy_ = acknowledgePrivacyPolicy_;
+  window.clearPrivacyPolicyCanvas_ = clearPrivacyPolicyCanvas_;
+  window.updatePrivacyPolicySignButtonState_ = updatePrivacyPolicySignButtonState_;
+  window.checkPrivacyPolicyPopup_ = checkPrivacyPolicyPopup_;
   window.printPrivacyPolicy_ = printPrivacyPolicy_;
 
   async function confirmClockPunchWithSelfie_(event) {

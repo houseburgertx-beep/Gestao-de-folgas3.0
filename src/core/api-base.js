@@ -2281,6 +2281,77 @@ export function createBaseHandlers() {
       }
       return success(saved, "Perfil atualizado.");
     },
+
+    async acknowledgePrivacyPolicy(args) {
+      const profile = await runtime.requireProfile();
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const now = nowIso();
+      const version = String(
+        payload.version || payload.PoliticaPrivacidadeVersao || "1.0",
+      ).trim();
+      const rubricBase64 = String(
+        payload.signature ||
+          payload.RubricaBase64 ||
+          payload.PoliticaPrivacidadeAssinatura ||
+          "",
+      ).trim();
+
+      const updateData = {
+        PoliticaPrivacidadeCiente: true,
+        PoliticaPrivacidadeData: now,
+        PoliticaPrivacidadeVersao: version,
+        PoliticaPrivacidadeAssinatura: rubricBase64,
+        DataAtualizacao: now,
+      };
+
+      if (profile.UsuarioID) {
+        await runtime.saveAccess(profile.UsuarioID, {
+          ...profile,
+          ...updateData,
+        });
+      }
+
+      if (profile.FuncionarioID) {
+        await runtime
+          .patch("Funcionarios", profile.FuncionarioID, {
+            PoliticaPrivacidadeCiente: true,
+            PoliticaPrivacidadeData: now,
+            PoliticaPrivacidadeVersao: version,
+            PoliticaPrivacidadeAssinatura: rubricBase64,
+            DataAtualizacao: now,
+          })
+          .catch((error) => {
+            if (!isPermissionDenied(error)) {
+              console.warn(
+                "Aviso ao registrar ciência no funcionário:",
+                error.message,
+              );
+            }
+          });
+      }
+
+      await audit(
+        "Registro de ciência da Política de Privacidade",
+        "Usuarios",
+        profile.UsuarioID,
+        {
+          versao: version,
+          data: now,
+          temRubrica: Boolean(rubricBase64),
+          dispositivo: String(payload.device || payload.dispositivo || ""),
+        },
+      );
+
+      return success(
+        {
+          PoliticaPrivacidadeCiente: true,
+          PoliticaPrivacidadeData: now,
+          PoliticaPrivacidadeVersao: version,
+        },
+        "Ciência e assinatura da Política de Privacidade registradas com sucesso.",
+      );
+    },
   };
 }
 

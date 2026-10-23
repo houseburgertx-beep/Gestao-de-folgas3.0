@@ -15,6 +15,7 @@ import {
 import {
   FirebaseRuntime,
   periodFieldsFor,
+  runtime,
   selectEmployeeEntry,
 } from "../src/core/runtime.js";
 import {
@@ -3249,6 +3250,79 @@ test("LGPD: Política de Privacidade e Proteção de Dados Pessoais do Grupo Hou
   assert.match(scriptsHtml, /function acknowledgePrivacyPolicy_\(\)/, "Scripts.html deve implementar acknowledgePrivacyPolicy_");
   assert.match(scriptsHtml, /function printPrivacyPolicy_\(\)/, "Scripts.html deve implementar printPrivacyPolicy_");
   assert.match(scriptsHtml, /window\.openPrivacyPolicyDialog = openPrivacyPolicyDialog/, "deve expor no window");
+});
+
+test("LGPD: Pop-up único de leitura, rubrica/assinatura e registro de ciência da Política de Privacidade", async () => {
+  // 1. Bloco de assinatura e rubrica no Dialogs.html
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  assert.match(dialogsHtml, /id="privacyPolicySignSection"/, "Dialogs.html deve conter a seção oficial de assinatura");
+  assert.match(dialogsHtml, /id="privacyPolicyConfirmCheckbox"/, "Dialogs.html deve conter o checkbox de confirmação de leitura");
+  assert.match(dialogsHtml, /id="privacyPolicyCanvas"/, "Dialogs.html deve conter o canvas para desenho de rubrica");
+  assert.match(dialogsHtml, /id="privacyPolicyClearCanvasBtn"/, "Dialogs.html deve conter botão para limpar a rubrica");
+  assert.match(dialogsHtml, /id="privacyPolicySignedCard"/, "Dialogs.html deve conter o card de ciência formalizada");
+  assert.match(dialogsHtml, /id="privacyPolicySignedImage"/, "Dialogs.html deve exibir a assinatura arquivada quando já assinado");
+
+  // 2. Lógica do pop-up único e controle em Scripts.html
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  assert.match(scriptsHtml, /function checkPrivacyPolicyPopup_\(\)/, "deve implementar checkPrivacyPolicyPopup_");
+  assert.match(scriptsHtml, /function initPrivacyPolicyCanvas_\(\)/, "deve implementar initPrivacyPolicyCanvas_");
+  assert.match(scriptsHtml, /function clearPrivacyPolicyCanvas_\(\)/, "deve implementar clearPrivacyPolicyCanvas_");
+  assert.match(scriptsHtml, /function updatePrivacyPolicySignButtonState_\(\)/, "deve implementar updatePrivacyPolicySignButtonState_");
+  assert.match(scriptsHtml, /checkPrivacyPolicyPopup_\(\);/, "renderDashboard deve acionar o pop-up único");
+  assert.match(scriptsHtml, /window\.checkPrivacyPolicyPopup_ = checkPrivacyPolicyPopup_/, "deve expor checkPrivacyPolicyPopup_ no window");
+  assert.match(scriptsHtml, /window\.clearPrivacyPolicyCanvas_ = clearPrivacyPolicyCanvas_/, "deve expor clearPrivacyPolicyCanvas_ no window");
+
+  // 3. Estilização do canvas de assinatura em Styles.html
+  const stylesHtml = await readFile(new URL("../src/legacy/Styles.html", import.meta.url), "utf8");
+  assert.match(stylesHtml, /\.privacy-policy-canvas-wrap/, "Styles.html deve conter estilos para o canvas de rubrica");
+
+  // 4. Endpoint backend no api-base.js
+  const apiBase = await readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8");
+  assert.match(apiBase, /async acknowledgePrivacyPolicy\(args\)/, "api-base.js deve implementar o endpoint acknowledgePrivacyPolicy");
+  assert.match(apiBase, /PoliticaPrivacidadeCiente:\s*true/, "deve atualizar PoliticaPrivacidadeCiente");
+  assert.match(apiBase, /Registro de ciência da Política de Privacidade/, "deve gerar trilha de auditoria pericial para a LGPD");
+
+  // 5. Teste de execução do endpoint acknowledgePrivacyPolicy
+  let savedAccessData = null;
+  const originalRequireProfile = runtime.requireProfile;
+  const originalSaveAccess = runtime.saveAccess;
+  const originalPatch = runtime.patch;
+
+  runtime.requireProfile = async () => ({
+    UsuarioID: "user-123",
+    FuncionarioID: "func-456",
+    Email: "colaborador@house.com.br",
+    Nome: "Colaborador Teste",
+    LojaID: "loja-1",
+  });
+  runtime.saveAccess = async (uid, data) => {
+    savedAccessData = { uid, data };
+  };
+  runtime.patch = async () => {};
+
+  try {
+    const handlers = createApi().handlers;
+    assert.equal(typeof handlers.acknowledgePrivacyPolicy, "function");
+
+    const result = await handlers.acknowledgePrivacyPolicy([
+      {
+        version: "1.0",
+        signature: "data:image/png;base64,mockSignatureData",
+        device: "TestRunner",
+      },
+    ]);
+
+    assert.equal(result.success, true);
+    assert.equal(result.data.PoliticaPrivacidadeCiente, true);
+    assert.equal(result.data.PoliticaPrivacidadeVersao, "1.0");
+    assert.ok(savedAccessData, "deve ter chamado saveAccess");
+    assert.equal(savedAccessData.data.PoliticaPrivacidadeCiente, true);
+    assert.equal(savedAccessData.data.PoliticaPrivacidadeAssinatura, "data:image/png;base64,mockSignatureData");
+  } finally {
+    runtime.requireProfile = originalRequireProfile;
+    runtime.saveAccess = originalSaveAccess;
+    runtime.patch = originalPatch;
+  }
 });
 
 

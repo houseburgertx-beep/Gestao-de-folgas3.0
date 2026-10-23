@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.16.44" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.16.45" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.16.44-firebase-github" />
+    <meta name="app-version" content="6.16.45-firebase-github" />
     <title>Gestão de Folgas</title>
     <style>
   :root {
@@ -9187,6 +9187,22 @@
     color: #c92a2a;
     border: 1px solid rgba(229, 72, 77, 0.3);
   }
+  .privacy-policy-canvas-wrap {
+    width: 100%;
+    height: 130px;
+    background: #fafafa;
+    border-radius: 10px;
+    position: relative;
+    touch-action: none;
+    border: 1.5px dashed var(--border-color, #cbd5e1);
+    overflow: hidden;
+  }
+  .privacy-policy-canvas-wrap canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
   @media print {
     body > *:not(dialog[open]) {
       display: none !important;
@@ -9226,6 +9242,10 @@
     #privacyPolicyDialog button,
     #privacyPolicyDialog .btn {
       display: none !important;
+    }
+    .privacy-policy-canvas-wrap {
+      border: 1px solid #000 !important;
+      height: 90px !important;
     }
   }
 </style>
@@ -22558,13 +22578,65 @@ dialog#documentUploadDialog input[type="month"] {
     <p>Para exercer seus direitos, esclarecer dúvidas, solicitar informações sobre a empresa responsável pelo tratamento dos seus dados ou comunicar incidentes de privacidade, o colaborador poderá entrar em contato pelo canal oficial de privacidade:</p>
     <p><strong>Canal Oficial de Privacidade:</strong> privacidade@grupohouse190.com.br (ou diretamente junto ao departamento de Recursos Humanos do Grupo House 190).</p>
     <p>Esta Política de Privacidade poderá ser atualizada periodicamente para refletir melhorias técnicas, adequações operacionais e atualizações legislativas, mantendo-se sempre disponível para consulta no aplicativo Gestão de Folgas 3.0.</p>
+
+    <!-- Bloco Oficial de Ciência e Assinatura Digital do Colaborador -->
+    <div id="privacyPolicySignSection" style="margin-top: 28px; padding: 20px; border-radius: 14px; border: 1.5px solid var(--border-color, #cbd5e1); background: var(--bg-hover, #f8fafc);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: var(--primary, #6340d8);">Formalização de Ciência e Assinatura</span>
+          <h4 style="margin: 2px 0 0; font-size: 16px; font-weight: 700; color: var(--text-primary, #0f172a);">Termo de Ciência da Política de Privacidade</h4>
+        </div>
+        <div id="privacyPolicySignMeta" style="font-size: 12px; color: var(--text-muted, #64748b); text-align: right;"></div>
+      </div>
+
+      <p style="font-size: 13px; line-height: 1.6; color: var(--text-secondary, #334155); margin-bottom: 14px;">
+        Ao confirmar e assinar este termo, o colaborador atesta que teve acesso integral à <strong>Política de Privacidade e Proteção de Dados Pessoais do Grupo House 190</strong> (Versão 1.0), compreendendo as regras, direitos, finalidades e bases legais relativas ao tratamento dos seus dados pessoais e dados de controle de jornada.
+      </p>
+
+      <div id="privacyPolicyPendingSignatureBlock">
+        <label style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="privacyPolicyConfirmCheckbox" onchange="updatePrivacyPolicySignButtonState_()" style="margin-top: 3px; width: 18px; height: 18px; accent-color: var(--primary, #6340d8); cursor: pointer;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-primary, #0f172a);">
+            Declaro que li, compreendi e manifesto minha ciência em relação à Política de Privacidade do Grupo House 190.
+          </span>
+        </label>
+
+        <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #334155);">Rubrica ou assinatura manuscrita do colaborador:</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="privacyPolicyClearCanvasBtn" onclick="clearPrivacyPolicyCanvas_()" style="font-size: 12px; padding: 4px 8px;">Limpar rubrica</button>
+        </div>
+
+        <div class="privacy-policy-canvas-wrap" style="width: 100%; height: 130px; background: #ffffff; border: 1.5px dashed var(--border-color, #cbd5e1); border-radius: 10px; position: relative; touch-action: none; overflow: hidden;">
+          <canvas id="privacyPolicyCanvas" style="width: 100%; height: 100%; display: block; cursor: crosshair;"></canvas>
+          <div style="position: absolute; bottom: 8px; left: 16px; right: 16px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; pointer-events: none; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; padding-top: 2px;">
+            <span>Rubrica manuscrita</span>
+            <span>Registro seguro</span>
+          </div>
+        </div>
+        <small style="display: block; margin-top: 6px; font-size: 11px; color: var(--text-muted, #64748b);">
+          Desenhe sua rubrica no quadro acima utilizando o dedo ou cursor.
+        </small>
+      </div>
+
+      <div id="privacyPolicySignedCard" class="hidden" style="padding: 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+          <div>
+            <div style="font-weight: 700; color: #166534; font-size: 13.5px;">Ciência e assinatura formalizadas com sucesso</div>
+            <div id="privacyPolicySignedDetails" style="font-size: 12px; color: #15803d; margin-top: 2px;"></div>
+          </div>
+          <div id="privacyPolicySignedImageWrap" style="max-height: 50px; background: #ffffff; padding: 4px 8px; border-radius: 6px; border: 1px solid #dcfce7; display: none;">
+            <img id="privacyPolicySignedImage" alt="Assinatura" style="max-height: 42px; display: block;">
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-top: 1px solid var(--border-color, #e2e8f0); background: var(--bg-hover, #f8fafc); flex-wrap: wrap; gap: 10px;">
     <div id="privacyPolicyAckStatus" style="font-size: 12px; color: var(--text-muted, #64748b);"></div>
     <div style="display: flex; gap: 8px;">
       <button type="button" class="btn btn-secondary" onclick="printPrivacyPolicy_()">Imprimir via física</button>
-      <button type="button" class="btn btn-secondary" onclick="closeDialog('privacyPolicyDialog')">Fechar</button>
-      <button type="button" class="btn btn-primary" id="privacyPolicyAckBtn" onclick="acknowledgePrivacyPolicy_()">Registrar ciência</button>
+      <button type="button" class="btn btn-secondary" id="privacyPolicyCloseBtn" onclick="closeDialog('privacyPolicyDialog')">Fechar</button>
+      <button type="button" class="btn btn-primary" id="privacyPolicyAckBtn" onclick="acknowledgePrivacyPolicy_()">Assinar e confirmar ciência</button>
     </div>
   </div>
 </dialog>
@@ -22591,7 +22663,7 @@ dialog#documentUploadDialog input[type="month"] {
   }, true);
 </script>
 <script src="./vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="./src/main.js?v=6.16.44"></script>
+<script type="module" src="./src/main.js?v=6.16.45"></script>
 <script>
   const $ = (s, r = document) => r.querySelector(s),
     $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22664,6 +22736,7 @@ dialog#documentUploadDialog input[type="month"] {
     sessionBootstrap: "getBootstrapDataWithSession",
     acknowledgeMonthlyLeaveReward: "acknowledgeMonthlyLeaveReward",
     acknowledgeHolidayLeaveReward: "acknowledgeHolidayLeaveReward",
+    acknowledgePrivacyPolicy: "acknowledgePrivacyPolicy",
     employeeRequest: "createEmployeeTimeOffRequest",
     dashboard: "getDashboardData",
     createStore: "createStore",
@@ -24202,6 +24275,7 @@ dialog#documentUploadDialog input[type="month"] {
       console.warn("Logout:", e.message);
     } finally {
       clearStoredSession_();
+      window.__PRIVACY_POLICY_POPUP_DISMISSED__ = false;
       state.bootstrap = null;
       state.user = null;
       state.timeClock = null;
@@ -26039,6 +26113,7 @@ dialog#documentUploadDialog input[type="month"] {
       .join("");
     $("#storeChart")?.closest(".panel")?.classList.add("hidden");
     renderEmployeeClockDashboard();
+    checkPrivacyPolicyPopup_();
   }
   function employeeTakeatSubtitle_() {
     if (!state.takeatCredit?.loaded) return "Carregando Takeat…";
@@ -26270,6 +26345,7 @@ dialog#documentUploadDialog input[type="month"] {
     checkGoogleLinkBanner_();
     checkIncompletePunches_();
     checkPendingDocuments_();
+    checkPrivacyPolicyPopup_();
     loadLivePresence_();
   }
   function activity(x) {
@@ -29807,15 +29883,123 @@ dialog#documentUploadDialog input[type="month"] {
   window.showTimeClockReceipt_ = showTimeClockReceipt_;
   window.printClockReceipt_ = printClockReceipt_;
 
+  let privacyPolicyCanvasCtx_ = null;
+  let privacyPolicyCanvasHasDrawn_ = false;
+
+  function initPrivacyPolicyCanvas_() {
+    const canvas = $("#privacyPolicyCanvas");
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = rect.width || 320;
+    const h = rect.height || 130;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#1e1b4b";
+    privacyPolicyCanvasCtx_ = ctx;
+    privacyPolicyCanvasHasDrawn_ = false;
+
+    if (canvas.dataset.initialized) return;
+    canvas.dataset.initialized = "true";
+
+    let isDrawing = false;
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - r.left,
+        y: clientY - r.top,
+      };
+    };
+
+    const startDraw = (e) => {
+      isDrawing = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    };
+
+    const drawMove = (e) => {
+      if (!isDrawing) return;
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      privacyPolicyCanvasHasDrawn_ = true;
+      updatePrivacyPolicySignButtonState_();
+    };
+
+    const stopDraw = () => {
+      isDrawing = false;
+    };
+
+    canvas.addEventListener("mousedown", startDraw);
+    canvas.addEventListener("mousemove", drawMove);
+    window.addEventListener("mouseup", stopDraw);
+
+    canvas.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        startDraw(e);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener(
+      "touchmove",
+      (e) => {
+        e.preventDefault();
+        drawMove(e);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener("touchend", stopDraw);
+  }
+
+  function clearPrivacyPolicyCanvas_() {
+    const canvas = $("#privacyPolicyCanvas");
+    if (canvas && privacyPolicyCanvasCtx_) {
+      const dpr = window.devicePixelRatio || 1;
+      privacyPolicyCanvasCtx_.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      privacyPolicyCanvasHasDrawn_ = false;
+      updatePrivacyPolicySignButtonState_();
+    }
+  }
+
+  function updatePrivacyPolicySignButtonState_() {
+    const ackBtn = $("#privacyPolicyAckBtn");
+    const checkbox = $("#privacyPolicyConfirmCheckbox");
+    if (!ackBtn) return;
+    const isChecked = Boolean(checkbox && checkbox.checked);
+    if (!isChecked) {
+      ackBtn.disabled = true;
+    } else {
+      ackBtn.disabled = false;
+    }
+  }
+
   function openPrivacyPolicyDialog() {
+    const isMandatoryPopup = arguments.length > 0 && Boolean(arguments[0]);
     updatePrivacyPolicyAckUI_();
     openDialog("privacyPolicyDialog");
+    setTimeout(() => {
+      initPrivacyPolicyCanvas_();
+      if (isMandatoryPopup) {
+        const bodyEl = $("#privacyPolicyDialogBody");
+        if (bodyEl) bodyEl.scrollTop = 0;
+      }
+    }, 60);
   }
 
   function getPrivacyPolicyAck_() {
     const user = state.user;
     if (!user) return null;
-    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
     if (!uid) return null;
     try {
       const raw = localStorage.getItem(`gf_privacy_policy_ack_${uid}`);
@@ -29828,24 +30012,40 @@ dialog#documentUploadDialog input[type="month"] {
   function updatePrivacyPolicyAckUI_() {
     const statusEl = $("#privacyPolicyAckStatus");
     const ackBtn = $("#privacyPolicyAckBtn");
+    const metaEl = $("#privacyPolicySignMeta");
+    const pendingBlock = $("#privacyPolicyPendingSignatureBlock");
+    const signedCard = $("#privacyPolicySignedCard");
+    const signedDetails = $("#privacyPolicySignedDetails");
+    const signedImgWrap = $("#privacyPolicySignedImageWrap");
+    const signedImg = $("#privacyPolicySignedImage");
+    const checkbox = $("#privacyPolicyConfirmCheckbox");
+
     const user = state.user;
+    const userName = user?.NomeCompleto || user?.Nome || user?.nome || state.profile?.Nome || "Colaborador";
+    const userCpf = user?.CPF || user?.cpf || state.profile?.CPF || "";
+
+    if (metaEl) {
+      metaEl.innerHTML = `<div style="font-weight:700; color:var(--text-primary, #0f172a);">${esc(userName)}</div>${userCpf ? `<div>CPF: ${esc(userCpf)}</div>` : ""}`;
+    }
+
     const ack = getPrivacyPolicyAck_() || (user && user.PoliticaPrivacidadeCiente ? {
       version: user.PoliticaPrivacidadeVersao || "1.0",
       acknowledgedAt: user.PoliticaPrivacidadeData || "",
+      signature: user.PoliticaPrivacidadeAssinatura || "",
     } : null);
 
     if (!user) {
       if (statusEl) statusEl.textContent = "Disponível para consulta pública.";
-      if (ackBtn) {
-        ackBtn.style.display = "none";
-      }
+      if (ackBtn) ackBtn.style.display = "none";
+      if (pendingBlock) pendingBlock.classList.add("hidden");
+      if (signedCard) signedCard.classList.add("hidden");
       return;
     }
 
     if (ack && ack.acknowledgedAt) {
       const d = new Date(ack.acknowledgedAt);
       const formatted = isNaN(d.getTime()) ? ack.acknowledgedAt : d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      if (statusEl) statusEl.innerHTML = `<span style="color:#059669; font-weight:600;">✓ Ciência registrada em ${esc(formatted)} (v${esc(ack.version || "1.0")})</span>`;
+      if (statusEl) statusEl.innerHTML = `<span style="color:#059669; font-weight:600;">Ciência registrada em ${esc(formatted)} (v${esc(ack.version || "1.0")})</span>`;
       if (ackBtn) {
         ackBtn.style.display = "inline-block";
         ackBtn.disabled = true;
@@ -29853,15 +30053,30 @@ dialog#documentUploadDialog input[type="month"] {
         ackBtn.classList.remove("btn-primary");
         ackBtn.classList.add("btn-secondary");
       }
+      if (pendingBlock) pendingBlock.classList.add("hidden");
+      if (signedCard) signedCard.classList.remove("hidden");
+      if (signedDetails) {
+        signedDetails.textContent = `Registrado por ${userName} em ${formatted} (Versão ${ack.version || "1.0"}).`;
+      }
+      if (ack.signature && signedImg && signedImgWrap) {
+        signedImg.src = ack.signature;
+        signedImgWrap.style.display = "block";
+      } else if (signedImgWrap) {
+        signedImgWrap.style.display = "none";
+      }
     } else {
-      if (statusEl) statusEl.textContent = "Ciência da política pendente de registro.";
+      if (statusEl) statusEl.textContent = "Ciência da política pendente de assinatura.";
       if (ackBtn) {
         ackBtn.style.display = "inline-block";
-        ackBtn.disabled = false;
-        ackBtn.textContent = "Registrar ciência";
+        ackBtn.disabled = true;
+        ackBtn.textContent = "Assinar e confirmar ciência";
         ackBtn.classList.remove("btn-secondary");
         ackBtn.classList.add("btn-primary");
       }
+      if (pendingBlock) pendingBlock.classList.remove("hidden");
+      if (signedCard) signedCard.classList.add("hidden");
+      if (checkbox) checkbox.checked = false;
+      clearPrivacyPolicyCanvas_();
     }
   }
 
@@ -29870,41 +30085,99 @@ dialog#documentUploadDialog input[type="month"] {
     if (!user) {
       return toast("Entre com sua conta para registrar a ciência da política.", true);
     }
-    const uid = String(user.UsuarioID || user.usuarioId || user.id || "").trim();
+
+    const checkbox = $("#privacyPolicyConfirmCheckbox");
+    if (!checkbox || !checkbox.checked) {
+      return toast("Marque a declaração de que leu e compreendeu a Política de Privacidade.", true);
+    }
+
+    const canvas = $("#privacyPolicyCanvas");
+    if (!canvas || !privacyPolicyCanvasHasDrawn_) {
+      return toast("Desenhe sua rubrica no quadro para confirmar a assinatura.", true);
+    }
+
+    const rubricBase64 = canvas.toDataURL("image/png");
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
     const ackBtn = $("#privacyPolicyAckBtn");
     if (ackBtn) {
       ackBtn.disabled = true;
-      ackBtn.textContent = "Registrando…";
+      ackBtn.textContent = "Registrando assinatura…";
     }
     const now = new Date().toISOString();
     try {
-      localStorage.setItem(`gf_privacy_policy_ack_${uid}`, JSON.stringify({
+      const ackRecord = {
         version: "1.0",
         acknowledgedAt: now,
-        email: user.Email || user.email,
-      }));
+        email: user.Email || user.email || "",
+        name: user.NomeCompleto || user.Nome || user.nome || "",
+        signature: rubricBase64,
+        device: navigator.userAgent || "",
+      };
+      localStorage.setItem(`gf_privacy_policy_ack_${uid}`, JSON.stringify(ackRecord));
+
       if (sessionToken()) {
-        await call(FN.patchUser, sessionToken(), {
-          usuarioId: uid,
-          PoliticaPrivacidadeCiente: true,
-          PoliticaPrivacidadeData: now,
-          PoliticaPrivacidadeVersao: "1.0",
-        }).catch(() => {});
+        await call(FN.acknowledgePrivacyPolicy, {
+          version: "1.0",
+          signature: rubricBase64,
+          device: navigator.userAgent || "",
+        }).catch(() => {
+          return call(FN.patchUser, sessionToken(), {
+            usuarioId: uid,
+            PoliticaPrivacidadeCiente: true,
+            PoliticaPrivacidadeData: now,
+            PoliticaPrivacidadeVersao: "1.0",
+            PoliticaPrivacidadeAssinatura: rubricBase64,
+          }).catch(() => {});
+        });
       }
+
       if (state.user) {
         state.user.PoliticaPrivacidadeCiente = true;
         state.user.PoliticaPrivacidadeData = now;
         state.user.PoliticaPrivacidadeVersao = "1.0";
+        state.user.PoliticaPrivacidadeAssinatura = rubricBase64;
       }
+      if (state.profile) {
+        state.profile.PoliticaPrivacidadeCiente = true;
+        state.profile.PoliticaPrivacidadeData = now;
+        state.profile.PoliticaPrivacidadeVersao = "1.0";
+        state.profile.PoliticaPrivacidadeAssinatura = rubricBase64;
+      }
+
       updatePrivacyPolicyAckUI_();
-      toast("Ciência da Política de Privacidade registrada com sucesso.");
+      toast("Ciência e assinatura da Política de Privacidade registradas com sucesso.");
+      setTimeout(() => {
+        closeDialog("privacyPolicyDialog");
+      }, 1200);
     } catch (err) {
       toast("Erro ao registrar ciência: " + err.message, true);
       if (ackBtn) {
         ackBtn.disabled = false;
-        ackBtn.textContent = "Registrar ciência";
+        ackBtn.textContent = "Assinar e confirmar ciência";
       }
     }
+  }
+
+  function checkPrivacyPolicyPopup_() {
+    if (!state.user) return;
+    const user = state.user;
+    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
+    if (!uid) return;
+
+    const ackLocal = getPrivacyPolicyAck_();
+    const ackRemote = Boolean(state.user.PoliticaPrivacidadeCiente || state.profile?.PoliticaPrivacidadeCiente);
+    if (ackLocal || ackRemote) {
+      return;
+    }
+
+    if (window.__PRIVACY_POLICY_POPUP_DISMISSED__) {
+      return;
+    }
+
+    window.__PRIVACY_POLICY_POPUP_DISMISSED__ = true;
+    setTimeout(() => {
+      openPrivacyPolicyDialog(true);
+    }, 500);
   }
 
   function printPrivacyPolicy_() {
@@ -29913,6 +30186,9 @@ dialog#documentUploadDialog input[type="month"] {
 
   window.openPrivacyPolicyDialog = openPrivacyPolicyDialog;
   window.acknowledgePrivacyPolicy_ = acknowledgePrivacyPolicy_;
+  window.clearPrivacyPolicyCanvas_ = clearPrivacyPolicyCanvas_;
+  window.updatePrivacyPolicySignButtonState_ = updatePrivacyPolicySignButtonState_;
+  window.checkPrivacyPolicyPopup_ = checkPrivacyPolicyPopup_;
   window.printPrivacyPolicy_ = printPrivacyPolicy_;
 
   async function confirmClockPunchWithSelfie_(event) {
