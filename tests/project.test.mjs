@@ -3367,6 +3367,12 @@ test("UX Mobile: botões de confirmação 100% visíveis em todos os modais e se
 
   // 3. Scripts.html: alternância correta de visibilidade dos botões
   assert.match(scriptsHtml, /clockSelfieConfirmRow/, "Scripts devem gerenciar visibilidade da linha de confirmação");
+
+  // 4. Blindagem anti-colapso WebKit / iOS Safari: modais com min-height e backdrop seguro
+  assert.match(cozinhaflowCss, /#clockSelfieDialog\.clock-selfie-dialog\[open\][\s\S]*min-height:\s*min\(530px/, "Selfie dialog deve ter min-height para não colapsar no Safari");
+  assert.match(cozinhaflowCss, /#operationalNoticeDialog\.operational-notice-modal\[open\],[\s\S]*min-height:\s*240px/, "Mural operacional deve ter min-height para não sumir no Safari");
+  assert.match(cozinhaflowCss, /dialog::backdrop[\s\S]*backdrop-filter:\s*none\s*!important/, "Backdrop não deve aplicar blur pesado para evitar travamentos no Safari iOS");
+  assert.match(scriptsHtml, /webkit-playsinline/, "Vídeo da câmera deve ter webkit-playsinline para Safari iOS");
 });
 
 test("Feedback de Reconhecimento (Destaque da Semana): atribuição, notificação e gamificação da equipe", async () => {

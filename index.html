@@ -15358,6 +15358,8 @@ html, body {
     max-width: 100% !important;
     max-height: calc(100dvh - 16px) !important;
     max-height: calc(100vh - 16px) !important;
+    height: auto !important;
+    min-height: min(280px, calc(100dvh - 40px)) !important;
     border-radius: 28px 28px 0 0 !important;
     border: none !important;
     background: var(--surface, #FFFFFF) !important;
@@ -15369,9 +15371,9 @@ html, body {
     overflow: hidden !important;
   }
   dialog::backdrop {
-    background: rgba(15, 20, 35, 0.4) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
+    background: rgba(15, 20, 35, 0.65) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
   dialog::before {
     content: "" !important;
@@ -15386,10 +15388,11 @@ html, body {
   dialog > form {
     display: flex !important;
     flex-direction: column !important;
-    height: 100% !important;
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: min(240px, calc(100dvh - 60px)) !important;
     max-height: calc(100dvh - 16px) !important;
     max-height: calc(100vh - 16px) !important;
-    min-height: 0 !important;
     overflow: hidden !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -18179,7 +18182,7 @@ button, a, input, select, textarea, .btn, .j-card button {
 }
 
 /* ==========================================================================
-   MODAL DE SELFIE DO PONTO: Padrão Apple iOS Minimalista & Clean
+   MODAL DE SELFIE DO PONTO: Padrão Apple iOS Minimalista & Clean (Anti-Collapse)
    ========================================================================== */
 #clockSelfieDialog:not([open]) {
   display: none !important;
@@ -18191,7 +18194,9 @@ button, a, input, select, textarea, .btn, .j-card button {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25) !important;
   padding: 0 !important;
   max-width: 420px !important;
-  width: min(420px, calc(100vw - 24px)) !important;
+  width: min(420px, calc(100vw - 20px)) !important;
+  height: auto !important;
+  min-height: min(530px, calc(100dvh - 24px)) !important;
   max-height: calc(100dvh - 24px) !important;
   max-height: calc(100vh - 24px) !important;
   background: var(--surface) !important;
@@ -18199,6 +18204,8 @@ button, a, input, select, textarea, .btn, .j-card button {
   display: flex !important;
   flex-direction: column !important;
   margin: auto !important;
+  box-sizing: border-box !important;
+  z-index: 99999 !important;
 }
 
 #clockSelfieDialog::before {
@@ -18208,12 +18215,14 @@ button, a, input, select, textarea, .btn, .j-card button {
 #clockSelfieDialog form#clockSelfieForm {
   display: flex !important;
   flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: min(510px, calc(100dvh - 32px)) !important;
   max-height: calc(100dvh - 24px) !important;
   max-height: calc(100vh - 24px) !important;
-  height: 100% !important;
-  min-height: 0 !important;
+  height: auto !important;
   overflow: hidden !important;
   width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 #clockSelfieDialog .dialog-head {
@@ -18266,9 +18275,75 @@ button, a, input, select, textarea, .btn, .j-card button {
   flex-direction: column !important;
   gap: 10px !important;
   flex: 1 1 auto !important;
+  min-height: 310px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  box-sizing: border-box !important;
+}
+
+/* ==========================================================================
+   MODAL DE AVISO OPERACIONAL (MURAL): Padrão Apple iOS Minimalista & Clean
+   ========================================================================== */
+#operationalNoticeDialog:not([open]) {
+  display: none !important;
+}
+
+#operationalNoticeDialog.operational-notice-modal[open],
+#operationalNoticeDialog[open] {
+  border-radius: 28px !important;
+  border: 1px solid var(--line, #e2e8f0) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25) !important;
+  padding: 0 !important;
+  max-width: 480px !important;
+  width: min(480px, calc(100vw - 20px)) !important;
+  max-height: calc(100dvh - 28px) !important;
+  max-height: calc(100vh - 28px) !important;
+  height: auto !important;
+  min-height: 240px !important;
+  background: var(--surface, #ffffff) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: auto !important;
+  box-sizing: border-box !important;
+  z-index: 99999 !important;
+}
+
+#operationalNoticeDialog::before {
+  display: none !important;
+}
+
+#operationalNoticeDialog .dialog-head {
+  padding: 16px 20px 12px !important;
+  border-bottom: 1px solid var(--line, #e2e8f0) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-shrink: 0 !important;
+  background: var(--surface) !important;
+}
+
+#operationalNoticeDialog .dialog-body {
+  padding: 16px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
+  box-sizing: border-box !important;
+}
+
+#operationalNoticeDialog .dialog-actions {
+  padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)) 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  border-top: 1px solid var(--line, #e2e8f0) !important;
+  background: var(--surface-2, #f8fafc) !important;
+  flex-shrink: 0 !important;
 }
 
 #clockSelfieDialog .clock-selfie-stage {
@@ -27322,20 +27397,36 @@ dialog#medicalCertificateDialog {
     }
   }
   function openDialog(id) {
-    const d = $("#" + id);
-    if (d && !d.open) d.showModal();
+    const d = typeof id === "string" ? $("#" + id) : id;
+    if (!d) return;
+    try {
+      if (!d.open) {
+        if (typeof d.showModal === "function") {
+          d.showModal();
+        } else {
+          d.setAttribute("open", "");
+        }
+      }
+    } catch (e) {
+      console.warn("[dialog] Falha ao abrir modal:", e);
+      d.setAttribute("open", "");
+    }
+    requestAnimationFrame(() => {
+      d.scrollTop = 0;
+    });
   }
   function closeDialog(id) {
-    const d = $("#" + id);
+    const d = typeof id === "string" ? $("#" + id) : id;
     if (d) {
-      if (d.open) {
-        try {
+      try {
+        if (typeof d.close === "function" && d.open) {
           d.close();
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
       d.removeAttribute("open");
     }
-    if (id === "clockSelfieDialog") resetClockSelfieCapture_();
+    const dialogId = typeof id === "string" ? id : (d ? d.id : "");
+    if (dialogId === "clockSelfieDialog") resetClockSelfieCapture_();
   }
   function showUnauthorized(m) {
     $("#app").classList.add("hidden");
@@ -33386,6 +33477,7 @@ dialog#medicalCertificateDialog {
         video.muted = true;
         video.playsInline = true;
         video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
         video.setAttribute("muted", "");
         video.setAttribute("autoplay", "");
         video.srcObject = CLOCK_SELFIE_STREAM_;
@@ -36513,23 +36605,19 @@ dialog#medicalCertificateDialog {
 
   async function acknowledgeCurrentNotice_(noticeId, btn) {
     const id = noticeId || CURRENT_OPERATIONAL_NOTICE_ID_;
-    if (!id) {
-      closeDialog("operationalNoticeDialog");
-      return;
-    }
-    const b = btn || $("#operationalNoticeAckBtn");
+    closeDialog("operationalNoticeDialog");
+    if (!id) return;
+
+    sessionStorage.setItem("operational_notice_seen_" + id, "true");
+    const found = (state.operationalAnnouncements || []).find((c) => c.ComID === id);
+    if (found) found.jaLido = true;
+    publishJourney_();
+    toast("Ciência confirmada. Bom turno de trabalho!");
+
     try {
-      await advancedAction_(
-        b,
-        () => call("confirmarLeituraComunicado", sessionToken(), id),
-        "Ciência confirmada. Bom turno de trabalho!"
-      );
-      closeDialog("operationalNoticeDialog");
-      const found = (state.operationalAnnouncements || []).find((c) => c.ComID === id);
-      if (found) found.jaLido = true;
-      publishJourney_();
+      await call("confirmarLeituraComunicado", sessionToken(), id);
     } catch (err) {
-      toast("Não foi possível confirmar: " + (err.message || "tente novamente"), true);
+      console.warn("[comunicados] Falha ao sincronizar confirmação de leitura:", err);
     }
   }
 

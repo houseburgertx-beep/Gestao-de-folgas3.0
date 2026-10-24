@@ -979,20 +979,36 @@
     }
   }
   function openDialog(id) {
-    const d = $("#" + id);
-    if (d && !d.open) d.showModal();
+    const d = typeof id === "string" ? $("#" + id) : id;
+    if (!d) return;
+    try {
+      if (!d.open) {
+        if (typeof d.showModal === "function") {
+          d.showModal();
+        } else {
+          d.setAttribute("open", "");
+        }
+      }
+    } catch (e) {
+      console.warn("[dialog] Falha ao abrir modal:", e);
+      d.setAttribute("open", "");
+    }
+    requestAnimationFrame(() => {
+      d.scrollTop = 0;
+    });
   }
   function closeDialog(id) {
-    const d = $("#" + id);
+    const d = typeof id === "string" ? $("#" + id) : id;
     if (d) {
-      if (d.open) {
-        try {
+      try {
+        if (typeof d.close === "function" && d.open) {
           d.close();
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
       d.removeAttribute("open");
     }
-    if (id === "clockSelfieDialog") resetClockSelfieCapture_();
+    const dialogId = typeof id === "string" ? id : (d ? d.id : "");
+    if (dialogId === "clockSelfieDialog") resetClockSelfieCapture_();
   }
   function showUnauthorized(m) {
     $("#app").classList.add("hidden");
@@ -7043,6 +7059,7 @@
         video.muted = true;
         video.playsInline = true;
         video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
         video.setAttribute("muted", "");
         video.setAttribute("autoplay", "");
         video.srcObject = CLOCK_SELFIE_STREAM_;
@@ -10170,23 +10187,19 @@
 
   async function acknowledgeCurrentNotice_(noticeId, btn) {
     const id = noticeId || CURRENT_OPERATIONAL_NOTICE_ID_;
-    if (!id) {
-      closeDialog("operationalNoticeDialog");
-      return;
-    }
-    const b = btn || $("#operationalNoticeAckBtn");
+    closeDialog("operationalNoticeDialog");
+    if (!id) return;
+
+    sessionStorage.setItem("operational_notice_seen_" + id, "true");
+    const found = (state.operationalAnnouncements || []).find((c) => c.ComID === id);
+    if (found) found.jaLido = true;
+    publishJourney_();
+    toast("Ciência confirmada. Bom turno de trabalho!");
+
     try {
-      await advancedAction_(
-        b,
-        () => call("confirmarLeituraComunicado", sessionToken(), id),
-        "Ciência confirmada. Bom turno de trabalho!"
-      );
-      closeDialog("operationalNoticeDialog");
-      const found = (state.operationalAnnouncements || []).find((c) => c.ComID === id);
-      if (found) found.jaLido = true;
-      publishJourney_();
+      await call("confirmarLeituraComunicado", sessionToken(), id);
     } catch (err) {
-      toast("Não foi possível confirmar: " + (err.message || "tente novamente"), true);
+      console.warn("[comunicados] Falha ao sincronizar confirmação de leitura:", err);
     }
   }
 
