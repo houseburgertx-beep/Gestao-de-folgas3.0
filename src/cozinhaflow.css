@@ -3019,7 +3019,26 @@ textarea:focus {
   font-weight: 600 !important;
 }
 
-/* Chip de folga semanal */
+/* Badge de folga semanal no cabeçalho */
+.w-fixed-off-badge {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px 10px !important;
+  border-radius: 20px !important;
+  letter-spacing: -0.01em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+.w-fixed-off-badge strong {
+  color: #0f172a !important;
+  font-weight: 750 !important;
+}
+
+/* Chip de folga semanal (compatibilidade) */
 .w-fixed-off-chip {
   display: inline-flex !important;
   align-items: center !important;
@@ -3038,12 +3057,12 @@ textarea:focus {
   font-weight: 750 !important;
 }
 
-/* Botões simétricos de ação em Folgas e Horas */
+/* Botões simétricos de ação em Folgas e Horas - 3 Colunas Harmônicas */
 .w-wallet .w-actions {
   display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 10px !important;
-  margin-top: 16px !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+  margin-top: 14px !important;
   width: 100% !important;
 }
 .w-wallet .w-actions .btn {
@@ -3052,11 +3071,30 @@ textarea:focus {
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
-  padding: 12px 10px !important;
-  min-height: 44px !important;
-  font-size: 13px !important;
-  font-weight: 650 !important;
-  border-radius: 14px !important;
+  padding: 10px 4px !important;
+  min-height: 42px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+  white-space: nowrap !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.15s ease !important;
+}
+.w-wallet .w-actions .btn:active {
+  transform: scale(0.97) !important;
+  background: #f1f5f9 !important;
+}
+.w-wallet .w-actions .btn.w-btn-docs {
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
+}
+.w-wallet .w-actions .btn.w-btn-docs:active {
+  background: #e0e7ff !important;
 }
 
 
@@ -3259,6 +3297,60 @@ textarea:focus {
   [data-theme="dark"] .w-request > .w-request-body {
     border-top-color: rgba(255, 255, 255, 0.08) !important;
   }
+}
+
+/* Próxima folga aprovada - estilo Clean Apple iOS */
+.w-next-leave {
+  background: #f8fafc !important;
+  border: 1px solid rgba(40, 45, 70, 0.08) !important;
+  border-radius: 16px !important;
+  padding: 12px 16px !important;
+  margin-top: 14px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+.w-next-leave span {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+}
+.w-next-leave strong {
+  font-size: 13px !important;
+  font-weight: 750 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.01em !important;
+}
+
+[data-theme="dark"] .w-fixed-off-badge {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .w-fixed-off-badge strong {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .w-wallet .w-actions .btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .w-wallet .w-actions .btn.w-btn-docs {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  color: #a5b4fc !important;
+}
+[data-theme="dark"] .w-next-leave {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .w-next-leave span {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .w-next-leave strong {
+  color: #f8fafc !important;
 }
 
 /* Painel do Gestor (Operação) — Card de Comando Principal com Gradiente Azul e Contraste Nítido */
