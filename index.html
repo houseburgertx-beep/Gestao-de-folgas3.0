@@ -35806,6 +35806,27 @@ dialog#medicalCertificateDialog {
   // --- MURAL DE AVISOS OPERACIONAIS & RECONHECIMENTO (HOUSE 190) ---
   let CURRENT_OPERATIONAL_NOTICE_ID_ = "";
 
+  function storeId(st) {
+    if (!st) return "";
+    return typeof st === "object"
+      ? String(val(st, "LojaID", "lojaId", "id") || idOf(st, "Loja") || "").trim()
+      : String(st).trim();
+  }
+
+  function resolveStoreName_(lojaIdOrStore) {
+    if (!lojaIdOrStore) return "Todas as Unidades";
+    const id = typeof lojaIdOrStore === "object"
+      ? storeId(lojaIdOrStore)
+      : String(lojaIdOrStore).trim();
+    if (!id) return "Todas as Unidades";
+    if (typeof storeName === "function") {
+      const nm = storeName(id);
+      if (nm) return nm;
+    }
+    const found = (state.stores || []).find((st) => storeId(st) === id);
+    return found ? String(val(found, "NomeLoja", "nomeLoja", "nome") || "Unidade") : "Unidade Específica";
+  }
+
   async function loadOperationalAnnouncements_() {
     try {
       const rows = await call("listarComunicadosAtivos", sessionToken());
@@ -35841,8 +35862,7 @@ dialog#medicalCertificateDialog {
 
     const storeBadge = $("#operationalNoticeStoreBadge");
     if (storeBadge) {
-      const s = (state.stores || []).find((st) => storeId(st) === String(pendingNotice.LojaID));
-      storeBadge.textContent = s ? storeName(s) : (pendingNotice.LojaID ? "Unidade Específica" : "Todas as Unidades");
+      storeBadge.textContent = resolveStoreName_(pendingNotice.LojaID);
     }
 
     const titleEl = $("#operationalNoticeModalTitle");
@@ -36064,8 +36084,7 @@ dialog#medicalCertificateDialog {
       if (titleEl) titleEl.textContent = notice.Titulo || "Aviso Operacional";
 
       if (storeBadge) {
-        const s = (state.stores || []).find((st) => storeId(st) === String(notice.LojaID));
-        storeBadge.textContent = s ? storeName(s) : (notice.LojaID ? "Unidade Específica" : "Todas as Unidades");
+        storeBadge.textContent = resolveStoreName_(notice.LojaID);
       }
 
       if (countBadge) {

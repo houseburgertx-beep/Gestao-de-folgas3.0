@@ -3508,6 +3508,8 @@ test("Mural e Reconhecimento: Auditoria de ciência e opções de exclusão para
   assert.match(scriptsHtml, /openNoticeReadingsDialog/, "Scripts deve conter função para abrir auditoria de ciência");
   assert.match(scriptsHtml, /deleteNotice_/, "Scripts deve conter função para excluir aviso");
   assert.match(scriptsHtml, /deleteRecognition_/, "Scripts deve conter função para excluir reconhecimento");
+  assert.match(scriptsHtml, /resolveStoreName_/, "Scripts deve conter helper seguro para resolver nome da loja");
+  assert.match(scriptsHtml, /function storeId\(/, "Scripts deve ter fallback seguro da função storeId");
 
   // 4. Estilos no Cozinhaflow.css
   assert.match(cozinhaflowCss, /\.reading-item/, "cozinhaflow.css deve estilizar itens da lista de ciência");
