@@ -33492,6 +33492,19 @@ dialog#medicalCertificateDialog {
             setTimeout(r, 600);
           });
         }
+        // Aguarda os primeiros quadros do sensor da câmera do iPhone para não capturar tela preta
+        await new Promise((resolve) => {
+          let resolved = false;
+          const onFrame = () => {
+            if (resolved) return;
+            resolved = true;
+            resolve();
+          };
+          if (video.currentTime > 0) return resolve();
+          video.addEventListener("timeupdate", onFrame, { once: true });
+          video.addEventListener("playing", onFrame, { once: true });
+          setTimeout(onFrame, 1200);
+        });
       }
       placeholder?.classList.add("hidden");
       if (capture) {
@@ -33700,8 +33713,8 @@ dialog#medicalCertificateDialog {
       toast("Aguarde a câmera iniciar.", true);
       return;
     }
-    if (!video.videoWidth || !video.videoHeight) {
-      await new Promise((r) => setTimeout(r, 350));
+    if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
+      await new Promise((r) => setTimeout(r, 450));
     }
     if (!video.videoWidth || !video.videoHeight) {
       toast("A câmera ainda está carregando. Aguarde um instante.", true);
@@ -33756,11 +33769,24 @@ dialog#medicalCertificateDialog {
       const onDone = (pos) => {
         if (resolved) return;
         resolved = true;
+        clearTimeout(fastFallbackTimer);
+        clearTimeout(hardTimeoutTimer);
         CLOCK_CACHED_POSITION_ = pos;
         CLOCK_CACHED_AT_ = Date.now();
         updateClockLocationStatus_(pos);
         resolve(pos);
       };
+
+      // Trava de segurança anti-congelamento WebKit / iOS Safari (máximo 6s)
+      const hardTimeoutTimer = setTimeout(() => {
+        if (resolved) return;
+        if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 300000) {
+          console.warn("[ponto] GPS demorou, utilizando posição recente em cache.");
+          return onDone(CLOCK_CACHED_POSITION_);
+        }
+        resolved = true;
+        reject(new Error("A leitura de GPS demorou além do esperado. Verifique se o Wi-Fi e a localização estão ativos no celular."));
+      }, 6000);
 
       // Dispara fallback de rede rapidamente (após 3.5s) para não travar em ambientes fechados (cozinhas)
       const fastFallbackTimer = setTimeout(() => {
@@ -33768,18 +33794,16 @@ dialog#medicalCertificateDialog {
           navigator.geolocation.getCurrentPosition(
             onDone,
             () => {},
-            { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 },
+            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 },
           );
         }
       }, 3500);
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          clearTimeout(fastFallbackTimer);
           onDone(pos);
         },
         (err) => {
-          clearTimeout(fastFallbackTimer);
           if (resolved) return;
           if (err && (err.code === 2 || err.code === 3)) {
             console.warn(
@@ -33792,11 +33816,15 @@ dialog#medicalCertificateDialog {
                 if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 180000) {
                   return onDone(CLOCK_CACHED_POSITION_);
                 }
-                reject(finalErr || err);
+                if (!resolved) {
+                  resolved = true;
+                  clearTimeout(hardTimeoutTimer);
+                  reject(finalErr || err);
+                }
               },
               {
                 enableHighAccuracy: false,
-                timeout: 12000,
+                timeout: 5000,
                 maximumAge: 30000,
               },
             );
@@ -33804,7 +33832,11 @@ dialog#medicalCertificateDialog {
             if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 180000) {
               return onDone(CLOCK_CACHED_POSITION_);
             }
-            reject(err);
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(hardTimeoutTimer);
+              reject(err);
+            }
           }
         },
         {
@@ -34397,12 +34429,26 @@ dialog#medicalCertificateDialog {
     let pos = null;
     try {
       try {
-        pos = await (CLOCK_POSITION_PROMISE_ || getClockPosition_());
+        pos = await Promise.race([
+          (CLOCK_POSITION_PROMISE_ || getClockPosition_()),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("GPS_TIMEOUT")), 6500)),
+        ]);
       } catch (posErr) {
-        console.warn("[ponto] Tentando nova leitura de localização na confirmação:", posErr);
-        pos = await getClockPosition_();
+        console.warn("[ponto] Tentando leitura de localização com tolerância:", posErr);
+        if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 300000) {
+          pos = CLOCK_CACHED_POSITION_;
+        } else {
+          pos = await Promise.race([
+            getClockPosition_(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("GPS_TIMEOUT")), 5000)),
+          ]);
+        }
       }
-      const saved = await call(FN.clockPunch, sessionToken(), {
+      if (!pos || !pos.coords) {
+        throw new Error("Não foi possível confirmar sua localização. Ative o GPS/Wi-Fi do aparelho e tente novamente.");
+      }
+
+      const punchCall = call(FN.clockPunch, sessionToken(), {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
@@ -34410,6 +34456,13 @@ dialog#medicalCertificateDialog {
         expectedAction: CLOCK_EXPECTED_ACTION_,
         requestId: CLOCK_PUNCH_REQUEST_ID_,
       });
+
+      // Timeout limite da rede móvel (8.5s). Se a rede ou Google Drive demorar, salva em contingência offline imediatamente!
+      const timeoutCall = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("NETWORK_TIMEOUT")), 8500),
+      );
+
+      const saved = await Promise.race([punchCall, timeoutCall]);
       applySavedClockPunch_(saved);
       confirmed = true;
       closeDialog("clockSelfieDialog");
@@ -34433,7 +34486,7 @@ dialog#medicalCertificateDialog {
       refreshClockAfterPunch_();
     } catch (error) {
       const isNetworkFail = !navigator.onLine ||
-        /network|failed to fetch|offline|timeout|unavailable/i.test(String(error?.message || ""));
+        /network|failed to fetch|offline|timeout|unavailable|gps_timeout/i.test(String(error?.message || ""));
       if (isNetworkFail && CLOCK_PUNCH_REQUEST_ID_ && CLOCK_SELFIE_DATA_) {
         const offlineRecord = queueOfflineClockPunch_({
           requestId: CLOCK_PUNCH_REQUEST_ID_,
@@ -34457,7 +34510,7 @@ dialog#medicalCertificateDialog {
           const banner = document.getElementById("notificationPromptBanner");
           if (banner) banner.classList.add("hidden");
         } catch (e) {}
-        toast("Sem conexão com a internet. Marcação salva com segurança no aparelho e será sincronizada assim que a rede voltar.");
+        toast("Sinal de rede lento ou instável. Marcação salva com segurança no aparelho (contingência offline) e será sincronizada automaticamente.");
         refreshClockAfterPunch_();
       } else {
         const message = error?.code
