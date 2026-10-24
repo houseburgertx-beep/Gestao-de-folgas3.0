@@ -18928,6 +18928,364 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   padding-bottom: calc(115px + env(safe-area-inset-bottom, 20px)) !important;
 }
 
+/* ==========================================================================
+   MODAL PEDIR FOLGA — ESTILO APPLE iOS / HOUSE 190 CLEAN
+   ========================================================================== */
+
+#timeOffDialog .dialog-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 18px 20px 14px 20px !important;
+  border-bottom: 1px solid rgba(40, 45, 70, 0.07) !important;
+}
+
+#timeOffDialog .dialog-head .eyebrow {
+  color: #6366f1 !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 2px !important;
+  display: block !important;
+}
+
+#timeOffDialog .dialog-head h3 {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 !important;
+}
+
+#timeOffDialog .time-off-close-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: all 0.15s ease !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#timeOffDialog .time-off-close-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+#timeOffDialog .time-off-close-btn:active {
+  transform: scale(0.94) !important;
+}
+
+/* Card informativo do solicitante (modo funcionário) */
+.time-off-requester-card {
+  background: #f8fafc !important;
+  border: 1px solid rgba(40, 45, 70, 0.08) !important;
+  border-radius: 18px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 16px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+.time-off-requester-card .requester-info-main {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.time-off-requester-card .requester-tag {
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  color: #6366f1 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+.time-off-requester-card strong {
+  font-size: 15px !important;
+  font-weight: 750 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.01em !important;
+}
+
+.time-off-requester-card .requester-store {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+}
+
+.time-off-requester-card .requester-balance-box {
+  background: #eef2ff !important;
+  border: 1px solid #c7d2fe !important;
+  border-radius: 14px !important;
+  padding: 6px 12px !important;
+  text-align: center !important;
+  flex-shrink: 0 !important;
+}
+
+.time-off-requester-card .requester-balance-box small {
+  display: block !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #4f46e5 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+.time-off-requester-card .requester-balance-box strong {
+  display: block !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #312e81 !important;
+  line-height: 1.2 !important;
+}
+
+/* Grid e campos de formulário */
+.time-off-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+.time-off-grid label {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #475569 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.time-off-grid label input,
+.time-off-grid label select,
+.time-off-grid label textarea {
+  width: 100% !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 0 14px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+.time-off-grid label input,
+.time-off-grid label select {
+  height: 48px !important;
+  min-height: 48px !important;
+}
+
+/* Chevrons elegantes para selects */
+.time-off-grid label select {
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  padding-right: 36px !important;
+}
+
+.time-off-grid label input:focus,
+.time-off-grid label select:focus,
+.time-off-grid label textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
+  outline: none !important;
+  background: #ffffff !important;
+}
+
+/* Linha compacta de 2 colunas para Tipo e Período */
+.time-off-row-2col {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
+/* Textarea de motivo */
+.time-off-reason-field textarea {
+  min-height: 74px !important;
+  height: 74px !important;
+  padding: 12px 14px !important;
+  resize: none !important;
+  line-height: 1.4 !important;
+}
+
+/* Box de opções do gestor */
+.time-off-switches-box {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  padding: 12px 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.time-off-switches-box .switch-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  cursor: pointer !important;
+}
+
+.time-off-switches-box .switch-label input[type="checkbox"] {
+  width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  border-radius: 6px !important;
+  accent-color: #6366f1 !important;
+  cursor: pointer !important;
+}
+
+/* Ações do rodapé do modal */
+.time-off-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 12px)) 20px !important;
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  box-sizing: border-box !important;
+}
+
+.time-off-actions .btn {
+  min-height: 48px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.01em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  transition: all 0.15s ease !important;
+}
+
+.time-off-actions .time-off-cancel-btn {
+  flex: 1 !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.time-off-actions .time-off-cancel-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.time-off-actions .time-off-validate-btn {
+  flex: 1 !important;
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+.time-off-actions .time-off-submit-btn {
+  flex: 2 !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25) !important;
+}
+
+.time-off-actions .time-off-submit-btn:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%) !important;
+}
+
+.time-off-actions .btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Dark Theme */
+[data-theme="dark"] #timeOffDialog .dialog-head h3 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] #timeOffDialog .time-off-close-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .time-off-requester-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .time-off-requester-card strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-store {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-balance-box {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-balance-box small {
+  color: #a5b4fc !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-balance-box strong {
+  color: #c7d2fe !important;
+}
+
+[data-theme="dark"] .time-off-grid label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .time-off-grid label input,
+[data-theme="dark"] .time-off-grid label select,
+[data-theme="dark"] .time-off-grid label textarea {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .time-off-switches-box {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .time-off-switches-box .switch-label {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .time-off-actions {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .time-off-actions .time-off-cancel-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
 
 
 
@@ -24002,83 +24360,123 @@ dialog#medicalCertificateDialog {
     </div>
 
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
-    <dialog id="timeOffDialog">
+    <dialog id="timeOffDialog" class="time-off-dialog">
   <form id="timeOffForm">
     <div class="dialog-head">
-      <h3 id="timeOffDialogTitle">Nova folga</h3>
-      <button type="button" class="icon-btn" data-close="timeOffDialog">
+      <div>
+        <span class="eyebrow" id="timeOffEyebrow">SOLICITAÇÃO DE FOLGA</span>
+        <h3 id="timeOffDialogTitle">Pedir folga</h3>
+      </div>
+      <button type="button" class="icon-btn time-off-close-btn" data-close="timeOffDialog" aria-label="Fechar modal">
         ✕
       </button>
     </div>
     <div class="dialog-body">
       <input id="timeOffId" type="hidden" />
-      <div class="dialog-grid">
-        <label>Loja<select id="timeOffStore" required></select></label>
-        <label
-          >Funcionário<select id="timeOffEmployee" required></select
-        ></label>
-        <label id="timeOffSingleDateField"
-          >Data da folga<input id="timeOffSingleDate" type="date"
-        /></label>
-        <label id="timeOffStartField" class="hidden"
-          >Data inicial<input id="timeOffStart" type="date"
-        /></label>
-        <label id="timeOffEndField" class="hidden"
-          >Data final<input id="timeOffEnd" type="date"
-        /></label>
-        <label
-          >Tipo<select id="timeOffType">
-            <option>Folga semanal</option>
-            <option>Folga manual</option>
-            <option>Folga automática</option>
-            <option>Folga compensatória</option>
-            <option>Folga de feriado</option>
-            <option>Atestado Médico</option>
-            <option>Férias</option>
-            <option>Licença</option>
-            <option>Banco de horas</option>
-            <option>Meia folga</option>
-            <option>Outro</option>
-          </select></label
-        >
-        <label
-          >Período<select id="timeOffPeriod">
-            <option>Dia inteiro</option>
-            <option>Manhã</option>
-            <option>Tarde</option>
-            <option>Horário personalizado</option>
-          </select></label
-        >
-        <label class="full"
-          >Motivo<textarea
+
+      <!-- Banner de identificação e saldo do colaborador (modo funcionário) -->
+      <div id="timeOffRequesterInfo" class="time-off-requester-card hidden">
+        <div class="requester-info-main">
+          <span class="requester-tag">SOLICITANTE</span>
+          <strong id="timeOffRequesterName">Colaborador</strong>
+          <span id="timeOffRequesterStore" class="requester-store">Unidade</span>
+        </div>
+        <div class="requester-balance-box">
+          <small>Disponível</small>
+          <strong id="timeOffRequesterBalance">—</strong>
+        </div>
+      </div>
+
+      <div class="dialog-grid time-off-grid">
+        <!-- Campos gerenciais visíveis apenas para Gestor/Admin -->
+        <label id="timeOffStoreField" class="time-off-manager-only">Loja<select id="timeOffStore" required></select></label>
+        <label id="timeOffEmployeeField" class="time-off-manager-only">Funcionário<select id="timeOffEmployee" required></select></label>
+
+        <!-- Data da folga (dia único padrão) -->
+        <label id="timeOffSingleDateField" class="time-off-date-field full">
+          <span>Data da folga</span>
+          <input id="timeOffSingleDate" type="date" required />
+        </label>
+
+        <!-- Intervalo de datas (para férias/licenças/atestados em modo gestor) -->
+        <label id="timeOffStartField" class="time-off-date-field hidden">
+          <span>Data inicial</span>
+          <input id="timeOffStart" type="date" />
+        </label>
+        <label id="timeOffEndField" class="time-off-date-field hidden">
+          <span>Data final</span>
+          <input id="timeOffEnd" type="date" />
+        </label>
+
+        <!-- Linha compacta 2-colunas: Tipo e Período -->
+        <div class="time-off-row-2col full">
+          <label id="timeOffTypeField">
+            <span>Tipo</span>
+            <select id="timeOffType">
+              <option>Folga semanal</option>
+              <option>Folga manual</option>
+              <option>Folga automática</option>
+              <option>Folga compensatória</option>
+              <option>Folga de feriado</option>
+              <option>Atestado Médico</option>
+              <option>Férias</option>
+              <option>Licença</option>
+              <option>Banco de horas</option>
+              <option>Meia folga</option>
+              <option>Outro</option>
+            </select>
+          </label>
+          <label id="timeOffPeriodField">
+            <span>Período</span>
+            <select id="timeOffPeriod">
+              <option>Dia inteiro</option>
+              <option>Manhã</option>
+              <option>Tarde</option>
+              <option>Horário personalizado</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Motivo / Observação -->
+        <label class="full time-off-reason-field">
+          <span>Motivo ou observação</span>
+          <textarea
             id="timeOffReason"
             placeholder="Adicione um motivo ou observação"
           ></textarea>
         </label>
-        <label class="switch-label"
-          ><input id="timeOffImmediate" type="checkbox" /> Aprovar
-          imediatamente</label
-        >
-        <label class="switch-label"
-          ><input id="timeOffCalendar" type="checkbox" checked /> Criar no
-          Google Calendar</label
-        >
+
+        <!-- Opções administrativas (somente gestor) -->
+        <div id="timeOffManagerSwitches" class="time-off-manager-only full time-off-switches-box">
+          <label class="switch-label">
+            <input id="timeOffImmediate" type="checkbox" />
+            <span>Aprovar imediatamente</span>
+          </label>
+          <label class="switch-label">
+            <input id="timeOffCalendar" type="checkbox" checked />
+            <span>Criar no Google Calendar</span>
+          </label>
+        </div>
       </div>
     </div>
-    <div class="dialog-actions">
+    <div class="dialog-actions time-off-actions">
       <button
         type="button"
-        class="btn btn-secondary"
+        class="btn btn-secondary time-off-cancel-btn"
         data-close="timeOffDialog"
       >
-        Cancelar</button
-      ><button
+        Cancelar
+      </button>
+      <button
         type="button"
         id="validateTimeOffButton"
-        class="btn btn-secondary"
+        class="btn btn-secondary time-off-validate-btn"
       >
-        Validar</button
-      ><button class="btn btn-primary" type="submit">Guardar folga</button>
+        Validar
+      </button>
+      <button class="btn btn-primary time-off-submit-btn" type="submit" id="timeOffSubmitBtn">
+        Guardar folga
+      </button>
     </div>
   </form>
 </dialog>
@@ -30743,8 +31141,33 @@ dialog#medicalCertificateDialog {
       : employeeMode
         ? idOf(me, "Funcionario")
         : "";
-    $("#timeOffStore").disabled = employeeMode;
-    $("#timeOffEmployee").disabled = employeeMode;
+    $("#timeOffStore").disabled = false;
+    $("#timeOffEmployee").disabled = false;
+    $("#timeOffStore").required = !employeeMode;
+    $("#timeOffEmployee").required = !employeeMode;
+    if ($("#timeOffEyebrow")) {
+      $("#timeOffEyebrow").textContent = employeeMode ? "SOLICITAÇÃO DE FOLGA" : "GESTÃO DE AUSÊNCIAS";
+    }
+    if ($("#timeOffSubmitBtn")) {
+      $("#timeOffSubmitBtn").textContent = employeeMode ? "Enviar solicitação ↗" : "Salvar folga";
+    }
+    if ($("#validateTimeOffButton")) {
+      $("#validateTimeOffButton").classList.toggle("hidden", employeeMode);
+    }
+    if ($("#timeOffRequesterInfo")) {
+      $("#timeOffRequesterInfo").classList.toggle("hidden", !employeeMode);
+      if (employeeMode) {
+        const myName = val(me, "Nome", "nome") || "Colaborador";
+        const myStore = storeName(storeId) || val(me, "NomeLoja", "nomeLoja") || "Unidade";
+        const myBal = val(me, "SaldoFolgas", "saldoFolgas");
+        $("#timeOffRequesterName").textContent = myName;
+        $("#timeOffRequesterStore").textContent = myStore;
+        $("#timeOffRequesterBalance").textContent = myBal !== undefined && myBal !== null ? `${myBal} ${myBal === 1 ? 'folga' : 'folgas'}` : "—";
+      }
+    }
+    document.querySelectorAll(".time-off-manager-only").forEach((el) => {
+      el.classList.toggle("hidden", employeeMode);
+    });
     const start = x ? iso(val(x, "DataInicio", "dataInicio")) : date,
       end = x ? iso(val(x, "DataFim", "dataFim")) : date;
     $("#timeOffStart").value = start;

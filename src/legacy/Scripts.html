@@ -4797,8 +4797,33 @@
       : employeeMode
         ? idOf(me, "Funcionario")
         : "";
-    $("#timeOffStore").disabled = employeeMode;
-    $("#timeOffEmployee").disabled = employeeMode;
+    $("#timeOffStore").disabled = false;
+    $("#timeOffEmployee").disabled = false;
+    $("#timeOffStore").required = !employeeMode;
+    $("#timeOffEmployee").required = !employeeMode;
+    if ($("#timeOffEyebrow")) {
+      $("#timeOffEyebrow").textContent = employeeMode ? "SOLICITAÇÃO DE FOLGA" : "GESTÃO DE AUSÊNCIAS";
+    }
+    if ($("#timeOffSubmitBtn")) {
+      $("#timeOffSubmitBtn").textContent = employeeMode ? "Enviar solicitação ↗" : "Salvar folga";
+    }
+    if ($("#validateTimeOffButton")) {
+      $("#validateTimeOffButton").classList.toggle("hidden", employeeMode);
+    }
+    if ($("#timeOffRequesterInfo")) {
+      $("#timeOffRequesterInfo").classList.toggle("hidden", !employeeMode);
+      if (employeeMode) {
+        const myName = val(me, "Nome", "nome") || "Colaborador";
+        const myStore = storeName(storeId) || val(me, "NomeLoja", "nomeLoja") || "Unidade";
+        const myBal = val(me, "SaldoFolgas", "saldoFolgas");
+        $("#timeOffRequesterName").textContent = myName;
+        $("#timeOffRequesterStore").textContent = myStore;
+        $("#timeOffRequesterBalance").textContent = myBal !== undefined && myBal !== null ? `${myBal} ${myBal === 1 ? 'folga' : 'folgas'}` : "—";
+      }
+    }
+    document.querySelectorAll(".time-off-manager-only").forEach((el) => {
+      el.classList.toggle("hidden", employeeMode);
+    });
     const start = x ? iso(val(x, "DataInicio", "dataInicio")) : date,
       end = x ? iso(val(x, "DataFim", "dataFim")) : date;
     $("#timeOffStart").value = start;

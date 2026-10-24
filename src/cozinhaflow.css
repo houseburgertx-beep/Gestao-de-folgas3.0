@@ -6059,6 +6059,364 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   padding-bottom: calc(115px + env(safe-area-inset-bottom, 20px)) !important;
 }
 
+/* ==========================================================================
+   MODAL PEDIR FOLGA — ESTILO APPLE iOS / HOUSE 190 CLEAN
+   ========================================================================== */
+
+#timeOffDialog .dialog-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 18px 20px 14px 20px !important;
+  border-bottom: 1px solid rgba(40, 45, 70, 0.07) !important;
+}
+
+#timeOffDialog .dialog-head .eyebrow {
+  color: #6366f1 !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 2px !important;
+  display: block !important;
+}
+
+#timeOffDialog .dialog-head h3 {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 !important;
+}
+
+#timeOffDialog .time-off-close-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: all 0.15s ease !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#timeOffDialog .time-off-close-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+#timeOffDialog .time-off-close-btn:active {
+  transform: scale(0.94) !important;
+}
+
+/* Card informativo do solicitante (modo funcionário) */
+.time-off-requester-card {
+  background: #f8fafc !important;
+  border: 1px solid rgba(40, 45, 70, 0.08) !important;
+  border-radius: 18px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 16px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+.time-off-requester-card .requester-info-main {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.time-off-requester-card .requester-tag {
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  color: #6366f1 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+.time-off-requester-card strong {
+  font-size: 15px !important;
+  font-weight: 750 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.01em !important;
+}
+
+.time-off-requester-card .requester-store {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+}
+
+.time-off-requester-card .requester-balance-box {
+  background: #eef2ff !important;
+  border: 1px solid #c7d2fe !important;
+  border-radius: 14px !important;
+  padding: 6px 12px !important;
+  text-align: center !important;
+  flex-shrink: 0 !important;
+}
+
+.time-off-requester-card .requester-balance-box small {
+  display: block !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #4f46e5 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+.time-off-requester-card .requester-balance-box strong {
+  display: block !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #312e81 !important;
+  line-height: 1.2 !important;
+}
+
+/* Grid e campos de formulário */
+.time-off-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+.time-off-grid label {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #475569 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.time-off-grid label input,
+.time-off-grid label select,
+.time-off-grid label textarea {
+  width: 100% !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 0 14px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+.time-off-grid label input,
+.time-off-grid label select {
+  height: 48px !important;
+  min-height: 48px !important;
+}
+
+/* Chevrons elegantes para selects */
+.time-off-grid label select {
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  padding-right: 36px !important;
+}
+
+.time-off-grid label input:focus,
+.time-off-grid label select:focus,
+.time-off-grid label textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
+  outline: none !important;
+  background: #ffffff !important;
+}
+
+/* Linha compacta de 2 colunas para Tipo e Período */
+.time-off-row-2col {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
+/* Textarea de motivo */
+.time-off-reason-field textarea {
+  min-height: 74px !important;
+  height: 74px !important;
+  padding: 12px 14px !important;
+  resize: none !important;
+  line-height: 1.4 !important;
+}
+
+/* Box de opções do gestor */
+.time-off-switches-box {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  padding: 12px 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.time-off-switches-box .switch-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  cursor: pointer !important;
+}
+
+.time-off-switches-box .switch-label input[type="checkbox"] {
+  width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  border-radius: 6px !important;
+  accent-color: #6366f1 !important;
+  cursor: pointer !important;
+}
+
+/* Ações do rodapé do modal */
+.time-off-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 12px)) 20px !important;
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  box-sizing: border-box !important;
+}
+
+.time-off-actions .btn {
+  min-height: 48px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.01em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  transition: all 0.15s ease !important;
+}
+
+.time-off-actions .time-off-cancel-btn {
+  flex: 1 !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.time-off-actions .time-off-cancel-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.time-off-actions .time-off-validate-btn {
+  flex: 1 !important;
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+.time-off-actions .time-off-submit-btn {
+  flex: 2 !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25) !important;
+}
+
+.time-off-actions .time-off-submit-btn:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%) !important;
+}
+
+.time-off-actions .btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Dark Theme */
+[data-theme="dark"] #timeOffDialog .dialog-head h3 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] #timeOffDialog .time-off-close-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .time-off-requester-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .time-off-requester-card strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-store {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-balance-box {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-balance-box small {
+  color: #a5b4fc !important;
+}
+
+[data-theme="dark"] .time-off-requester-card .requester-balance-box strong {
+  color: #c7d2fe !important;
+}
+
+[data-theme="dark"] .time-off-grid label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .time-off-grid label input,
+[data-theme="dark"] .time-off-grid label select,
+[data-theme="dark"] .time-off-grid label textarea {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .time-off-switches-box {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .time-off-switches-box .switch-label {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .time-off-actions {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] .time-off-actions .time-off-cancel-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
 
 
 

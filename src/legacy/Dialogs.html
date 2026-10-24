@@ -1,80 +1,120 @@
-<dialog id="timeOffDialog">
+<dialog id="timeOffDialog" class="time-off-dialog">
   <form id="timeOffForm">
     <div class="dialog-head">
-      <h3 id="timeOffDialogTitle">Nova folga</h3>
-      <button type="button" class="icon-btn" data-close="timeOffDialog">
+      <div>
+        <span class="eyebrow" id="timeOffEyebrow">SOLICITAÇÃO DE FOLGA</span>
+        <h3 id="timeOffDialogTitle">Pedir folga</h3>
+      </div>
+      <button type="button" class="icon-btn time-off-close-btn" data-close="timeOffDialog" aria-label="Fechar modal">
         ✕
       </button>
     </div>
     <div class="dialog-body">
       <input id="timeOffId" type="hidden" />
-      <div class="dialog-grid">
-        <label>Loja<select id="timeOffStore" required></select></label>
-        <label
-          >Funcionário<select id="timeOffEmployee" required></select
-        ></label>
-        <label id="timeOffSingleDateField"
-          >Data da folga<input id="timeOffSingleDate" type="date"
-        /></label>
-        <label id="timeOffStartField" class="hidden"
-          >Data inicial<input id="timeOffStart" type="date"
-        /></label>
-        <label id="timeOffEndField" class="hidden"
-          >Data final<input id="timeOffEnd" type="date"
-        /></label>
-        <label
-          >Tipo<select id="timeOffType">
-            <option>Folga semanal</option>
-            <option>Folga manual</option>
-            <option>Folga automática</option>
-            <option>Folga compensatória</option>
-            <option>Folga de feriado</option>
-            <option>Atestado Médico</option>
-            <option>Férias</option>
-            <option>Licença</option>
-            <option>Banco de horas</option>
-            <option>Meia folga</option>
-            <option>Outro</option>
-          </select></label
-        >
-        <label
-          >Período<select id="timeOffPeriod">
-            <option>Dia inteiro</option>
-            <option>Manhã</option>
-            <option>Tarde</option>
-            <option>Horário personalizado</option>
-          </select></label
-        >
-        <label class="full"
-          >Motivo<textarea
+
+      <!-- Banner de identificação e saldo do colaborador (modo funcionário) -->
+      <div id="timeOffRequesterInfo" class="time-off-requester-card hidden">
+        <div class="requester-info-main">
+          <span class="requester-tag">SOLICITANTE</span>
+          <strong id="timeOffRequesterName">Colaborador</strong>
+          <span id="timeOffRequesterStore" class="requester-store">Unidade</span>
+        </div>
+        <div class="requester-balance-box">
+          <small>Disponível</small>
+          <strong id="timeOffRequesterBalance">—</strong>
+        </div>
+      </div>
+
+      <div class="dialog-grid time-off-grid">
+        <!-- Campos gerenciais visíveis apenas para Gestor/Admin -->
+        <label id="timeOffStoreField" class="time-off-manager-only">Loja<select id="timeOffStore" required></select></label>
+        <label id="timeOffEmployeeField" class="time-off-manager-only">Funcionário<select id="timeOffEmployee" required></select></label>
+
+        <!-- Data da folga (dia único padrão) -->
+        <label id="timeOffSingleDateField" class="time-off-date-field full">
+          <span>Data da folga</span>
+          <input id="timeOffSingleDate" type="date" required />
+        </label>
+
+        <!-- Intervalo de datas (para férias/licenças/atestados em modo gestor) -->
+        <label id="timeOffStartField" class="time-off-date-field hidden">
+          <span>Data inicial</span>
+          <input id="timeOffStart" type="date" />
+        </label>
+        <label id="timeOffEndField" class="time-off-date-field hidden">
+          <span>Data final</span>
+          <input id="timeOffEnd" type="date" />
+        </label>
+
+        <!-- Linha compacta 2-colunas: Tipo e Período -->
+        <div class="time-off-row-2col full">
+          <label id="timeOffTypeField">
+            <span>Tipo</span>
+            <select id="timeOffType">
+              <option>Folga semanal</option>
+              <option>Folga manual</option>
+              <option>Folga automática</option>
+              <option>Folga compensatória</option>
+              <option>Folga de feriado</option>
+              <option>Atestado Médico</option>
+              <option>Férias</option>
+              <option>Licença</option>
+              <option>Banco de horas</option>
+              <option>Meia folga</option>
+              <option>Outro</option>
+            </select>
+          </label>
+          <label id="timeOffPeriodField">
+            <span>Período</span>
+            <select id="timeOffPeriod">
+              <option>Dia inteiro</option>
+              <option>Manhã</option>
+              <option>Tarde</option>
+              <option>Horário personalizado</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Motivo / Observação -->
+        <label class="full time-off-reason-field">
+          <span>Motivo ou observação</span>
+          <textarea
             id="timeOffReason"
             placeholder="Adicione um motivo ou observação"
           ></textarea>
         </label>
-        <label class="switch-label"
-          ><input id="timeOffImmediate" type="checkbox" /> Aprovar
-          imediatamente</label
-        >
-        <label class="switch-label"
-          ><input id="timeOffCalendar" type="checkbox" checked /> Criar no
-          Google Calendar</label
-        >
+
+        <!-- Opções administrativas (somente gestor) -->
+        <div id="timeOffManagerSwitches" class="time-off-manager-only full time-off-switches-box">
+          <label class="switch-label">
+            <input id="timeOffImmediate" type="checkbox" />
+            <span>Aprovar imediatamente</span>
+          </label>
+          <label class="switch-label">
+            <input id="timeOffCalendar" type="checkbox" checked />
+            <span>Criar no Google Calendar</span>
+          </label>
+        </div>
       </div>
     </div>
-    <div class="dialog-actions">
+    <div class="dialog-actions time-off-actions">
       <button
         type="button"
-        class="btn btn-secondary"
+        class="btn btn-secondary time-off-cancel-btn"
         data-close="timeOffDialog"
       >
-        Cancelar</button
-      ><button
+        Cancelar
+      </button>
+      <button
         type="button"
         id="validateTimeOffButton"
-        class="btn btn-secondary"
+        class="btn btn-secondary time-off-validate-btn"
       >
-        Validar</button
-      ><button class="btn btn-primary" type="submit">Guardar folga</button>
+        Validar
+      </button>
+      <button class="btn btn-primary time-off-submit-btn" type="submit" id="timeOffSubmitBtn">
+        Guardar folga
+      </button>
     </div>
   </form>
 </dialog>
