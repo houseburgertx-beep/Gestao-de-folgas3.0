@@ -1326,7 +1326,7 @@ export function createAdvancedHandlers() {
         Titulo: String(payload.Titulo || "").trim(),
         Corpo: String(payload.Corpo || "").trim(),
         Tipo: String(payload.Tipo || "Aviso Operacional").trim(),
-        LojaID: payload.LojaID || profile.LojaID || "",
+        LojaID: isAdmin(profile) ? (payload.LojaID || "") : (payload.LojaID || profile.LojaID || ""),
         PublicoAlvo: payload.PublicoAlvo || "Todos",
         ExigeConfirmacao: asBoolean(payload.ExigeConfirmacao),
         Ativo: true,
@@ -1460,7 +1460,7 @@ export function createAdvancedHandlers() {
         opcoesLista: normalizedOptions,
         FechaEm: payload.FechaEm || "",
         CriadoPor: profile.Email,
-        LojaID: payload.LojaID || profile.LojaID || "",
+        LojaID: isAdmin(profile) ? (payload.LojaID || "") : (payload.LojaID || profile.LojaID || ""),
         Ativa: true,
       });
       return success({ ...saved, id: saved.EnqID }, "Enquete criada.");

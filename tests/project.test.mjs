@@ -3479,6 +3479,12 @@ test("Mural de Avisos Operacionais: publicação, ciência do turno, pop-up de a
   assert.match(cozinhaflowCss, /\.operational-notice-card/, "cozinhaflow.css deve conter estilos para card de aviso");
   assert.match(cozinhaflowCss, /\.craque-card/, "cozinhaflow.css deve conter estilos para craque da semana");
   assert.match(cozinhaflowCss, /\.btn-ack-notice/, "cozinhaflow.css deve conter botão de ciência com altura touch");
+
+  // 5. Ramificações e vinculação de seletores nos formulários (lojas e colaboradores)
+  assert.match(dialogsHtml, /id="newAnnouncementStore"/, "Dialog de comunicado deve ter select de loja");
+  assert.match(dialogsHtml, /id="recognizeEmployeeSelect"/, "Dialog de reconhecimento deve ter select de colaborador");
+  assert.match(scriptsHtml, /fillSelect\(\s*["']#newAnnouncementStore["']/, "Scripts deve popular select de loja de comunicados");
+  assert.match(scriptsHtml, /populateRecognizeEmployeeSelect_/, "Scripts deve popular select de colaboradores para reconhecimento");
 });
 
 

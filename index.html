@@ -30227,8 +30227,16 @@ dialog#medicalCertificateDialog {
       "NomeLoja",
       "Todas / não aplicável",
     );
+    fillSelect(
+      "#newAnnouncementStore",
+      state.stores,
+      "LojaID",
+      "NomeLoja",
+      "Todas as Unidades (Geral)",
+    );
     fillEmployeeSelect("#calendarEmployeeFilter", "", true);
     fillEmployeeSelect("#accessEmployee", "", true);
+    populateRecognizeEmployeeSelect_();
     populateAdvancedSelects();
     const schedulerMonth = $("#schedulerMonth");
     if (schedulerMonth && !schedulerMonth.value)
@@ -35730,27 +35738,65 @@ dialog#medicalCertificateDialog {
     }
   }
 
-  function openNewAnnouncementDialog() {
-    const select = $("#announcementStoreSelect");
-    if (select) {
-      select.innerHTML = '<option value="">Todas as Unidades (Geral)</option>' +
-        (state.stores || []).map((s) => `<option value="${esc(storeId(s))}">${esc(storeName(s))}</option>`).join("");
-      if (!isStoreAdmin() && state.user?.LojaID) {
-        select.value = state.user.LojaID;
-      }
+  function populateRecognizeEmployeeSelect_() {
+    const el = $("#recognizeEmployeeSelect");
+    if (!el) return;
+    const old = el.value;
+    const activeEmps = arr(state.employees).filter(
+      (x) => bool(val(x, "Ativo", "ativo")) !== false,
+    );
+    const userStoreId = String(val(state.user, "LojaID", "lojaId") || "");
+    const filtered = (typeof isStoreAdmin === "function" && isStoreAdmin())
+      ? activeEmps
+      : activeEmps.filter((emp) => !userStoreId || String(val(emp, "LojaID", "lojaId")) === userStoreId);
+
+    el.innerHTML =
+      '<option value="">Selecione um colaborador...</option>' +
+      filtered
+        .map((emp) => {
+          const empId = idOf(emp, "Funcionario") || val(emp, "FuncionarioID", "funcionarioId", "id");
+          const empName = val(emp, "Nome", "nome") || "Colaborador";
+          const empRole = val(emp, "Cargo", "cargo") || "Colaborador";
+          const empStoreId = val(emp, "LojaID", "lojaId");
+          const storeObj = arr(state.stores).find(
+            (st) => String(idOf(st, "Loja")) === String(empStoreId) || String(val(st, "LojaID", "lojaId")) === String(empStoreId),
+          );
+          const storeLbl = storeObj
+            ? ` (${val(storeObj, "NomeLoja", "nomeLoja")})`
+            : "";
+          return `<option value="${esc(empId)}">${esc(empName)} - ${esc(empRole)}${esc(storeLbl)}</option>`;
+        })
+        .join("");
+    if (old && el.querySelector(`option[value="${esc(old)}"]`)) {
+      el.value = old;
     }
-    const form = $("#newAnnouncementForm");
-    if (form) form.reset();
+  }
+
+  function openNewAnnouncementDialog() {
+    fillSelect(
+      "#newAnnouncementStore",
+      state.stores,
+      "LojaID",
+      "NomeLoja",
+      "Todas as Unidades (Geral)",
+    );
+    const select = $("#newAnnouncementStore");
+    if (select && typeof isStoreAdmin === "function" && !isStoreAdmin() && state.user?.LojaID) {
+      select.value = state.user.LojaID;
+    }
+    const titleInput = $("#newAnnouncementTitle");
+    if (titleInput) titleInput.value = "";
+    const bodyInput = $("#newAnnouncementBody");
+    if (bodyInput) bodyInput.value = "";
     openDialog("newAnnouncementDialog");
   }
 
   async function saveNewAnnouncement_(e) {
     if (e && e.preventDefault) e.preventDefault();
-    const title = $("#announcementTitleInput")?.value?.trim();
-    const body = $("#announcementBodyInput")?.value?.trim();
-    const store = $("#announcementStoreSelect")?.value || "";
-    const type = $("#announcementTypeSelect")?.value || "Aviso Operacional";
-    const requireAck = $("#announcementRequireAckCheckbox")?.checked ?? true;
+    const title = $("#newAnnouncementTitle")?.value?.trim();
+    const body = $("#newAnnouncementBody")?.value?.trim();
+    const store = $("#newAnnouncementStore")?.value || "";
+    const type = $("#newAnnouncementType")?.value || "Operacional";
 
     if (!title || !body) {
       return toast("Preencha o título e as orientações do aviso.", true);
@@ -35765,7 +35811,7 @@ dialog#medicalCertificateDialog {
           Corpo: body,
           LojaID: store,
           Tipo: type,
-          ExigeConfirmacao: requireAck,
+          ExigeConfirmacao: true,
           PublicoAlvo: "Todos",
         }),
         "Aviso operacional publicado no mural com sucesso!"
@@ -35788,21 +35834,7 @@ dialog#medicalCertificateDialog {
   }
 
   function openRecognizeEmployeeDialog() {
-    const select = $("#recognizeEmployeeSelect");
-    if (select) {
-      const activeEmps = (state.employees || []).filter((emp) => active(emp.Ativo));
-      const userStoreId = String(state.user?.LojaID || "");
-      const filtered = isStoreAdmin()
-        ? activeEmps
-        : activeEmps.filter((emp) => !userStoreId || String(emp.LojaID) === userStoreId);
-
-      select.innerHTML = '<option value="">Selecione um colaborador...</option>' +
-        filtered.map((emp) => {
-          const s = (state.stores || []).find((st) => storeId(st) === String(emp.LojaID));
-          const storeLabel = s ? ` (${storeName(s)})` : "";
-          return `<option value="${esc(emp.FuncionarioID)}">${esc(emp.Nome)} - ${esc(emp.Cargo || "Colaborador")}${esc(storeLabel)}</option>`;
-        }).join("");
-    }
+    populateRecognizeEmployeeSelect_();
 
     const weekInput = $("#recognizeWeekInput");
     if (weekInput) {
@@ -35811,13 +35843,11 @@ dialog#medicalCertificateDialog {
       weekInput.value = `Semana ${now.getDate()} ${monthShort}`;
     }
 
-    const form = $("#recognizeEmployeeForm");
-    if (form) form.reset();
-    if (weekInput) {
-      const now = new Date();
-      const monthShort = now.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
-      weekInput.value = `Semana ${now.getDate()} ${monthShort}`;
-    }
+    const reasonInput = $("#recognizeReasonInput");
+    if (reasonInput) reasonInput.value = "";
+
+    const empSelect = $("#recognizeEmployeeSelect");
+    if (empSelect) empSelect.value = "";
 
     openDialog("recognizeEmployeeDialog");
   }
