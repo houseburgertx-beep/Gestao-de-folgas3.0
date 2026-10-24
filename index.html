@@ -18609,6 +18609,121 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   line-height: 1.35;
 }
 
+/* Ações de Gestão de Avisos e Homenagens */
+.notice-head-actions,
+.craque-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.notice-reads-btn {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  background: #e0e7ff !important;
+  color: #4338ca !important;
+  border: 1px solid rgba(99, 102, 241, 0.25) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  cursor: pointer !important;
+}
+
+.notice-reads-btn strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.notice-del-btn,
+.craque-del-btn {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+  cursor: pointer !important;
+}
+
+.notice-del-btn:hover,
+.craque-del-btn:hover {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+.reading-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 14px;
+}
+
+.reading-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reading-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reading-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reading-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reading-role {
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reading-time {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #166534;
+  background: #f0fdf4;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 
 
 
@@ -25571,6 +25686,36 @@ dialog#medicalCertificateDialog {
     </div>
   </form>
 </dialog>
+
+<!-- Modal: Auditoria de Ciência do Aviso Operacional (Gestores/Admin) -->
+<dialog id="noticeReadingsDialog" style="max-width: 520px; width: 94vw; border-radius: 24px; padding: 0; border: 1px solid var(--line, #e2e8f0); background: var(--surface, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <div class="dialog-head" style="padding: 18px 20px 12px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <span class="eyebrow" style="color: #4338ca; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;">AUDITORIA DE CIÊNCIA • MURAL DA CASA</span>
+      <h3 id="noticeReadingsHeading" style="margin: 2px 0 0; font-size: 18px; font-weight: 800; color: var(--text);">Confirmações de Leitura</h3>
+    </div>
+    <button type="button" class="icon-btn" data-close="noticeReadingsDialog" aria-label="Fechar" style="background: var(--surface-2, #f1f5f9); border: 1px solid var(--line); border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">✕</button>
+  </div>
+  <div class="dialog-body" style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;">
+    <div style="background: var(--surface-2, #f8fafc); border: 1px solid var(--line, #e2e8f0); border-radius: 16px; padding: 12px 14px; margin-bottom: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+        <span id="noticeReadingsStoreBadge" style="font-size: 11.5px; font-weight: 600; color: var(--muted, #64748b);">Todas as Unidades</span>
+        <span id="noticeReadingsCountBadge" style="font-size: 12px; font-weight: 700; color: #166534; background: #dcfce7; padding: 2px 10px; border-radius: 20px;">0 confirmações</span>
+      </div>
+      <div id="noticeReadingsNoticeTitle" style="font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.4;"></div>
+    </div>
+    
+    <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted, #64748b); margin-bottom: 8px;">Colaboradores com ciência confirmada</div>
+    <div id="noticeReadingsList" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="text-align: center; padding: 20px 10px; color: var(--muted, #64748b); font-size: 13.5px;">Carregando registros...</div>
+    </div>
+  </div>
+  <div class="dialog-actions" style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 12px)); border-top: 1px solid var(--line, #e2e8f0); background: var(--surface); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+    <button type="button" id="noticeReadingsDeleteBtn" class="btn" style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 700; min-height: 44px; padding: 0 16px; border-radius: 12px; cursor: pointer;">Excluir Aviso</button>
+    <button type="button" class="btn btn-secondary" data-close="noticeReadingsDialog" style="min-height: 44px; padding: 0 20px; border-radius: 12px;">Fechar</button>
+  </div>
+</dialog>
+
 
 
 
@@ -35885,9 +36030,131 @@ dialog#medicalCertificateDialog {
     }
   }
 
+  async function openNoticeReadingsDialog(comId) {
+    if (!comId) return;
+    const dialog = $("#noticeReadingsDialog");
+    if (!dialog) return;
+
+    const listEl = $("#noticeReadingsList");
+    const countBadge = $("#noticeReadingsCountBadge");
+    const storeBadge = $("#noticeReadingsStoreBadge");
+    const titleEl = $("#noticeReadingsNoticeTitle");
+    const headingEl = $("#noticeReadingsHeading");
+    const deleteBtn = $("#noticeReadingsDeleteBtn");
+
+    if (headingEl) headingEl.textContent = "Confirmações de Leitura";
+    if (titleEl) titleEl.textContent = "Carregando aviso...";
+    if (countBadge) countBadge.textContent = "Carregando...";
+    if (listEl) {
+      listEl.innerHTML = '<div style="text-align: center; padding: 20px 10px; color: var(--muted, #64748b); font-size: 13.5px;">Buscando lista de colaboradores...</div>';
+    }
+    if (deleteBtn) {
+      deleteBtn.onclick = () => deleteNotice_(comId);
+    }
+
+    openDialog("noticeReadingsDialog");
+
+    try {
+      const res = await call("listarLeiturasComunicado", sessionToken(), comId);
+      const data = res || {};
+      const notice = data.comunicado || {};
+      const reads = arr(data.leituras);
+
+      if (headingEl) headingEl.textContent = "Auditoria de Ciência";
+      if (titleEl) titleEl.textContent = notice.Titulo || "Aviso Operacional";
+
+      if (storeBadge) {
+        const s = (state.stores || []).find((st) => storeId(st) === String(notice.LojaID));
+        storeBadge.textContent = s ? storeName(s) : (notice.LojaID ? "Unidade Específica" : "Todas as Unidades");
+      }
+
+      if (countBadge) {
+        countBadge.textContent = `${reads.length} confirmação${reads.length === 1 ? "" : "ões"}`;
+      }
+
+      if (!reads.length) {
+        if (listEl) {
+          listEl.innerHTML = '<div style="text-align: center; padding: 24px 12px; color: var(--muted, #64748b); font-size: 13.5px; background: var(--surface-2, #f8fafc); border-radius: 14px; border: 1px dashed var(--line, #e2e8f0);">Nenhum colaborador confirmou leitura deste comunicado até o momento.</div>';
+        }
+      } else {
+        if (listEl) {
+          listEl.innerHTML = reads
+            .map((item) => {
+              const name = item.Nome || "Colaborador";
+              const initials = name
+                .split(" ")
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((w) => w[0].toUpperCase())
+                .join("");
+              const role = item.Cargo || "Colaborador";
+              const unit = item.NomeLoja ? ` • ${item.NomeLoja}` : "";
+              let timeStr = "";
+              if (item.LidoEm) {
+                const d = new Date(item.LidoEm);
+                timeStr = isNaN(d.getTime())
+                  ? item.LidoEm
+                  : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
+                    " às " +
+                    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+              }
+              return `<div class="reading-item">
+                <div class="reading-item-info">
+                  <div class="reading-avatar">${esc(initials)}</div>
+                  <div class="reading-details">
+                    <span class="reading-name">${esc(name)}</span>
+                    <span class="reading-role">${esc(role)}${esc(unit)}</span>
+                  </div>
+                </div>
+                <span class="reading-time">✓ ${esc(timeStr || "Confirmado")}</span>
+              </div>`;
+            })
+            .join("");
+        }
+      }
+    } catch (err) {
+      if (listEl) {
+        listEl.innerHTML = `<div style="text-align: center; padding: 20px; color: #dc2626; font-size: 13.5px;">Não foi possível carregar as leituras: ${esc(err.message || "tente novamente")}</div>`;
+      }
+    }
+  }
+
+  async function deleteNotice_(comId) {
+    if (!comId) return;
+    if (!confirm("Tem certeza de que deseja excluir este aviso operacional do mural?")) {
+      return;
+    }
+    try {
+      await call("excluirComunicado", sessionToken(), comId);
+      closeDialog("noticeReadingsDialog");
+      closeDialog("operationalNoticeDialog");
+      toast("Aviso operacional removido com sucesso.");
+      await loadOperationalAnnouncements_();
+    } catch (err) {
+      toast("Erro ao excluir aviso: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  async function deleteRecognition_(recId) {
+    if (!recId) return;
+    if (!confirm("Tem certeza de que deseja remover este Destaque da Semana?")) {
+      return;
+    }
+    try {
+      await call("excluirReconhecimento", sessionToken(), recId);
+      toast("Destaque da Semana removido com sucesso.");
+      await loadRecognitions_();
+    } catch (err) {
+      toast("Erro ao excluir destaque: " + (err.message || "tente novamente"), true);
+    }
+  }
+
   window.acknowledgeCurrentNotice_ = acknowledgeCurrentNotice_;
   window.openNewAnnouncementDialog = openNewAnnouncementDialog;
   window.openRecognizeEmployeeDialog = openRecognizeEmployeeDialog;
+  window.openNoticeReadingsDialog = openNoticeReadingsDialog;
+  window.deleteNotice_ = deleteNotice_;
+  window.deleteRecognition_ = deleteRecognition_;
   window.loadOperationalAnnouncements_ = loadOperationalAnnouncements_;
   window.loadRecognitions_ = loadRecognitions_;
 

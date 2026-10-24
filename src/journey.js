@@ -127,6 +127,7 @@ function renderOperationalNoticeCard() {
  const tipo = esc(latest.Tipo || 'Aviso Operacional');
  const st = stores().find(s => storeId(s) === String(latest.LojaID));
  const storeLabel = latest.LojaID ? (st ? storeName(st) : 'Unidade') : 'Todas as Unidades';
+ const totalReads = Number(latest.totalLeituras || 0);
 
  return `<article class="j-card operational-notice-card" data-notice-id="${esc(latest.ComID)}">
   <div class="j-card-top">
@@ -138,18 +139,29 @@ function renderOperationalNoticeCard() {
     </div>
     <h3 class="notice-title">${esc(latest.Titulo)}</h3>
    </div>
-   ${data.manager ? `<button class="btn btn-ghost" data-j-new-notice>+ Novo</button>` : ''}
+   ${data.manager ? `
+    <div class="notice-head-actions">
+     <button type="button" class="notice-reads-btn" data-j-notice-reads="${esc(latest.ComID)}" title="Ver colaboradores que confirmaram ciência">
+      Ciência: <strong>${totalReads}</strong> ↗
+     </button>
+     <button type="button" class="notice-del-btn" data-j-delete-notice="${esc(latest.ComID)}" title="Excluir comunicado">✕</button>
+     <button type="button" class="btn btn-ghost" data-j-new-notice>+ Novo</button>
+    </div>
+   ` : ''}
   </div>
   <div class="notice-body">
    <p>${esc(latest.Corpo)}</p>
   </div>
   <div class="notice-footer">
    <span class="notice-meta">Publicado por ${esc(String(latest.Autor || 'Gerência').split('@')[0])}</span>
-   ${requiresAck ? (
+   <div style="display: flex; align-items: center; gap: 8px;">
+    ${data.manager ? `<button type="button" class="btn btn-ghost" data-j-notice-reads="${esc(latest.ComID)}" style="font-size: 11.5px; padding: 4px 8px; color: #4338ca; font-weight: 700;">Ver leituras (${totalReads}) ↗</button>` : ''}
+    ${requiresAck ? (
     isAcked 
      ? `<span class="notice-acked-badge">✓ Ciente</span>`
      : `<button class="btn btn-primary btn-ack-notice" data-j-ack-notice="${esc(latest.ComID)}">Confirmar Ciência</button>`
    ) : `<span class="notice-info-badge">Informativo</span>`}
+   </div>
   </div>
  </article>`;
 }
@@ -193,7 +205,12 @@ function renderCraqueDaSemanaCard() {
     <span class="eyebrow craque-eyebrow">DESTAQUE DA SEMANA · ${esc(latest.Semana || 'Semana')}</span>
     <h3 class="craque-title">${esc(latest.NomeFuncionario)}</h3>
    </div>
-   ${data.manager ? `<button class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>` : ''}
+   ${data.manager ? `
+    <div class="craque-head-actions">
+     <button type="button" class="craque-del-btn" data-j-delete-recognition="${esc(latest.ReconhecimentoID)}" title="Excluir destaque">✕</button>
+     <button type="button" class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>
+    </div>
+   ` : ''}
   </div>
   <div class="craque-profile">
    <div class="craque-avatar">${esc(initials)}</div>
@@ -479,10 +496,34 @@ document.addEventListener('click',e=>{
     }
     return;
   }
+  const noticeReads=e.target.closest('[data-j-notice-reads]');
+  if(noticeReads){
+    const id=noticeReads.dataset.jNoticeReads;
+    if(typeof window.openNoticeReadingsDialog==='function'){
+      window.openNoticeReadingsDialog(id);
+    }
+    return;
+  }
+  const delNotice=e.target.closest('[data-j-delete-notice]');
+  if(delNotice){
+    const id=delNotice.dataset.jDeleteNotice;
+    if(typeof window.deleteNotice_==='function'){
+      window.deleteNotice_(id);
+    }
+    return;
+  }
   const newNotice=e.target.closest('[data-j-new-notice]');
   if(newNotice){
     if(typeof window.openNewAnnouncementDialog==='function'){
       window.openNewAnnouncementDialog();
+    }
+    return;
+  }
+  const delRec=e.target.closest('[data-j-delete-recognition]');
+  if(delRec){
+    const id=delRec.dataset.jDeleteRecognition;
+    if(typeof window.deleteRecognition_==='function'){
+      window.deleteRecognition_(id);
     }
     return;
   }

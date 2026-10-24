@@ -10288,9 +10288,131 @@
     }
   }
 
+  async function openNoticeReadingsDialog(comId) {
+    if (!comId) return;
+    const dialog = $("#noticeReadingsDialog");
+    if (!dialog) return;
+
+    const listEl = $("#noticeReadingsList");
+    const countBadge = $("#noticeReadingsCountBadge");
+    const storeBadge = $("#noticeReadingsStoreBadge");
+    const titleEl = $("#noticeReadingsNoticeTitle");
+    const headingEl = $("#noticeReadingsHeading");
+    const deleteBtn = $("#noticeReadingsDeleteBtn");
+
+    if (headingEl) headingEl.textContent = "Confirmações de Leitura";
+    if (titleEl) titleEl.textContent = "Carregando aviso...";
+    if (countBadge) countBadge.textContent = "Carregando...";
+    if (listEl) {
+      listEl.innerHTML = '<div style="text-align: center; padding: 20px 10px; color: var(--muted, #64748b); font-size: 13.5px;">Buscando lista de colaboradores...</div>';
+    }
+    if (deleteBtn) {
+      deleteBtn.onclick = () => deleteNotice_(comId);
+    }
+
+    openDialog("noticeReadingsDialog");
+
+    try {
+      const res = await call("listarLeiturasComunicado", sessionToken(), comId);
+      const data = res || {};
+      const notice = data.comunicado || {};
+      const reads = arr(data.leituras);
+
+      if (headingEl) headingEl.textContent = "Auditoria de Ciência";
+      if (titleEl) titleEl.textContent = notice.Titulo || "Aviso Operacional";
+
+      if (storeBadge) {
+        const s = (state.stores || []).find((st) => storeId(st) === String(notice.LojaID));
+        storeBadge.textContent = s ? storeName(s) : (notice.LojaID ? "Unidade Específica" : "Todas as Unidades");
+      }
+
+      if (countBadge) {
+        countBadge.textContent = `${reads.length} confirmação${reads.length === 1 ? "" : "ões"}`;
+      }
+
+      if (!reads.length) {
+        if (listEl) {
+          listEl.innerHTML = '<div style="text-align: center; padding: 24px 12px; color: var(--muted, #64748b); font-size: 13.5px; background: var(--surface-2, #f8fafc); border-radius: 14px; border: 1px dashed var(--line, #e2e8f0);">Nenhum colaborador confirmou leitura deste comunicado até o momento.</div>';
+        }
+      } else {
+        if (listEl) {
+          listEl.innerHTML = reads
+            .map((item) => {
+              const name = item.Nome || "Colaborador";
+              const initials = name
+                .split(" ")
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((w) => w[0].toUpperCase())
+                .join("");
+              const role = item.Cargo || "Colaborador";
+              const unit = item.NomeLoja ? ` • ${item.NomeLoja}` : "";
+              let timeStr = "";
+              if (item.LidoEm) {
+                const d = new Date(item.LidoEm);
+                timeStr = isNaN(d.getTime())
+                  ? item.LidoEm
+                  : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
+                    " às " +
+                    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+              }
+              return `<div class="reading-item">
+                <div class="reading-item-info">
+                  <div class="reading-avatar">${esc(initials)}</div>
+                  <div class="reading-details">
+                    <span class="reading-name">${esc(name)}</span>
+                    <span class="reading-role">${esc(role)}${esc(unit)}</span>
+                  </div>
+                </div>
+                <span class="reading-time">✓ ${esc(timeStr || "Confirmado")}</span>
+              </div>`;
+            })
+            .join("");
+        }
+      }
+    } catch (err) {
+      if (listEl) {
+        listEl.innerHTML = `<div style="text-align: center; padding: 20px; color: #dc2626; font-size: 13.5px;">Não foi possível carregar as leituras: ${esc(err.message || "tente novamente")}</div>`;
+      }
+    }
+  }
+
+  async function deleteNotice_(comId) {
+    if (!comId) return;
+    if (!confirm("Tem certeza de que deseja excluir este aviso operacional do mural?")) {
+      return;
+    }
+    try {
+      await call("excluirComunicado", sessionToken(), comId);
+      closeDialog("noticeReadingsDialog");
+      closeDialog("operationalNoticeDialog");
+      toast("Aviso operacional removido com sucesso.");
+      await loadOperationalAnnouncements_();
+    } catch (err) {
+      toast("Erro ao excluir aviso: " + (err.message || "tente novamente"), true);
+    }
+  }
+
+  async function deleteRecognition_(recId) {
+    if (!recId) return;
+    if (!confirm("Tem certeza de que deseja remover este Destaque da Semana?")) {
+      return;
+    }
+    try {
+      await call("excluirReconhecimento", sessionToken(), recId);
+      toast("Destaque da Semana removido com sucesso.");
+      await loadRecognitions_();
+    } catch (err) {
+      toast("Erro ao excluir destaque: " + (err.message || "tente novamente"), true);
+    }
+  }
+
   window.acknowledgeCurrentNotice_ = acknowledgeCurrentNotice_;
   window.openNewAnnouncementDialog = openNewAnnouncementDialog;
   window.openRecognizeEmployeeDialog = openRecognizeEmployeeDialog;
+  window.openNoticeReadingsDialog = openNoticeReadingsDialog;
+  window.deleteNotice_ = deleteNotice_;
+  window.deleteRecognition_ = deleteRecognition_;
   window.loadOperationalAnnouncements_ = loadOperationalAnnouncements_;
   window.loadRecognitions_ = loadRecognitions_;
 

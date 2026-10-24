@@ -5740,6 +5740,121 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   line-height: 1.35;
 }
 
+/* Ações de Gestão de Avisos e Homenagens */
+.notice-head-actions,
+.craque-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.notice-reads-btn {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  background: #e0e7ff !important;
+  color: #4338ca !important;
+  border: 1px solid rgba(99, 102, 241, 0.25) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  cursor: pointer !important;
+}
+
+.notice-reads-btn strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.notice-del-btn,
+.craque-del-btn {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+  cursor: pointer !important;
+}
+
+.notice-del-btn:hover,
+.craque-del-btn:hover {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+.reading-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 14px;
+}
+
+.reading-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reading-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reading-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reading-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reading-role {
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reading-time {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #166534;
+  background: #f0fdf4;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 
 
 

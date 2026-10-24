@@ -3487,6 +3487,179 @@ test("Mural de Avisos Operacionais: publicação, ciência do turno, pop-up de a
   assert.match(scriptsHtml, /populateRecognizeEmployeeSelect_/, "Scripts deve popular select de colaboradores para reconhecimento");
 });
 
+test("Mural e Reconhecimento: Auditoria de ciência e opções de exclusão para liderança", async () => {
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  const journeyJs = await readFile(new URL("../src/journey.js", import.meta.url), "utf8");
+  const cozinhaflowCss = await readFile(new URL("../src/cozinhaflow.css", import.meta.url), "utf8");
+
+  // 1. Modal de Auditoria de Ciência no Dialogs.html
+  assert.match(dialogsHtml, /id="noticeReadingsDialog"/, "Deve existir o modal para exibir quem marcou ciência");
+  assert.match(dialogsHtml, /id="noticeReadingsList"/, "Deve existir container para listar colaboradores que confirmaram ciência");
+  assert.match(dialogsHtml, /id="noticeReadingsCountBadge"/, "Deve existir badge com contagem de confirmações");
+  assert.match(dialogsHtml, /id="noticeReadingsDeleteBtn"/, "Deve existir botão para excluir aviso no modal");
+
+  // 2. Ações no Journey.js
+  assert.match(journeyJs, /data-j-notice-reads/, "Card de aviso deve suportar clique para ver leituras");
+  assert.match(journeyJs, /data-j-delete-notice/, "Card de aviso deve conter botão de excluir para liderança");
+  assert.match(journeyJs, /data-j-delete-recognition/, "Card de destaque deve conter botão de excluir para liderança");
+
+  // 3. Funções no Scripts.html
+  assert.match(scriptsHtml, /openNoticeReadingsDialog/, "Scripts deve conter função para abrir auditoria de ciência");
+  assert.match(scriptsHtml, /deleteNotice_/, "Scripts deve conter função para excluir aviso");
+  assert.match(scriptsHtml, /deleteRecognition_/, "Scripts deve conter função para excluir reconhecimento");
+
+  // 4. Estilos no Cozinhaflow.css
+  assert.match(cozinhaflowCss, /\.reading-item/, "cozinhaflow.css deve estilizar itens da lista de ciência");
+  assert.match(cozinhaflowCss, /\.notice-reads-btn/, "cozinhaflow.css deve estilizar botão de ciência");
+  assert.match(cozinhaflowCss, /\.notice-del-btn/, "cozinhaflow.css deve estilizar botão de excluir aviso");
+});
+
+test("Backend API: Auditoria de leituras de comunicados e exclusão lógica de avisos e reconhecimentos", async () => {
+  const mockDb = {
+    Comunicados: {
+      "com-1": {
+        ComID: "com-1",
+        Titulo: "Foco no Tempo de Chapa",
+        Corpo: "Atenção especial nos hambúrgueres do mês.",
+        LojaID: "loja-1",
+        Ativo: true,
+        DataHora: "2026-10-23T20:00:00.000Z",
+      },
+    },
+    ComunicadosLeituras: [
+      {
+        LeituraID: "com-1__emp-1",
+        ComID: "com-1",
+        FuncionarioID: "emp-1",
+        LojaID: "loja-1",
+        LidoEm: "2026-10-23T20:15:00.000Z",
+      },
+    ],
+    Funcionarios: [
+      { FuncionarioID: "emp-1", Nome: "Lucas Silva", Cargo: "Chapeiro", LojaID: "loja-1" },
+    ],
+    Lojas: [
+      { LojaID: "loja-1", NomeLoja: "House Pituba" },
+    ],
+    Reconhecimentos: [
+      {
+        ReconhecimentoID: "rec-1",
+        FuncionarioID: "emp-1",
+        NomeFuncionario: "Lucas Silva",
+        Cargo: "Chapeiro",
+        LojaID: "loja-1",
+        Categoria: "Destaque da Semana",
+        Motivo: "Dedicação impecável.",
+        Ativo: true,
+        CriadoEm: "2026-10-23T19:00:00.000Z",
+      },
+    ],
+  };
+
+  let currentUser = {
+    Email: "gerente@house190.com",
+    Nome: "Gerente Pituba",
+    Perfil: "Gerente",
+    LojaID: "loja-1",
+  };
+
+  const originalRequireProfile = runtime.requireProfile;
+  const originalGetById = runtime.getById;
+  const originalUpsert = runtime.upsert;
+  const originalList = runtime.list;
+
+  runtime.requireProfile = async () => currentUser;
+  runtime.getById = async (table, id) => {
+    if (table === "Comunicados") return mockDb.Comunicados[id] || null;
+    if (table === "Reconhecimentos") return mockDb.Reconhecimentos.find((r) => r.ReconhecimentoID === id) || null;
+    return null;
+  };
+  runtime.upsert = async (table, item) => {
+    if (table === "Comunicados") {
+      mockDb.Comunicados[item.ComID] = item;
+      return item;
+    }
+    if (table === "Reconhecimentos") {
+      const idx = mockDb.Reconhecimentos.findIndex((r) => r.ReconhecimentoID === item.ReconhecimentoID);
+      if (idx >= 0) mockDb.Reconhecimentos[idx] = item;
+      else mockDb.Reconhecimentos.push(item);
+      return item;
+    }
+    return item;
+  };
+  runtime.list = async (table) => {
+    if (table === "Comunicados") return Object.values(mockDb.Comunicados);
+    if (table === "ComunicadosLeituras") return mockDb.ComunicadosLeituras;
+    if (table === "Funcionarios") return mockDb.Funcionarios;
+    if (table === "Lojas") return mockDb.Lojas;
+    if (table === "Reconhecimentos") return mockDb.Reconhecimentos;
+    return [];
+  };
+
+  try {
+    const handlers = createApi().handlers;
+
+    // 1. Listar comunicados ativos com totalLeituras para gestor
+    const activeList = await handlers.listarComunicadosAtivos([]);
+    assert.equal(activeList.success, true);
+    assert.equal(activeList.data.length, 1);
+    assert.equal(activeList.data[0].totalLeituras, 1);
+
+    // 2. Listar leituras do comunicado com dados enriquecidos
+    const readsRes = await handlers.listarLeiturasComunicado(["com-1"]);
+    assert.equal(readsRes.success, true);
+    assert.equal(readsRes.data.totalLeituras, 1);
+    assert.equal(readsRes.data.leituras[0].Nome, "Lucas Silva");
+    assert.equal(readsRes.data.leituras[0].Cargo, "Chapeiro");
+    assert.equal(readsRes.data.leituras[0].NomeLoja, "House Pituba");
+
+    // 3. Exclusão de comunicado (marca Ativo: false)
+    const delNoticeRes = await handlers.excluirComunicado(["com-1"]);
+    assert.equal(delNoticeRes.success, true);
+    assert.equal(mockDb.Comunicados["com-1"].Ativo, false);
+
+    // Agora o comunicado não aparece mais em listarComunicadosAtivos
+    const activeAfterDel = await handlers.listarComunicadosAtivos([]);
+    assert.equal(activeAfterDel.data.length, 0);
+
+    // 4. Exclusão de reconhecimento (marca Ativo: false)
+    const delRecRes = await handlers.excluirReconhecimento(["rec-1"]);
+    assert.equal(delRecRes.success, true);
+    assert.equal(mockDb.Reconhecimentos[0].Ativo, false);
+
+    // Reconhecimento desativado não aparece mais na listagem
+    const recsAfterDel = await handlers.listarReconhecimentos([]);
+    assert.equal(recsAfterDel.data.length, 0);
+
+    // 5. Validação de RBAC: Colaborador não pode ver leituras nem excluir
+    currentUser = {
+      Email: "colaborador@house190.com",
+      Nome: "Colaborador Comum",
+      Perfil: "Colaborador",
+      LojaID: "loja-1",
+    };
+
+    await assert.rejects(
+      async () => handlers.listarLeiturasComunicado(["com-1"]),
+      /perfil de responsável ou administrador/i,
+    );
+    await assert.rejects(
+      async () => handlers.excluirComunicado(["com-1"]),
+      /perfil de responsável ou administrador/i,
+    );
+    await assert.rejects(
+      async () => handlers.excluirReconhecimento(["rec-1"]),
+      /perfil de responsável ou administrador/i,
+    );
+  } finally {
+    runtime.requireProfile = originalRequireProfile;
+    runtime.getById = originalGetById;
+    runtime.upsert = originalUpsert;
+    runtime.list = originalList;
+  }
+});
+
 
 
 

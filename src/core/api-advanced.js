@@ -1347,11 +1347,102 @@ export function createAdvancedHandlers() {
           .filter((item) => item.FuncionarioID === profile.FuncionarioID)
           .map((item) => item.ComID),
       );
+      const readsCountByComId = {};
+      if (isManager(profile)) {
+        reads.forEach((r) => {
+          if (r.ComID) {
+            readsCountByComId[r.ComID] = (readsCountByComId[r.ComID] || 0) + 1;
+          }
+        });
+      }
       return success(
         filterAudience(rows, profile)
-          .map((item) => ({ ...item, jaLido: readIds.has(item.ComID) }))
+          .map((item) => ({
+            ...item,
+            jaLido: readIds.has(item.ComID),
+            totalLeituras: isManager(profile) ? (readsCountByComId[item.ComID] || 0) : 0,
+          }))
           .sort((a, b) => String(b.DataHora).localeCompare(String(a.DataHora))),
       );
+    },
+
+    async listarLeiturasComunicado(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const values = dropClientToken(args);
+      const comId = values[0];
+      assert(comId, "Identificador do comunicado não informado.");
+
+      const announcement = await runtime.getById("Comunicados", comId);
+      assert(announcement, "Comunicado não encontrado.");
+      if (announcement.LojaID) scopeRecord(profile, announcement);
+
+      const [reads, employees, stores] = await Promise.all([
+        runtime.list("ComunicadosLeituras", { profile }),
+        runtime.list("Funcionarios", { profile }),
+        runtime.list("Lojas"),
+      ]);
+
+      const empMap = new Map(
+        employees.map((e) => [String(e.FuncionarioID || e.id), e]),
+      );
+      const storeMap = new Map(
+        stores.map((s) => [String(s.LojaID || s.id), s.NomeLoja || s.nome]),
+      );
+
+      const matchingReads = reads
+        .filter((r) => String(r.ComID) === String(comId))
+        .map((r) => {
+          const emp = empMap.get(String(r.FuncionarioID)) || {};
+          const storeName =
+            storeMap.get(String(r.LojaID || emp.LojaID)) ||
+            emp.NomeLoja ||
+            "Unidade";
+          return {
+            LeituraID: r.LeituraID || `${r.ComID}__${r.FuncionarioID}`,
+            ComID: r.ComID,
+            FuncionarioID: r.FuncionarioID,
+            Nome: emp.Nome || r.NomeFuncionario || "Colaborador",
+            Cargo: emp.Cargo || "Colaborador",
+            LojaID: r.LojaID || emp.LojaID || "",
+            NomeLoja: storeName,
+            LidoEm: r.LidoEm || "",
+          };
+        })
+        .sort((a, b) => String(b.LidoEm).localeCompare(String(a.LidoEm)));
+
+      return success({
+        comunicado: {
+          ComID: announcement.ComID,
+          Titulo: announcement.Titulo,
+          Tipo: announcement.Tipo || "Operacional",
+          LojaID: announcement.LojaID || "",
+          DataHora: announcement.DataHora,
+          Autor: announcement.Autor,
+        },
+        totalLeituras: matchingReads.length,
+        leituras: matchingReads,
+      });
+    },
+
+    async excluirComunicado(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const values = dropClientToken(args);
+      const comId = values[0];
+      assert(comId, "Identificador do comunicado não informado.");
+
+      const announcement = await runtime.getById("Comunicados", comId);
+      assert(announcement, "Comunicado não encontrado.");
+      if (announcement.LojaID) scopeRecord(profile, announcement);
+
+      const saved = await runtime.upsert("Comunicados", {
+        ...announcement,
+        Ativo: false,
+        DesativadoPor: profile.Email || profile.Nome || "Gerência",
+        DesativadoEm: nowIso(),
+      });
+      return success(saved, "Aviso operacional removido com sucesso.");
     },
 
     async confirmarLeituraComunicado(args) {
@@ -1431,6 +1522,26 @@ export function createAdvancedHandlers() {
           .filter((item) => asBoolean(item.Ativo !== false))
           .sort((a, b) => String(b.CriadoEm || "").localeCompare(String(a.CriadoEm || ""))),
       );
+    },
+
+    async excluirReconhecimento(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const values = dropClientToken(args);
+      const recId = values[0];
+      assert(recId, "Identificador do reconhecimento não informado.");
+
+      const recognition = await runtime.getById("Reconhecimentos", recId);
+      assert(recognition, "Reconhecimento não encontrado.");
+      if (recognition.LojaID) scopeRecord(profile, recognition);
+
+      const saved = await runtime.upsert("Reconhecimentos", {
+        ...recognition,
+        Ativo: false,
+        DesativadoPor: profile.Email || profile.Nome || "Gerência",
+        DesativadoEm: nowIso(),
+      });
+      return success(saved, "Reconhecimento removido com sucesso.");
     },
 
     async criarEnquete(args) {
