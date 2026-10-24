@@ -296,6 +296,23 @@ function unitOverview() {
  if(!data.manager || stores().length<2) return '';
  return `<section class="v-units"><div class="v-section-label">VISÃO POR UNIDADE <span>Selecione para filtrar o painel</span></div><div class="v-unit-grid">${stores().map(s=>{const id=storeId(s), people=uniquePeople(list(data.presence?.presence)).filter(p=>String(p.LojaID)===id), working=people.filter(p=>p.status==='trabalhando').length, onBreak=people.filter(p=>p.status==='intervalo').length;return `<button data-j-unit-card="${esc(id)}" aria-pressed="${unit===id}"><strong>${esc(storeName(s)||'Unidade sem nome')}</strong><div class="v-unit-meter" aria-hidden="true"><i style="width:${people.length?working/people.length*100:0}%"></i><b style="width:${people.length?onBreak/people.length*100:0}%"></b></div><small>${data.presence?`${working} trabalhando · ${onBreak} no intervalo`:'Aguardando registros'} <span>↗</span></small></button>`}).join('')}</div></section>`;
 }
+function dailyMotivationalQuote() {
+ const quotes = [
+  "A excelência do nosso burger começa no capricho de cada detalhe. Equipe unida faz o melhor turno!",
+  "Pontualidade e dedicação na chapa: o cliente percebe o nosso carinho em cada entrega.",
+  "Hoje é dia de superar metas com sorriso no rosto e organização impecável da praça.",
+  "O segredo de um time de sucesso é cuidar do colega e honrar nosso padrão de qualidade.",
+  "Capricho na montagem e atenção ao tempo: juntos fazemos a House 190 brilhar!",
+  "Cada cliente satisfeito é reflexo do nosso trabalho em equipe. Bom turno a todos!",
+  "Comunicação rápida e foco total: o melhor atendimento começa com a nossa união.",
+  "Limpeza, agilidade e padrão: nossa cozinha é o coração da experiência House 190.",
+  "Foco no processo e carinho na entrega: o resultado vem do esforço de cada um aqui.",
+  "Um turno de cada vez, sempre com o melhor atendimento e a máxima qualidade!"
+ ];
+ const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
+ return quotes[dayIndex];
+}
+
 function workspaceHero() {
  const me=list(data.employees).find(p=>String(p.FuncionarioID)===ownId());
  const first=String(me?.Nome || data.user?.Nome || data.user?.nome || '').trim().split(' ')[0];
@@ -306,7 +323,7 @@ function workspaceHero() {
  };
  const { level } = kitchen.levelInfo || getKitchenLevel(0);
  if(data.manager) return `${managerCommand()}<div class="w-sync house-sync"><span>${data.presenceError?'Não foi possível atualizar a presença':data.updatedAt?'Presença atualizada às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" data-j-refresh>↻ Atualizar</button></div>${unitOverview()}`;
- return `<header class="v-workspace-hero"><div class="v-hero-copy"><span class="eyebrow">GRUPO HOUSE 190 / ${data.manager?'GESTÃO':'MINHA JORNADA'}</span><h2>${data.manager?'O dia acontece<br>com a sua equipe.':`${first?'Oi, '+esc(first)+'!':'Olá!'}<br>Seu dia começa aqui.`}</h2><p>${data.manager?'Confira a operação e resolva o que precisa de você.':'Seu ponto, suas tarefas operacionais e seu descanso.'} <span class="j-kitchen-tag">${esc(level.name)}</span></p><div class="v-hero-actions"><button class="btn btn-primary" data-view-target="${data.manager?'pending-center':'timeclock'}">${data.manager?'Resolver pendências':'Registrar meu ponto'} <span>↗</span></button><button class="btn btn-secondary" data-view-target="tasks">Minhas Tarefas</button></div></div><div class="v-hero-clock"><span>HORÁRIO DA BAHIA</span><strong data-live-clock></strong><small data-live-date></small><div class="v-clock-caption"><i></i> ${data.manager?'Organização para cada turno':'Um registro de cada vez'}</div></div></header><div class="v-workspace-toolbar"><div><span class="eyebrow">${data.manager?'ACOMPANHAMENTO DO DIA':'SUA ÁREA PESSOAL'}</span><h3>${data.manager?'Operação de hoje':'Hoje e próximos dias'}</h3></div>${unitSelect()}<div class="w-sync"><span>${!data.manager?'Seus registros, tarefas e folgas':data.presenceError?'Falha ao atualizar a presença':data.updatedAt?'Presença às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" ${data.manager?'data-j-refresh':'data-view-target="notifications"'}>${data.manager?'↻ Atualizar':'Meus avisos ↗'}</button></div></div>${unitOverview()}`;
+ return `<header class="v-workspace-hero"><div class="v-hero-copy"><span class="eyebrow">GRUPO HOUSE 190 / ${data.manager?'GESTÃO':'MINHA JORNADA'}</span><h2>${data.manager?'O dia acontece<br>com a sua equipe.':`${first?'Oi, '+esc(first)+'!':'Olá!'}`}</h2><div class="v-daily-quote"><span class="v-quote-sparkle">✦</span><div><p class="v-quote-text">“${esc(dailyMotivationalQuote())}”</p><span class="v-quote-tag">MOTIVAÇÃO DO DIA • HOUSE 190</span></div></div><p style="margin-top: 8px;">${data.manager?'Confira a operação e resolva o que precisa de você.':'Seu ponto, suas tarefas operacionais e seu descanso.'} <span class="j-kitchen-tag">${esc(level.name)}</span></p><div class="v-hero-actions"><button class="btn btn-primary" data-view-target="${data.manager?'pending-center':'timeclock'}">${data.manager?'Resolver pendências':'Registrar meu ponto'} <span>↗</span></button><button class="btn btn-secondary" data-view-target="tasks">Minhas Tarefas</button></div></div><div class="v-hero-clock"><div class="v-clock-head"><span>HORÁRIO DA BAHIA</span><span class="v-clock-live-dot"></span></div><strong data-live-clock></strong><small data-live-date></small><div class="v-clock-caption"><i></i> ${data.manager?'Organização para cada turno':'Um registro de cada vez'}</div></div></header><div class="v-workspace-toolbar"><div><span class="eyebrow">${data.manager?'ACOMPANHAMENTO DO DIA':'SUA ÁREA PESSOAL'}</span><h3>${data.manager?'Operação de hoje':'Hoje e próximos dias'}</h3></div>${unitSelect()}<div class="w-sync"><span>${!data.manager?'Seus registros, tarefas e folgas':data.presenceError?'Falha ao atualizar a presença':data.updatedAt?'Presença às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" ${data.manager?'data-j-refresh':'data-view-target="notifications"'}>${data.manager?'↻ Atualizar':'Meus avisos ↗'}</button></div></div>${unitOverview()}`;
 }
 function renderTeam() {
  const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));

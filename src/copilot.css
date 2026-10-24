@@ -1059,11 +1059,11 @@
 
   /* Botão Flutuante (FAB) Mobile */
   .copilot-fab {
-    right: 12px;
-    bottom: calc(max(10px, env(safe-area-inset-bottom, 10px)) + 64px);
-    width: 40px;
-    height: 40px;
-    opacity: 0.85;
+    right: 14px;
+    bottom: calc(max(14px, env(safe-area-inset-bottom, 14px)) + 76px);
+    width: 42px;
+    height: 42px;
+    opacity: 0.9;
     transition: opacity 0.2s ease, transform 0.2s ease;
   }
 
