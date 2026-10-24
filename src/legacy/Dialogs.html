@@ -1,5 +1,5 @@
 <dialog id="timeOffDialog" class="time-off-dialog">
-  <form id="timeOffForm">
+  <form id="timeOffForm" novalidate>
     <div class="dialog-head">
       <div>
         <span class="eyebrow" id="timeOffEyebrow">SOLICITAÇÃO DE FOLGA</span>
@@ -11,6 +11,8 @@
     </div>
     <div class="dialog-body">
       <input id="timeOffId" type="hidden" />
+      <input id="timeOffStart" type="hidden" />
+      <input id="timeOffEnd" type="hidden" />
 
       <!-- Banner de identificação e saldo do colaborador (modo funcionário) -->
       <div id="timeOffRequesterInfo" class="time-off-requester-card hidden">
@@ -27,23 +29,13 @@
 
       <div class="dialog-grid time-off-grid">
         <!-- Campos gerenciais visíveis apenas para Gestor/Admin -->
-        <label id="timeOffStoreField" class="time-off-manager-only">Loja<select id="timeOffStore" required></select></label>
-        <label id="timeOffEmployeeField" class="time-off-manager-only">Funcionário<select id="timeOffEmployee" required></select></label>
+        <label id="timeOffStoreField" class="time-off-manager-only">Loja<select id="timeOffStore"></select></label>
+        <label id="timeOffEmployeeField" class="time-off-manager-only">Funcionário<select id="timeOffEmployee"></select></label>
 
-        <!-- Data da folga (dia único padrão) -->
+        <!-- Data da folga (único campo de data) -->
         <label id="timeOffSingleDateField" class="time-off-date-field full">
           <span>Data da folga</span>
-          <input id="timeOffSingleDate" type="date" required />
-        </label>
-
-        <!-- Intervalo de datas (para férias/licenças/atestados em modo gestor) -->
-        <label id="timeOffStartField" class="time-off-date-field hidden">
-          <span>Data inicial</span>
-          <input id="timeOffStart" type="date" />
-        </label>
-        <label id="timeOffEndField" class="time-off-date-field hidden">
-          <span>Data final</span>
-          <input id="timeOffEnd" type="date" />
+          <input id="timeOffSingleDate" type="date" />
         </label>
 
         <!-- Linha compacta 2-colunas: Tipo e Período -->
@@ -113,7 +105,7 @@
         Validar
       </button>
       <button class="btn btn-primary time-off-submit-btn" type="submit" id="timeOffSubmitBtn">
-        Guardar folga
+        Enviar solicitação ↗
       </button>
     </div>
   </form>

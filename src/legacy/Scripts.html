@@ -1127,7 +1127,7 @@
     document.addEventListener("click", async event => {
       const clock = event.target.closest("[data-j-clock]");
       const refresh = event.target.closest("[data-j-refresh]");
-      if (event.target.closest("[data-j-request-leave]")) editTimeOff();
+      if (event.target.closest("[data-j-request-leave]")) editTimeOff("", "", true);
       if (refresh && isManager()) {
         refresh.disabled = true;
         await Promise.allSettled([loadLivePresence_(true), checkIncompletePunches_()]);
@@ -1330,6 +1330,11 @@
     if ($("#recognizeEmployeeForm")) $("#recognizeEmployeeForm").onsubmit = saveEmployeeRecognition_;
     if ($("#operationalNoticeAckBtn")) $("#operationalNoticeAckBtn").onclick = () => acknowledgeCurrentNotice_();
     if ($("#timeOffForm")) $("#timeOffForm").onsubmit = saveTimeOff;
+    if ($("#timeOffSubmitBtn")) $("#timeOffSubmitBtn").onclick = (e) => saveTimeOff(e);
+    if ($("#timeOffSingleDate")) {
+      $("#timeOffSingleDate").oninput = updateTimeOffDateFields;
+      $("#timeOffSingleDate").onchange = updateTimeOffDateFields;
+    }
     if ($("#timeOffType")) $("#timeOffType").onchange = updateTimeOffDateFields;
     if ($("#employeeForm")) $("#employeeForm").onsubmit = saveEmployee;
     ["employeeClockIn", "employeeBreakOut", "employeeBreakIn", "employeeClockOut", "employeeBreakMinutes"].forEach(
@@ -4704,29 +4709,22 @@
   }
 
   function isTimeOffRangeType() {
-    return ["Férias", "Licença", "Atestado Médico"].includes($("#timeOffType").value);
+    return false;
   }
   function updateTimeOffDateFields() {
-    const range = isTimeOffRangeType(),
-      single = $("#timeOffSingleDate"),
+    const single = $("#timeOffSingleDate"),
       start = $("#timeOffStart"),
       end = $("#timeOffEnd");
-    $("#timeOffSingleDateField").classList.toggle("hidden", range);
-    $("#timeOffStartField").classList.toggle("hidden", !range);
-    $("#timeOffEndField").classList.toggle("hidden", !range);
-    single.required = !range;
-    start.required = range;
-    end.required = range;
-    if (range) {
-      if (!start.value) start.value = single.value;
-      if (!end.value) end.value = start.value || single.value;
-    } else {
-      if (!single.value) single.value = start.value || end.value;
-      start.value = single.value;
-      end.value = single.value;
+    if (single && start && end) {
+      if (single.value) {
+        start.value = single.value;
+        end.value = single.value;
+      } else if (start.value) {
+        single.value = start.value;
+      }
     }
   }
-  function editTimeOff(id, date = "") {
+  function editTimeOff(id, date = "", forSelf = false) {
     if (isKitchenChief()) {
       toast("Este acesso permite somente visualizar as folgas da equipe.");
       return;
@@ -4755,14 +4753,7 @@
         ) ||
         state.employees[0] ||
         {},
-      employeeMode = isEmployee();
-    if (employeeMode && !id) {
-      const myBalance = Number(val(me, "SaldoFolgas", "saldoFolgas") || 0);
-      if (myBalance <= 0) {
-        toast("Você não possui saldo de folgas disponível para solicitar.", true);
-        return;
-      }
-    }
+      employeeMode = forSelf || (!id && isEmployee());
     $("#timeOffForm").reset();
     $("#timeOffId").value = id || "";
     $("#timeOffDialogTitle").textContent = employeeMode
@@ -4799,8 +4790,6 @@
         : "";
     $("#timeOffStore").disabled = false;
     $("#timeOffEmployee").disabled = false;
-    $("#timeOffStore").required = !employeeMode;
-    $("#timeOffEmployee").required = !employeeMode;
     if ($("#timeOffEyebrow")) {
       $("#timeOffEyebrow").textContent = employeeMode ? "SOLICITAÇÃO DE FOLGA" : "GESTÃO DE AUSÊNCIAS";
     }
@@ -4824,15 +4813,13 @@
     document.querySelectorAll(".time-off-manager-only").forEach((el) => {
       el.classList.toggle("hidden", employeeMode);
     });
-    const start = x ? iso(val(x, "DataInicio", "dataInicio")) : date,
-      end = x ? iso(val(x, "DataFim", "dataFim")) : date;
-    $("#timeOffStart").value = start;
-    $("#timeOffEnd").value = end;
-    $("#timeOffSingleDate").value = start;
+    const singleDateVal = date || (x ? iso(val(x, "DataInicio", "dataInicio")) : "");
+    $("#timeOffSingleDate").value = singleDateVal;
+    $("#timeOffStart").value = singleDateVal;
+    $("#timeOffEnd").value = singleDateVal;
     $("#timeOffType").value = x
       ? val(x, "TipoFolga", "tipoFolga")
       : "Folga manual";
-    updateTimeOffDateFields();
     $("#timeOffPeriod").value = x
       ? val(x, "Periodo", "periodo")
       : "Dia inteiro";
@@ -4844,44 +4831,54 @@
     openDialog("timeOffDialog");
   }
   function timeOffPayload() {
+    const single = $("#timeOffSingleDate") ? $("#timeOffSingleDate").value : "";
+    const start = single;
+    const end = single;
+    if ($("#timeOffStart")) $("#timeOffStart").value = start;
+    if ($("#timeOffEnd")) $("#timeOffEnd").value = end;
+    const storeEl = $("#timeOffStore");
+    const empEl = $("#timeOffEmployee");
+    let storeVal = storeEl ? storeEl.value : "";
+    let empVal = empEl ? empEl.value : "";
+    if (!storeVal) {
+      storeVal = val(state.user, "LojaID", "lojaId") || (state.stores[0] && idOf(state.stores[0], "Loja")) || "";
+    }
+    if (!empVal) {
+      empVal = val(state.user, "FuncionarioID", "funcionarioId") || (state.employees[0] && idOf(state.employees[0], "Funcionario")) || "";
+    }
     const emp = state.employees.find(
-        (x) => String(idOf(x, "Funcionario")) === $("#timeOffEmployee").value,
+        (x) => String(idOf(x, "Funcionario")) === String(empVal),
       ),
-      range = isTimeOffRangeType(),
-      start = range ? $("#timeOffStart").value : $("#timeOffSingleDate").value,
-      end = range ? $("#timeOffEnd").value : start,
-      immediate = $("#timeOffImmediate").checked,
-      calendar = $("#timeOffCalendar").checked;
+      immediate = $("#timeOffImmediate") ? $("#timeOffImmediate").checked : false,
+      calendar = $("#timeOffCalendar") ? $("#timeOffCalendar").checked : false;
     return {
-      FolgaID: $("#timeOffId").value,
-      folgaId: $("#timeOffId").value,
-      LojaID: $("#timeOffStore").value,
-      lojaId: $("#timeOffStore").value,
-      FuncionarioID: $("#timeOffEmployee").value,
-      funcionarioId: $("#timeOffEmployee").value,
+      FolgaID: $("#timeOffId") ? $("#timeOffId").value : "",
+      folgaId: $("#timeOffId") ? $("#timeOffId").value : "",
+      LojaID: storeVal,
+      lojaId: storeVal,
+      FuncionarioID: empVal,
+      funcionarioId: empVal,
       DataInicio: start,
       dataInicio: start,
       DataFim: end,
       dataFim: end,
-      TipoFolga: $("#timeOffType").value,
-      tipoFolga: $("#timeOffType").value,
-      Periodo: $("#timeOffPeriod").value,
-      periodo: $("#timeOffPeriod").value,
-      Motivo: $("#timeOffReason").value,
-      motivo: $("#timeOffReason").value,
+      TipoFolga: $("#timeOffType") ? $("#timeOffType").value : "Folga manual",
+      tipoFolga: $("#timeOffType") ? $("#timeOffType").value : "Folga manual",
+      Periodo: $("#timeOffPeriod") ? $("#timeOffPeriod").value : "Dia inteiro",
+      periodo: $("#timeOffPeriod") ? $("#timeOffPeriod").value : "Dia inteiro",
+      Motivo: $("#timeOffReason") ? $("#timeOffReason").value : "",
+      motivo: $("#timeOffReason") ? $("#timeOffReason").value : "",
       AprovarImediatamente: immediate,
       aprovarImediatamente: immediate,
       CriarEventoCalendario: calendar,
       criarEventoCalendar: calendar,
-      NomeFuncionario: val(emp, "Nome", "nome"),
-      NomeLoja: storeName($("#timeOffStore").value),
+      NomeFuncionario: val(emp, "Nome", "nome") || "",
+      NomeLoja: storeName(storeVal) || "",
     };
   }
   async function validateTimeOffForm() {
     const p = timeOffPayload();
-    if (!p.DataInicio || !p.DataFim) return toast("Informe as datas.", true);
-    if (p.DataFim < p.DataInicio)
-      return toast("A data final não pode ser anterior à inicial.", true);
+    if (!p.DataInicio) return toast("Informe a data da folga.", true);
     if (isEmployee()) return toast("Pedido pronto para ser enviado.");
     try {
       await call(FN.validateTimeOff, p);
@@ -4891,27 +4888,34 @@
     }
   }
   async function saveTimeOff(e) {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     const p = timeOffPayload(),
-      id = $("#timeOffId").value;
+      id = $("#timeOffId") ? $("#timeOffId").value : "";
+    if (!p.LojaID) {
+      const fallbackStore = val(state.user, "LojaID", "lojaId") || (state.stores[0] && idOf(state.stores[0], "Loja")) || "";
+      p.LojaID = fallbackStore;
+      p.lojaId = fallbackStore;
+      if ($("#timeOffStore")) $("#timeOffStore").value = fallbackStore;
+    }
+    if (!p.FuncionarioID) {
+      const fallbackEmp = val(state.user, "FuncionarioID", "funcionarioId") || (state.employees[0] && idOf(state.employees[0], "Funcionario")) || "";
+      p.FuncionarioID = fallbackEmp;
+      p.funcionarioId = fallbackEmp;
+      if ($("#timeOffEmployee")) $("#timeOffEmployee").value = fallbackEmp;
+    }
     if (!p.LojaID) return toast("Selecione a loja.", true);
     if (!p.FuncionarioID) return toast("Selecione o funcionário.", true);
-    if (!p.DataInicio || !p.DataFim)
-      return toast("Informe a data da folga.", true);
-    if (p.DataFim < p.DataInicio) {
-      return toast("A data final não pode ser anterior à data inicial.", true);
-    }
+    if (!p.DataInicio)
+      return toast("Selecione a data da folga.", true);
+    p.DataFim = p.DataInicio;
+    p.dataFim = p.DataInicio;
+
     setLoading(true);
     try {
       const token = sessionToken();
       let saved;
       if (isEmployee()) {
         if (id) throw new Error("Pedidos já enviados não podem ser editados.");
-        const me = state.employees[0] || {};
-        const myBalance = Number(val(me, "SaldoFolgas", "saldoFolgas") || 0);
-        if (myBalance <= 0) {
-          throw new Error("Você não possui saldo de folgas disponível para solicitar.");
-        }
         saved = await call(FN.employeeRequest, token, p);
       } else if (id) {
         saved = await call(FN.updateTimeOff, id, p);
@@ -4920,7 +4924,7 @@
       }
       if (!saved || !idOf(saved, "Folga")) {
         throw new Error(
-          "O servidor não confirmou o registo da folga. Atualize a página antes de tentar novamente.",
+          "O servidor não confirmou o registro da folga. Atualize a página antes de tentar novamente.",
         );
       }
       upsertState("timeOff", saved, "Folga");
@@ -4934,10 +4938,10 @@
           ? "Pedido de folga enviado."
           : id
             ? "Folga atualizada."
-            : "Folga criada.",
+            : "Folga registrada com sucesso.",
       );
     } catch (e) {
-      toast(e.message, true);
+      toast(e.message || String(e), true);
     } finally {
       setLoading(false);
     }

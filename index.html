@@ -19060,7 +19060,7 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   gap: 14px !important;
 }
 
-.time-off-grid label {
+.time-off-grid label:not(.hidden) {
   display: flex !important;
   flex-direction: column !important;
   gap: 6px !important;
@@ -19068,6 +19068,13 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   font-weight: 700 !important;
   color: #475569 !important;
   letter-spacing: -0.01em !important;
+}
+
+#timeOffDialog .hidden,
+.time-off-grid .hidden,
+.time-off-grid label.hidden,
+.time-off-grid div.hidden {
+  display: none !important;
 }
 
 .time-off-grid label input,
@@ -24361,7 +24368,7 @@ dialog#medicalCertificateDialog {
 
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
     <dialog id="timeOffDialog" class="time-off-dialog">
-  <form id="timeOffForm">
+  <form id="timeOffForm" novalidate>
     <div class="dialog-head">
       <div>
         <span class="eyebrow" id="timeOffEyebrow">SOLICITAÇÃO DE FOLGA</span>
@@ -24373,6 +24380,8 @@ dialog#medicalCertificateDialog {
     </div>
     <div class="dialog-body">
       <input id="timeOffId" type="hidden" />
+      <input id="timeOffStart" type="hidden" />
+      <input id="timeOffEnd" type="hidden" />
 
       <!-- Banner de identificação e saldo do colaborador (modo funcionário) -->
       <div id="timeOffRequesterInfo" class="time-off-requester-card hidden">
@@ -24389,23 +24398,13 @@ dialog#medicalCertificateDialog {
 
       <div class="dialog-grid time-off-grid">
         <!-- Campos gerenciais visíveis apenas para Gestor/Admin -->
-        <label id="timeOffStoreField" class="time-off-manager-only">Loja<select id="timeOffStore" required></select></label>
-        <label id="timeOffEmployeeField" class="time-off-manager-only">Funcionário<select id="timeOffEmployee" required></select></label>
+        <label id="timeOffStoreField" class="time-off-manager-only">Loja<select id="timeOffStore"></select></label>
+        <label id="timeOffEmployeeField" class="time-off-manager-only">Funcionário<select id="timeOffEmployee"></select></label>
 
-        <!-- Data da folga (dia único padrão) -->
+        <!-- Data da folga (único campo de data) -->
         <label id="timeOffSingleDateField" class="time-off-date-field full">
           <span>Data da folga</span>
-          <input id="timeOffSingleDate" type="date" required />
-        </label>
-
-        <!-- Intervalo de datas (para férias/licenças/atestados em modo gestor) -->
-        <label id="timeOffStartField" class="time-off-date-field hidden">
-          <span>Data inicial</span>
-          <input id="timeOffStart" type="date" />
-        </label>
-        <label id="timeOffEndField" class="time-off-date-field hidden">
-          <span>Data final</span>
-          <input id="timeOffEnd" type="date" />
+          <input id="timeOffSingleDate" type="date" />
         </label>
 
         <!-- Linha compacta 2-colunas: Tipo e Período -->
@@ -24475,7 +24474,7 @@ dialog#medicalCertificateDialog {
         Validar
       </button>
       <button class="btn btn-primary time-off-submit-btn" type="submit" id="timeOffSubmitBtn">
-        Guardar folga
+        Enviar solicitação ↗
       </button>
     </div>
   </form>
@@ -27471,7 +27470,7 @@ dialog#medicalCertificateDialog {
     document.addEventListener("click", async event => {
       const clock = event.target.closest("[data-j-clock]");
       const refresh = event.target.closest("[data-j-refresh]");
-      if (event.target.closest("[data-j-request-leave]")) editTimeOff();
+      if (event.target.closest("[data-j-request-leave]")) editTimeOff("", "", true);
       if (refresh && isManager()) {
         refresh.disabled = true;
         await Promise.allSettled([loadLivePresence_(true), checkIncompletePunches_()]);
@@ -27674,6 +27673,11 @@ dialog#medicalCertificateDialog {
     if ($("#recognizeEmployeeForm")) $("#recognizeEmployeeForm").onsubmit = saveEmployeeRecognition_;
     if ($("#operationalNoticeAckBtn")) $("#operationalNoticeAckBtn").onclick = () => acknowledgeCurrentNotice_();
     if ($("#timeOffForm")) $("#timeOffForm").onsubmit = saveTimeOff;
+    if ($("#timeOffSubmitBtn")) $("#timeOffSubmitBtn").onclick = (e) => saveTimeOff(e);
+    if ($("#timeOffSingleDate")) {
+      $("#timeOffSingleDate").oninput = updateTimeOffDateFields;
+      $("#timeOffSingleDate").onchange = updateTimeOffDateFields;
+    }
     if ($("#timeOffType")) $("#timeOffType").onchange = updateTimeOffDateFields;
     if ($("#employeeForm")) $("#employeeForm").onsubmit = saveEmployee;
     ["employeeClockIn", "employeeBreakOut", "employeeBreakIn", "employeeClockOut", "employeeBreakMinutes"].forEach(
@@ -31048,29 +31052,22 @@ dialog#medicalCertificateDialog {
   }
 
   function isTimeOffRangeType() {
-    return ["Férias", "Licença", "Atestado Médico"].includes($("#timeOffType").value);
+    return false;
   }
   function updateTimeOffDateFields() {
-    const range = isTimeOffRangeType(),
-      single = $("#timeOffSingleDate"),
+    const single = $("#timeOffSingleDate"),
       start = $("#timeOffStart"),
       end = $("#timeOffEnd");
-    $("#timeOffSingleDateField").classList.toggle("hidden", range);
-    $("#timeOffStartField").classList.toggle("hidden", !range);
-    $("#timeOffEndField").classList.toggle("hidden", !range);
-    single.required = !range;
-    start.required = range;
-    end.required = range;
-    if (range) {
-      if (!start.value) start.value = single.value;
-      if (!end.value) end.value = start.value || single.value;
-    } else {
-      if (!single.value) single.value = start.value || end.value;
-      start.value = single.value;
-      end.value = single.value;
+    if (single && start && end) {
+      if (single.value) {
+        start.value = single.value;
+        end.value = single.value;
+      } else if (start.value) {
+        single.value = start.value;
+      }
     }
   }
-  function editTimeOff(id, date = "") {
+  function editTimeOff(id, date = "", forSelf = false) {
     if (isKitchenChief()) {
       toast("Este acesso permite somente visualizar as folgas da equipe.");
       return;
@@ -31099,14 +31096,7 @@ dialog#medicalCertificateDialog {
         ) ||
         state.employees[0] ||
         {},
-      employeeMode = isEmployee();
-    if (employeeMode && !id) {
-      const myBalance = Number(val(me, "SaldoFolgas", "saldoFolgas") || 0);
-      if (myBalance <= 0) {
-        toast("Você não possui saldo de folgas disponível para solicitar.", true);
-        return;
-      }
-    }
+      employeeMode = forSelf || (!id && isEmployee());
     $("#timeOffForm").reset();
     $("#timeOffId").value = id || "";
     $("#timeOffDialogTitle").textContent = employeeMode
@@ -31143,8 +31133,6 @@ dialog#medicalCertificateDialog {
         : "";
     $("#timeOffStore").disabled = false;
     $("#timeOffEmployee").disabled = false;
-    $("#timeOffStore").required = !employeeMode;
-    $("#timeOffEmployee").required = !employeeMode;
     if ($("#timeOffEyebrow")) {
       $("#timeOffEyebrow").textContent = employeeMode ? "SOLICITAÇÃO DE FOLGA" : "GESTÃO DE AUSÊNCIAS";
     }
@@ -31168,15 +31156,13 @@ dialog#medicalCertificateDialog {
     document.querySelectorAll(".time-off-manager-only").forEach((el) => {
       el.classList.toggle("hidden", employeeMode);
     });
-    const start = x ? iso(val(x, "DataInicio", "dataInicio")) : date,
-      end = x ? iso(val(x, "DataFim", "dataFim")) : date;
-    $("#timeOffStart").value = start;
-    $("#timeOffEnd").value = end;
-    $("#timeOffSingleDate").value = start;
+    const singleDateVal = date || (x ? iso(val(x, "DataInicio", "dataInicio")) : "");
+    $("#timeOffSingleDate").value = singleDateVal;
+    $("#timeOffStart").value = singleDateVal;
+    $("#timeOffEnd").value = singleDateVal;
     $("#timeOffType").value = x
       ? val(x, "TipoFolga", "tipoFolga")
       : "Folga manual";
-    updateTimeOffDateFields();
     $("#timeOffPeriod").value = x
       ? val(x, "Periodo", "periodo")
       : "Dia inteiro";
@@ -31188,44 +31174,54 @@ dialog#medicalCertificateDialog {
     openDialog("timeOffDialog");
   }
   function timeOffPayload() {
+    const single = $("#timeOffSingleDate") ? $("#timeOffSingleDate").value : "";
+    const start = single;
+    const end = single;
+    if ($("#timeOffStart")) $("#timeOffStart").value = start;
+    if ($("#timeOffEnd")) $("#timeOffEnd").value = end;
+    const storeEl = $("#timeOffStore");
+    const empEl = $("#timeOffEmployee");
+    let storeVal = storeEl ? storeEl.value : "";
+    let empVal = empEl ? empEl.value : "";
+    if (!storeVal) {
+      storeVal = val(state.user, "LojaID", "lojaId") || (state.stores[0] && idOf(state.stores[0], "Loja")) || "";
+    }
+    if (!empVal) {
+      empVal = val(state.user, "FuncionarioID", "funcionarioId") || (state.employees[0] && idOf(state.employees[0], "Funcionario")) || "";
+    }
     const emp = state.employees.find(
-        (x) => String(idOf(x, "Funcionario")) === $("#timeOffEmployee").value,
+        (x) => String(idOf(x, "Funcionario")) === String(empVal),
       ),
-      range = isTimeOffRangeType(),
-      start = range ? $("#timeOffStart").value : $("#timeOffSingleDate").value,
-      end = range ? $("#timeOffEnd").value : start,
-      immediate = $("#timeOffImmediate").checked,
-      calendar = $("#timeOffCalendar").checked;
+      immediate = $("#timeOffImmediate") ? $("#timeOffImmediate").checked : false,
+      calendar = $("#timeOffCalendar") ? $("#timeOffCalendar").checked : false;
     return {
-      FolgaID: $("#timeOffId").value,
-      folgaId: $("#timeOffId").value,
-      LojaID: $("#timeOffStore").value,
-      lojaId: $("#timeOffStore").value,
-      FuncionarioID: $("#timeOffEmployee").value,
-      funcionarioId: $("#timeOffEmployee").value,
+      FolgaID: $("#timeOffId") ? $("#timeOffId").value : "",
+      folgaId: $("#timeOffId") ? $("#timeOffId").value : "",
+      LojaID: storeVal,
+      lojaId: storeVal,
+      FuncionarioID: empVal,
+      funcionarioId: empVal,
       DataInicio: start,
       dataInicio: start,
       DataFim: end,
       dataFim: end,
-      TipoFolga: $("#timeOffType").value,
-      tipoFolga: $("#timeOffType").value,
-      Periodo: $("#timeOffPeriod").value,
-      periodo: $("#timeOffPeriod").value,
-      Motivo: $("#timeOffReason").value,
-      motivo: $("#timeOffReason").value,
+      TipoFolga: $("#timeOffType") ? $("#timeOffType").value : "Folga manual",
+      tipoFolga: $("#timeOffType") ? $("#timeOffType").value : "Folga manual",
+      Periodo: $("#timeOffPeriod") ? $("#timeOffPeriod").value : "Dia inteiro",
+      periodo: $("#timeOffPeriod") ? $("#timeOffPeriod").value : "Dia inteiro",
+      Motivo: $("#timeOffReason") ? $("#timeOffReason").value : "",
+      motivo: $("#timeOffReason") ? $("#timeOffReason").value : "",
       AprovarImediatamente: immediate,
       aprovarImediatamente: immediate,
       CriarEventoCalendario: calendar,
       criarEventoCalendar: calendar,
-      NomeFuncionario: val(emp, "Nome", "nome"),
-      NomeLoja: storeName($("#timeOffStore").value),
+      NomeFuncionario: val(emp, "Nome", "nome") || "",
+      NomeLoja: storeName(storeVal) || "",
     };
   }
   async function validateTimeOffForm() {
     const p = timeOffPayload();
-    if (!p.DataInicio || !p.DataFim) return toast("Informe as datas.", true);
-    if (p.DataFim < p.DataInicio)
-      return toast("A data final não pode ser anterior à inicial.", true);
+    if (!p.DataInicio) return toast("Informe a data da folga.", true);
     if (isEmployee()) return toast("Pedido pronto para ser enviado.");
     try {
       await call(FN.validateTimeOff, p);
@@ -31235,27 +31231,34 @@ dialog#medicalCertificateDialog {
     }
   }
   async function saveTimeOff(e) {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     const p = timeOffPayload(),
-      id = $("#timeOffId").value;
+      id = $("#timeOffId") ? $("#timeOffId").value : "";
+    if (!p.LojaID) {
+      const fallbackStore = val(state.user, "LojaID", "lojaId") || (state.stores[0] && idOf(state.stores[0], "Loja")) || "";
+      p.LojaID = fallbackStore;
+      p.lojaId = fallbackStore;
+      if ($("#timeOffStore")) $("#timeOffStore").value = fallbackStore;
+    }
+    if (!p.FuncionarioID) {
+      const fallbackEmp = val(state.user, "FuncionarioID", "funcionarioId") || (state.employees[0] && idOf(state.employees[0], "Funcionario")) || "";
+      p.FuncionarioID = fallbackEmp;
+      p.funcionarioId = fallbackEmp;
+      if ($("#timeOffEmployee")) $("#timeOffEmployee").value = fallbackEmp;
+    }
     if (!p.LojaID) return toast("Selecione a loja.", true);
     if (!p.FuncionarioID) return toast("Selecione o funcionário.", true);
-    if (!p.DataInicio || !p.DataFim)
-      return toast("Informe a data da folga.", true);
-    if (p.DataFim < p.DataInicio) {
-      return toast("A data final não pode ser anterior à data inicial.", true);
-    }
+    if (!p.DataInicio)
+      return toast("Selecione a data da folga.", true);
+    p.DataFim = p.DataInicio;
+    p.dataFim = p.DataInicio;
+
     setLoading(true);
     try {
       const token = sessionToken();
       let saved;
       if (isEmployee()) {
         if (id) throw new Error("Pedidos já enviados não podem ser editados.");
-        const me = state.employees[0] || {};
-        const myBalance = Number(val(me, "SaldoFolgas", "saldoFolgas") || 0);
-        if (myBalance <= 0) {
-          throw new Error("Você não possui saldo de folgas disponível para solicitar.");
-        }
         saved = await call(FN.employeeRequest, token, p);
       } else if (id) {
         saved = await call(FN.updateTimeOff, id, p);
@@ -31264,7 +31267,7 @@ dialog#medicalCertificateDialog {
       }
       if (!saved || !idOf(saved, "Folga")) {
         throw new Error(
-          "O servidor não confirmou o registo da folga. Atualize a página antes de tentar novamente.",
+          "O servidor não confirmou o registro da folga. Atualize a página antes de tentar novamente.",
         );
       }
       upsertState("timeOff", saved, "Folga");
@@ -31278,10 +31281,10 @@ dialog#medicalCertificateDialog {
           ? "Pedido de folga enviado."
           : id
             ? "Folga atualizada."
-            : "Folga criada.",
+            : "Folga registrada com sucesso.",
       );
     } catch (e) {
-      toast(e.message, true);
+      toast(e.message || String(e), true);
     } finally {
       setLoading(false);
     }

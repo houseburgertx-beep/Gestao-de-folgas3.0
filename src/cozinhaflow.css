@@ -6191,7 +6191,7 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   gap: 14px !important;
 }
 
-.time-off-grid label {
+.time-off-grid label:not(.hidden) {
   display: flex !important;
   flex-direction: column !important;
   gap: 6px !important;
@@ -6199,6 +6199,13 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   font-weight: 700 !important;
   color: #475569 !important;
   letter-spacing: -0.01em !important;
+}
+
+#timeOffDialog .hidden,
+.time-off-grid .hidden,
+.time-off-grid label.hidden,
+.time-off-grid div.hidden {
+  display: none !important;
 }
 
 .time-off-grid label input,

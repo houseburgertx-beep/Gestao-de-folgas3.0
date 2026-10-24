@@ -3662,6 +3662,18 @@ test("Backend API: Auditoria de leituras de comunicados e exclusão lógica de a
   }
 });
 
+test("timeOffDialog possui campo único de data sem campos redundantes de data inicial e final", async () => {
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  assert.match(dialogsHtml, /id="timeOffSingleDate"/, "Deve possuir o campo timeOffSingleDate");
+  assert.doesNotMatch(dialogsHtml, /id="timeOffStartField"/, "Não deve possuir label/campo visível timeOffStartField");
+  assert.doesNotMatch(dialogsHtml, /id="timeOffEndField"/, "Não deve possuir label/campo visível timeOffEndField");
+  assert.match(dialogsHtml, /id="timeOffForm"[^>]*novalidate/, "Formulário deve possuir novalidate para evitar bloqueios silenciosos");
+
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  assert.match(scriptsHtml, /data-j-request-leave[^;]*editTimeOff\("",\s*"",\s*true\)/, "Pedir folga na jornada deve acionar modo próprio (forSelf)");
+  assert.match(scriptsHtml, /timeOffSubmitBtn[^;]*saveTimeOff/, "Botão de envio deve ter handler direto para saveTimeOff");
+});
+
 
 
 
