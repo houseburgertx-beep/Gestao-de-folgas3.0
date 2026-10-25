@@ -341,22 +341,24 @@ function renderTarefasTab({ todoCount, doingCount, reviewCount, doneToday, overd
         <span class="material-symbols-rounded">search</span>
         <input type="search" id="cfTaskSearch" placeholder="Buscar tarefas..." value="${esc(state.searchQuery)}">
       </div>
-      ${admin ? `
-        <select class="task-select" id="cfTaskAssigneeFilter">
-          <option value="">Colaborador</option>
-          ${state.assignees.map(a => `<option value="${esc(a.id)}" ${state.filterAssignee === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+      <div class="cf-filter-pills">
+        ${admin ? `
+          <select class="task-select" id="cfTaskAssigneeFilter">
+            <option value="">Colaborador</option>
+            ${state.assignees.map(a => `<option value="${esc(a.id)}" ${state.filterAssignee === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+          </select>
+        ` : ''}
+        <select class="task-select" id="cfTaskPriorityFilter">
+          <option value="">Prioridade</option>
+          <option value="Urgente" ${state.filterPriority === 'Urgente' ? 'selected' : ''}>Urgente</option>
+          <option value="Alta" ${state.filterPriority === 'Alta' ? 'selected' : ''}>Alta</option>
+          <option value="Normal" ${state.filterPriority === 'Normal' ? 'selected' : ''}>Normal</option>
+          <option value="Baixa" ${state.filterPriority === 'Baixa' ? 'selected' : ''}>Baixa</option>
         </select>
-      ` : ''}
-      <select class="task-select" id="cfTaskPriorityFilter">
-        <option value="">Prioridade</option>
-        <option value="Urgente" ${state.filterPriority === 'Urgente' ? 'selected' : ''}>Urgente</option>
-        <option value="Alta" ${state.filterPriority === 'Alta' ? 'selected' : ''}>Alta</option>
-        <option value="Normal" ${state.filterPriority === 'Normal' ? 'selected' : ''}>Normal</option>
-        <option value="Baixa" ${state.filterPriority === 'Baixa' ? 'selected' : ''}>Baixa</option>
-      </select>
-      <button type="button" class="task-tool-btn" id="cfBtnRefreshTasks" title="Atualizar">
-        <span class="material-symbols-rounded">refresh</span>
-      </button>
+        <button type="button" class="task-tool-btn cf-btn-icon-only" id="cfBtnRefreshTasks" title="Atualizar">
+          <span class="material-symbols-rounded">refresh</span>
+        </button>
+      </div>
     </div>
 
     <!-- Quadro Kanban de Tarefas -->
@@ -459,32 +461,38 @@ function renderAdminAttentionPanel({ reviewCount, overdueCount }) {
   }
 
   return `
-    <div class="task-attention-panel cf-attention-compact">
-      <div class="task-attention-head">
-        <div>
-          <span class="material-symbols-rounded">notification_important</span>
-          <div><small>Atenção</small><strong>${totalAlerts} pendência(s) crítica(s)</strong></div>
+    <div class="cf-attention-banner">
+      <div class="cf-attention-content">
+        <span class="material-symbols-rounded cf-alert-icon">notification_important</span>
+        <span class="cf-alert-title">Atenção:</span>
+        <div class="cf-alert-pills">
+          ${overdueCount > 0 ? `
+            <button type="button" class="cf-alert-pill danger ${state.attentionFilter === 'overdue' ? 'active' : ''}" data-attention="overdue">
+              <strong>${overdueCount}</strong> atrasadas
+            </button>
+          ` : ''}
+          ${reviewCount > 0 ? `
+            <button type="button" class="cf-alert-pill review ${state.attentionFilter === 'review' ? 'active' : ''}" data-attention="review">
+              <strong>${reviewCount}</strong> conferir
+            </button>
+          ` : ''}
+          ${soonCount > 0 ? `
+            <button type="button" class="cf-alert-pill warning ${state.attentionFilter === 'soon' ? 'active' : ''}" data-attention="soon">
+              <strong>${soonCount}</strong> vencem 2h
+            </button>
+          ` : ''}
+          ${returnedCount > 0 ? `
+            <button type="button" class="cf-alert-pill returned ${state.attentionFilter === 'returned' ? 'active' : ''}" data-attention="returned">
+              <strong>${returnedCount}</strong> devolvidas
+            </button>
+          ` : ''}
         </div>
-        ${state.attentionFilter ? `<button type="button" class="task-tool-btn" id="cfClearAttention">Mostrar todas</button>` : ''}
       </div>
-      <div class="task-attention-items">
-        <button type="button" class="task-attention-item review ${state.attentionFilter === 'review' ? 'active' : ''}" data-attention="review">
-          <span class="material-symbols-rounded">photo_library</span>
-          <span><strong>${reviewCount}</strong><small>Conferir</small></span>
+      ${state.attentionFilter ? `
+        <button type="button" class="cf-clear-attention-btn" id="cfClearAttention" title="Mostrar todas">
+          <span class="material-symbols-rounded">close</span>
         </button>
-        <button type="button" class="task-attention-item danger ${state.attentionFilter === 'overdue' ? 'active' : ''}" data-attention="overdue">
-          <span class="material-symbols-rounded">timer_off</span>
-          <span><strong>${overdueCount}</strong><small>Atrasadas</small></span>
-        </button>
-        <button type="button" class="task-attention-item warning ${state.attentionFilter === 'soon' ? 'active' : ''}" data-attention="soon">
-          <span class="material-symbols-rounded">hourglass_top</span>
-          <span><strong>${soonCount}</strong><small>Vencem em 2h</small></span>
-        </button>
-        <button type="button" class="task-attention-item returned ${state.attentionFilter === 'returned' ? 'active' : ''}" data-attention="returned">
-          <span class="material-symbols-rounded">assignment_return</span>
-          <span><strong>${returnedCount}</strong><small>Devolvidas</small></span>
-        </button>
-      </div>
+      ` : ''}
     </div>
   `;
 }
@@ -1127,7 +1135,7 @@ async function handleDeliverReward(redemptionId) {
 // ==========================================================================
 
 function openNewTaskModal() {
-  const modal = createModalElement('Nova Tarefa CozinhaFlow', 'Atribua a atividade com orientação clara para a equipe');
+  const modal = createModalElement('Nova Tarefa da Cozinha', 'Atribua a atividade com orientação clara para a equipe');
   modal.querySelector('.cf-modal-body').innerHTML = `
     <form id="cfNewTaskForm" style="display:grid;gap:14px;">
       <div>
@@ -1162,7 +1170,7 @@ function openNewTaskModal() {
           </label>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="cf-form-row-responsive">
         <div>
           <label>Prazo Limite</label>
           <input type="datetime-local" name="PRAZO">
@@ -1190,7 +1198,7 @@ function openNewTaskModal() {
     <button type="button" class="task-action-btn light" data-close-modal>Cancelar</button>
     <button type="button" class="task-action-btn primary btn-glow" id="cfSaveNewTask">
       <span class="material-symbols-rounded">add_task</span>
-      <span>Salvar e Atribuir Tarefa</span>
+      <span>Salvar Tarefa</span>
     </button>
   `;
 
@@ -1257,7 +1265,7 @@ function openEditTaskModal(taskId) {
           </label>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="cf-form-row-responsive">
         <div>
           <label>Prazo Limite</label>
           <input type="datetime-local" name="PRAZO" value="${esc(task.PRAZO ? task.PRAZO.slice(0, 16) : '')}">

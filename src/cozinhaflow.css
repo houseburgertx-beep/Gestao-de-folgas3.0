@@ -218,6 +218,26 @@ html, body {
   color: var(--cf-muted);
   font-size: 13.5px;
 }
+@media (max-width: 600px) {
+  .page-head.cf-mobile-head {
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  .page-head.cf-mobile-head .eyebrow,
+  .page-head.cf-mobile-head .cf-head-desc {
+    display: none !important;
+  }
+  .page-head.cf-mobile-head h1 {
+    font-size: 19px !important;
+  }
+  .page-head.cf-mobile-head .cf-btn-primary {
+    padding: 8px 14px !important;
+    font-size: 12.5px !important;
+    min-height: 40px !important;
+    border-radius: 12px !important;
+  }
+}
 .page-head .eyebrow {
   display: block;
   color: var(--cf-primary);
@@ -348,6 +368,83 @@ html, body {
   font-weight: 750;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   BANNER DE ATENÇÃO DA LIDERANÇA (Slim iOS Pill Banner)
+   ========================================================================== */
+
+.cf-attention-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+}
+.cf-attention-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.cf-alert-icon {
+  font-size: 18px;
+  color: #dc2626;
+  flex-shrink: 0;
+}
+.cf-alert-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #991b1b;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.cf-alert-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cf-alert-pills::-webkit-scrollbar { display: none; }
+.cf-alert-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 0;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s ease;
+}
+.cf-alert-pill.danger { background: #fee2e2; color: #dc2626; }
+.cf-alert-pill.danger.active { background: #dc2626; color: #fff; }
+.cf-alert-pill.review { background: #f3f0ff; color: #7c3aed; }
+.cf-alert-pill.review.active { background: #7c3aed; color: #fff; }
+.cf-alert-pill.warning { background: #fef3c7; color: #b45309; }
+.cf-alert-pill.warning.active { background: #b45309; color: #fff; }
+.cf-alert-pill.returned { background: #ffedd5; color: #c2410c; }
+.cf-alert-pill.returned.active { background: #c2410c; color: #fff; }
+.cf-clear-attention-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(0, 0, 0, .06);
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cf-clear-attention-btn .material-symbols-rounded { font-size: 16px; }
 
 /* ==========================================================================
    PAINEL DE ATENÇÃO DO ADMINISTRADOR
@@ -559,6 +656,65 @@ html, body {
   }
   .task-column.mobile-active {
     display: block !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+  .task-column-head {
+    display: none !important;
+  }
+}
+
+.cf-form-row-responsive {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 600px) {
+  .cf-form-row-responsive {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .task-toolbar.cf-mobile-toolbar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    border-radius: 16px !important;
+    margin-bottom: 12px !important;
+  }
+  .task-toolbar.cf-mobile-toolbar .task-search {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  .task-toolbar.cf-mobile-toolbar .task-search input {
+    width: 100% !important;
+    height: 38px !important;
+    font-size: 13px !important;
+  }
+  .task-toolbar.cf-mobile-toolbar .cf-filter-pills {
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .task-toolbar.cf-mobile-toolbar .cf-filter-pills .task-select {
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 36px !important;
+    font-size: 12px !important;
+    padding: 0 8px !important;
+  }
+  .task-toolbar.cf-mobile-toolbar .cf-filter-pills .task-tool-btn {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
   }
 }
 
@@ -1559,6 +1715,35 @@ html, body {
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .cf-modal-backdrop {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+  .cf-modal-card {
+    width: 100% !important;
+    max-height: 88vh !important;
+    max-height: 88dvh !important;
+    border-radius: 24px 24px 0 0 !important;
+    border: none !important;
+  }
+  .cf-modal-head {
+    padding: 14px 18px !important;
+  }
+  .cf-modal-body {
+    padding: 16px 18px !important;
+    gap: 12px !important;
+  }
+  .cf-modal-foot {
+    padding: 12px 18px max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .cf-modal-foot .task-action-btn {
+    min-height: 44px !important;
+    flex: 1 !important;
+    justify-content: center !important;
+  }
 }
 
 /* Prioridades em Chips Táteis */
