@@ -43,7 +43,7 @@ const STATUSES = [
 
 function isUserAdmin() {
   const role = String(state.user?.Perfil || state.user?.role || '').toLowerCase();
-  return role.includes('admin') || role.includes('gerente') || role.includes('responsável') || state.isManager;
+  return role.includes('admin') || role.includes('gerente') || role.includes('responsável') || role.includes('chefe de cozinha') || state.isManager;
 }
 
 function currentUserId() {

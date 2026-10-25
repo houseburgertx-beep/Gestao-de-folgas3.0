@@ -1025,7 +1025,9 @@ const validateTimeOffPolicies = async ({
   const isMedical = String(type || current?.TipoFolga || "").toLowerCase().includes("atestado");
   if (isMedical) return; // Atestados médicos legais não sofrem bloqueio de antecedência, feriado ou limite operacional
   const requestedDays = dateRange(start, end);
-  const employeeRequest = role(profile).includes("funcion");
+  const employeeRequest =
+    role(profile).includes("funcion") ||
+    role(profile).includes("chefe de cozinha");
   const [config, holidays] = await Promise.all([
     runtime.list("Configuracoes", { profile }),
     runtime.list("Feriados", { profile }),
@@ -1173,7 +1175,9 @@ const createOrUpdateTimeOff = async (payload, current = null) => {
   );
   assert(!conflict, "Já existe uma folga deste funcionário nesse período.");
 
-  const employeeRequest = role(profile).includes("funcion");
+  const employeeRequest =
+    role(profile).includes("funcion") ||
+    role(profile).includes("chefe de cozinha");
   const type = payload.TipoFolga || current?.TipoFolga || "Folga";
   const period = payload.Periodo || current?.Periodo || "Dia inteiro";
   if (
@@ -2016,7 +2020,9 @@ export function createBaseHandlers() {
       const profile = await runtime.requireProfile();
       const values = dropClientToken(args);
       const payload = values[0] || {};
-      const employeeRequest = role(profile).includes("funcion");
+      const employeeRequest =
+    role(profile).includes("funcion") ||
+    role(profile).includes("chefe de cozinha");
 
       const employeeId = employeeRequest
         ? profile.FuncionarioID

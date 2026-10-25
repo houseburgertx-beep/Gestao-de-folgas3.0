@@ -2,6 +2,11 @@ import { runtime } from "./runtime.js";
 import { assert, nowIso, todayIso, uuid } from "./utils.js";
 import { createNotification, createNotificationOnce, isAdmin, isManager, success } from "./api-base.js";
 
+const isTaskLead = (profile) =>
+  isAdmin(profile) ||
+  isManager(profile) ||
+  String(profile?.Perfil || profile?.perfil || "").toLowerCase().includes("chefe de cozinha");
+
 export function createTasksHandlers() {
   return {
     async tasksList(args) {
@@ -137,7 +142,7 @@ export function createTasksHandlers() {
       if (newColumn === "concluido" && !task.DataConclusao) {
         changes.DataConclusao = nowIso();
       }
-      if (newColumn === "visto" && isManager(profile)) {
+      if (newColumn === "visto" && isTaskLead(profile)) {
         changes.VistoPor = profile.Nome || "Gerente";
         changes.DataVisto = nowIso();
       }
@@ -227,7 +232,7 @@ export function createTasksHandlers() {
       const [taskId, notas] = args || [];
       assert(taskId, "Identificador da tarefa é obrigatório.");
       const profile = await runtime.requireProfile();
-      assert(isManager(profile), "Apenas gestores ou responsáveis podem conceder visto.");
+      assert(isTaskLead(profile), "Apenas gestores, responsáveis ou chefes de cozinha podem conceder visto.");
 
       const task = await runtime.getById("Tarefas", taskId);
       assert(task, "Tarefa não encontrada.");
@@ -609,7 +614,7 @@ export function createTasksHandlers() {
       const [taskId] = args || [];
       assert(taskId, "Identificador da tarefa é obrigatório.");
       const profile = await runtime.requireProfile();
-      assert(isManager(profile), "Apenas gestores podem remover tarefas.");
+      assert(isTaskLead(profile), "Apenas gestores ou chefes de cozinha podem remover tarefas.");
 
       await runtime.remove("Tarefas", taskId);
       return success(null, "Tarefa removida com sucesso.");
@@ -618,7 +623,7 @@ export function createTasksHandlers() {
     async tasksDeduplicate(args) {
       const [lojaId, dataTurno] = args || [];
       const profile = await runtime.requireProfile();
-      assert(isManager(profile), "Apenas gestores podem organizar tarefas.");
+      assert(isTaskLead(profile), "Apenas gestores ou chefes de cozinha podem organizar tarefas.");
       const targetStore = String(lojaId || profile.LojaID || "").trim();
       const turnoDate = String(dataTurno || todayIso()).trim();
       const rows = await runtime.list("Tarefas", { profile });
@@ -647,7 +652,7 @@ export function createTasksHandlers() {
 
     async tasksCleanupTest(args) {
       const profile = await runtime.requireProfile();
-      assert(isManager(profile), "Apenas gestores podem limpar tarefas de teste.");
+      assert(isTaskLead(profile), "Apenas gestores ou chefes de cozinha podem limpar tarefas de teste.");
       const rows = await runtime.list("Tarefas", { profile });
       let removed = 0;
       for (const t of rows) {
@@ -678,7 +683,7 @@ export function createTasksHandlers() {
         profile.nome,
       ].filter(Boolean).map((x) => String(x).trim().toLowerCase());
 
-      const admin = isAdmin(profile) || isManager(profile);
+      const admin = isAdmin(profile) || isTaskLead(profile);
 
       const normalized = rows.map((t) => {
         const id = String(t.TarefaID || t.ID || "");
@@ -908,7 +913,7 @@ export function createTasksHandlers() {
       const [taskId] = args || [];
       assert(taskId, "Identificador da tarefa é obrigatório.");
       const profile = await runtime.requireProfile();
-      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem aprovar tarefas.");
+      assert(isTaskLead(profile), "Apenas administradores, gestores ou chefes de cozinha podem aprovar tarefas.");
 
       const task = await runtime.getById("Tarefas", taskId);
       assert(task, "Tarefa não encontrada.");
@@ -999,7 +1004,7 @@ export function createTasksHandlers() {
       const reason = String(payload?.reason || payload?.motivo || "Necessário nova foto com melhor ângulo").trim();
 
       const profile = await runtime.requireProfile();
-      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem devolver tarefas.");
+      assert(isTaskLead(profile), "Apenas administradores, gestores ou chefes de cozinha podem devolver tarefas.");
 
       const patch = {
         Status: 'Em andamento',
@@ -1041,7 +1046,7 @@ export function createTasksHandlers() {
       const pointsPenalty = Number(payload?.points || 0);
 
       const profile = await runtime.requireProfile();
-      assert(isAdmin(profile) || isManager(profile), "Apenas administradores podem cancelar tarefas.");
+      assert(isTaskLead(profile), "Apenas administradores, gestores ou chefes de cozinha podem cancelar tarefas.");
 
       const task = await runtime.getById("Tarefas", taskId);
       const patch = {
@@ -1186,7 +1191,7 @@ export function createTasksHandlers() {
     async cozinhaPointRedemptions(args) {
       const profile = await runtime.requireProfile();
       const rows = await runtime.list("PontosResgates", { profile });
-      const admin = isAdmin(profile) || isManager(profile);
+      const admin = isAdmin(profile) || isTaskLead(profile);
       const uid = String(profile.FuncionarioID || profile.UsuarioID || "").toLowerCase();
 
       const visible = admin ? rows : rows.filter(r => String(r.USUARIO_ID || "").toLowerCase() === uid);
@@ -1272,7 +1277,7 @@ export function createTasksHandlers() {
     async cozinhaPointAdjustments(args) {
       const profile = await runtime.requireProfile();
       const rows = await runtime.list("PontosAjustes", { profile });
-      const admin = isAdmin(profile) || isManager(profile);
+      const admin = isAdmin(profile) || isTaskLead(profile);
       const uid = String(profile.FuncionarioID || profile.UsuarioID || "").toLowerCase();
 
       const visible = admin ? rows : rows.filter(r => String(r.USUARIO_ID || "").toLowerCase() === uid);

@@ -3147,22 +3147,27 @@
         ? "Minhas solicitações"
         : "Pendências";
     const takeatLabel = $('.nav-item[data-view="takeat-credit"] b');
-    if (takeatLabel)
+    if (takeatLabel) {
       takeatLabel.textContent = employeeMode
         ? "Meu consumo"
         : "Contas a Prazo";
+      if (kitchenChief) takeatLabel.textContent = "Meu consumo";
+    }
     const documentsNavLabel = $('.nav-item[data-view="documents"] b');
     if (documentsNavLabel)
       documentsNavLabel.textContent = employeeMode
         ? "Meus Documentos"
         : "Documentos";
     const dockTakeat = $("#dockTakeatLabel");
-    if (dockTakeat)
+    if (dockTakeat) {
       dockTakeat.textContent = employeeMode ? "Consumo" : "Prazo";
-    $("#dashboardNewTimeOff").textContent = employeeMode
+      if (kitchenChief) dockTakeat.textContent = "Consumo";
+    }
+    const isSelfTimeOff = employeeMode || kitchenChief;
+    $("#dashboardNewTimeOff").textContent = isSelfTimeOff
       ? "＋ Pedir folga"
       : "＋ Criar folga";
-    $("#newTimeOffBtn").textContent = employeeMode
+    $("#newTimeOffBtn").textContent = isSelfTimeOff
       ? "＋ Pedir folga"
       : "＋ Nova folga";
     $("#view-timeoff .eyebrow").textContent = employeeMode
@@ -3230,13 +3235,15 @@
     [
       "dashboardNewTimeOff",
       "newTimeOffBtn",
-      "calendarNewBtn",
       "pendingNewTimeOff",
       "pendingTimeOffAction",
     ].forEach((id) => {
       const button = $("#" + id);
-      if (button) button.classList.toggle("hidden", kitchenChief);
+      if (button) button.classList.remove("hidden");
     });
+    if ($("#calendarNewBtn")) {
+      $("#calendarNewBtn").classList.toggle("hidden", kitchenChief);
+    }
     const timeClockNavLabel = $('.nav-item[data-view="timeclock"] b');
     if (timeClockNavLabel)
       timeClockNavLabel.textContent = kitchenChief
@@ -3723,6 +3730,7 @@
     checkPendingDocuments_();
     checkPrivacyPolicyPopup_();
     loadLivePresence_();
+    if (isKitchenChief()) renderEmployeeClockDashboard();
   }
   function activity(x) {
     const n = val(x, "NomeFuncionario", "nomeFuncionario"),
@@ -4742,8 +4750,15 @@
   }
   function editTimeOff(id, date = "", forSelf = false) {
     if (isKitchenChief()) {
-      toast("Este acesso permite somente visualizar as folgas da equipe.");
-      return;
+      if (id) {
+        const currentFolga = state.timeOff.find((r) => String(idOf(r, "Folga")) === String(id));
+        const currentEmployeeId = val(state.user, "FuncionarioID", "funcionarioId");
+        if (!currentFolga || String(val(currentFolga, "FuncionarioID", "funcionarioId")) !== String(currentEmployeeId)) {
+          toast("Este acesso permite somente visualizar as folgas da equipe.");
+          return;
+        }
+      }
+      forSelf = true;
     }
     const x = state.timeOff.find(
         (r) => String(idOf(r, "Folga")) === String(id),
@@ -4930,7 +4945,7 @@
     try {
       const token = sessionToken();
       let saved;
-      if (isEmployee()) {
+      if (isEmployee() || isKitchenChief()) {
         if (id) throw new Error("Pedidos já enviados não podem ser editados.");
         saved = await call(FN.employeeRequest, token, p);
       } else if (id) {
@@ -6085,7 +6100,7 @@
     };
   }
   function renderEmployeeClockDashboard() {
-    if (!isEmployee()) return;
+    if (!isEmployee() && !isKitchenChief()) return;
     let panel = $("#employeeClockDashboard");
     if (!panel) {
       panel = document.createElement("article");
@@ -11290,7 +11305,7 @@
     const refreshBtn = $("#takeatCreditRefreshBtn");
     if (refreshBtn) {
       refreshBtn.disabled = true;
-      if (isEmployee()) {
+      if (isEmployee() || isKitchenChief()) {
         refreshBtn.innerHTML = '<svg class="takeat-spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.52-6.25"/><path d="M21 3v5h-5"/></svg>';
       } else {
         refreshBtn.textContent = "Sincronizando…";
@@ -11305,7 +11320,7 @@
 
     const tbody = $("#takeatCreditBody");
     if (tbody && state.currentView === "takeat-credit") {
-      const isEmp = isEmployee();
+      const isEmp = isEmployee() || isKitchenChief();
       tbody.innerHTML = `<tr><td colspan="${isEmp ? 6 : 8}" style="text-align:center; padding:2rem; color:var(--text-muted);">Sincronizando contas com a Takeat…</td></tr>`;
     }
 
@@ -11360,7 +11375,7 @@
       state.takeatCredit.loading = false;
       if (refreshBtn) {
         refreshBtn.disabled = false;
-        if (isEmployee()) {
+        if (isEmployee() || isKitchenChief()) {
           refreshBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.52-6.25"/><path d="M21 3v5h-5"/></svg>';
         } else {
           refreshBtn.textContent = "↻ Sincronizar Takeat";
@@ -11372,7 +11387,7 @@
   function renderTakeatCreditView() {
     initTakeatCreditEvents_();
 
-    const isEmp = isEmployee();
+    const isEmp = isEmployee() || isKitchenChief();
     const items = state.takeatCredit.items || [];
 
     // Adaptar cabeçalho e controles conforme perfil

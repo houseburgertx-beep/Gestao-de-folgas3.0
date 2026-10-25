@@ -3680,6 +3680,35 @@ test("timeOffDialog possui campo único de data sem campos redundantes de data i
   assert.match(scriptsHtml, /timeOffSubmitBtn[^;]*saveTimeOff/, "Botão de envio deve ter handler direto para saveTimeOff");
 });
 
+test("Chefe de Cozinha: permissões operacionais de tarefas, solicitação de folga própria, ponto normal e consumo Takeat individual", async () => {
+  const [constantsFile, tasksApiFile, tasksUiFile, scriptsFile, baseApiFile] = await Promise.all([
+    readFile(new URL("../src/core/constants.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-tasks.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/tasks.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8"),
+  ]);
+
+  // 1. Constantes e permissões
+  assert.match(constantsFile, /"tasks\.ownstore\.manage"/, "Chefe de cozinha deve possuir permissão para gerenciar tarefas da loja");
+  assert.match(constantsFile, /"tasks\.ownstore\.approve"/, "Chefe de cozinha deve possuir permissão para aprovar tarefas da loja");
+  assert.match(constantsFile, /"timeoff\.self\.request"/, "Chefe de cozinha deve possuir permissão para solicitar folga própria");
+
+  // 2. Criação e aprovação de tarefas no backend e frontend
+  assert.match(tasksApiFile, /isTaskLead[\s\S]*chefe de cozinha/i, "Backend de tarefas deve reconhecer chefe de cozinha como líder de tarefas");
+  assert.match(tasksUiFile, /chefe de cozinha/i, "UI de tarefas deve habilitar criação e aprovação para chefe de cozinha");
+
+  // 3. Takeat Credit: exibe somente o dele
+  assert.match(scriptsFile, /const isEmp = isEmployee\(\) \|\| isKitchenChief\(\)/, "Takeat deve tratar chefe de cozinha no modo individual");
+
+  // 4. Solicitação de folga: pode pedir e status fica pendente
+  assert.match(baseApiFile, /role\(profile\)\.includes\("chefe de cozinha"\)/, "Criação de folga deve tratar chefe de cozinha como solicitação pendente");
+  assert.match(scriptsFile, /if \(isKitchenChief\(\)\)[\s\S]*forSelf = true/, "Edição de folga deve abrir em modo próprio para o chefe");
+
+  // 5. Ponto: pode bater normalmente
+  assert.match(scriptsFile, /if \(!isEmployee\(\) && !isKitchenChief\(\)\) return/, "Dashboard do ponto deve carregar para chefe de cozinha");
+});
+
 
 
 
