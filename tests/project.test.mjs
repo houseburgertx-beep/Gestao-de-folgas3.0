@@ -3709,6 +3709,35 @@ test("Chefe de Cozinha: permissões operacionais de tarefas, solicitação de fo
   assert.match(scriptsFile, /if \(!isEmployee\(\) && !isKitchenChief\(\)\) return/, "Dashboard do ponto deve carregar para chefe de cozinha");
 });
 
+test("CozinhaFlow 100% Mobile: design fluido Apple iOS, zero NaN em selos, navegacao segmentada e botoes touch", async () => {
+  const [tasksJs, cozinhaCss] = await Promise.all([
+    readFile(new URL("../src/tasks.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/cozinhaflow.css", import.meta.url), "utf8"),
+  ]);
+
+  // 1. Correção do bug de NaN nos selos e cálculo íntegro de pontos
+  assert.match(tasksJs, /levelInfo\.totalEarned\s*=\s*totalEarned/, "computeUserBalance deve anexar totalEarned a levelInfo");
+  assert.match(tasksJs, /Math\.max\(0,\s*lvl\.min\s*-\s*totalEarned\)/, "renderJornadaTab deve calcular diff numérico prevenindo NaN");
+
+  // 2. Navegação em Segmented Control compacto iOS de 4 abas
+  assert.match(tasksJs, /data-cf-tab="tarefas"[\s\S]*<span>Tarefas<\/span>/, "Aba 1 de tarefas com rótulo conciso");
+  assert.match(tasksJs, /data-cf-tab="jornada"[\s\S]*<span>Jornada<\/span>/, "Aba 2 de jornada com rótulo conciso");
+  assert.match(tasksJs, /data-cf-tab="loja"[\s\S]*<span>Prêmios<\/span>/, "Aba 3 de prêmios com rótulo conciso");
+  assert.match(tasksJs, /data-cf-tab="equipe"[\s\S]*<span>Equipe<\/span>/, "Aba 4 de equipe com rótulo conciso");
+
+  // 3. Grid de resumo redundante ocultado no mobile para não poluir
+  assert.match(cozinhaCss, /@media\s*\(max-width:\s*768px\)\s*\{\s*\.task-summary-grid\s*\{\s*display:\s*none\s*!important;/, "task-summary-grid deve ser ocultado no mobile");
+
+  // 4. Loja de prêmios com botão inteligente único e padding de segurança para o dock
+  assert.match(tasksJs, /reward-smart-btn/, "Card da loja deve usar botão inteligente único");
+  assert.match(cozinhaCss, /\.cf-view-tab[\s\S]*padding-bottom:\s*calc\(env\(safe-area-inset-bottom,\s*0px\)\s*\+\s*96px\)/, "Tabs devem ter safe-area bottom padding para o dock não cobrir conteúdo");
+
+  // 5. Ranking com pódio ouro/prata/bronze e números tabulares
+  assert.match(tasksJs, /rank-gold/, "Ranking deve atribuir classe de pódio ouro ao 1º");
+  assert.match(tasksJs, /tabular-num/, "Horários e pontos devem usar classe tabular-num");
+  assert.match(cozinhaCss, /\.team-member-card\.rank-gold/, "CSS deve estilizar pódio ouro");
+});
+
 
 
 

@@ -142,10 +142,50 @@ html, body {
   font-size: 11px;
   font-weight: 800;
 }
+.cf-nav-badge-pts {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+@media (max-width: 768px) {
+  .cf-nav-bar {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+    padding: 4px !important;
+    background: rgba(118, 118, 128, 0.12) !important;
+    border-radius: 14px !important;
+    border: none !important;
+    margin-bottom: 14px !important;
+    overflow: hidden !important;
+  }
+  .cf-nav-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 7px 2px !important;
+    gap: 3px !important;
+    min-height: 48px !important;
+    border-radius: 10px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+  }
+  .cf-nav-btn .material-symbols-rounded {
+    font-size: 20px !important;
+  }
+  .cf-nav-badge-pill,
+  .cf-nav-badge-pts {
+    display: none !important;
+  }
+}
 
 .cf-view-tab {
   display: none;
   animation: cfFadeIn .22s ease;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
 }
 .cf-view-tab.active {
   display: block;
@@ -228,7 +268,7 @@ html, body {
 }
 @media (max-width: 768px) {
   .task-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: none !important;
   }
 }
 .task-summary-card {
@@ -390,14 +430,20 @@ html, body {
    ABAS MOBILE TÁTEIS (A fazer, Fazendo, Conferir, Feitas)
    ========================================================================== */
 
-.task-mobile-tabs {
+.task-mobile-tabs,
+.cf-segmented-status {
   display: none;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 5px;
+  padding: 4px;
+  background: rgba(118, 118, 128, 0.08);
+  border-radius: 14px;
   margin-bottom: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 @media (max-width: 900px) {
-  .task-mobile-tabs {
+  .task-mobile-tabs,
+  .cf-segmented-status {
     display: grid;
   }
 }
@@ -408,20 +454,19 @@ html, body {
   justify-content: center;
   min-height: 52px;
   padding: 6px 4px;
-  border: 1px solid var(--cf-line);
-  border-radius: 14px;
-  background: var(--cf-surface);
+  border: none;
+  border-radius: 10px;
+  background: transparent;
   color: var(--cf-muted);
   cursor: pointer;
-  transition: all .15s ease;
+  transition: all .2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.task-mobile-tab span { font-size: 10.5px; font-weight: 750; }
-.task-mobile-tab strong { font-size: 14px; font-weight: 850; margin-top: 1px; color: var(--cf-ink); }
+.task-mobile-tab span { font-size: 11px; font-weight: 600; }
+.task-mobile-tab strong { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; color: var(--cf-ink); }
 .task-mobile-tab.active {
-  border-color: var(--cf-primary);
-  background: #f4f0ff;
+  background: #ffffff;
   color: var(--cf-primary);
-  box-shadow: 0 4px 12px rgba(101, 88, 211, .15);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 .task-mobile-tab.active strong { color: var(--cf-primary); }
 
@@ -687,12 +732,21 @@ html, body {
   align-items: center;
   gap: 5px;
   padding: 6px 11px;
+  min-height: 38px;
   border: 0;
   border-radius: 9px;
   font-size: 11.5px;
   font-weight: 750;
   cursor: pointer;
   transition: all .15s ease;
+}
+@media (max-width: 600px) {
+  .task-action-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
 }
 .task-action-btn.primary { background: var(--cf-primary); color: #fff; }
 .task-action-btn.primary:hover { background: var(--cf-primary-dark); }
@@ -811,22 +865,40 @@ html, body {
 }
 
 /* Regras de pontuação */
-.profile-score-rules {
+.profile-score-rules,
+.profile-score-rules-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 16px;
 }
-.profile-score-rules > div {
-  padding: 10px;
+.profile-score-rules > div,
+.profile-score-rules-strip .rule-chip {
+  padding: 10px 6px;
   border: 1px solid var(--cf-line);
   border-radius: 14px;
   background: var(--cf-surface);
   text-align: center;
   box-shadow: var(--cf-shadow-sm);
 }
-.profile-score-rules strong { display: block; font-size: 12px; color: var(--cf-ink); }
-.profile-score-rules small { display: block; margin-top: 2px; color: var(--cf-muted); font-size: 9.5px; }
+.profile-score-rules strong,
+.profile-score-rules-strip strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 850;
+  color: var(--cf-ink);
+  font-variant-numeric: tabular-nums;
+}
+.profile-score-rules small,
+.profile-score-rules-strip small {
+  display: block;
+  margin-top: 2px;
+  color: var(--cf-muted);
+  font-size: 9.5px;
+}
+.profile-score-rules-strip strong.pts-normal { color: #64748b; }
+.profile-score-rules-strip strong.pts-high { color: #ea580c; }
+.profile-score-rules-strip strong.pts-urgent { color: #dc2626; }
 
 /* Trilho de Selos dos Títulos */
 .kitchen-badges-track {
@@ -1110,24 +1182,59 @@ html, body {
   font-weight: 850;
 }
 .reward-price .material-symbols-rounded { font-size: 15px; color: #7c3aed; }
+.reward-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.reward-price-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.reward-smart-btn,
 .reward-card button {
-  padding: 6px 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 0;
-  border-radius: 10px;
-  background: #1e1b4b;
+  border-radius: 12px;
+  background: var(--cf-primary, #7c3aed);
   color: #fff;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
-  transition: opacity .15s ease;
+  transition: all .15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.22);
 }
+.reward-smart-btn:hover:not(:disabled),
 .reward-card button:hover:not(:disabled) {
-  opacity: .9;
+  opacity: .95;
 }
+.reward-smart-btn:active:not(:disabled),
+.reward-card button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.reward-smart-btn:disabled,
+.reward-smart-btn.cannot-redeem,
 .reward-card button:disabled {
-  background: #f1f5f9;
-  color: #94a3b8;
-  cursor: not-allowed;
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
 }
 
 /* Histórico de Resgates e Entregas */
@@ -1212,6 +1319,100 @@ html, body {
   border-radius: 16px;
   background: var(--cf-surface);
   box-shadow: var(--cf-shadow-sm);
+}
+.team-member-card.rank-gold {
+  background: linear-gradient(135deg, #fffdf0, #ffffff);
+  border-color: #f59e0b;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.12);
+}
+.team-member-avatar.rank-gold {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #ffffff;
+  font-weight: 900;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+.team-member-card.rank-silver {
+  background: linear-gradient(135deg, #f8fafc, #ffffff);
+  border-color: #94a3b8;
+  box-shadow: 0 4px 14px rgba(148, 163, 184, 0.12);
+}
+.team-member-avatar.rank-silver {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  color: #ffffff;
+  font-weight: 900;
+}
+.team-member-card.rank-bronze {
+  background: linear-gradient(135deg, #fff7ed, #ffffff);
+  border-color: #ea580c;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.12);
+}
+.team-member-avatar.rank-bronze {
+  background: linear-gradient(135deg, #ea580c, #c2410c);
+  color: #ffffff;
+  font-weight: 900;
+}
+.team-member-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.team-rank-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.team-rank-tag.rank-gold { background: #fef3c7; color: #b45309; }
+.team-rank-tag.rank-silver { background: #e2e8f0; color: #475569; }
+.team-rank-tag.rank-bronze { background: #ffedd5; color: #c2410c; }
+.tabular-num {
+  font-variant-numeric: tabular-nums;
+}
+.cf-shop-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 18px;
+  margin-bottom: 14px;
+}
+.cf-shop-hero .shop-balance-content small {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6d28d9;
+  text-transform: uppercase;
+}
+.cf-shop-hero .shop-balance-content strong {
+  display: block;
+  font-size: 26px;
+  font-weight: 900;
+  color: #4c1d95;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.cf-shop-hero .pts-unit {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7c3aed;
+}
+.cf-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6d28d9;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(109, 40, 217, 0.08);
 }
 .team-member-avatar {
   width: 44px;

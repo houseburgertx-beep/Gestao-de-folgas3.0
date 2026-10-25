@@ -197,6 +197,7 @@ export function computeUserBalance() {
 
   const available = Math.max(0, totalEarned - spent);
   const levelInfo = getKitchenLevel(totalEarned);
+  levelInfo.totalEarned = totalEarned;
 
   return { totalEarned, spent, available, levelInfo };
 }
@@ -222,7 +223,7 @@ function renderApp() {
   const overdueCount = state.tasks.filter(isTaskOverdue).length;
 
   host.innerHTML = `
-    <!-- Barra Superior de Navegação CozinhaFlow -->
+    <!-- Barra Superior de Navegação CozinhaFlow (Apple iOS Segmented Control) -->
     <nav class="cf-nav-bar" aria-label="Abas CozinhaFlow">
       <button type="button" class="cf-nav-btn ${state.activeTab === 'tarefas' ? 'active' : ''}" data-cf-tab="tarefas">
         <span class="material-symbols-rounded">checklist</span>
@@ -231,13 +232,13 @@ function renderApp() {
       </button>
       <button type="button" class="cf-nav-btn ${state.activeTab === 'jornada' ? 'active' : ''}" data-cf-tab="jornada">
         <span class="material-symbols-rounded">workspace_premium</span>
-        <span>Títulos &amp; Jornada</span>
-        <b class="cf-nav-badge">${levelInfo.level.emoji} ${levelInfo.level.short}</b>
+        <span>Jornada</span>
+        <b class="cf-nav-badge cf-nav-badge-pill">${esc(levelInfo.level.short || levelInfo.level.name)}</b>
       </button>
       <button type="button" class="cf-nav-btn ${state.activeTab === 'loja' ? 'active' : ''}" data-cf-tab="loja">
         <span class="material-symbols-rounded">stars</span>
-        <span>Loja de Prêmios</span>
-        <b class="cf-nav-badge" style="background:#fef3c7;color:#b45309;">${available} pts</b>
+        <span>Prêmios</span>
+        <b class="cf-nav-badge cf-nav-badge-pts">${available} pts</b>
       </button>
       <button type="button" class="cf-nav-btn ${state.activeTab === 'equipe' ? 'active' : ''}" data-cf-tab="equipe">
         <span class="material-symbols-rounded">groups</span>
@@ -277,11 +278,11 @@ function renderTarefasTab({ todoCount, doingCount, reviewCount, doneToday, overd
   const visible = getFilteredTasks();
 
   return `
-    <div class="page-head">
+    <div class="page-head cf-mobile-head">
       <div>
         <span class="eyebrow">${admin ? 'Operação da Equipe' : 'Meu Trabalho'}</span>
         <h1>${admin ? 'Tarefas da Cozinha' : 'Minhas Tarefas'}</h1>
-        <p>${admin ? 'Distribua o trabalho, acompanhe e aprove as fotos de comprovação.' : 'Veja o que precisa ser feito, inicie e envie foto ao concluir.'}</p>
+        <p class="cf-head-desc">${admin ? 'Distribua o trabalho, acompanhe e aprove as fotos de comprovação.' : 'Veja o que precisa ser feito, inicie e envie foto ao concluir.'}</p>
       </div>
       <div class="page-actions">
         ${admin ? `
@@ -292,7 +293,7 @@ function renderTarefasTab({ todoCount, doingCount, reviewCount, doneToday, overd
       </div>
     </div>
 
-    <!-- Cards de Resumo -->
+    <!-- Cards de Resumo (desktop) -->
     <div class="task-summary-grid">
       <div class="task-summary-card">
         <span class="task-summary-icon todo"><span class="material-symbols-rounded">assignment</span></span>
@@ -319,7 +320,7 @@ function renderTarefasTab({ todoCount, doingCount, reviewCount, doneToday, overd
     ${admin ? renderAdminAttentionPanel({ reviewCount, overdueCount }) : ''}
 
     <!-- Abas Mobile de Status -->
-    <div class="task-mobile-tabs">
+    <div class="task-mobile-tabs cf-segmented-status">
       <button type="button" class="task-mobile-tab ${state.mobileStatus === 'A fazer' ? 'active' : ''}" data-mobile-status="A fazer">
         <span>A fazer</span><strong>${state.tasks.filter(t => t.STATUS === 'A fazer').length}</strong>
       </button>
@@ -335,26 +336,26 @@ function renderTarefasTab({ todoCount, doingCount, reviewCount, doneToday, overd
     </div>
 
     <!-- Barra de Ferramentas / Filtros -->
-    <div class="task-toolbar">
+    <div class="task-toolbar cf-mobile-toolbar">
       <div class="task-search">
         <span class="material-symbols-rounded">search</span>
         <input type="search" id="cfTaskSearch" placeholder="Buscar tarefas..." value="${esc(state.searchQuery)}">
       </div>
       ${admin ? `
         <select class="task-select" id="cfTaskAssigneeFilter">
-          <option value="">Todos os colaboradores</option>
+          <option value="">Colaborador</option>
           ${state.assignees.map(a => `<option value="${esc(a.id)}" ${state.filterAssignee === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
         </select>
       ` : ''}
       <select class="task-select" id="cfTaskPriorityFilter">
-        <option value="">Todas as prioridades</option>
+        <option value="">Prioridade</option>
         <option value="Urgente" ${state.filterPriority === 'Urgente' ? 'selected' : ''}>Urgente</option>
         <option value="Alta" ${state.filterPriority === 'Alta' ? 'selected' : ''}>Alta</option>
         <option value="Normal" ${state.filterPriority === 'Normal' ? 'selected' : ''}>Normal</option>
         <option value="Baixa" ${state.filterPriority === 'Baixa' ? 'selected' : ''}>Baixa</option>
       </select>
-      <button type="button" class="task-tool-btn" id="cfBtnRefreshTasks">
-        <span class="material-symbols-rounded">refresh</span>Atualizar
+      <button type="button" class="task-tool-btn" id="cfBtnRefreshTasks" title="Atualizar">
+        <span class="material-symbols-rounded">refresh</span>
       </button>
     </div>
 
@@ -454,25 +455,22 @@ function renderAdminAttentionPanel({ reviewCount, overdueCount }) {
   const totalAlerts = reviewCount + overdueCount + returnedCount + soonCount;
 
   if (!totalAlerts) {
-    return `
-      <div class="task-attention-panel">
-        <div class="task-attention-head">
-          <div><span class="material-symbols-rounded" style="color:#059669;">verified</span><div><small>Operação em dia</small><strong>Nenhuma pendência crítica agora</strong></div></div>
-        </div>
-      </div>
-    `;
+    return '';
   }
 
   return `
-    <div class="task-attention-panel">
+    <div class="task-attention-panel cf-attention-compact">
       <div class="task-attention-head">
-        <div><span class="material-symbols-rounded">crisis_alert</span><div><small>Visão da Liderança</small><strong>Precisa de atenção (${totalAlerts})</strong></div></div>
+        <div>
+          <span class="material-symbols-rounded">notification_important</span>
+          <div><small>Atenção</small><strong>${totalAlerts} pendência(s) crítica(s)</strong></div>
+        </div>
         ${state.attentionFilter ? `<button type="button" class="task-tool-btn" id="cfClearAttention">Mostrar todas</button>` : ''}
       </div>
       <div class="task-attention-items">
         <button type="button" class="task-attention-item review ${state.attentionFilter === 'review' ? 'active' : ''}" data-attention="review">
           <span class="material-symbols-rounded">photo_library</span>
-          <span><strong>${reviewCount}</strong><small>Fotos para conferir</small></span>
+          <span><strong>${reviewCount}</strong><small>Conferir</small></span>
         </button>
         <button type="button" class="task-attention-item danger ${state.attentionFilter === 'overdue' ? 'active' : ''}" data-attention="overdue">
           <span class="material-symbols-rounded">timer_off</span>
@@ -484,7 +482,7 @@ function renderAdminAttentionPanel({ reviewCount, overdueCount }) {
         </button>
         <button type="button" class="task-attention-item returned ${state.attentionFilter === 'returned' ? 'active' : ''}" data-attention="returned">
           <span class="material-symbols-rounded">assignment_return</span>
-          <span><strong>${returnedCount}</strong><small>Fotos devolvidas</small></span>
+          <span><strong>${returnedCount}</strong><small>Devolvidas</small></span>
         </button>
       </div>
     </div>
@@ -597,13 +595,14 @@ function renderJornadaTab({ levelInfo, available, admin }) {
   const userName = currentUserName();
   const myAdjusts = state.adjustments.filter(a => String(a.USUARIO_ID) === uid);
   const myTasks = state.tasks.filter(t => String(t.RESPONSAVEL_ID) === uid && t.STATUS === 'Concluída');
+  const totalEarned = Number(levelInfo.totalEarned ?? available ?? 0);
 
   return `
-    <div class="page-head">
+    <div class="page-head cf-mobile-head">
       <div>
         <span class="eyebrow">Progressão e Gamificação</span>
-        <h1>Títulos &amp; Jornada da Cozinha</h1>
-        <p>Conclua tarefas, ganhe pontos e suba na hierarquia da House Burger!</p>
+        <h1>Títulos &amp; Jornada</h1>
+        <p class="cf-head-desc">Conclua tarefas, ganhe pontos e suba na hierarquia da House 190!</p>
       </div>
       ${admin ? `
         <div class="page-actions">
@@ -614,17 +613,19 @@ function renderJornadaTab({ levelInfo, available, admin }) {
       ` : ''}
     </div>
 
-    <!-- Painel de Nível / Título -->
-    <div class="profile-points-panel">
+    <!-- Painel de Nível / Título Estilo Apple Glass -->
+    <div class="profile-points-panel cf-hero-glass">
       <div class="profile-score-hero">
-        <div class="profile-level-icon">${levelInfo.level.emoji}</div>
+        <div class="profile-level-icon">
+          <span class="material-symbols-rounded" style="font-size:28px;">workspace_premium</span>
+        </div>
         <div class="profile-score-copy">
           <small>Seu Título Atual</small>
           <strong>${esc(levelInfo.level.name)}</strong>
           <span>${levelInfo.nextLevel ? `Faltam ${levelInfo.pointsNeeded} pontos para ${levelInfo.nextLevel.name}` : 'Nível Máximo Conquistado!'}</span>
         </div>
         <div class="profile-score-total">
-          <strong>${available}</strong>
+          <strong class="tabular-num">${available}</strong>
           <span>Pontos Disponíveis</span>
         </div>
       </div>
@@ -633,37 +634,37 @@ function renderJornadaTab({ levelInfo, available, admin }) {
       </div>
     </div>
 
-    <!-- Regras de Pontos -->
-    <div class="profile-score-rules">
-      <div>
-        <strong>+1 ponto</strong>
-        <small>Prioridade Normal ou Baixa</small>
+    <!-- Regras de Pontos Compactas (Inline Strip) -->
+    <div class="profile-score-rules profile-score-rules-strip">
+      <div class="rule-chip">
+        <strong class="pts-normal">+1 ponto</strong>
+        <small>Normal ou Baixa</small>
       </div>
-      <div>
-        <strong>+2 pontos</strong>
+      <div class="rule-chip">
+        <strong class="pts-high">+2 pontos</strong>
         <small>Prioridade Alta</small>
       </div>
-      <div>
-        <strong>+3 pontos</strong>
+      <div class="rule-chip">
+        <strong class="pts-urgent">+3 pontos</strong>
         <small>Prioridade Urgente</small>
       </div>
     </div>
 
     <!-- Trilho de Selos dos 8 Títulos -->
-    <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
-      <div class="rewards-head">
+    <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:20px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div>
-          <small>Hierarquia da Equipe</small>
-          <strong>Os 8 Selos da Cozinha</strong>
+          <small style="color:var(--cf-muted);font-size:10px;font-weight:800;text-transform:uppercase;">Hierarquia da Equipe</small>
+          <strong style="display:block;font-size:15px;color:var(--cf-ink);font-weight:800;">Os 8 Selos da Cozinha</strong>
         </div>
-        <span style="font-size:12px;font-weight:750;color:#7c3aed;">
-          ${KITCHEN_LEVELS.filter(l => levelInfo.totalEarned >= l.min).length}/${KITCHEN_LEVELS.length} Desbloqueados
+        <span style="font-size:12px;font-weight:800;color:var(--cf-primary);">
+          ${KITCHEN_LEVELS.filter(l => totalEarned >= l.min).length}/${KITCHEN_LEVELS.length} Desbloqueados
         </span>
       </div>
       <div class="kitchen-badges-track">
         ${KITCHEN_LEVELS.map(lvl => {
-          const unlocked = levelInfo.totalEarned >= lvl.min;
-          const diff = lvl.min - levelInfo.totalEarned;
+          const unlocked = totalEarned >= lvl.min;
+          const diff = Math.max(0, lvl.min - totalEarned);
           return `
             <div class="kitchen-badge ${unlocked ? 'is-unlocked' : ''}">
               <div class="kitchen-badge-medal">${unlocked ? '<span class="material-symbols-rounded">verified</span>' : '<span class="material-symbols-rounded">lock</span>'}</div>
@@ -676,11 +677,11 @@ function renderJornadaTab({ levelInfo, available, admin }) {
     </div>
 
     <!-- Missões da Semana -->
-    <div class="card-surface profile-weekly-missions" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
-      <div class="rewards-head">
+    <div class="card-surface profile-weekly-missions" style="padding:16px;margin-bottom:16px;border-radius:20px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head" style="margin-bottom:12px;">
         <div>
-          <small>Desafios Semanais</small>
-          <strong>Missões da Semana</strong>
+          <small style="color:var(--cf-muted);font-size:10px;font-weight:800;text-transform:uppercase;">Desafios Semanais</small>
+          <strong style="display:block;font-size:15px;color:var(--cf-ink);font-weight:800;">Missões da Semana</strong>
         </div>
       </div>
       <div class="missions-list">
@@ -700,7 +701,7 @@ function renderJornadaTab({ levelInfo, available, admin }) {
     </div>
 
     <!-- Extrato de Pontos -->
-    <div class="card-surface" style="padding:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
+    <div class="card-surface" style="padding:16px;border-radius:20px;background:#fff;border:1px solid var(--cf-line);">
       <div class="rewards-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div>
           <small>Transparência</small>
@@ -781,42 +782,45 @@ function renderLojaTab({ available, admin }) {
   const pendingDeliveries = state.redemptions.filter(r => r.STATUS === 'Solicitado');
 
   return `
-    <div class="page-head">
+    <div class="page-head cf-mobile-head">
       <div>
         <span class="eyebrow">Benefícios &amp; Recompensas</span>
         <h1>Loja de Prêmios</h1>
-        <p>Troque seus pontos acumulados por prêmios, lanches, descansos e folga extra!</p>
+        <p class="cf-head-desc">Troque seus pontos acumulados por lanches, descansos e folga extra.</p>
       </div>
     </div>
 
-    <!-- Saldo Disponível -->
-    <div class="shop-balance-panel">
+    <!-- Saldo Disponível (Hero Compacto iOS) -->
+    <div class="shop-balance-panel cf-shop-hero">
       <div class="shop-balance-content">
         <small>Seu Saldo Disponível</small>
-        <strong>${available} <span>pontos</span></strong>
+        <strong>${available} <span class="pts-unit">pontos</span></strong>
       </div>
-      <button type="button" data-cf-tab="jornada">Ver Minha Jornada</button>
+      <button type="button" class="cf-link-btn" data-cf-tab="jornada">
+        <span>Minha Jornada</span>
+        <span class="material-symbols-rounded">chevron_right</span>
+      </button>
     </div>
 
     <!-- Pedidos para Entregar (Visão do Admin) -->
     ${admin && pendingDeliveries.length ? `
-      <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
-        <div class="rewards-head">
+      <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:20px;background:#fff;border:1px solid var(--cf-line);">
+        <div class="rewards-head" style="margin-bottom:12px;">
           <div>
-            <small>Ação da Liderança</small>
-            <strong>Pedidos para Entregar (${pendingDeliveries.length})</strong>
+            <small style="color:var(--cf-muted);font-size:10px;font-weight:800;text-transform:uppercase;">Ação da Liderança</small>
+            <strong style="display:block;font-size:15px;color:var(--cf-ink);font-weight:800;">Pedidos para Entregar (${pendingDeliveries.length})</strong>
           </div>
         </div>
         <div class="admin-reward-list">
           ${pendingDeliveries.map(r => `
-            <article>
+            <article class="cf-admin-delivery-item">
               <span class="material-symbols-rounded" style="color:var(--cf-primary)">redeem</span>
               <div>
                 <strong>${esc(r.USUARIO_NOME)}</strong>
                 <small>${esc(r.RECOMPENSA_NOME)} · ${r.PONTOS} pontos</small>
               </div>
-              <button type="button" data-cf-action="deliver-reward" data-redemption-id="${esc(r.ID)}">
-                <span class="material-symbols-rounded">redeem</span>Marcar Entregue
+              <button type="button" class="cf-btn-compact" data-cf-action="deliver-reward" data-redemption-id="${esc(r.ID)}">
+                <span class="material-symbols-rounded">redeem</span>Entregar
               </button>
             </article>
           `).join('')}
@@ -825,16 +829,16 @@ function renderLojaTab({ available, admin }) {
     ` : ''}
 
     <!-- Catálogo de Prêmios -->
-    <div class="card-surface" style="padding:16px;margin-bottom:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
-      <div class="rewards-head">
+    <div class="card-surface cf-catalog-surface" style="padding:16px;margin-bottom:16px;border-radius:20px;background:#fff;border:1px solid var(--cf-line);">
+      <div class="rewards-head" style="margin-bottom:12px;">
         <div>
-          <small>Catálogo Oficial</small>
-          <strong>Recompensas Disponíveis</strong>
+          <small style="color:var(--cf-muted);font-size:10px;font-weight:800;text-transform:uppercase;">Catálogo Oficial</small>
+          <strong style="display:block;font-size:15px;color:var(--cf-ink);font-weight:800;">Recompensas Disponíveis</strong>
         </div>
       </div>
       <div class="reward-store-note">
         <span class="material-symbols-rounded">info</span>
-        Ao resgatar, seu pedido é enviado para a gerência combinar a entrega ou agendamento.
+        Ao resgatar, seu pedido é enviado à gerência para agendamento.
       </div>
       <div class="rewards-grid">
         ${state.catalog.filter(r => r.status !== 'Inativo').map(r => {
@@ -842,17 +846,17 @@ function renderLojaTab({ available, admin }) {
           const canRedeem = available >= cost;
           return `
             <div class="reward-card ${r.featured ? 'is-featured' : ''}">
-              ${r.featured ? `<span class="reward-featured-label"><span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle;margin-right:2px;">star</span>Destaque</span>` : ''}
-              <div class="reward-emoji"><span class="material-symbols-rounded" style="font-size:32px;color:var(--cf-primary)">redeem</span></div>
+              ${r.featured ? `<span class="reward-featured-label"><span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle;margin-right:2px;">star</span>Destaque</span>` : ''}
+              <div class="reward-card-top">
+                <div class="reward-emoji"><span class="material-symbols-rounded" style="font-size:24px;color:var(--cf-primary)">redeem</span></div>
+                <div class="reward-price-pill"><span class="material-symbols-rounded" style="font-size:13px;">stars</span>${cost} pts</div>
+              </div>
               <div class="reward-copy">
                 <strong>${esc(r.NOME || r.name)}</strong>
                 <small>${esc(r.DESCRICAO || r.description)}</small>
               </div>
-              <div class="reward-price">
-                <span class="material-symbols-rounded">stars</span>${cost}
-              </div>
-              <button type="button" data-cf-action="redeem" data-reward-id="${esc(r.ID)}" ${canRedeem ? '' : 'disabled'}>
-                ${canRedeem ? 'Resgatar' : `Faltam ${cost - available}`}
+              <button type="button" class="reward-smart-btn ${canRedeem ? 'can-redeem' : 'cannot-redeem'}" data-cf-action="redeem" data-reward-id="${esc(r.ID)}" ${canRedeem ? '' : 'disabled'}>
+                ${canRedeem ? `Resgatar (${cost} pts)` : `Faltam ${cost - available} pts`}
               </button>
             </div>
           `;
@@ -861,11 +865,11 @@ function renderLojaTab({ available, admin }) {
     </div>
 
     <!-- Meus Resgates Recentes -->
-    <div class="card-surface" style="padding:16px;border-radius:18px;background:#fff;border:1px solid var(--cf-line);">
-      <div class="rewards-head">
+    <div class="card-surface" style="padding:16px;border-radius:20px;background:#fff;border:1px solid var(--cf-line);margin-bottom:24px;">
+      <div class="rewards-head" style="margin-bottom:12px;">
         <div>
-          <small>Acompanhamento</small>
-          <strong>Meus Resgates</strong>
+          <small style="color:var(--cf-muted);font-size:10px;font-weight:800;text-transform:uppercase;">Acompanhamento</small>
+          <strong style="display:block;font-size:15px;color:var(--cf-ink);font-weight:800;">Meus Resgates</strong>
         </div>
       </div>
       <div class="reward-history-list">
@@ -892,32 +896,42 @@ function renderEquipeTab({ admin }) {
   const members = state.teamMetrics;
 
   return `
-    <div class="page-head">
+    <div class="page-head cf-mobile-head">
       <div>
         <span class="eyebrow">Colaboradores &amp; Desempenho</span>
         <h1>Equipe &amp; Ranking</h1>
-        <p>Acompanhe os títulos, pontos e tarefas concluídas de toda a equipe.</p>
+        <p class="cf-head-desc">Acompanhe os títulos, pontos e tarefas concluídas de toda a equipe.</p>
       </div>
     </div>
 
     <div class="team-list">
-      ${members.length ? members.map((m, index) => `
-        <div class="team-member-card">
-          <div class="team-member-avatar">${index === 0 ? '1º' : index === 1 ? '2º' : index === 2 ? '3º' : (index + 1)}</div>
-          <div class="team-member-info">
-            <strong>${esc(m.name)}</strong>
-            <small>${esc(m.role)} · ${m.doneToday} feitas hoje · ${m.pending} pendentes</small>
-            <div class="team-member-level">
-              <span class="material-symbols-rounded" style="font-size:16px;color:var(--cf-primary)">stars</span>
-              <strong>${esc(m.level.name)}</strong>
+      ${members.length ? members.map((m, index) => {
+        const rank = index + 1;
+        const rankClass = rank === 1 ? 'rank-gold' : rank === 2 ? 'rank-silver' : rank === 3 ? 'rank-bronze' : 'rank-other';
+        const rankLabel = rank === 1 ? '1º' : rank === 2 ? '2º' : rank === 3 ? '3º' : `${rank}º`;
+        return `
+          <div class="team-member-card ${rankClass}">
+            <div class="team-member-avatar ${rankClass}">
+              <span>${rankLabel}</span>
+            </div>
+            <div class="team-member-info">
+              <div class="team-member-name-row">
+                <strong>${esc(m.name)}</strong>
+                ${rank <= 3 ? `<span class="team-rank-tag ${rankClass}">${rank === 1 ? 'Líder' : rank === 2 ? 'Vice' : 'Top 3'}</span>` : ''}
+              </div>
+              <small>${esc(m.role)} · <span class="tabular-num">${m.doneToday}</span> feitas hoje · <span class="tabular-num">${m.pending}</span> pendentes</small>
+              <div class="team-member-level">
+                <span class="material-symbols-rounded" style="font-size:14px;color:var(--cf-primary)">stars</span>
+                <strong>${esc(m.level.name)}</strong>
+              </div>
+            </div>
+            <div class="team-member-metrics">
+              <strong class="tabular-num">${m.totalPoints}</strong>
+              <small>pts</small>
             </div>
           </div>
-          <div class="team-member-metrics">
-            <strong>${m.totalPoints}</strong>
-            <small>pts acumulados</small>
-          </div>
-        </div>
-      `).join('') : '<p style="color:#8a8da0;font-size:12px;padding:12px 0;">Nenhum colaborador encontrado.</p>'}
+        `;
+      }).join('') : '<p style="color:#8a8da0;font-size:12px;padding:12px 0;">Nenhum colaborador encontrado.</p>'}
     </div>
   `;
 }
