@@ -9557,24 +9557,6 @@
 
           setLoading(true);
           try {
-            let workerSuccess = false;
-            const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
-            const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
-            const tok = sessionToken ? sessionToken() : "";
-            if (workerUrl && tok) {
-              try {
-                const wr = await fetch(workerUrl + "/wa-send", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
-                  body: JSON.stringify({ phone, text: message }),
-                });
-                if (wr.ok) {
-                  const wd = await wr.json();
-                  if (wd.success) workerSuccess = true;
-                }
-              } catch (_) {}
-            }
-
             const rawRes = await call(FN.waSendTest, { phone, message });
             const testRes = rawRes?.data || rawRes || {};
             const resPhone = testRes?.phone || phone;
@@ -9584,13 +9566,17 @@
             if (box) {
               box.className = "";
               box.style.cssText = "margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;";
-              const statusTag = workerSuccess
-                ? '<span style="color:#059669; font-weight:700; margin-right:4px;">(Entregue via Gateway WA-AKG)</span> '
-                : '';
-              box.innerHTML = `<strong>Sucesso:</strong> Disparo registrado para ${resPhone}. ${statusTag}<a href="${resWaUrl}" target="_blank" rel="noopener noreferrer" style="color:#047857; font-weight:700; text-decoration:underline;">Abrir no WhatsApp</a>`;
+              const msgIdText = testRes.messageId ? `<br><small style="color:#047857; font-family:monospace;">ID da Mensagem: ${testRes.messageId}</small>` : '';
+              box.innerHTML = `<strong>Mensagem enviada com sucesso:</strong> Disparo realizado para ${resPhone}.${msgIdText} <a href="${resWaUrl}" target="_blank" rel="noopener noreferrer" style="color:#047857; font-weight:700; text-decoration:underline; display:block; margin-top:4px;">Ver conversa no WhatsApp Web</a>`;
             }
-            toast("Disparo de teste executado com sucesso.");
+            toast("Mensagem enviada com sucesso pelo WhatsApp!");
           } catch (e) {
+            const box = $("#waTestFeedbackBox");
+            if (box) {
+              box.className = "";
+              box.style.cssText = "margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca;";
+              box.innerHTML = `<strong>Falha no envio:</strong> ${escapeHtml(e.message || "Não foi possível enviar a mensagem.")}`;
+            }
             toast(e.message || "Falha ao enviar mensagem de teste.", true);
           } finally {
             setLoading(false);

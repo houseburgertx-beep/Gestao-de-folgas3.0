@@ -419,16 +419,54 @@ export function createWhatsAppHandlers() {
       const config = await runtime.getById("Configuracoes", "WhatsAppConnection").catch(() => null);
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
       const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+      const gwUrl = (gw?.GatewayUrl || "").replace(/\/+$/, "");
+      const instance = gw?.InstanceName || config?.InstanceName || "house190";
+      const apiKey = gw?.ApiKey || "";
+
+      let liveConnected = Boolean(config?.Connected);
+      let livePhone = config?.Phone || "";
+      let liveStatus = config?.Status || (config?.Connected ? "connected" : "disconnected");
+      let liveQr = config?.QrCode || "";
+
+      if (gw?.Ativo && gwUrl && apiKey) {
+        try {
+          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
+          const res = await fetch(`${apiBase}/sessions/${encodeURIComponent(instance)}`, {
+            headers: {
+              "X-API-Key": apiKey,
+              "bypass-tunnel-reminder": "true",
+            },
+            signal: AbortSignal.timeout(4000),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const sess = data.data || data;
+            const isLiveConnected = Boolean(sess.hasInstance && (sess.status === "CONNECTED" || sess.status === "WORKING" || sess.me));
+            if (isLiveConnected) {
+              liveConnected = true;
+              liveStatus = "connected";
+              if (sess.me?.id) {
+                livePhone = sess.me.id.split("@")[0].split(":")[0];
+              }
+            } else if (sess.status === "SCAN_QR" || sess.status === "DISCONNECTED") {
+              liveConnected = false;
+              liveStatus = sess.status === "SCAN_QR" ? "qrcode" : "disconnected";
+              if (sess.qr) liveQr = sess.qr;
+            }
+          }
+        } catch (_) {}
+      }
+
       return {
-        connected: Boolean(config?.Connected),
-        status: config?.Status || (config?.Connected ? "connected" : "disconnected"),
-        instanceName: gw?.InstanceName || config?.InstanceName || "house190",
-        phone: config?.Phone || "",
+        connected: liveConnected,
+        status: liveStatus,
+        instanceName: instance,
+        phone: livePhone,
         pairingCode: config?.PairingCode || "",
-        qrcode: config?.QrCode || "",
+        qrcode: liveQr,
         updatedAt: config?.AtualizadoEm || nowIso(),
         gatewayUrl: gw?.GatewayUrl || defaultGatewayUrl,
-        gatewayAtivo: gw ? Boolean(gw.Ativo) : true,
+        gatewayAtivo: gw ? Boolean(gw.Ativo) : false,
         apiKeyMasked: gw?.ApiKeyMasked || "wag_lHoX...hBl",
       };
     },
@@ -570,16 +608,58 @@ export function createWhatsAppHandlers() {
 
       const text = payload.message || `Teste de conexão oficial do Grupo House 190 via WhatsApp realizado por ${profile.Nome || "Gestão"} em ${new Date().toLocaleTimeString('pt-BR')}.`;
 
+      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
+      const gwUrl = (gw?.GatewayUrl || "").replace(/\/+$/, "");
+      const instance = gw?.InstanceName || "house190";
+      const apiKey = gw?.ApiKey || "";
+
+      let messageId = "";
+      let deliveryError = null;
+
+      if (gw?.Ativo && gwUrl && apiKey) {
+        try {
+          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
+          const jid = `${phone}@s.whatsapp.net`;
+          const endpoint = `${apiBase}/messages/${encodeURIComponent(instance)}/${encodeURIComponent(jid)}/send`;
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+              "bypass-tunnel-reminder": "true",
+            },
+            body: JSON.stringify({
+              message: { text },
+            }),
+            signal: AbortSignal.timeout(12000),
+          });
+
+          const resData = await res.json().catch(() => ({}));
+          if (!res.ok || !resData.status) {
+            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
+          } else {
+            messageId = resData.data?.key?.id || resData.data?.id || "sent";
+          }
+        } catch (err) {
+          console.warn("Disparo direto ao gateway falhou:", err?.message || err);
+        }
+      }
+
+      if (deliveryError && !deliveryError.includes("Failed to fetch") && !deliveryError.includes("NetworkError")) {
+        throw new Error(`Falha no envio pelo WhatsApp: ${deliveryError}`);
+      }
+
       await audit({
         Acao: "Disparo de Teste via WhatsApp",
         Tabela: "Auditoria",
-        Detalhes: { Phone: phone, Mensagem: text },
+        Detalhes: { Phone: phone, Mensagem: text, MessageID: messageId },
       }).catch(() => {});
 
       const result = {
         success: true,
         phone,
         message: text,
+        messageId,
         timestamp: nowIso(),
         waUrl: `https://wa.me/${phone}?text=${encodeURIComponent(text)}`,
       };
