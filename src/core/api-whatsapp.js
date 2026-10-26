@@ -419,16 +419,19 @@ export function createWhatsAppHandlers() {
       const config = await runtime.getById("Configuracoes", "WhatsAppConnection").catch(() => null);
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
       const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
-      const gwUrl = (gw?.GatewayUrl || "").replace(/\/+$/, "");
+      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || config?.InstanceName || "house190";
-      const apiKey = gw?.ApiKey || "";
+      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
 
       let liveConnected = Boolean(config?.Connected);
       let livePhone = config?.Phone || "";
       let liveStatus = config?.Status || (config?.Connected ? "connected" : "disconnected");
       let liveQr = config?.QrCode || "";
 
-      if (gw?.Ativo && gwUrl && apiKey) {
+      const isBrowser = typeof window !== "undefined";
+      const shouldCheckGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
+
+      if (shouldCheckGateway && gwUrl && apiKey) {
         try {
           const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
           const res = await fetch(`${apiBase}/sessions/${encodeURIComponent(instance)}`, {
@@ -609,14 +612,18 @@ export function createWhatsAppHandlers() {
       const text = payload.message || `Teste de conexão oficial do Grupo House 190 via WhatsApp realizado por ${profile.Nome || "Gestão"} em ${new Date().toLocaleTimeString('pt-BR')}.`;
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const gwUrl = (gw?.GatewayUrl || "").replace(/\/+$/, "");
+      const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190";
-      const apiKey = gw?.ApiKey || "";
+      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
 
       let messageId = "";
       let deliveryError = null;
 
-      if (gw?.Ativo && gwUrl && apiKey) {
+      const isBrowser = typeof window !== "undefined";
+      const shouldSendGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
+
+      if (shouldSendGateway && gwUrl && apiKey) {
         try {
           const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
           const jid = `${phone}@s.whatsapp.net`;
