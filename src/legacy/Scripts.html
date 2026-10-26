@@ -2195,6 +2195,7 @@
     scheduleIdleTask_(() => loadRecognitions_(), baseDelay + 2500);
     scheduleIdleTask_(() => loadNotifications(), baseDelay + 4000);
     scheduleIdleTask_(() => initNotificationMonitor_(), baseDelay + 6000);
+    scheduleIdleTask_(() => checkPendingMonthlyMirrorSignature_(), baseDelay + 7500);
     scheduleIdleTask_(() => loadHourBalance(), baseDelay + 9000);
     scheduleIdleTask_(() => loadTakeatCreditData(false, true), baseDelay + 14000);
   }
@@ -9080,6 +9081,42 @@
       toast(err.message || "Erro ao registrar contestação do espelho de ponto.", true);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function checkPendingMonthlyMirrorSignature_() {
+    if (!isEmployee() && !isKitchenChief()) return;
+    const now = new Date();
+    // Identifica o mês anterior que acabou de fechar
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+    const empId = String(val(state.user, "funcionarioId", "FuncionarioID", "id") || "");
+    if (!empId) return;
+
+    const cacheKey = `gf-mirror-sign-notified-${prevMonth}-${empId}`;
+    if (sessionStorage.getItem(cacheKey)) return;
+
+    try {
+      const res = await call(FN.clockMirrorData, {
+        month: prevMonth,
+        funcionarioId: empId,
+      });
+
+      const hasActivity = (res?.days || []).some((d) => d.trabalhou || d.entrada);
+      if (hasActivity && !res?.signature?.isSigned && res?.signature?.status !== "Contestado") {
+        sessionStorage.setItem(cacheKey, "prompted");
+        const [year, mNum] = prevMonth.split("-");
+        const monthNames = [
+          "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+        const monthLabel = `${monthNames[Number(mNum) - 1] || mNum} de ${year}`;
+        toast(`Seu espelho de ponto de ${monthLabel} está disponível para assinatura digital.`);
+      } else {
+        sessionStorage.setItem(cacheKey, "ok");
+      }
+    } catch (e) {
+      // Ignora falha de consulta em segundo plano
     }
   }
   async function repairDuplicateClockEntries_() {
