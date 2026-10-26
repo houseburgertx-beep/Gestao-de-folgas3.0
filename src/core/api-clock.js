@@ -631,12 +631,10 @@ const dayMetrics = (records, schedule, options = {}) => {
   const tolerance = Math.max(0, Number(schedule?.ToleranciaMinutos || 0));
   let balance = Math.abs(rawBalance) <= tolerance ? 0 : rawBalance;
 
-  const isIntegral =
-    String(schedule?.TipoJornada || "Integral").toLowerCase().includes("integral") ||
-    String(schedule?.TipoJornada || "").toLowerCase().includes("completa");
+  const isSplitShift = asBoolean(schedule?.HorarioFlexivelDoisTurnos);
   const exitSchedMinutes = clockMinutes(schedule?.HoraSaida);
   const isMidnightClosing =
-    isIntegral &&
+    !isSplitShift &&
     Boolean(schedule?.HoraSaida) &&
     (exitSchedMinutes === 0 || exitSchedMinutes >= 23 * 60 + 40);
 
@@ -649,7 +647,8 @@ const dayMetrics = (records, schedule, options = {}) => {
       if (startMinutes !== null) {
         const entryParts = getLocalTimeParts(entry.DataHora);
         if (entryParts && entryParts.totalMinutes > startMinutes) {
-          entryDeficit = entryParts.totalMinutes - startMinutes;
+          const rawDeficit = entryParts.totalMinutes - startMinutes;
+          entryDeficit = rawDeficit <= tolerance ? 0 : rawDeficit;
         }
       }
 
@@ -672,8 +671,8 @@ const dayMetrics = (records, schedule, options = {}) => {
       const breakExcess = Math.max(0, totalActualBreak - scheduledBreak);
       const breakSuppressed = Math.max(0, scheduledBreak - totalActualBreak);
       const exitContrib = exitDiff > 0 ? exitDiff : (exitDiff >= -20 ? 0 : exitDiff);
-      balance = exitContrib - entryDeficit - breakExcess + breakSuppressed;
-      rawBalance = balance;
+      rawBalance = exitContrib - entryDeficit - breakExcess + breakSuppressed;
+      balance = Math.abs(rawBalance) <= tolerance ? 0 : rawBalance;
     }
   }
   return {

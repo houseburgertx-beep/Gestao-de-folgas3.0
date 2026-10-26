@@ -2075,7 +2075,7 @@ test("jornada integral fechando a meia-noite: tolerância de 23:40 a 00:00 sem d
   );
   assert.equal(normalBreakClosing.balance, 0, "Descanso cumprido integralmente com saída às 23:51 deve resultar em saldo 0");
 
-  // 7c. Maria Clara: Entrada 15:35, Sem descanso, Saída 00:09 -> 514 min trabalhados - 450 esperados = +64 min (+1h 04min)
+  // 7c. Maria Clara: Entrada 15:35, Sem descanso, Saída 00:09 -> 5 min de entrada dentro da tolerância de 5 min -> +60 min do descanso + 9 min pós meia-noite = +69 min (+1h 09min)
   const noBreakAfterMidnight = dayMetrics(
     [
       { TipoMarcacao: "ENTRADA", DataHora: "2026-10-24T15:35:00-03:00", Data: "2026-10-24" },
@@ -2085,7 +2085,44 @@ test("jornada integral fechando a meia-noite: tolerância de 23:40 a 00:00 sem d
     scheduleWithBreak,
     { dateKey: "2026-10-24" },
   );
-  assert.equal(noBreakAfterMidnight.balance, 64, "Sem descanso e saída às 00:09 deve creditar +64 min (+1h 04min)");
+  assert.equal(noBreakAfterMidnight.balance, 69, "Sem descanso e saída às 00:09 com entrada dentro da tolerância deve creditar +69 min (+1h 09min)");
+
+  // 7d. Tolerância de entrada: chegada 3 min após horário previsto (dentro de 5 min) com saída 23:55 não desconta (saldo 0)
+  const entryWithinTolerance = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-10-24T15:33:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_INTERVALO", DataHora: "2026-10-24T18:00:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "RETORNO_INTERVALO", DataHora: "2026-10-24T19:00:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-24T23:55:00-03:00", Data: "2026-10-24" },
+    ],
+    scheduleWithBreak,
+    { dateKey: "2026-10-24" },
+  );
+  assert.equal(entryWithinTolerance.balance, 0, "Entrada dentro da tolerância de 5 min com saída às 23:55 não deve gerar desconto");
+
+  // 7e. Atraso real: chegada 15 min após horário previsto (fora da tolerância de 5 min) com saída 23:55 desconta 15 min (-15)
+  const realDelay = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-10-24T15:45:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_INTERVALO", DataHora: "2026-10-24T18:00:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "RETORNO_INTERVALO", DataHora: "2026-10-24T19:00:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-24T23:55:00-03:00", Data: "2026-10-24" },
+    ],
+    scheduleWithBreak,
+    { dateKey: "2026-10-24" },
+  );
+  assert.equal(realDelay.balance, -15, "Atraso de 15 minutos além da tolerância deve ser descontado");
+
+  // 7f. Jornada com TipoJornada 'Padrão' também recebe as regras de fechamento à meia-noite
+  const defaultJourneyTypeClosing = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-10-24T16:00:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-24T23:45:00-03:00", Data: "2026-10-24" },
+    ],
+    { ...schedule, TipoJornada: "Padrão" },
+    { dateKey: "2026-10-24" },
+  );
+  assert.equal(defaultJourneyTypeClosing.balance, 0, "Jornada Padrão fechando às 00:00 deve se beneficiar da tolerância 23:40-00:00");
 });
 
 test("CozinhaFlow: títulos, pontuação por prioridade e catálogo de prêmios da loja", async () => {
