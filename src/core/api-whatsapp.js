@@ -576,12 +576,17 @@ export function createWhatsAppHandlers() {
         Detalhes: { Phone: phone, Mensagem: text },
       }).catch(() => {});
 
-      return {
+      const result = {
         success: true,
         phone,
         message: text,
         timestamp: nowIso(),
         waUrl: `https://wa.me/${phone}?text=${encodeURIComponent(text)}`,
+      };
+
+      return {
+        ...result,
+        data: result,
       };
     },
   };
