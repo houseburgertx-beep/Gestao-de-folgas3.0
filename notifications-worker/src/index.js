@@ -198,7 +198,7 @@ async function getGatewayConfig(env) {
     console.warn("Failed to fetch WhatsAppGateway from RTDB:", err);
   }
 
-  let baseUrl = (dbConfig?.GatewayUrl || env.WA_API_URL || "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api").trim().replace(/\/+$/, "");
+  let baseUrl = (dbConfig?.GatewayUrl || env.WA_API_URL || "https://watched-serves-adjust-myrtle.trycloudflare.com/api").trim().replace(/\/+$/, "");
   if (!baseUrl.endsWith("/api") && !baseUrl.includes("/api/")) {
     baseUrl = `${baseUrl}/api`;
   }
@@ -406,7 +406,7 @@ async function handle(request, env) {
           const current = await database(env, tok, "tables/Configuracoes/WhatsAppGateway").catch(() => null);
           return json({
             success: true,
-            gatewayUrl: current?.GatewayUrl || env.WA_API_URL || "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api",
+            gatewayUrl: current?.GatewayUrl || env.WA_API_URL || "https://watched-serves-adjust-myrtle.trycloudflare.com/api",
             instanceName: current?.InstanceName || env.WA_SESSION_ID || "house190",
             apiKeyMasked: current?.ApiKeyMasked || "wag_lHoX...hBl",
             ativo: current?.Ativo !== false,
@@ -524,6 +524,17 @@ async function handle(request, env) {
         );
         if (!qrRes.ok) {
           const errText = await qrRes.text().catch(() => String(qrRes.status));
+          if (errText.includes("Already connected") || errText.includes('"connected":true')) {
+            return json({
+              success: true,
+              connected: true,
+              alreadyConnected: true,
+              status: "connected",
+              message: "WhatsApp já está conectado com sucesso!",
+              qrcode: "",
+              configured: true,
+            });
+          }
           return json({ success: false, error: "gateway_unreachable", details: errText, configured: true });
         }
         const qrData = await qrRes.json();
@@ -563,6 +574,15 @@ async function handle(request, env) {
         );
         if (!pairRes.ok) {
           const errText = await pairRes.text().catch(() => String(pairRes.status));
+          if (errText.includes("Already connected") || errText.includes('"connected":true')) {
+            return json({
+              success: true,
+              connected: true,
+              alreadyConnected: true,
+              status: "connected",
+              message: "WhatsApp já está conectado com sucesso!",
+            });
+          }
           return json({ success: false, error: "pair_failed", details: errText });
         }
         const pairData = await pairRes.json();

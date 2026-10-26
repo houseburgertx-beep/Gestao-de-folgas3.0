@@ -9401,7 +9401,7 @@
         }
       }
 
-      const defaultGateway = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
+      const defaultGateway = "https://watched-serves-adjust-myrtle.trycloudflare.com/api";
       if ($("#waGatewayUrlInput")) $("#waGatewayUrlInput").value = res?.gatewayUrl || defaultGateway;
       if ($("#waGatewayInstanceInput")) $("#waGatewayInstanceInput").value = res?.instanceName || "house190";
       if ($("#waGatewayApiKeyInput")) {
@@ -9412,6 +9412,10 @@
 
       if ($("#waBtnGenerateQr")) {
         $("#waBtnGenerateQr").onclick = async () => {
+          if (isConnected) {
+            toast("O aparelho oficial já está conectado e pronto para envios!");
+            return;
+          }
           setLoading(true);
           try {
             const defaultWorkerUrl2 = "https://house-folgas-notifications.brunohouse.workers.dev";
@@ -9431,6 +9435,8 @@
                 } else {
                   toast(qrData.error || "Erro ao solicitar QR Code ao gateway.", true);
                 }
+              } else if (qrData.alreadyConnected || qrData.connected) {
+                toast("Aparelho já está conectado ao WhatsApp oficial!");
               } else {
                 generatedQr = qrData.qrcode;
                 toast("QR Code real gerado! Aponte a câmera do WhatsApp.");
@@ -9454,6 +9460,10 @@
 
       if ($("#waBtnRequestPairCode")) {
         $("#waBtnRequestPairCode").onclick = async () => {
+          if (isConnected) {
+            toast("O aparelho oficial já está conectado e pronto para envios!");
+            return;
+          }
           const ph = window.prompt("Informe o número do WhatsApp corporativo (com DDD, ex: 73999990190):", "73999990190");
           if (!ph) return;
           const cleanPhone = ph.replace(/\D/g, "");
@@ -9472,6 +9482,11 @@
                 body: JSON.stringify({ phone: cleanPhone }),
               });
               const pairData = await pairRes.json().catch(() => ({}));
+              if (pairData.alreadyConnected || pairData.connected) {
+                toast("Aparelho já está conectado ao WhatsApp oficial!");
+                await loadWhatsAppConnectionView();
+                return;
+              }
               if (pairData.success && pairData.pairingCode) {
                 if (typeof state !== "undefined") state.lastPairingCode = pairData.pairingCode;
                 if ($("#waPairingCodeDisplay")) $("#waPairingCodeDisplay").textContent = pairData.pairingCode;

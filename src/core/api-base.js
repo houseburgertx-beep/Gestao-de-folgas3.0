@@ -756,7 +756,7 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
     if (!targets.length) return;
 
     // 3. Obtém credenciais de relay do Worker ou Gateway direto
-    const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
+    const defaultGatewayUrl = "https://watched-serves-adjust-myrtle.trycloudflare.com/api";
     const defaultApiKey = "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
     const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
 

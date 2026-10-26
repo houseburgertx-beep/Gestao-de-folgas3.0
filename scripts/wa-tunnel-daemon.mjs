@@ -52,7 +52,7 @@ export async function syncGatewayConfig(tunnelUrl) {
 
 // Se executado diretamente via linha de comando
 if (process.argv[1]?.endsWith("wa-tunnel-daemon.mjs")) {
-  const customUrl = process.argv[2] || "https://fabrics-usc-pushing-motorcycle.trycloudflare.com";
+  const customUrl = process.argv[2] || "https://watched-serves-adjust-myrtle.trycloudflare.com";
   syncGatewayConfig(customUrl).then((ok) => {
     process.exit(ok ? 0 : 1);
   });

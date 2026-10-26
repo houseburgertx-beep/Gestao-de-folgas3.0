@@ -282,7 +282,7 @@ export function createWhatsAppHandlers() {
       const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}` : "";
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
+      const defaultGatewayUrl = "https://watched-serves-adjust-myrtle.trycloudflare.com/api";
       const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
@@ -478,7 +478,7 @@ export function createWhatsAppHandlers() {
 
       const toSave = {
         Chave: "WhatsAppGateway",
-        GatewayUrl: String(config.gatewayUrl || "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api").trim(),
+        GatewayUrl: String(config.gatewayUrl || "https://watched-serves-adjust-myrtle.trycloudflare.com/api").trim(),
         ApiKeyMasked: config.apiKey ? "********" + String(config.apiKey).slice(-4) : "",
         InstanceName: String(config.instanceName || "house190").trim(),
         Ativo: Boolean(config.ativo),
@@ -519,7 +519,7 @@ export function createWhatsAppHandlers() {
       }
       const config = await runtime.getById("Configuracoes", "WhatsAppConnection").catch(() => null);
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
+      const defaultGatewayUrl = "https://watched-serves-adjust-myrtle.trycloudflare.com/api";
       const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || config?.InstanceName || "house190";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
@@ -586,7 +586,7 @@ export function createWhatsAppHandlers() {
       }
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const gwUrl = (gw?.GatewayUrl || "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api").replace(/\/+$/, "");
+      const gwUrl = (gw?.GatewayUrl || "https://watched-serves-adjust-myrtle.trycloudflare.com/api").replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190-bot";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
 
@@ -713,7 +713,7 @@ export function createWhatsAppHandlers() {
       const text = payload.message || `Teste de conexão oficial do Grupo House 190 via WhatsApp realizado por ${profile.Nome || "Gestão"} em ${new Date().toLocaleTimeString('pt-BR')}.`;
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
+      const defaultGatewayUrl = "https://watched-serves-adjust-myrtle.trycloudflare.com/api";
       const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
@@ -838,7 +838,7 @@ export function createWhatsAppHandlers() {
       assert(eligibleEmployees.length > 0, "Nenhum colaborador ativo com número de WhatsApp localizado para o filtro selecionado.");
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
+      const defaultGatewayUrl = "https://watched-serves-adjust-myrtle.trycloudflare.com/api";
       const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
