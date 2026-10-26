@@ -729,20 +729,22 @@ function buildWaText({ firstName, subject, message, type }) {
 export async function dispatchWhatsAppNotification({ employeeId = "", storeId = "", email = "", subject = "", message = "", type = "" }) {
   if (typeof fetch === "undefined") return;
   try {
-    // 1. Verifica se a automação para este tipo está habilitada
+    // 1. Verifica se a automação para este tipo está explicitamente desabilitada
     const automations = await getWaAutomations();
     const automationKey = WA_AUTOMATION_KEYS[type];
-    if (automationKey !== undefined && automationKey !== null && automations[automationKey] === false) return;
-    const hasAnyConfig = Object.keys(automations).some((k) => k.startsWith("aut_"));
-    if (hasAnyConfig && automationKey && automations[automationKey] === undefined) return;
+    if (automationKey && automations[automationKey] === false) return;
 
     // 2. Localiza destinatários (colaborador individual ou gerência da loja)
     const employees = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
     const targets = [];
     if (employeeId) {
-      const emp = employees.find(
-        (e) => String(e.FuncionarioID || e.funcionarioId || "") === String(employeeId)
-      );
+      const targetId = String(employeeId).trim().toLowerCase();
+      const emp = employees.find((e) => {
+        const fId = String(e.FuncionarioID || e.funcionarioId || e.id || "").trim().toLowerCase();
+        const fName = String(e.Nome || e.nome || "").trim().toLowerCase();
+        const fEmail = String(e.Email || e.email || "").trim().toLowerCase();
+        return fId === targetId || fName === targetId || (fEmail && fEmail === targetId);
+      });
       if (emp) targets.push(emp);
     } else if (storeId) {
       const managers = employees.filter(
@@ -754,11 +756,15 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
     if (!targets.length) return;
 
     // 3. Obtém credenciais de relay do Worker ou Gateway direto
+    const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+    const defaultApiKey = "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
+    const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+
     const workerUrl = (() => {
       try {
         if (typeof window !== "undefined" && window.__PUSH_ENDPOINT__) return window.__PUSH_ENDPOINT__;
       } catch (_) {}
-      return "https://house-folgas-notifications.brunohouse.workers.dev";
+      return defaultWorkerUrl;
     })();
 
     const idToken = typeof window !== "undefined"
@@ -766,15 +772,19 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
       : "";
 
     const gwConfig = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-    const gwUrl = gwConfig?.GatewayUrl || "";
-    const gwKey = gwConfig?.ApiKey || "";
+    const rawGwUrl = gwConfig?.GatewayUrl || defaultGatewayUrl;
+    const gwUrl = rawGwUrl.endsWith("/api") ? rawGwUrl : `${rawGwUrl.replace(/\/+$/, "")}/api`;
+    const gwKey = gwConfig?.ApiKey || defaultApiKey;
     const sessionId = gwConfig?.InstanceName || "house190";
 
-    for (const emp of targets) {
-      const phone = emp?.WhatsApp || emp?.Telefone || emp?.Celular || "";
-      if (!phone) continue;
+    const isBrowser = typeof window !== "undefined";
+    const shouldSendGateway = gwConfig?.Ativo === true || (isBrowser && gwConfig?.Ativo !== false);
 
-      let digits = String(phone).replace(/\D/g, "");
+    for (const emp of targets) {
+      const rawPhone = emp?.WhatsApp || emp?.Telefone || emp?.Celular || emp?.whatsapp || emp?.telefone || emp?.celular || "";
+      if (!rawPhone) continue;
+
+      let digits = String(rawPhone).replace(/\D/g, "");
       if (digits.startsWith("0")) digits = digits.slice(1);
       if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
       if (digits.length < 10 || digits.length > 15) continue;
@@ -784,9 +794,37 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
       const text = buildWaText({ firstName, subject, message, type });
 
       let sent = false;
+      let messageId = "";
 
-      // Via Cloudflare Worker
-      if (workerUrl && idToken) {
+      // 1. Tenta envio direto pelo Gateway Baileys (WA-AKG) se em navegador ou se gateway ativo
+      if (shouldSendGateway && gwUrl && gwKey) {
+        try {
+          const endpoint = `${gwUrl}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(digits + "@s.whatsapp.net")}/send`;
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": gwKey,
+              "bypass-tunnel-reminder": "true",
+            },
+            body: JSON.stringify({ message: { text } }),
+            signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined,
+          });
+          if (res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (data.status) {
+              sent = true;
+              messageId = data.data?.key?.id || data.data?.id || "sent";
+              console.log(`[WA] Notificação enviada via Gateway para ${digits} (${type}), ID: ${messageId}`);
+            }
+          }
+        } catch (err) {
+          console.warn(`[WA] Disparo direto ao gateway falhou para ${digits}:`, err?.message || err);
+        }
+      }
+
+      // 2. Se não enviou pelo gateway direto, tenta via Cloudflare Worker
+      if (!sent && workerUrl && idToken) {
         try {
           const workerRes = await fetch(`${workerUrl}/wa-send`, {
             method: "POST",
@@ -801,28 +839,9 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
             const workerData = await workerRes.json().catch(() => ({}));
             if (workerData.success) {
               sent = true;
+              messageId = workerData.messageId || "sent_worker";
               console.log(`[WA] Notificação enviada via Worker para ${digits} (${type})`);
             }
-          }
-        } catch (_) {}
-      }
-
-      // Fallback via Gateway direto
-      if (!sent && gwUrl) {
-        try {
-          const endpoint = `${gwUrl.replace(/\/+$/, "")}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(digits + "@s.whatsapp.net")}/send`;
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(gwKey ? { "X-API-Key": gwKey } : {}),
-            },
-            body: JSON.stringify({ message: { text } }),
-            signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
-          });
-          if (res.ok) {
-            sent = true;
-            console.log(`[WA] Notificação enviada via Gateway para ${digits} (${type})`);
           }
         } catch (_) {}
       }
@@ -840,6 +859,7 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
             Destinatario: rawName,
             Telefone: digits,
             Status: sent ? "Enviado" : "Falha/GatewayOffline",
+            MessageID: messageId,
             DataHora: nowIso(),
           },
           DataHora: nowIso(),

@@ -36420,17 +36420,20 @@ dialog#medicalCertificateDialog {
     if (!docId) return;
     setLoading(true);
     try {
-      const res = await call(FN.waNotifyMessage, {
+      const rawRes = await call(FN.waNotifyMessage, {
         docId,
         origin: window.location.origin,
       });
-      if (res && res.waUrl) {
+      const res = rawRes?.data || rawRes || {};
+      if (res && res.messageId) {
+        toast(`Notificação enviada ao WhatsApp com sucesso (ID: ${res.messageId})!`);
+      } else if (res && res.waUrl) {
         window.open(res.waUrl, "_blank");
-        toast("Mensagem pronta aberta no WhatsApp com link de acesso.");
+        toast("Mensagem aberta no WhatsApp Web com link de acesso.");
       } else if (res && !res.hasPhone) {
-        toast("Colaborador não possui número de telefone/WhatsApp cadastrado.", true);
+        toast("Colaborador não possui número de WhatsApp cadastrado.", true);
       } else {
-        toast("Falha ao gerar notificação do WhatsApp.", true);
+        toast(res?.deliveryError || "Falha ao enviar notificação pelo WhatsApp.", true);
       }
     } catch (err) {
       toast(err.message || "Erro ao preparar notificação do WhatsApp.", true);

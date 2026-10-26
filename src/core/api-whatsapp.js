@@ -261,6 +261,55 @@ export function createWhatsAppHandlers() {
 
       const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}` : "";
 
+      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
+      const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
+      const instance = gw?.InstanceName || "house190";
+      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
+
+      const isBrowser = typeof window !== "undefined";
+      const shouldSendGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
+
+      let messageId = "";
+      let deliveryError = null;
+
+      if (phone && shouldSendGateway && gwUrl && apiKey) {
+        try {
+          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
+          const jid = `${phone}@s.whatsapp.net`;
+          const endpoint = `${apiBase}/messages/${encodeURIComponent(instance)}/${encodeURIComponent(jid)}/send`;
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+              "bypass-tunnel-reminder": "true",
+            },
+            body: JSON.stringify({
+              message: { text: messageText },
+            }),
+            signal: AbortSignal.timeout(12000),
+          });
+
+          const resData = await res.json().catch(() => ({}));
+          if (!res.ok || !resData.status) {
+            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
+          } else {
+            messageId = resData.data?.key?.id || resData.data?.id || "sent";
+          }
+        } catch (err) {
+          console.warn("[WA] Disparo de documento ao gateway falhou:", err?.message || err);
+          deliveryError = err?.message || "Falha de conexão";
+        }
+      }
+
+      await audit({
+        Acao: "Notificação de Documento via WhatsApp",
+        Tabela: "Documentos",
+        RegistroID: docId || funcionarioId,
+        Detalhes: { Phone: phone, Tipo: tipo, MessageID: messageId, DeliveryError: deliveryError },
+      }).catch(() => {});
+
       return {
         success: true,
         phone,
@@ -269,6 +318,8 @@ export function createWhatsAppHandlers() {
         magicUrl: magicResult.magicUrl,
         token: magicResult.token,
         waUrl,
+        messageId,
+        deliveryError,
       };
     },
 
