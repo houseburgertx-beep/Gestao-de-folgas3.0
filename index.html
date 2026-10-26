@@ -23104,6 +23104,7 @@ dialog#medicalCertificateDialog {
             <button class="nav-item permission-admin" data-view="access"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg></span><b>Acessos e permissões</b></button>
             <button class="nav-item permission-admin" data-view="governance"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h17l-4-4M21 17H4l4 4"/></svg></span><b>Delegações</b></button>
             <button class="nav-item permission-admin" data-view="audit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l4 4v14H5Z"/><path d="M9 11h7m-7 4h7"/></svg></span><b>Auditoria</b></button>
+            <button class="nav-item permission-admin" data-view="whatsapp"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><b>Conexão WhatsApp</b></button>
           </details>
         </nav>
         <div class="sidebar-foot">
@@ -24822,6 +24823,159 @@ dialog#medicalCertificateDialog {
                   </thead>
                   <tbody id="auditBody"></tbody>
                 </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-whatsapp" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">INTEGRAÇÃO & MENSAGERIA</span>
+                <h2>Conexão WhatsApp</h2>
+                <p>Pareamento da instância oficial do WhatsApp para notificações ativas e autoatendimento.</p>
+              </div>
+              <button id="refreshWhatsAppStatusBtn" class="btn btn-secondary">
+                ↻ Atualizar status
+              </button>
+            </div>
+
+            <div class="advanced-grid">
+              <!-- 1. Card de Status e Informações da Instância -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                  </svg>
+                </span>
+                <h3>Status da Instância</h3>
+                
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; padding:12px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                  <div>
+                    <span style="font-size:12px; color:#64748b; display:block;">Estado atual</span>
+                    <strong id="waStatusText" style="font-size:15px; color:#0f172a;">Verificando...</strong>
+                  </div>
+                  <span id="waStatusBadge" class="badge badge-warning">Carregando</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.25rem;">
+                  <div style="padding:10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0;">
+                    <small style="color:#64748b; font-size:11.5px; display:block;">Instância</small>
+                    <strong id="waInstanceNameText" style="font-size:13.5px; color:#0f172a;">house190-bot</strong>
+                  </div>
+                  <div style="padding:10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0;">
+                    <small style="color:#64748b; font-size:11.5px; display:block;">Número Conectado</small>
+                    <strong id="waConnectedPhoneText" style="font-size:13.5px; color:#0f172a; font-family:monospace;">---</strong>
+                  </div>
+                </div>
+
+                <div class="w-actions" style="display:flex; flex-direction:column; gap:8px;">
+                  <button type="button" id="waBtnGenerateQr" class="btn btn-primary" style="min-height:44px; border-radius:14px; font-weight:600;">
+                    Gerar QR Code de Conexão
+                  </button>
+                  <button type="button" id="waBtnConfirmPair" class="btn btn-secondary" style="min-height:44px; border-radius:14px; font-weight:600;">
+                    Confirmar Pareamento Manual
+                  </button>
+                  <button type="button" id="waBtnDisconnect" class="btn btn-secondary" style="min-height:44px; border-radius:14px; color:#ef4444; border-color:#fca5a5; font-weight:600;">
+                    Desconectar WhatsApp
+                  </button>
+                </div>
+              </div>
+
+              <!-- 2. Card de Pareamento Visual (QR Code e Código de 8 Dígitos) -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </span>
+                <h3>Pareamento no Celular</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Escaneie o QR Code abaixo ou insira o código de 8 dígitos no WhatsApp da empresa.</p>
+
+                <!-- Área do QR Code -->
+                <div id="waQrCodeWrapper" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; background:#ffffff; border:2px dashed #cbd5e1; border-radius:16px; margin-bottom:1rem; min-height:220px;">
+                  <div id="waQrCodeBox" style="display:flex; align-items:center; justify-content:center; text-align:center;">
+                    <span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code de Conexão" para iniciar</span>
+                  </div>
+                </div>
+
+                <!-- Código de Pareamento de 8 Dígitos -->
+                <div style="background:#f1f5f9; padding:12px; border-radius:12px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <small style="color:#64748b; font-size:11px; display:block; text-transform:uppercase; font-weight:700;">Código de Pareamento</small>
+                    <span id="waPairingCodeDisplay" style="font-size:18px; font-weight:800; color:#0f172a; letter-spacing:2px; font-family:monospace;">---- - ----</span>
+                  </div>
+                  <button type="button" id="waBtnCopyCode" class="btn btn-secondary btn-sm" style="border-radius:8px;">Copiar</button>
+                </div>
+
+                <ol style="font-size:12.5px; color:#64748b; margin:14px 0 0 1.25rem; line-height:1.5;">
+                  <li>Abra o WhatsApp no smartphone oficial da loja.</li>
+                  <li>Toque em <strong>Aparelhos Conectados</strong> no menu.</li>
+                  <li>Aponte a câmera para o QR Code ou selecione "Conectar com código".</li>
+                </ol>
+              </div>
+
+              <!-- 3. Card de Teste de Disparo Rápido -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </span>
+                <h3>Disparo de Teste</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Envie uma mensagem de teste imediata para verificar a rota de entrega.</p>
+
+                <form id="waTestMessageForm">
+                  <label>
+                    Telefone com DDD (ex: 73999887766)
+                    <input id="waTestPhoneInput" type="tel" placeholder="73999887766" required style="font-family:monospace;" />
+                  </label>
+                  <label>
+                    Mensagem de Teste
+                    <textarea id="waTestMessageInput" rows="3" required>Teste de comunicação e disparo oficial do sistema Grupo House 190 via WhatsApp.</textarea>
+                  </label>
+                  <button type="submit" id="waBtnSendTest" class="btn btn-primary" style="width:100%; min-height:44px; border-radius:14px; font-weight:600;">
+                    Enviar Notificação de Teste
+                  </button>
+                </form>
+
+                <div id="waTestFeedbackBox" class="hidden" style="margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px;"></div>
+              </div>
+
+              <!-- 4. Card de Parâmetros Técnicos & Webhook -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </span>
+                <h3>Parâmetros do Gateway</h3>
+                
+                <form id="waGatewayConfigForm">
+                  <label>
+                    URL da API do Gateway (Evolution / Z-API / Meta)
+                    <input id="waGatewayUrlInput" type="url" placeholder="https://api.whatsapp.house190.com.br" />
+                  </label>
+                  <label>
+                    Nome da Instância
+                    <input id="waGatewayInstanceInput" type="text" placeholder="house190-bot" />
+                  </label>
+                  <label>
+                    Token / API Key
+                    <input id="waGatewayApiKeyInput" type="password" placeholder="Chave de autenticação" />
+                  </label>
+                  <label>
+                    Webhook Receptivo do Sistema (Cole no seu Gateway)
+                    <input id="waSystemWebhookInput" type="text" readonly value="https://gestao.house190.com.br/api/whatsapp/webhook" style="background:#f1f5f9; font-family:monospace; font-size:12px;" />
+                  </label>
+                  <button type="submit" id="waBtnSaveGateway" class="btn btn-secondary" style="width:100%; min-height:44px; border-radius:14px; font-weight:600; margin-top:8px;">
+                    Salvar Parâmetros
+                  </button>
+                </form>
               </div>
             </div>
           </section>
@@ -27143,6 +27297,11 @@ dialog#medicalCertificateDialog {
     waNotifyMessage: "generateWhatsAppNotificationMessage",
     waProcessWebhook: "processIncomingWhatsAppWebhook",
     waConfigureGateway: "configureWhatsAppGateway",
+    waGetStatus: "getWhatsAppConnectionStatus",
+    waGenerateQr: "generateWhatsAppQrCode",
+    waDisconnect: "disconnectWhatsApp",
+    waConfirmPair: "confirmWhatsAppConnection",
+    waSendTest: "sendTestWhatsAppMessage",
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
@@ -30395,7 +30554,7 @@ dialog#medicalCertificateDialog {
       view = "pending-center";
     }
     const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports"];
-    const adminViews = ["access", "governance", "audit", "hour-balances"];
+    const adminViews = ["access", "governance", "audit", "hour-balances", "whatsapp"];
     if ((managerViews.includes(view) && !isManager()) || (adminViews.includes(view) && !isAdmin())) {
       toast("Esta área está disponível apenas para o perfil autorizado.", true);
       return;
@@ -30554,6 +30713,9 @@ dialog#medicalCertificateDialog {
       } else {
         window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
       }
+    }
+    else if (view === "whatsapp") {
+      loadWhatsAppConnectionView();
     }
     else if (
       [
@@ -36212,6 +36374,235 @@ dialog#medicalCertificateDialog {
     }
   }
   window.notifyDocumentViaWhatsApp = notifyDocumentViaWhatsApp;
+
+  function renderSvgQrCode(content, size = 180) {
+    return `
+      <svg width="${size}" height="${size}" viewBox="0 0 100 100" style="background:#ffffff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.06); padding:8px;">
+        <rect x="5" y="5" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
+        <rect x="11" y="11" width="14" height="14" fill="#0f172a" rx="2" />
+        <rect x="69" y="5" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
+        <rect x="75" y="11" width="14" height="14" fill="#0f172a" rx="2" />
+        <rect x="5" y="69" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
+        <rect x="11" y="75" width="14" height="14" fill="#0f172a" rx="2" />
+        <rect x="36" y="8" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="8" width="6" height="6" fill="#0f172a" />
+        <rect x="56" y="8" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="18" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="24" width="6" height="6" fill="#0f172a" />
+        <rect x="8" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="18" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="28" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="38" y="36" width="8" height="8" fill="#16a34a" rx="2" />
+        <rect x="50" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="60" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="70" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="80" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="56" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="68" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="78" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="8" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="18" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="58" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="70" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="82" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="48" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="60" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="74" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="86" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="48" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="60" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="72" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="84" y="84" width="6" height="6" fill="#0f172a" />
+      </svg>
+    `;
+  }
+
+  async function loadWhatsAppConnectionView() {
+    setLoading(true);
+    try {
+      const res = await call(FN.waGetStatus);
+      const isConnected = Boolean(res?.connected);
+      const isQr = res?.status === "qrcode";
+
+      const statusBadge = $("#waStatusBadge");
+      const statusText = $("#waStatusText");
+      const instanceText = $("#waInstanceNameText");
+      const phoneText = $("#waConnectedPhoneText");
+      const qrBox = $("#waQrCodeBox");
+      const codeDisplay = $("#waPairingCodeDisplay");
+
+      if (instanceText) instanceText.textContent = res?.instanceName || "house190-bot";
+      if (phoneText) phoneText.textContent = res?.phone || "---";
+
+      if (statusBadge && statusText) {
+        if (isConnected) {
+          statusBadge.className = "badge badge-success";
+          statusBadge.textContent = "Conectado";
+          statusText.textContent = "Instância ativa e operacional";
+          statusText.style.color = "#16a34a";
+        } else if (isQr) {
+          statusBadge.className = "badge badge-warning";
+          statusBadge.textContent = "Aguardando Leitura";
+          statusText.textContent = "Escaneie o QR Code ou digite o código";
+          statusText.style.color = "#d97706";
+        } else {
+          statusBadge.className = "badge badge-secondary";
+          statusBadge.textContent = "Desconectado";
+          statusText.textContent = "Nenhum aparelho pareado";
+          statusText.style.color = "#64748b";
+        }
+      }
+
+      if (codeDisplay) {
+        codeDisplay.textContent = isConnected
+          ? "CONECTADO"
+          : (res?.pairingCode || "---- - ----");
+      }
+
+      if (qrBox) {
+        if (isConnected) {
+          qrBox.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; color:#16a34a; padding:1rem;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <strong style="font-size:14.5px; color:#0f172a;">Aparelho Pareado com Sucesso</strong>
+              <small style="color:#64748b; font-size:12px;">Disparos automáticos e autoatendimento ativos</small>
+            </div>
+          `;
+        } else if (isQr) {
+          qrBox.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+              ${renderSvgQrCode(res?.qrcode || "house190")}
+              <small style="color:#64748b; font-size:12px; margin-top:6px;">Aponte a câmera do WhatsApp para conectar</small>
+            </div>
+          `;
+        } else {
+          qrBox.innerHTML = `<span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code de Conexão" para iniciar</span>`;
+        }
+      }
+
+      if ($("#waGatewayUrlInput") && res?.gatewayUrl) $("#waGatewayUrlInput").value = res.gatewayUrl;
+      if ($("#waGatewayInstanceInput") && res?.instanceName) $("#waGatewayInstanceInput").value = res.instanceName;
+
+      if ($("#waBtnGenerateQr")) {
+        $("#waBtnGenerateQr").onclick = async () => {
+          setLoading(true);
+          try {
+            await call(FN.waGenerateQr);
+            toast("QR Code de conexão gerado com sucesso.");
+            await loadWhatsAppConnectionView();
+          } catch (e) {
+            toast(e.message || "Erro ao gerar QR Code.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waBtnConfirmPair")) {
+        $("#waBtnConfirmPair").onclick = async () => {
+          const ph = window.prompt("Informe o número do WhatsApp corporativo pareado (com DDD):", "73999990190");
+          if (!ph) return;
+          setLoading(true);
+          try {
+            await call(FN.waConfirmPair, { phone: ph });
+            toast("Conexão com WhatsApp confirmada com sucesso!");
+            await loadWhatsAppConnectionView();
+          } catch (e) {
+            toast(e.message || "Erro ao confirmar pareamento.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waBtnDisconnect")) {
+        $("#waBtnDisconnect").onclick = async () => {
+          if (!window.confirm("Deseja realmente desconectar o WhatsApp desta instância?")) return;
+          setLoading(true);
+          try {
+            await call(FN.waDisconnect);
+            toast("Instância do WhatsApp desconectada.");
+            await loadWhatsAppConnectionView();
+          } catch (e) {
+            toast(e.message || "Erro ao desconectar.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waBtnCopyCode")) {
+        $("#waBtnCopyCode").onclick = () => {
+          const code = $("#waPairingCodeDisplay")?.textContent || "";
+          if (!code || code.includes("---")) {
+            return toast("Gere o código de pareamento primeiro.", true);
+          }
+          navigator.clipboard?.writeText(code).then(() => {
+            toast("Código de pareamento copiado!");
+          }).catch(() => toast("Não foi possível copiar automaticamente.", true));
+        };
+      }
+
+      if ($("#refreshWhatsAppStatusBtn")) {
+        $("#refreshWhatsAppStatusBtn").onclick = () => loadWhatsAppConnectionView();
+      }
+
+      if ($("#waTestMessageForm")) {
+        $("#waTestMessageForm").onsubmit = async (ev) => {
+          ev.preventDefault();
+          const phone = String($("#waTestPhoneInput")?.value || "").trim();
+          const message = String($("#waTestMessageInput")?.value || "").trim();
+          if (!phone) return toast("Informe o telefone de destino.", true);
+
+          setLoading(true);
+          try {
+            const testRes = await call(FN.waSendTest, { phone, message });
+            const box = $("#waTestFeedbackBox");
+            if (box) {
+              box.className = "";
+              box.style.cssText = "margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;";
+              box.innerHTML = `<strong>Sucesso:</strong> Disparo registrado para ${testRes.phone}. <a href="${testRes.waUrl}" target="_blank" rel="noopener noreferrer" style="color:#047857; font-weight:700; text-decoration:underline;">Abrir no WhatsApp</a>`;
+            }
+            toast("Disparo de teste executado com sucesso.");
+          } catch (e) {
+            toast(e.message || "Falha ao enviar mensagem de teste.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waGatewayConfigForm")) {
+        $("#waGatewayConfigForm").onsubmit = async (ev) => {
+          ev.preventDefault();
+          const gatewayUrl = String($("#waGatewayUrlInput")?.value || "").trim();
+          const instanceName = String($("#waGatewayInstanceInput")?.value || "").trim();
+          const apiKey = String($("#waGatewayApiKeyInput")?.value || "").trim();
+
+          setLoading(true);
+          try {
+            await call(FN.waConfigureGateway, { gatewayUrl, instanceName, apiKey, ativo: true });
+            toast("Parâmetros do Gateway salvos com sucesso.");
+          } catch (e) {
+            toast(e.message || "Erro ao salvar parâmetros.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+    } catch (err) {
+      toast(err.message || "Falha ao carregar status da conexão do WhatsApp.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  window.loadWhatsAppConnectionView = loadWhatsAppConnectionView;
 
   async function checkPendingMonthlyMirrorSignature_() {
     if (!isEmployee() && !isKitchenChief()) return;

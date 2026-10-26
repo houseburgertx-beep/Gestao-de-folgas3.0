@@ -300,6 +300,7 @@
             <button class="nav-item permission-admin" data-view="access"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg></span><b>Acessos e permissões</b></button>
             <button class="nav-item permission-admin" data-view="governance"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h17l-4-4M21 17H4l4 4"/></svg></span><b>Delegações</b></button>
             <button class="nav-item permission-admin" data-view="audit"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l4 4v14H5Z"/><path d="M9 11h7m-7 4h7"/></svg></span><b>Auditoria</b></button>
+            <button class="nav-item permission-admin" data-view="whatsapp"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><b>Conexão WhatsApp</b></button>
           </details>
         </nav>
         <div class="sidebar-foot">
@@ -2018,6 +2019,159 @@
                   </thead>
                   <tbody id="auditBody"></tbody>
                 </table>
+              </div>
+            </div>
+          </section>
+
+          <section id="view-whatsapp" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">INTEGRAÇÃO & MENSAGERIA</span>
+                <h2>Conexão WhatsApp</h2>
+                <p>Pareamento da instância oficial do WhatsApp para notificações ativas e autoatendimento.</p>
+              </div>
+              <button id="refreshWhatsAppStatusBtn" class="btn btn-secondary">
+                ↻ Atualizar status
+              </button>
+            </div>
+
+            <div class="advanced-grid">
+              <!-- 1. Card de Status e Informações da Instância -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                  </svg>
+                </span>
+                <h3>Status da Instância</h3>
+                
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; padding:12px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                  <div>
+                    <span style="font-size:12px; color:#64748b; display:block;">Estado atual</span>
+                    <strong id="waStatusText" style="font-size:15px; color:#0f172a;">Verificando...</strong>
+                  </div>
+                  <span id="waStatusBadge" class="badge badge-warning">Carregando</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.25rem;">
+                  <div style="padding:10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0;">
+                    <small style="color:#64748b; font-size:11.5px; display:block;">Instância</small>
+                    <strong id="waInstanceNameText" style="font-size:13.5px; color:#0f172a;">house190-bot</strong>
+                  </div>
+                  <div style="padding:10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0;">
+                    <small style="color:#64748b; font-size:11.5px; display:block;">Número Conectado</small>
+                    <strong id="waConnectedPhoneText" style="font-size:13.5px; color:#0f172a; font-family:monospace;">---</strong>
+                  </div>
+                </div>
+
+                <div class="w-actions" style="display:flex; flex-direction:column; gap:8px;">
+                  <button type="button" id="waBtnGenerateQr" class="btn btn-primary" style="min-height:44px; border-radius:14px; font-weight:600;">
+                    Gerar QR Code de Conexão
+                  </button>
+                  <button type="button" id="waBtnConfirmPair" class="btn btn-secondary" style="min-height:44px; border-radius:14px; font-weight:600;">
+                    Confirmar Pareamento Manual
+                  </button>
+                  <button type="button" id="waBtnDisconnect" class="btn btn-secondary" style="min-height:44px; border-radius:14px; color:#ef4444; border-color:#fca5a5; font-weight:600;">
+                    Desconectar WhatsApp
+                  </button>
+                </div>
+              </div>
+
+              <!-- 2. Card de Pareamento Visual (QR Code e Código de 8 Dígitos) -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </span>
+                <h3>Pareamento no Celular</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Escaneie o QR Code abaixo ou insira o código de 8 dígitos no WhatsApp da empresa.</p>
+
+                <!-- Área do QR Code -->
+                <div id="waQrCodeWrapper" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; background:#ffffff; border:2px dashed #cbd5e1; border-radius:16px; margin-bottom:1rem; min-height:220px;">
+                  <div id="waQrCodeBox" style="display:flex; align-items:center; justify-content:center; text-align:center;">
+                    <span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code de Conexão" para iniciar</span>
+                  </div>
+                </div>
+
+                <!-- Código de Pareamento de 8 Dígitos -->
+                <div style="background:#f1f5f9; padding:12px; border-radius:12px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <small style="color:#64748b; font-size:11px; display:block; text-transform:uppercase; font-weight:700;">Código de Pareamento</small>
+                    <span id="waPairingCodeDisplay" style="font-size:18px; font-weight:800; color:#0f172a; letter-spacing:2px; font-family:monospace;">---- - ----</span>
+                  </div>
+                  <button type="button" id="waBtnCopyCode" class="btn btn-secondary btn-sm" style="border-radius:8px;">Copiar</button>
+                </div>
+
+                <ol style="font-size:12.5px; color:#64748b; margin:14px 0 0 1.25rem; line-height:1.5;">
+                  <li>Abra o WhatsApp no smartphone oficial da loja.</li>
+                  <li>Toque em <strong>Aparelhos Conectados</strong> no menu.</li>
+                  <li>Aponte a câmera para o QR Code ou selecione "Conectar com código".</li>
+                </ol>
+              </div>
+
+              <!-- 3. Card de Teste de Disparo Rápido -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </span>
+                <h3>Disparo de Teste</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Envie uma mensagem de teste imediata para verificar a rota de entrega.</p>
+
+                <form id="waTestMessageForm">
+                  <label>
+                    Telefone com DDD (ex: 73999887766)
+                    <input id="waTestPhoneInput" type="tel" placeholder="73999887766" required style="font-family:monospace;" />
+                  </label>
+                  <label>
+                    Mensagem de Teste
+                    <textarea id="waTestMessageInput" rows="3" required>Teste de comunicação e disparo oficial do sistema Grupo House 190 via WhatsApp.</textarea>
+                  </label>
+                  <button type="submit" id="waBtnSendTest" class="btn btn-primary" style="width:100%; min-height:44px; border-radius:14px; font-weight:600;">
+                    Enviar Notificação de Teste
+                  </button>
+                </form>
+
+                <div id="waTestFeedbackBox" class="hidden" style="margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px;"></div>
+              </div>
+
+              <!-- 4. Card de Parâmetros Técnicos & Webhook -->
+              <div class="panel feature-panel">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </span>
+                <h3>Parâmetros do Gateway</h3>
+                
+                <form id="waGatewayConfigForm">
+                  <label>
+                    URL da API do Gateway (Evolution / Z-API / Meta)
+                    <input id="waGatewayUrlInput" type="url" placeholder="https://api.whatsapp.house190.com.br" />
+                  </label>
+                  <label>
+                    Nome da Instância
+                    <input id="waGatewayInstanceInput" type="text" placeholder="house190-bot" />
+                  </label>
+                  <label>
+                    Token / API Key
+                    <input id="waGatewayApiKeyInput" type="password" placeholder="Chave de autenticação" />
+                  </label>
+                  <label>
+                    Webhook Receptivo do Sistema (Cole no seu Gateway)
+                    <input id="waSystemWebhookInput" type="text" readonly value="https://gestao.house190.com.br/api/whatsapp/webhook" style="background:#f1f5f9; font-family:monospace; font-size:12px;" />
+                  </label>
+                  <button type="submit" id="waBtnSaveGateway" class="btn btn-secondary" style="width:100%; min-height:44px; border-radius:14px; font-weight:600; margin-top:8px;">
+                    Salvar Parâmetros
+                  </button>
+                </form>
               </div>
             </div>
           </section>

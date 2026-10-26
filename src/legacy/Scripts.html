@@ -152,6 +152,11 @@
     waNotifyMessage: "generateWhatsAppNotificationMessage",
     waProcessWebhook: "processIncomingWhatsAppWebhook",
     waConfigureGateway: "configureWhatsAppGateway",
+    waGetStatus: "getWhatsAppConnectionStatus",
+    waGenerateQr: "generateWhatsAppQrCode",
+    waDisconnect: "disconnectWhatsApp",
+    waConfirmPair: "confirmWhatsAppConnection",
+    waSendTest: "sendTestWhatsAppMessage",
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
@@ -3404,7 +3409,7 @@
       view = "pending-center";
     }
     const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports"];
-    const adminViews = ["access", "governance", "audit", "hour-balances"];
+    const adminViews = ["access", "governance", "audit", "hour-balances", "whatsapp"];
     if ((managerViews.includes(view) && !isManager()) || (adminViews.includes(view) && !isAdmin())) {
       toast("Esta área está disponível apenas para o perfil autorizado.", true);
       return;
@@ -3563,6 +3568,9 @@
       } else {
         window.dispatchEvent(new CustomEvent("gestao-tasks-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager() } }));
       }
+    }
+    else if (view === "whatsapp") {
+      loadWhatsAppConnectionView();
     }
     else if (
       [
@@ -9221,6 +9229,235 @@
     }
   }
   window.notifyDocumentViaWhatsApp = notifyDocumentViaWhatsApp;
+
+  function renderSvgQrCode(content, size = 180) {
+    return `
+      <svg width="${size}" height="${size}" viewBox="0 0 100 100" style="background:#ffffff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.06); padding:8px;">
+        <rect x="5" y="5" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
+        <rect x="11" y="11" width="14" height="14" fill="#0f172a" rx="2" />
+        <rect x="69" y="5" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
+        <rect x="75" y="11" width="14" height="14" fill="#0f172a" rx="2" />
+        <rect x="5" y="69" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
+        <rect x="11" y="75" width="14" height="14" fill="#0f172a" rx="2" />
+        <rect x="36" y="8" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="8" width="6" height="6" fill="#0f172a" />
+        <rect x="56" y="8" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="18" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="24" width="6" height="6" fill="#0f172a" />
+        <rect x="8" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="18" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="28" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="38" y="36" width="8" height="8" fill="#16a34a" rx="2" />
+        <rect x="50" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="60" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="70" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="80" y="36" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="56" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="68" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="78" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="8" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="18" y="48" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="46" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="58" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="70" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="82" y="60" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="48" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="60" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="74" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="86" y="72" width="6" height="6" fill="#0f172a" />
+        <rect x="36" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="48" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="60" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="72" y="84" width="6" height="6" fill="#0f172a" />
+        <rect x="84" y="84" width="6" height="6" fill="#0f172a" />
+      </svg>
+    `;
+  }
+
+  async function loadWhatsAppConnectionView() {
+    setLoading(true);
+    try {
+      const res = await call(FN.waGetStatus);
+      const isConnected = Boolean(res?.connected);
+      const isQr = res?.status === "qrcode";
+
+      const statusBadge = $("#waStatusBadge");
+      const statusText = $("#waStatusText");
+      const instanceText = $("#waInstanceNameText");
+      const phoneText = $("#waConnectedPhoneText");
+      const qrBox = $("#waQrCodeBox");
+      const codeDisplay = $("#waPairingCodeDisplay");
+
+      if (instanceText) instanceText.textContent = res?.instanceName || "house190-bot";
+      if (phoneText) phoneText.textContent = res?.phone || "---";
+
+      if (statusBadge && statusText) {
+        if (isConnected) {
+          statusBadge.className = "badge badge-success";
+          statusBadge.textContent = "Conectado";
+          statusText.textContent = "Instância ativa e operacional";
+          statusText.style.color = "#16a34a";
+        } else if (isQr) {
+          statusBadge.className = "badge badge-warning";
+          statusBadge.textContent = "Aguardando Leitura";
+          statusText.textContent = "Escaneie o QR Code ou digite o código";
+          statusText.style.color = "#d97706";
+        } else {
+          statusBadge.className = "badge badge-secondary";
+          statusBadge.textContent = "Desconectado";
+          statusText.textContent = "Nenhum aparelho pareado";
+          statusText.style.color = "#64748b";
+        }
+      }
+
+      if (codeDisplay) {
+        codeDisplay.textContent = isConnected
+          ? "CONECTADO"
+          : (res?.pairingCode || "---- - ----");
+      }
+
+      if (qrBox) {
+        if (isConnected) {
+          qrBox.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; color:#16a34a; padding:1rem;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <strong style="font-size:14.5px; color:#0f172a;">Aparelho Pareado com Sucesso</strong>
+              <small style="color:#64748b; font-size:12px;">Disparos automáticos e autoatendimento ativos</small>
+            </div>
+          `;
+        } else if (isQr) {
+          qrBox.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+              ${renderSvgQrCode(res?.qrcode || "house190")}
+              <small style="color:#64748b; font-size:12px; margin-top:6px;">Aponte a câmera do WhatsApp para conectar</small>
+            </div>
+          `;
+        } else {
+          qrBox.innerHTML = `<span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code de Conexão" para iniciar</span>`;
+        }
+      }
+
+      if ($("#waGatewayUrlInput") && res?.gatewayUrl) $("#waGatewayUrlInput").value = res.gatewayUrl;
+      if ($("#waGatewayInstanceInput") && res?.instanceName) $("#waGatewayInstanceInput").value = res.instanceName;
+
+      if ($("#waBtnGenerateQr")) {
+        $("#waBtnGenerateQr").onclick = async () => {
+          setLoading(true);
+          try {
+            await call(FN.waGenerateQr);
+            toast("QR Code de conexão gerado com sucesso.");
+            await loadWhatsAppConnectionView();
+          } catch (e) {
+            toast(e.message || "Erro ao gerar QR Code.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waBtnConfirmPair")) {
+        $("#waBtnConfirmPair").onclick = async () => {
+          const ph = window.prompt("Informe o número do WhatsApp corporativo pareado (com DDD):", "73999990190");
+          if (!ph) return;
+          setLoading(true);
+          try {
+            await call(FN.waConfirmPair, { phone: ph });
+            toast("Conexão com WhatsApp confirmada com sucesso!");
+            await loadWhatsAppConnectionView();
+          } catch (e) {
+            toast(e.message || "Erro ao confirmar pareamento.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waBtnDisconnect")) {
+        $("#waBtnDisconnect").onclick = async () => {
+          if (!window.confirm("Deseja realmente desconectar o WhatsApp desta instância?")) return;
+          setLoading(true);
+          try {
+            await call(FN.waDisconnect);
+            toast("Instância do WhatsApp desconectada.");
+            await loadWhatsAppConnectionView();
+          } catch (e) {
+            toast(e.message || "Erro ao desconectar.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waBtnCopyCode")) {
+        $("#waBtnCopyCode").onclick = () => {
+          const code = $("#waPairingCodeDisplay")?.textContent || "";
+          if (!code || code.includes("---")) {
+            return toast("Gere o código de pareamento primeiro.", true);
+          }
+          navigator.clipboard?.writeText(code).then(() => {
+            toast("Código de pareamento copiado!");
+          }).catch(() => toast("Não foi possível copiar automaticamente.", true));
+        };
+      }
+
+      if ($("#refreshWhatsAppStatusBtn")) {
+        $("#refreshWhatsAppStatusBtn").onclick = () => loadWhatsAppConnectionView();
+      }
+
+      if ($("#waTestMessageForm")) {
+        $("#waTestMessageForm").onsubmit = async (ev) => {
+          ev.preventDefault();
+          const phone = String($("#waTestPhoneInput")?.value || "").trim();
+          const message = String($("#waTestMessageInput")?.value || "").trim();
+          if (!phone) return toast("Informe o telefone de destino.", true);
+
+          setLoading(true);
+          try {
+            const testRes = await call(FN.waSendTest, { phone, message });
+            const box = $("#waTestFeedbackBox");
+            if (box) {
+              box.className = "";
+              box.style.cssText = "margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;";
+              box.innerHTML = `<strong>Sucesso:</strong> Disparo registrado para ${testRes.phone}. <a href="${testRes.waUrl}" target="_blank" rel="noopener noreferrer" style="color:#047857; font-weight:700; text-decoration:underline;">Abrir no WhatsApp</a>`;
+            }
+            toast("Disparo de teste executado com sucesso.");
+          } catch (e) {
+            toast(e.message || "Falha ao enviar mensagem de teste.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waGatewayConfigForm")) {
+        $("#waGatewayConfigForm").onsubmit = async (ev) => {
+          ev.preventDefault();
+          const gatewayUrl = String($("#waGatewayUrlInput")?.value || "").trim();
+          const instanceName = String($("#waGatewayInstanceInput")?.value || "").trim();
+          const apiKey = String($("#waGatewayApiKeyInput")?.value || "").trim();
+
+          setLoading(true);
+          try {
+            await call(FN.waConfigureGateway, { gatewayUrl, instanceName, apiKey, ativo: true });
+            toast("Parâmetros do Gateway salvos com sucesso.");
+          } catch (e) {
+            toast(e.message || "Erro ao salvar parâmetros.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+    } catch (err) {
+      toast(err.message || "Falha ao carregar status da conexão do WhatsApp.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  window.loadWhatsAppConnectionView = loadWhatsAppConnectionView;
 
   async function checkPendingMonthlyMirrorSignature_() {
     if (!isEmployee() && !isKitchenChief()) return;

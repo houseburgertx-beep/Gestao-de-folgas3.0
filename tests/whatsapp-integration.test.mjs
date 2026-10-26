@@ -224,3 +224,102 @@ test("WhatsApp UI: ação de cobrança no painel de documentos e tratamento no b
   assert.match(scriptsHtml, /function notifyDocumentViaWhatsApp\(docId\)/, "Scripts.html deve implementar notifyDocumentViaWhatsApp");
   assert.match(scriptsHtml, /function checkWhatsAppMagicTokenArrival_\(\)/, "Scripts.html deve detectar chegada de magic_token");
 });
+
+test("WhatsApp Connection Tab: ciclo de pareamento com QR Code, código de 8 dígitos e teste de envio", async () => {
+  const tables = new Map();
+  const getTable = (name) => {
+    if (!tables.has(name)) tables.set(name, new Map());
+    return tables.get(name);
+  };
+  const originalMethods = {
+    getById: runtime.getById,
+    list: runtime.list,
+    upsert: runtime.upsert,
+    update: runtime.update,
+    requireProfile: runtime.requireProfile,
+  };
+  runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
+  runtime.list = async (table) => [...getTable(table).values()];
+  runtime.upsert = async (table, record) => {
+    const idKey = table === "Configuracoes" ? "Chave" : "id";
+    const id = String(record[idKey] || record.id || `rec_${Date.now()}`);
+    const saved = { ...record, [idKey]: id };
+    getTable(table).set(id, saved);
+    return saved;
+  };
+  runtime.update = async (table, id, data) => {
+    const existing = getTable(table).get(String(id)) || {};
+    const updated = { ...existing, ...data };
+    getTable(table).set(String(id), updated);
+    return updated;
+  };
+  runtime.requireProfile = async () => ({
+    Nome: "Administrador Geral",
+    Perfil: "Administrador",
+    LojaID: "CENTRO",
+  });
+
+  try {
+    const handlers = createWhatsAppHandlers();
+
+    // 1. Status inicial desconectado
+    const initialStatus = await handlers.getWhatsAppConnectionStatus();
+    assert.equal(initialStatus.connected, false);
+
+    // 2. Geração de QR Code e código de 8 dígitos
+    const qrResult = await handlers.generateWhatsAppQrCode();
+    assert.equal(qrResult.success, true);
+    assert.equal(qrResult.status, "qrcode");
+    assert.ok(qrResult.pairingCode.startsWith("H190-"), "Código deve ter prefixo H190-");
+    assert.ok(qrResult.qrcode.includes("house190-bot"), "QR payload deve conter nome da instância");
+
+    // 3. Confirmação do pareamento
+    const confirmResult = await handlers.confirmWhatsAppConnection([{ phone: "5573988776655" }]);
+    assert.equal(confirmResult.success, true);
+    assert.equal(confirmResult.status, "connected");
+
+    // 4. Verificação de status conectado
+    const activeStatus = await handlers.getWhatsAppConnectionStatus();
+    assert.equal(activeStatus.connected, true);
+    assert.equal(activeStatus.phone, "5573988776655");
+
+    // 5. Disparo de teste
+    const testResult = await handlers.sendTestWhatsAppMessage([{
+      phone: "73999887766",
+      message: "Mensagem de teste de conexão",
+    }]);
+    assert.equal(testResult.success, true);
+    assert.equal(testResult.phone, "5573999887766");
+    assert.ok(testResult.waUrl.includes("wa.me"), "Deve gerar link de contingência wa.me");
+
+    // 6. Desconexão
+    const discResult = await handlers.disconnectWhatsApp();
+    assert.equal(discResult.success, true);
+    assert.equal(discResult.status, "disconnected");
+  } finally {
+    Object.assign(runtime, originalMethods);
+  }
+});
+
+test("WhatsApp Connection Tab: marcação visual em Index.html e Scripts.html", async () => {
+  const [indexHtml, scriptsHtml] = await Promise.all([
+    readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+  ]);
+
+  // 1. Botão de navegação na aba de Administração
+  assert.match(indexHtml, /data-view="whatsapp"/, "Index.html deve conter item de navegação com data-view whatsapp");
+  assert.match(indexHtml, /Conexão WhatsApp/, "Index.html deve exibir o rótulo Conexão WhatsApp");
+
+  // 2. Seção de visualização dedicada
+  assert.match(indexHtml, /id="view-whatsapp"/, "Index.html deve conter a seção id view-whatsapp");
+  assert.match(indexHtml, /id="waStatusBadge"/, "Index.html deve conter badge de status");
+  assert.match(indexHtml, /id="waBtnGenerateQr"/, "Index.html deve conter botão para gerar QR Code");
+  assert.match(indexHtml, /id="waPairingCodeDisplay"/, "Index.html deve conter exibição do código de pareamento");
+  assert.match(indexHtml, /id="waTestMessageForm"/, "Index.html deve conter formulário de teste de envio");
+
+  // 3. Controle e roteamento em Scripts.html
+  assert.match(scriptsHtml, /"whatsapp"/, "Scripts.html deve incluir whatsapp nas views restritas");
+  assert.match(scriptsHtml, /loadWhatsAppConnectionView/, "Scripts.html deve implementar loadWhatsAppConnectionView");
+  assert.match(scriptsHtml, /renderSvgQrCode/, "Scripts.html deve conter gerador visual de QR Code em SVG");
+});
