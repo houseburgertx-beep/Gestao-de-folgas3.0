@@ -3323,6 +3323,7 @@
         "tasks",
         "documents",
         "takeat-credit",
+        "whistleblower",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -3343,6 +3344,7 @@
         "tasks",
         "documents",
         "takeat-credit",
+        "whistleblower",
       ];
       navItems.forEach((item) => {
         item.classList.toggle(
@@ -3452,7 +3454,7 @@
       else item.removeAttribute("aria-current");
     });
     const active = activeNav?.querySelector("b");
-    $("#pageTitle").textContent = active?.textContent || ({notifications:"Avisos e lembretes",governance:"Delegações"}[view]) || "Jornada";
+    $("#pageTitle").textContent = active?.textContent || ({notifications:"Avisos e lembretes",governance:"Delegações",whistleblower:"Canal de Denúncias"}[view]) || "Jornada";
     $("#breadcrumb").textContent = "Grupo House 190 / " + $("#pageTitle").textContent;
     document.body.classList.remove("menu-open");
     renderCurrentView(view);
@@ -3511,7 +3513,7 @@
     if (handledMagic) return;
 
     const pushView = new URLSearchParams(location.search).get("view");
-    if (["timeclock","notifications","documents"].includes(pushView)) {
+    if (["timeclock","notifications","documents","whistleblower"].includes(pushView)) {
       const url = new URL(location.href); url.searchParams.delete("view"); history.replaceState(null,"",url);
       switchView(pushView); return;
     }
@@ -3579,6 +3581,11 @@
     }
     else if (view === "whatsapp") {
       loadWhatsAppConnectionView();
+    }
+    else if (view === "whistleblower") {
+      if (typeof window.loadWhistleblower === "function") {
+        window.loadWhistleblower();
+      }
     }
     else if (
       [

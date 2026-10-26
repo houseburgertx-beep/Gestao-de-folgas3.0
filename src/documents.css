@@ -1917,6 +1917,366 @@ dialog#medicalCertificateDialog {
   }
 }
 
+/* ==========================================================================
+   CANAL DE DENÚNCIAS & INTEGRIDADE (WHISTLEBLOWING) - HOUSE 190
+   ========================================================================== */
+
+.wb-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px;
+}
+
+.wb-header-banner {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  padding: 24px 20px;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.wb-header-badge {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+.wb-title {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.wb-subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #94a3b8;
+  max-width: 680px;
+}
+
+.wb-nav-tabs {
+  display: flex;
+  background: var(--surface-2, #f1f5f9);
+  padding: 4px;
+  border-radius: 14px;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.wb-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: var(--muted, #64748b);
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.wb-tab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.wb-content-panel {
+  background: #ffffff;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.wb-mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .wb-mode-selector {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wb-mode-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--line, #e2e8f0);
+  border-radius: 14px;
+  cursor: pointer;
+  background: var(--surface-2, #f8fafc);
+  transition: all 0.15s ease;
+}
+
+.wb-mode-card input {
+  margin-top: 3px;
+  cursor: pointer;
+}
+
+.wb-mode-card strong {
+  display: block;
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.wb-mode-card span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.wb-mode-card.active {
+  border-color: #059669;
+  background: #f0fdf4;
+}
+
+.wb-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.wb-form input,
+.wb-form select,
+.wb-form textarea {
+  width: 100%;
+  margin-top: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #cbd5e1);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  background: #ffffff;
+}
+
+.wb-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line, #e2e8f0);
+}
+
+.wb-security-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.wb-hidden {
+  display: none !important;
+}
+
+.wb-success-card {
+  text-align: center;
+  padding: 24px 12px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.wb-success-icon {
+  width: 64px;
+  height: 64px;
+  background: #ecfdf5;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.wb-credentials-box {
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.wb-credential-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.wb-credential-row .label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.wb-credential-row .value {
+  font-size: 1.15rem;
+  color: #0f172a;
+  letter-spacing: 0.05em;
+}
+
+.wb-success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wb-search-card {
+  max-width: 440px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+.wb-search-form {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.wb-consulta-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wb-consulta-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+}
+
+.wb-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #2563eb;
+}
+
+.wb-parecer-box {
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  padding: 12px 16px;
+  border-radius: 0 10px 10px 0;
+}
+
+.wb-parecer-box .label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1d4ed8;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.wb-parecer-box p {
+  margin: 0;
+  font-size: 13.5px;
+  color: #1e3a8a;
+  line-height: 1.5;
+}
+
+.wb-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px 4px;
+}
+
+.wb-msg-item {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+.wb-msg-denunciante {
+  align-self: flex-start;
+  background: #f1f5f9;
+  color: #1e293b;
+  border-bottom-left-radius: 4px;
+}
+
+.wb-msg-comite {
+  align-self: flex-end;
+  background: #2563eb;
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.wb-msg-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+
+.wb-reply-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 600px) {
+  .wb-reply-form {
+    flex-direction: column;
+  }
+}
+
+.wb-reply-form textarea {
+  flex: 1;
+  border-radius: 10px;
+  border: 1px solid var(--line, #cbd5e1);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.wb-admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.wb-status-filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+
 
 
 

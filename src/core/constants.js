@@ -110,6 +110,8 @@ export const ID_FIELDS = Object.freeze({
   Media: "ID",
   WhatsAppMagicTokens: "TokenID",
   WhatsAppSessions: "SessionID",
+  Denuncias: "DenunciaID",
+  DenunciasMensagens: "MensagemID",
 });
 
 export const PUBLIC_AUTH_TABLES = new Set([
@@ -120,6 +122,8 @@ export const PUBLIC_AUTH_TABLES = new Set([
   "Reconhecimentos",
   "Tarefas",
   "WhatsAppMagicTokens",
+  "Denuncias",
+  "DenunciasMensagens",
 ]);
 
 export const STORE_SCOPED_FIELDS = Object.freeze({

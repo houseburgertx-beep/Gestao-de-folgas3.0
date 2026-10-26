@@ -1755,5 +1755,178 @@ export function createDocumentsHandlers() {
         },
       });
     },
+
+    /**
+     * Lista modelos de documentos de RH disponíveis
+     */
+    async documentsTemplatesList() {
+      const templates = [
+        {
+          id: "TERMO_LGPD",
+          titulo: "Termo de Confidencialidade e Proteção de Dados (LGPD)",
+          categoria: "Termos",
+          descricao: "Declaração de sigilo e respeito às normas de proteção de dados pessoais dos clientes e da empresa.",
+        },
+        {
+          id: "ACORDO_BANCO_HORAS",
+          titulo: "Acordo Individual de Compensação de Horas (Portaria 671 MTE)",
+          categoria: "Contratos",
+          descricao: "Instituição de regime de prorrogação e banco de horas compensatório com controle eletrônico.",
+        },
+        {
+          id: "FICHA_EPI_UNIFORME",
+          titulo: "Termo de Entrega e Responsabilidade de EPI e Uniforme",
+          categoria: "Termos",
+          descricao: "Registro formal de fornecimento e compromisso de uso e conservação de equipamentos de proteção individual.",
+        },
+        {
+          id: "ADVERTENCIA_DISCIPLINAR",
+          titulo: "Notificação de Advertência Disciplinar Operacional",
+          categoria: "Advertências",
+          descricao: "Comunicação formal disciplinar com relato de fatos e ciência das normas internas da House 190.",
+        },
+      ];
+      return success({ templates });
+    },
+
+    /**
+     * Gera documento a partir de template oficial para um funcionário
+     */
+    async documentsGenerateFromTemplate(args) {
+      const [payload] = args || [];
+      assert(payload && typeof payload === "object", "Dados para geração do documento são obrigatórios.");
+
+      const templateId = String(payload.templateId || "").trim();
+      assert(templateId, "Identificador do modelo é obrigatório.");
+
+      const funcionarioId = String(payload.funcionarioId || "").trim();
+      assert(funcionarioId, "Selecione o funcionário destinatário.");
+
+      const profile = await runtime.requireProfile();
+      assert(
+        isAdmin(profile) || isManager(profile),
+        "Apenas gestores e administradores podem emitir novos documentos de RH.",
+      );
+
+      const emp = await runtime.getById("Funcionarios", funcionarioId);
+      assert(emp, "Funcionário não encontrado.");
+
+      let titulo = "";
+      let categoria = "Termos";
+      let texto = "";
+      const hoje = formatBrasiliaDateOnly(nowIso());
+      const nomeEmp = emp.Nome || "Colaborador";
+      const cpfEmp = emp.CPF || "Não informado";
+      const cargoEmp = emp.Cargo || "Colaborador Operacional";
+      const lojaNome = emp.NomeLoja || emp.LojaID || "Grupo House 190";
+
+      if (templateId === "TERMO_LGPD") {
+        titulo = `Termo LGPD e Sigilo - ${nomeEmp}`;
+        categoria = "Termos";
+        texto = `TERMO DE COMPROMISSO, CONFIDENCIALIDADE E PROTEÇÃO DE DADOS (LGPD)
+
+Pelo presente instrumento particular, de um lado GRUPO HOUSE 190, e de outro lado o(a) colaborador(a) ${nomeEmp}, inscrito(a) no CPF sob o nº ${cpfEmp}, ocupante do cargo de ${cargoEmp}, vinculado(a) à unidade ${lojaNome}.
+
+CLÁUSULA PRIMEIRA - O(A) COLABORADOR(A) se compromete a manter em absoluto sigilo e confidencialidade todas as informações, dados cadastrais de clientes, receitas, procedimentos operacionais, estratégias e dados sensíveis a que tiver acesso em razão de suas funções.
+
+CLÁUSULA SEGUNDA - Em conformidade com a Lei Federal nº 13.709/2018 (Lei Geral de Proteção de Dados - LGPD), o(a) empregado(a) declara estar ciente de que é expressamente proibido compartilhar, copiar ou vazar dados internos ou de terceiros sob pena de justa causa e responsabilidade civil/criminal.
+
+CLÁUSULA TERCEIRA - O presente compromisso vigorará durante todo o contrato de trabalho e permanecerá válido mesmo após a rescisão contratual.
+
+Local e Data: ${lojaNome}, ${hoje}.`;
+      } else if (templateId === "ACORDO_BANCO_HORAS") {
+        titulo = `Acordo de Compensação de Horas - ${nomeEmp}`;
+        categoria = "Contratos";
+        texto = `ACORDO INDIVIDUAL DE PRORROGAÇÃO E COMPENSAÇÃO DE HORAS DE TRABALHO
+(Conforme Art. 59 da CLT e Portaria MTE 671/2021)
+
+EMPREGADOR: GRUPO HOUSE 190
+EMPREGADO(A): ${nomeEmp} | CPF: ${cpfEmp} | CARGO: ${cargoEmp} | UNIDADE: ${lojaNome}
+
+1. Fica convencionado entre as partes o regime de compensação horária na modalidade de Banco de Horas, facultando a prorrogação da jornada normal de trabalho até o limite legal, com compensação oportuna.
+
+2. O registro e apuração das horas cumpridas ocorrerão integralmente através do sistema eletrônico de ponto CozinhaFlow, com selfie e geolocalização.
+
+3. As horas extraordinárias prestadas serão inseridas no saldo positivo de banco de horas para futura concessão de folgas compensatórias ou acerto nos prazos previstos na legislação vigente.
+
+E, por estarem plenamente de acordo, assinam digitalmente o presente instrumento.
+
+Data: ${hoje}.`;
+      } else if (templateId === "FICHA_EPI_UNIFORME") {
+        titulo = `Termo de Entrega de EPI e Uniforme - ${nomeEmp}`;
+        categoria = "Termos";
+        texto = `TERMO DE RECEBIMENTO E RESPONSABILIDADE DE EQUIPAMENTOS E UNIFORME
+
+Eu, ${nomeEmp}, CPF ${cpfEmp}, função ${cargoEmp}, lotado(a) na unidade ${lojaNome}, declaro ter recebido do GRUPO HOUSE 190, em perfeito estado de conservação e uso, os seguintes itens de uniforme e proteção individual necessários para o exercício de minhas atividades:
+
+- 02 Camisetas oficiais de trabalho House 190;
+- 01 Avental de cozinha / salão;
+- Itens de EPI compatíveis com a função (touca protetora, luvas térmicas e calçado antiderrapante quando aplicável).
+
+Comprometo-me a zelar pela conservação, higiene e uso obrigatório destes materiais durante toda a minha jornada, comunicando imediatamente à gerência qualquer avaria ou necessidade de substituição.
+
+Data de recebimento: ${hoje}.`;
+      } else if (templateId === "ADVERTENCIA_DISCIPLINAR") {
+        titulo = `Advertência Disciplinar - ${nomeEmp}`;
+        categoria = "Advertências";
+        const motivo = payload.motivo || "Descumprimento das normas operacionais e regulamento interno da empresa.";
+        texto = `COMUNICAÇÃO DE ADVERTÊNCIA DISCIPLINAR
+
+A(O) Colaborador(a): ${nomeEmp} | CPF: ${cpfEmp}
+Cargo: ${cargoEmp} | Lotação: ${lojaNome}
+
+Vimos por meio desta aplicar-lhe ADVERTÊNCIA DISCIPLINAR formal pelo seguinte motivo:
+${motivo}
+
+Esclarecemos que a reiteração em condutas semelhantes ensejará a aplicação de penalidades mais severas previstas na Consolidação das Leis do Trabalho (CLT), inclusive suspensão disciplinar e rescisão por justa causa (Art. 482 da CLT).
+
+Esperamos que a presente medida sirva para reorientar sua postura profissional e manter a excelência operacional de nossa equipe.
+
+Data de emissão: ${hoje}.`;
+      } else {
+        throw new Error("Modelo não reconhecido.");
+      }
+
+      const docId = `DOC_${Date.now()}_${uuid().slice(0, 6)}`;
+      const hashOriginal = await sha256Hex(texto);
+
+      const novoDocumento = {
+        DocID: docId,
+        DocumentoID: docId,
+        Titulo: titulo,
+        Categoria: categoria,
+        Descricao: `Documento gerado a partir do modelo ${templateId}`,
+        LojaID: emp.LojaID || profile.LojaID || "GERAL",
+        FuncionarioID: funcionarioId,
+        NomeFuncionario: nomeEmp,
+        CPFFuncionario: cpfEmp,
+        Status: "Pendente",
+        Tipo: "DOCUMENTO_RH",
+        Origem: "TEMPLATE",
+        TemplateID: templateId,
+        ConteudoTexto: texto,
+        HashOriginalSHA256: hashOriginal,
+        DataCriacao: nowIso(),
+        CriadoPorID: profile.FuncionarioID || profile.uid || "ADMIN",
+        CriadoPorNome: profile.Nome || "RH House 190",
+      };
+
+      await runtime.create("Documentos", novoDocumento);
+
+      try {
+        await createNotification({
+          storeId: emp.LojaID || "",
+          type: "Documentos",
+          subject: "Novo Documento para Assinatura",
+          message: `${nomeEmp}, você possui um novo documento pendente de assinatura digital: "${titulo}".`,
+          relatedId: docId,
+        });
+      } catch (_) {}
+
+      return success({
+        documento: novoDocumento,
+        mensagem: "Documento gerado com sucesso a partir do modelo e disponibilizado para assinatura.",
+      });
+    },
   };
 }

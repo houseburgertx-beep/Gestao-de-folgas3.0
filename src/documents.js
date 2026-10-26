@@ -672,6 +672,14 @@ function renderManagerView() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Importar Lote (Holerites)
           </button>
+          <button type="button" id="docNewTemplateBtn" class="btn btn-secondary btn-sm" style="border-radius:12px; font-weight:600; padding:8px 14px; min-height:38px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Emitir por Modelo
+          </button>
+          <button type="button" id="docVerifyBtn" class="btn btn-secondary btn-sm" title="Validação de autenticidade jurídica" style="border-radius:12px; font-weight:600; padding:8px 12px; min-height:38px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            Verificar Autenticidade
+          </button>
           <button type="button" id="docNewDocumentBtn" class="btn btn-primary btn-sm" style="border-radius:12px; font-weight:600; padding:8px 16px; min-height:38px; box-shadow:0 2px 8px rgba(99,64,216,0.25);">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Documento / Holerite
@@ -1088,6 +1096,16 @@ function bindViewEvents() {
   if (newDocBtn) {
     newDocBtn.onclick = () => openUploadDialog();
   }
+
+  const newTemplateBtn = $("#docNewTemplateBtn");
+  if (newTemplateBtn) {
+    newTemplateBtn.onclick = () => openTemplateDialog();
+  }
+
+  const verifyBtn = $("#docVerifyBtn");
+  if (verifyBtn) {
+    verifyBtn.onclick = () => openVerifyDialog();
+  }
 }
 
 /**
@@ -1364,7 +1382,7 @@ export async function openSignDialog(docId) {
     <div class="dialog-actions">
       <button id="docSignCancelBtn" class="btn btn-secondary" type="button" data-close="documentSignDialog">Cancelar</button>
       <button id="docPrintPhysicalBtn" class="btn btn-secondary" type="button" title="Imprimir este documento para assinatura física manuscrita em papel">
-        🖨️ Imprimir Via Física
+        Imprimir Via Física
       </button>
       <button id="docSignConfirmBtn" class="btn btn-primary" type="button" disabled>
         Confirmar e Assinar
@@ -2471,6 +2489,251 @@ export async function openAuditDialog(docId) {
   $("#docAuditCloseBtn")?.addEventListener("click", () => dialog.close());
   $("#docAuditDoneBtn")?.addEventListener("click", () => dialog.close());
   $("#docAuditDownloadBtn")?.addEventListener("click", () => downloadPdf(doc.DocumentoID));
+}
+
+/**
+ * Abre o Modal de Emissão por Modelos Dinâmicos de RH (padrão Bizneo)
+ */
+export function openTemplateDialog() {
+  let dialog = $("#documentTemplateDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "documentTemplateDialog";
+    dialog.className = "dialog doc-upload-dialog";
+    document.body.appendChild(dialog);
+  }
+
+  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+  const employeesList = (state.employees && state.employees.length) ? state.employees : (window.state?.employees || []);
+
+  const storeOptions = storesList
+    .map((s) => {
+      const id = storeId(s);
+      const name = storeName(s) || id || "Unidade";
+      return `<option value="${esc(id)}">${esc(name)}</option>`;
+    })
+    .join("");
+
+  const getEmpOptions = (lojaId) => {
+    const list = employeesList.filter((e) => !lojaId || empStoreId(e) === String(lojaId).trim());
+    const effectiveList = list.length > 0 ? list : employeesList;
+    return effectiveList
+      .map((e) => `<option value="${esc(empId(e))}">${esc(empName(e))} (CPF: ${esc(empCpf(e) || "---")})</option>`)
+      .join("");
+  };
+
+  dialog.innerHTML = `
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color:#6340d8; font-weight:700; font-size:11px;">MODELOS INTELIGENTES DE RH</span>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:700;">Emitir Documento por Modelo</h3>
+      </div>
+      <button type="button" class="icon-btn" id="docTemplateCloseBtn" aria-label="Fechar">&times;</button>
+    </div>
+
+    <form id="docTemplateForm" class="dialog-body" style="padding:16px;">
+      <div class="form-grid">
+        <label>
+          Modelo de Documento *
+          <select id="docTemplateSelect" required>
+            <option value="TERMO_LGPD">Termo de Confidencialidade e Proteção de Dados (LGPD)</option>
+            <option value="ACORDO_BANCO_HORAS">Acordo de Compensação de Horas (Portaria 671 MTE)</option>
+            <option value="FICHA_EPI_UNIFORME">Termo de Entrega de EPI e Uniforme</option>
+            <option value="ADVERTENCIA_DISCIPLINAR">Notificação de Advertência Disciplinar</option>
+          </select>
+        </label>
+
+        <label>
+          Unidade / Loja
+          <select id="docTemplateStoreSelect">
+            <option value="">Todas as Unidades</option>
+            ${storeOptions}
+          </select>
+        </label>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label>
+          Colaborador Destinatário *
+          <select id="docTemplateEmpSelect" required>
+            ${getEmpOptions("")}
+          </select>
+        </label>
+      </div>
+
+      <div id="docTemplateMotivoGroup" style="margin-top:12px; display:none;">
+        <label>
+          Motivo da Advertência Disciplinar *
+          <textarea id="docTemplateMotivoText" rows="3" placeholder="Descreva os fatos e conduta inadequada..."></textarea>
+        </label>
+      </div>
+
+      <p style="font-size:12px; color:#64748b; margin:14px 0 0; line-height:1.4;">
+        O sistema preencherá automaticamente as cláusulas com nome, CPF, cargo e unidade do colaborador e disponibilizará o termo para assinatura eletrônica imediata.
+      </p>
+
+      <div class="dialog-actions" style="margin-top:18px; display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" class="btn btn-secondary" id="docTemplateCancelBtn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="docTemplateSubmitBtn" style="min-height:44px;">
+          Gerar e Enviar para Assinatura
+        </button>
+      </div>
+    </form>
+  `;
+
+  dialog.showModal?.() || dialog.setAttribute("open", "true");
+
+  const closeDialog = () => {
+    dialog.close?.() || dialog.removeAttribute("open");
+  };
+
+  $("#docTemplateCloseBtn").onclick = closeDialog;
+  $("#docTemplateCancelBtn").onclick = closeDialog;
+
+  const tSelect = $("#docTemplateSelect");
+  const motivoGroup = $("#docTemplateMotivoGroup");
+  if (tSelect && motivoGroup) {
+    tSelect.onchange = () => {
+      motivoGroup.style.display = tSelect.value === "ADVERTENCIA_DISCIPLINAR" ? "block" : "none";
+    };
+  }
+
+  const sSelect = $("#docTemplateStoreSelect");
+  const eSelect = $("#docTemplateEmpSelect");
+  if (sSelect && eSelect) {
+    sSelect.onchange = () => {
+      eSelect.innerHTML = getEmpOptions(sSelect.value);
+    };
+  }
+
+  $("#docTemplateForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const templateId = $("#docTemplateSelect")?.value;
+    const funcionarioId = $("#docTemplateEmpSelect")?.value;
+    const motivo = $("#docTemplateMotivoText")?.value;
+
+    const submitBtn = $("#docTemplateSubmitBtn");
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Gerando documento dinâmico...";
+    }
+
+    try {
+      const res = await window.call("documentsGenerateFromTemplate", {
+        templateId,
+        funcionarioId,
+        motivo,
+      });
+      closeDialog();
+      if (typeof window.toast === "function") {
+        window.toast(res?.message || "Documento gerado com sucesso!");
+      }
+      await loadDocuments();
+    } catch (err) {
+      alert(err.message || "Erro ao emitir documento.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Gerar e Enviar para Assinatura";
+      }
+    }
+  };
+}
+
+/**
+ * Abre o Modal de Verificação de Autenticidade Pericial
+ */
+export function openVerifyDialog() {
+  let dialog = $("#documentVerifyDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "documentVerifyDialog";
+    dialog.className = "dialog doc-sign-dialog";
+    document.body.appendChild(dialog);
+  }
+
+  dialog.innerHTML = `
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color:#059669; font-weight:700; font-size:11px;">CONFORMIDADE &amp; AUDITORIA</span>
+        <h3 style="margin:0; font-size:1.15rem; font-weight:700;">Verificar Autenticidade de Documento</h3>
+      </div>
+      <button type="button" class="icon-btn" id="docVerifyCloseBtn" aria-label="Fechar">&times;</button>
+    </div>
+
+    <div class="dialog-body" style="padding:16px;">
+      <p style="margin:0 0 12px; font-size:13px; color:#64748b;">
+        Insira o Código de Validação impresso no rodapé do documento (ex: VAL-2026-XXXX) ou a chave Hash SHA-256 para comprovar a validade jurídica pericial.
+      </p>
+
+      <form id="docVerifyForm">
+        <label>
+          Código Verificador ou Hash SHA-256
+          <input type="text" id="docVerifyInput" placeholder="Ex: VAL-2026-ABCD ou c5b1..." required style="width:100%; margin-top:4px;" />
+        </label>
+        <div style="margin-top:12px; text-align:right;">
+          <button type="submit" class="btn btn-primary" id="docVerifySubmitBtn" style="min-height:44px;">
+            Consultar Autenticidade
+          </button>
+        </div>
+      </form>
+
+      <div id="docVerifyResult" style="margin-top:16px; display:none;"></div>
+    </div>
+  `;
+
+  dialog.showModal?.() || dialog.setAttribute("open", "true");
+
+  $("#docVerifyCloseBtn").onclick = () => {
+    dialog.close?.() || dialog.removeAttribute("open");
+  };
+
+  $("#docVerifyForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const term = $("#docVerifyInput")?.value;
+    const resultBox = $("#docVerifyResult");
+    if (!resultBox) return;
+
+    resultBox.style.display = "block";
+    resultBox.innerHTML = `<div style="text-align:center; padding:12px; color:#64748b;">Consultando banco de dados de integridade...</div>`;
+
+    try {
+      const res = await window.call("documentsVerify", term);
+      const data = res?.data || res;
+
+      if (!data.valido) {
+        resultBox.innerHTML = `
+          <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:14px; color:#991b1b; font-size:13px;">
+            <strong>Documento Não Encontrado ou Não Autenticado</strong><br/>
+            Nenhuma evidência pericial localizada para os dados informados.
+          </div>
+        `;
+        return;
+      }
+
+      const sig = data.assinatura || {};
+      resultBox.innerHTML = `
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px; color:#166534; font-size:13px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <strong style="font-size:14px;">Documento Oficial Válido e Autêntico</strong>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr; gap:6px; margin-top:8px; color:#1e293b;">
+            <div><strong>Signatário:</strong> ${esc(sig.NomeSignatario)} (CPF: ${esc(sig.CPFSignatario || "---")})</div>
+            <div><strong>Data e Hora UTC:</strong> ${formatDate(sig.DataHoraAssinatura)}</div>
+            <div><strong>Código Verificador:</strong> <span style="font-family:monospace; font-weight:700;">${esc(sig.CodigoValidacao)}</span></div>
+            <div><strong>Hash SHA-256 Final:</strong> <span style="font-family:monospace; font-size:11px; word-break:break-all;">${esc(sig.HashDocumentoFinalSHA256)}</span></div>
+            <div><strong>Endereço IP:</strong> ${esc(sig.EnderecoIP || "Dispositivo Seguro")}</div>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      resultBox.innerHTML = `
+        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:14px; color:#991b1b; font-size:13px;">
+          Erro ao verificar: ${esc(err.message)}
+        </div>
+      `;
+    }
+  };
 }
 
 /**
