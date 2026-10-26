@@ -36629,18 +36629,91 @@ dialog#medicalCertificateDialog {
     `;
   }
 
+  async function getWhatsAppAuthHeaders_() {
+    let tok = "";
+    try {
+      if (typeof firebaseRuntime !== "undefined" && firebaseRuntime?.auth?.currentUser) {
+        tok = await firebaseRuntime.auth.currentUser.getIdToken(false).catch(() => "");
+      }
+    } catch (_) {}
+    if (!tok && typeof sessionToken === "function") {
+      tok = sessionToken();
+    }
+    const headers = {
+      "Content-Type": "application/json",
+      "X-API-Key": "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl",
+      "bypass-tunnel-reminder": "true",
+    };
+    if (tok) {
+      headers["Authorization"] = "Bearer " + tok;
+    }
+    return headers;
+  }
+
+  function formatWhatsAppPhone_(raw) {
+    const clean = String(raw || "").replace(/\D/g, "");
+    if (!clean) return "---";
+    if (clean.length === 13 && clean.startsWith("55")) {
+      return `+55 (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
+    }
+    if (clean.length === 12 && clean.startsWith("55")) {
+      return `+55 (${clean.slice(2, 4)}) ${clean.slice(4, 8)}-${clean.slice(8)}`;
+    }
+    if (clean.length === 11) {
+      return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`;
+    }
+    if (clean.length === 10) {
+      return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+    }
+    return raw;
+  }
+
+  function startWhatsAppPairingPolling_() {
+    if (window._waPairPollTimer) clearInterval(window._waPairPollTimer);
+    let polls = 0;
+    window._waPairPollTimer = setInterval(async () => {
+      polls++;
+      if (polls > 40) {
+        clearInterval(window._waPairPollTimer);
+        window._waPairPollTimer = null;
+        return;
+      }
+      try {
+        const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+        const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
+        const headers = await getWhatsAppAuthHeaders_();
+        const res = await fetch(workerUrl + "/wa-status", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({}),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connected) {
+            clearInterval(window._waPairPollTimer);
+            window._waPairPollTimer = null;
+            if (typeof state !== "undefined") delete state.lastRealQrCode;
+            toast("WhatsApp conectado com sucesso!");
+            await loadWhatsAppConnectionView();
+          }
+        }
+      } catch (_) {}
+    }, 3000);
+  }
+
   async function loadWhatsAppConnectionView() {
     setLoading(true);
     try {
       let res = null;
       const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
       const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
-      const tok = sessionToken ? sessionToken() : "";
-      if (workerUrl && tok) {
+      const headers = await getWhatsAppAuthHeaders_();
+
+      if (workerUrl) {
         try {
           const workerStatusRes = await fetch(workerUrl + "/wa-status", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+            headers,
             body: JSON.stringify({}),
           });
           if (workerStatusRes.ok) {
@@ -36655,7 +36728,7 @@ dialog#medicalCertificateDialog {
               phone: workerData.phone || "",
               pairingCode: workerData.pairingCode || "",
               qrcode: workerData.qrcode || (typeof state !== "undefined" && state.lastRealQrCode) || "",
-              gatewayUrl: workerData.gatewayUrl || "",
+              gatewayUrl: workerData.gatewayUrl || "https://house190-bot.loca.lt/api",
               gatewayAtivo: workerData.configured || false,
               workerConfigured: workerData.configured || false,
               apiKeyMasked: workerData.apiKeyMasked || "",
@@ -36671,7 +36744,7 @@ dialog#medicalCertificateDialog {
         }
       }
       const isConnected = Boolean(res?.connected || res?.status === "CONNECTED" || res?.status === "connected");
-      const isQr = res?.status === "qrcode" || res?.status === "SCAN_QR" || Boolean(res?.qrcode) || Boolean(typeof state !== "undefined" && state.lastRealQrCode);
+      const isQr = !isConnected && (res?.status === "qrcode" || res?.status === "SCAN_QR" || Boolean(res?.qrcode) || Boolean(typeof state !== "undefined" && state.lastRealQrCode));
 
       const statusBadge = $("#waStatusBadge");
       const statusText = $("#waStatusText");
@@ -36681,7 +36754,7 @@ dialog#medicalCertificateDialog {
       const codeDisplay = $("#waPairingCodeDisplay");
 
       if (instanceText) instanceText.textContent = res?.instanceName || "house190";
-      if (phoneText) phoneText.textContent = res?.phone || "---";
+      if (phoneText) phoneText.textContent = formatWhatsAppPhone_(res?.phone);
 
       if (statusBadge && statusText) {
         if (isConnected) {
@@ -36692,7 +36765,7 @@ dialog#medicalCertificateDialog {
         } else if (isQr) {
           statusBadge.className = "badge badge-warning";
           statusBadge.textContent = "Aguardando Leitura";
-          statusText.textContent = "Escaneie o QR Code ou digite o código";
+          statusText.textContent = "Escaneie o QR Code no smartphone";
           statusText.style.color = "#d97706";
         } else {
           statusBadge.className = "badge badge-secondary";
@@ -36708,17 +36781,29 @@ dialog#medicalCertificateDialog {
           : (res?.pairingCode || (typeof state !== "undefined" && state.lastPairingCode) || "---- - ----");
       }
 
-      const activeQr = res?.qrcode || (typeof state !== "undefined" && state.lastRealQrCode) || "";
+      const activeQr = (!isConnected && (res?.qrcode || (typeof state !== "undefined" && state.lastRealQrCode))) || "";
 
       if (qrBox) {
         if (isConnected) {
           qrBox.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; color:#16a34a; padding:1rem;">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              <strong style="font-size:14.5px; color:#0f172a;">Aparelho Pareado com Sucesso</strong>
-              <small style="color:#64748b; font-size:12px;">Disparos automáticos e autoatendimento ativos</small>
+            <div style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:1.25rem 1rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:16px; width:100%; max-width:320px; margin:0 auto; box-shadow:0 4px 12px rgba(22,163,74,0.06);">
+              <div style="width:48px; height:48px; border-radius:50%; background:#dcfce7; display:flex; align-items:center; justify-content:center; color:#16a34a; margin-bottom:12px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <strong style="font-size:15px; color:#14532d; font-weight:700;">Aparelho Oficial Conectado</strong>
+              <div style="font-size:14px; font-weight:600; color:#166534; font-variant-numeric:tabular-nums; margin-top:4px;">${formatWhatsAppPhone_(res?.phone || "557391740014")}</div>
+              <p style="font-size:12px; color:#15803d; margin:8px 0 14px 0; line-height:1.4;">Pronto para envio de comunicados e notificações de ponto.</p>
+              <button id="waBtnDisconnectInner" type="button" class="btn btn-outline" style="border-color:#fca5a5; color:#dc2626; font-size:12px; height:36px; padding:0 14px; border-radius:10px; font-weight:600;">
+                Desconectar Aparelho
+              </button>
             </div>
           `;
+          const innerDisconnect = $("#waBtnDisconnectInner");
+          if (innerDisconnect) {
+            innerDisconnect.onclick = () => {
+              if ($("#waBtnDisconnect")) $("#waBtnDisconnect").click();
+            };
+          }
         } else if (isQr && activeQr) {
           let qrHtml = "";
           if (activeQr.startsWith("data:image/")) {
@@ -36737,11 +36822,11 @@ dialog#medicalCertificateDialog {
             </div>
           `;
         } else {
-          qrBox.innerHTML = `<span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code de Conexão" para iniciar</span>`;
+          qrBox.innerHTML = `<span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code" para iniciar</span>`;
         }
       }
 
-      const defaultGateway = "https://watched-serves-adjust-myrtle.trycloudflare.com/api";
+      const defaultGateway = "https://house190-bot.loca.lt/api";
       if ($("#waGatewayUrlInput")) $("#waGatewayUrlInput").value = res?.gatewayUrl || defaultGateway;
       if ($("#waGatewayInstanceInput")) $("#waGatewayInstanceInput").value = res?.instanceName || "house190";
       if ($("#waGatewayApiKeyInput")) {
@@ -36752,34 +36837,38 @@ dialog#medicalCertificateDialog {
 
       if ($("#waBtnGenerateQr")) {
         $("#waBtnGenerateQr").onclick = async () => {
+          let force = false;
           if (isConnected) {
-            toast("O aparelho oficial já está conectado e pronto para envios!");
-            return;
+            const confirmNew = window.confirm(
+              "O WhatsApp já está conectado ao número " + (formatWhatsAppPhone_(res?.phone) || "oficial") + ".\n\nDeseja desconectar e gerar um novo QR Code para parear outro aparelho?"
+            );
+            if (!confirmNew) return;
+            force = true;
           }
           setLoading(true);
           try {
             const defaultWorkerUrl2 = "https://house-folgas-notifications.brunohouse.workers.dev";
             const workerUrl2 = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl2;
-            const tok2 = sessionToken ? sessionToken() : "";
+            const headers2 = await getWhatsAppAuthHeaders_();
             let generatedQr = "";
-            if (workerUrl2 && tok2) {
+            if (workerUrl2) {
               const qrRes = await fetch(workerUrl2 + "/wa-qr", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok2 },
-                body: JSON.stringify({}),
+                headers: headers2,
+                body: JSON.stringify({ force }),
               });
               const qrData = await qrRes.json().catch(() => ({}));
               if (!qrRes.ok || !qrData.success) {
-                if (qrData.error === "gateway_unreachable" || !qrData.configured) {
+                if (qrData.error === "gateway_unreachable") {
                   toast("Gateway WhatsApp inacessivel. Verifique o servidor WA-AKG.", true);
                 } else {
-                  toast(qrData.error || "Erro ao solicitar QR Code ao gateway.", true);
+                  toast(qrData.message || qrData.error || "Erro ao solicitar QR Code ao gateway.", true);
                 }
-              } else if (qrData.alreadyConnected || qrData.connected) {
+              } else if (qrData.alreadyConnected || (qrData.connected && !qrData.qrcode)) {
                 toast("Aparelho já está conectado ao WhatsApp oficial!");
-              } else {
+              } else if (qrData.qrcode) {
                 generatedQr = qrData.qrcode;
-                toast("QR Code real gerado! Aponte a câmera do WhatsApp.");
+                toast("QR Code gerado! Aponte a câmera do WhatsApp.");
               }
             } else {
               const localRes = await call(FN.waGenerateQr);
@@ -36790,6 +36879,9 @@ dialog#medicalCertificateDialog {
               state.lastRealQrCode = generatedQr;
             }
             await loadWhatsAppConnectionView();
+            if (generatedQr) {
+              startWhatsAppPairingPolling_();
+            }
           } catch (e) {
             toast(e.message || "Erro ao gerar QR Code.", true);
           } finally {
@@ -36800,9 +36892,13 @@ dialog#medicalCertificateDialog {
 
       if ($("#waBtnRequestPairCode")) {
         $("#waBtnRequestPairCode").onclick = async () => {
+          let force = false;
           if (isConnected) {
-            toast("O aparelho oficial já está conectado e pronto para envios!");
-            return;
+            const confirmNew = window.confirm(
+              "O WhatsApp já está conectado ao número " + (formatWhatsAppPhone_(res?.phone) || "oficial") + ".\n\nDeseja desconectar e solicitar código para outro aparelho?"
+            );
+            if (!confirmNew) return;
+            force = true;
           }
           const ph = window.prompt("Informe o número do WhatsApp corporativo (com DDD, ex: 73999990190):", "73999990190");
           if (!ph) return;
@@ -36814,12 +36910,12 @@ dialog#medicalCertificateDialog {
           try {
             const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
             const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
-            const tok = sessionToken ? sessionToken() : "";
-            if (workerUrl && tok) {
+            const headers = await getWhatsAppAuthHeaders_();
+            if (workerUrl) {
               const pairRes = await fetch(workerUrl + "/wa-pair-code", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
-                body: JSON.stringify({ phone: cleanPhone }),
+                headers,
+                body: JSON.stringify({ phone: cleanPhone, force }),
               });
               const pairData = await pairRes.json().catch(() => ({}));
               if (pairData.alreadyConnected || pairData.connected) {
@@ -36831,6 +36927,7 @@ dialog#medicalCertificateDialog {
                 if (typeof state !== "undefined") state.lastPairingCode = pairData.pairingCode;
                 if ($("#waPairingCodeDisplay")) $("#waPairingCodeDisplay").textContent = pairData.pairingCode;
                 toast("Código de pareamento gerado! Digite no WhatsApp.");
+                startWhatsAppPairingPolling_();
               } else {
                 toast(pairData.error || "Não foi possível obter código de pareamento.", true);
               }
@@ -36867,17 +36964,21 @@ dialog#medicalCertificateDialog {
           if (!window.confirm("Deseja realmente desconectar o WhatsApp desta instância?")) return;
           setLoading(true);
           try {
+            if (window._waPairPollTimer) {
+              clearInterval(window._waPairPollTimer);
+              window._waPairPollTimer = null;
+            }
             const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
             const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
-            const tok = sessionToken ? sessionToken() : "";
-            if (workerUrl && tok) {
+            const headers = await getWhatsAppAuthHeaders_();
+            if (workerUrl) {
               await fetch(workerUrl + "/wa-disconnect", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+                headers,
                 body: JSON.stringify({}),
               }).catch(() => null);
             }
-            await call(FN.waDisconnect);
+            await call(FN.waDisconnect).catch(() => null);
             if (typeof state !== "undefined") {
               delete state.lastRealQrCode;
               delete state.lastPairingCode;
@@ -36957,11 +37058,11 @@ dialog#medicalCertificateDialog {
 
             const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
             const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
-            const tok = sessionToken ? sessionToken() : "";
-            if (workerUrl && tok) {
+            const headers = await getWhatsAppAuthHeaders_();
+            if (workerUrl) {
               await fetch(workerUrl + "/wa-gateway-config", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+                headers,
                 body: JSON.stringify({ gatewayUrl, instanceName, apiKey }),
               }).catch(() => null);
             }
@@ -37090,11 +37191,10 @@ dialog#medicalCertificateDialog {
           const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
           const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
           if (!workerUrl) return;
-          const tok = sessionToken ? sessionToken() : "";
-          if (!tok) return;
+          const headers = await getWhatsAppAuthHeaders_();
           const r = await fetch(workerUrl + "/wa-automations-get", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+            headers,
             body: JSON.stringify({}),
           });
           if (!r.ok) return;
@@ -37116,16 +37216,15 @@ dialog#medicalCertificateDialog {
           const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
           const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
           if (!workerUrl) return toast("Worker URL nao configurado.", true);
-          const tok = sessionToken ? sessionToken() : "";
-          if (!tok) return toast("Sessao expirada.", true);
           const fields = ["aut_ponto","aut_folga_nova","aut_folga_aprovada","aut_folga_recusada","aut_troca_folga","aut_comunicados","aut_espelho_ponto","aut_documentos","aut_tarefas"];
           const automations = {};
           fields.forEach(f => { automations[f] = Boolean($("#" + f)?.checked); });
           setLoading(true);
           try {
+            const headers = await getWhatsAppAuthHeaders_();
             const r = await fetch(workerUrl + "/wa-automations", {
               method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+              headers,
               body: JSON.stringify({ automations }),
             });
             if (!r.ok) throw new Error("Falha ao salvar (" + r.status + ")");
