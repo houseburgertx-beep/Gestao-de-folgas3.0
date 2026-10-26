@@ -1746,6 +1746,14 @@ export function createClockHandlers() {
         ObservacaoDecisao: "",
         DataHoraAprovada: "",
       });
+      createNotification({
+        storeId: record.LojaID,
+        subject: "Solicitação de ajuste de ponto",
+        message: `${record.NomeFuncionario || "Colaborador"} solicitou ajuste no ponto de ${record.Data} (${record.TipoMarcacao}). Acesse para avaliar.`,
+        type: "Ponto",
+        relatedId: adjustment.AjustePontoID,
+        severity: "info",
+      }).catch(() => {});
       return success(adjustment, "Pedido de ajuste enviado.");
     },
 
@@ -1816,6 +1824,17 @@ export function createClockHandlers() {
         adjustment.AjustePontoID,
         { before: adjustment, after: updated },
       );
+      createNotification({
+        employeeId: adjustment.FuncionarioID,
+        storeId: adjustment.LojaID,
+        subject: approved ? "Ajuste de ponto aprovado" : "Ajuste de ponto rejeitado",
+        message: approved
+          ? `Seu ajuste de ponto para ${adjustment.Data} (${adjustment.TipoMarcacao}) foi aprovado!`
+          : `Seu ajuste de ponto para ${adjustment.Data} foi rejeitado.${payload.observacao ? " Motivo: " + payload.observacao : ""}`,
+        type: "Ponto",
+        relatedId: adjustment.AjustePontoID,
+        severity: approved ? "success" : "warning",
+      }).catch(() => {});
       return success(
         { ...updated, message: approved ? "Ajuste aprovado." : "Pedido rejeitado." },
         approved ? "Ajuste aprovado." : "Pedido rejeitado.",

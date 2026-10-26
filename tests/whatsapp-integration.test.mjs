@@ -322,4 +322,21 @@ test("WhatsApp Connection Tab: marcação visual em Index.html e Scripts.html", 
   assert.match(scriptsHtml, /"whatsapp"/, "Scripts.html deve incluir whatsapp nas views restritas");
   assert.match(scriptsHtml, /loadWhatsAppConnectionView/, "Scripts.html deve implementar loadWhatsAppConnectionView");
   assert.match(scriptsHtml, /renderSvgQrCode/, "Scripts.html deve conter gerador visual de QR Code em SVG");
+
+  // 4. Central de Automações (Documentos, Tarefas, Avisos, Ponto, Folgas)
+  assert.match(indexHtml, /id="waAutomationsForm"/, "Index.html deve conter formulário de automações");
+  assert.match(indexHtml, /name="aut_ponto"/, "Deve ter toggle de ponto");
+  assert.match(indexHtml, /name="aut_folga_nova"/, "Deve ter toggle de folga nova");
+  assert.match(indexHtml, /name="aut_folga_aprovada"/, "Deve ter toggle de folga aprovada");
+  assert.match(indexHtml, /name="aut_folga_recusada"/, "Deve ter toggle de folga recusada");
+  assert.match(indexHtml, /name="aut_troca_folga"/, "Deve ter toggle de troca de folga");
+  assert.match(indexHtml, /name="aut_comunicados"/, "Deve ter toggle de comunicados");
+  assert.match(indexHtml, /name="aut_espelho_ponto"/, "Deve ter toggle de espelho de ponto");
+  assert.match(indexHtml, /name="aut_documentos"/, "Deve ter toggle de documentos e holerites");
+  assert.match(indexHtml, /name="aut_tarefas"/, "Deve ter toggle de tarefas");
+
+  // 5. Integração com o Worker no Scripts.html
+  assert.match(scriptsHtml, /\/wa-status/, "Scripts.html deve consultar status real via Worker");
+  assert.match(scriptsHtml, /\/wa-qr/, "Scripts.html deve solicitar QR Code real via Worker");
+  assert.match(scriptsHtml, /\/wa-automations/, "Scripts.html deve persistir automações via Worker");
 });

@@ -2173,6 +2173,62 @@
                   </button>
                 </form>
               </div>
+
+              <!-- Central de Automações -->
+              <div class="card" style="margin-top:16px;">
+                <div class="card-body" style="padding:16px 18px;">
+                  <h4 class="card-title" style="font-size:15px; font-weight:700; margin:0 0 14px; color:#0f172a;">Central de Automações</h4>
+                  <form id="waAutomationsForm">
+                    <div style="display:grid; gap:10px;">
+                      <!-- Toggle cada tipo de notificação -->
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Registro de ponto (entrada/saida)</span>
+                        <input type="checkbox" name="aut_ponto" id="aut_ponto" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Folga solicitada (avisar gerente)</span>
+                        <input type="checkbox" name="aut_folga_nova" id="aut_folga_nova" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Folga aprovada (avisar colaborador)</span>
+                        <input type="checkbox" name="aut_folga_aprovada" id="aut_folga_aprovada" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Folga recusada (avisar colaborador)</span>
+                        <input type="checkbox" name="aut_folga_recusada" id="aut_folga_recusada" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Troca de folga solicitada</span>
+                        <input type="checkbox" name="aut_troca_folga" id="aut_troca_folga" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Avisos administrativos (comunicados)</span>
+                        <input type="checkbox" name="aut_comunicados" id="aut_comunicados" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Espelho de ponto pendente de assinatura</span>
+                        <input type="checkbox" name="aut_espelho_ponto" id="aut_espelho_ponto" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Documentos e holerites (emissão/assinatura)</span>
+                        <input type="checkbox" name="aut_documentos" id="aut_documentos" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
+                        <span style="font-size:13px; color:#334155; font-weight:500;">Tarefas operacionais (atribuição/conclusão)</span>
+                        <input type="checkbox" name="aut_tarefas" id="aut_tarefas" style="width:18px;height:18px;accent-color:#16a34a;">
+                      </label>
+                    </div>
+                    <div style="margin-top:14px; display:flex; gap:10px;">
+                      <button type="submit" class="btn btn-primary" style="flex:1; min-height:44px; font-size:13px; font-weight:600; border-radius:10px;">Salvar Automações</button>
+                      <button type="button" id="waAutomationsReloadBtn" class="btn btn-secondary" style="min-height:44px; padding:0 16px; font-size:13px; border-radius:10px;">Recarregar</button>
+                    </div>
+                  </form>
+                  <div id="waHistorySection" style="margin-top:18px;">
+                    <h5 style="font-size:13px; font-weight:700; color:#0f172a; margin:0 0 8px;">Historico de Disparos (ultimos 20)</h5>
+                    <div id="waHistoryList" style="font-size:12px; color:#64748b; background:#f8fafc; border-radius:10px; padding:10px 12px; min-height:40px;">Carregando...</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </main>

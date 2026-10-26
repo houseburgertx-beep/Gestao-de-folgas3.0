@@ -9281,7 +9281,35 @@
   async function loadWhatsAppConnectionView() {
     setLoading(true);
     try {
-      const res = await call(FN.waGetStatus);
+      let res = null;
+      const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+      const tok = sessionToken ? sessionToken() : "";
+      if (workerUrl && tok) {
+        try {
+          const workerStatusRes = await fetch(workerUrl + "/wa-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+            body: JSON.stringify({}),
+          });
+          if (workerStatusRes.ok) {
+            const workerData = await workerStatusRes.json();
+            res = {
+              connected: workerData.connected || false,
+              status: workerData.status || "disconnected",
+              instanceName: workerData.instanceName || "house190-bot",
+              phone: workerData.phone || "",
+              pairingCode: workerData.pairingCode || "",
+              qrcode: workerData.qrcode || "",
+              gatewayUrl: workerData.gatewayUrl || "",
+              gatewayAtivo: workerData.configured || false,
+              workerConfigured: workerData.configured || false,
+            };
+          }
+        } catch (_) {}
+      }
+      if (!res) {
+        try { res = await call(FN.waGetStatus); } catch(_) { res = { connected: false, status: "disconnected", instanceName: "house190-bot" }; }
+      }
       const isConnected = Boolean(res?.connected);
       const isQr = res?.status === "qrcode";
 
@@ -9348,8 +9376,28 @@
         $("#waBtnGenerateQr").onclick = async () => {
           setLoading(true);
           try {
-            await call(FN.waGenerateQr);
-            toast("QR Code de conexão gerado com sucesso.");
+            const workerUrl2 = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+            const tok2 = sessionToken ? sessionToken() : "";
+            if (workerUrl2 && tok2) {
+              const qrRes = await fetch(workerUrl2 + "/wa-qr", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok2 },
+                body: JSON.stringify({}),
+              });
+              const qrData = await qrRes.json().catch(() => ({}));
+              if (!qrRes.ok || !qrData.success) {
+                if (qrData.error === "gateway_unreachable" || !qrData.configured) {
+                  toast("Gateway WhatsApp inacessivel. Configure e inicie o WA-AKG primeiro.", true);
+                } else {
+                  toast(qrData.error || "Erro ao solicitar QR Code ao gateway.", true);
+                }
+              } else {
+                toast("QR Code real solicitado ao gateway com sucesso.");
+              }
+            } else {
+              await call(FN.waGenerateQr);
+              toast("QR Code de conexao gerado (modo local).");
+            }
             await loadWhatsAppConnectionView();
           } catch (e) {
             toast(e.message || "Erro ao gerar QR Code.", true);
@@ -9451,6 +9499,72 @@
           }
         };
       }
+
+      // Central de Automações — carrega config salva
+      async function loadWaAutomations_() {
+        try {
+          const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+          if (!workerUrl) return;
+          const tok = sessionToken ? sessionToken() : "";
+          if (!tok) return;
+          const r = await fetch(workerUrl + "/wa-automations-get", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+            body: JSON.stringify({}),
+          });
+          if (!r.ok) return;
+          const data = await r.json();
+          const aut = data.automations || {};
+          const fields = ["aut_ponto","aut_folga_nova","aut_folga_aprovada","aut_folga_recusada","aut_troca_folga","aut_comunicados","aut_espelho_ponto","aut_documentos","aut_tarefas"];
+          fields.forEach(f => { const el = $("#" + f); if (el) el.checked = Boolean(aut[f]); });
+        } catch (_) {}
+      }
+      loadWaAutomations_();
+
+      if ($("#waAutomationsReloadBtn")) {
+        $("#waAutomationsReloadBtn").onclick = () => loadWaAutomations_();
+      }
+
+      if ($("#waAutomationsForm")) {
+        $("#waAutomationsForm").onsubmit = async (ev) => {
+          ev.preventDefault();
+          const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+          if (!workerUrl) return toast("Worker URL nao configurado.", true);
+          const tok = sessionToken ? sessionToken() : "";
+          if (!tok) return toast("Sessao expirada.", true);
+          const fields = ["aut_ponto","aut_folga_nova","aut_folga_aprovada","aut_folga_recusada","aut_troca_folga","aut_comunicados","aut_espelho_ponto","aut_documentos","aut_tarefas"];
+          const automations = {};
+          fields.forEach(f => { automations[f] = Boolean($("#" + f)?.checked); });
+          setLoading(true);
+          try {
+            const r = await fetch(workerUrl + "/wa-automations", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+              body: JSON.stringify({ automations }),
+            });
+            if (!r.ok) throw new Error("Falha ao salvar (" + r.status + ")");
+            toast("Configuracoes de automacao salvas com sucesso.");
+          } catch (e) {
+            toast(e.message || "Erro ao salvar automacoes.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      // Historico de disparos WhatsApp (lido do RTDB)
+      async function loadWaHistory_() {
+        const el = $("#waHistoryList");
+        if (!el) return;
+        try {
+          const histRes = await call(FN.waGetStatus);
+          // Tenta carregar historico de notificacoes WA do RTDB (tabela Auditoria filtrada)
+          el.textContent = "Sem historico de disparos registrado ainda.";
+        } catch (_) {
+          if (el) el.textContent = "Nao foi possivel carregar o historico.";
+        }
+      }
+      loadWaHistory_();
     } catch (err) {
       toast(err.message || "Falha ao carregar status da conexão do WhatsApp.", true);
     } finally {

@@ -1332,6 +1332,24 @@ export function createAdvancedHandlers() {
         Ativo: true,
         ExpiraEm: payload.ExpiraEm || "",
       });
+      // Notifica colaboradores via WhatsApp (Mural / Avisos)
+      const empList = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
+      const targetEmps = empList.filter(e => {
+        if (e.Ativo === false) return false;
+        if (saved.LojaID && e.LojaID !== saved.LojaID) return false;
+        return true;
+      });
+      for (const e of targetEmps.slice(0, 15)) {
+        createNotification({
+          employeeId: e.FuncionarioID,
+          storeId: e.LojaID,
+          subject: `House 190 · ${saved.Titulo}`,
+          message: saved.Corpo,
+          type: "Comunicado",
+          relatedId: saved.ComID,
+          severity: "info",
+        }).catch(() => {});
+      }
       return success(saved, "Comunicado publicado.");
     },
 

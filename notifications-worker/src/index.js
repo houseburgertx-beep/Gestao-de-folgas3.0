@@ -290,6 +290,134 @@ async function handle(request, env) {
       });
       return json(res, res.success ? 200 : 502);
     }
+    const isAdminOrManager = (p) =>
+      ["Administrador", "Responsável de loja", "Gerente"].includes(p?.Perfil);
+
+    if (route === "/wa-status") {
+      try {
+        if (!env.WA_API_URL || !env.WA_SESSION_ID || !env.WA_API_KEY)
+          return json({ configured: false, connected: false, status: "not_configured" });
+        if (!isAdminOrManager(profile)) return json({ error: "forbidden" }, 403);
+        const res = await fetch(
+          `${env.WA_API_URL}/sessions/${env.WA_SESSION_ID}`,
+          {
+            headers: { "X-API-Key": env.WA_API_KEY },
+            signal: AbortSignal.timeout(8000),
+          },
+        );
+        if (!res.ok) {
+          const errText = await res.text().catch(() => String(res.status));
+          return json({ configured: true, connected: false, status: "gateway_unreachable", error: errText });
+        }
+        const data = await res.json();
+        return json({
+          configured: true,
+          connected: Boolean(data.connected),
+          status: data.status ?? "unknown",
+          instanceName: env.WA_SESSION_ID,
+          gatewayUrl: env.WA_API_URL,
+        });
+      } catch (err) {
+        return json({ configured: Boolean(env.WA_API_URL), connected: false, status: "error", error: String(err.message || err) }, 502);
+      }
+    }
+
+    if (route === "/wa-qr") {
+      try {
+        if (!isAdminOrManager(profile)) return json({ error: "forbidden" }, 403);
+        if (!env.WA_API_URL || !env.WA_SESSION_ID || !env.WA_API_KEY)
+          return json({ success: false, error: "gateway_unreachable", configured: false });
+        await fetch(`${env.WA_API_URL}/sessions/${env.WA_SESSION_ID}/start`, {
+          method: "POST",
+          headers: { "X-API-Key": env.WA_API_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+          signal: AbortSignal.timeout(8000),
+        });
+        const qrRes = await fetch(
+          `${env.WA_API_URL}/sessions/${env.WA_SESSION_ID}/qr`,
+          {
+            headers: { "X-API-Key": env.WA_API_KEY },
+            signal: AbortSignal.timeout(8000),
+          },
+        );
+        if (!qrRes.ok) return json({ success: false, error: "gateway_unreachable", configured: false });
+        const qrData = await qrRes.json();
+        return json({
+          success: true,
+          qrcode: qrData.qr || qrData.qrcode || qrData.base64 || "",
+          status: "qrcode",
+        });
+      } catch (err) {
+        return json({ configured: Boolean(env.WA_API_URL), connected: false, status: "error", error: String(err.message || err) }, 502);
+      }
+    }
+
+    if (route === "/wa-disconnect") {
+      try {
+        if (!isAdminOrManager(profile)) return json({ error: "forbidden" }, 403);
+        if (!env.WA_API_URL || !env.WA_SESSION_ID || !env.WA_API_KEY)
+          return json({ success: false, error: "not_configured" });
+        const res = await fetch(
+          `${env.WA_API_URL}/sessions/${env.WA_SESSION_ID}`,
+          {
+            method: "DELETE",
+            headers: { "X-API-Key": env.WA_API_KEY },
+            signal: AbortSignal.timeout(8000),
+          },
+        );
+        if (!res.ok) {
+          const errText = await res.text().catch(() => String(res.status));
+          return json({ success: false, error: errText });
+        }
+        return json({ success: true, status: "disconnected" });
+      } catch (err) {
+        return json({ configured: Boolean(env.WA_API_URL), connected: false, status: "error", error: String(err.message || err) }, 502);
+      }
+    }
+
+    if (route === "/wa-send") {
+      try {
+        if (!body.phone || !body.text) return json({ error: "phone_or_text_missing" }, 400);
+        const text = String(body.text).slice(0, 1600);
+        const res = await sendWhatsAppMessage(env, { phone: body.phone, text });
+        return json(res, res.success ? 200 : 502);
+      } catch (err) {
+        return json({ configured: Boolean(env.WA_API_URL), connected: false, status: "error", error: String(err.message || err) }, 502);
+      }
+    }
+
+    if (route === "/wa-automations") {
+      try {
+        if (!isAdminOrManager(profile) || profile.Perfil !== "Administrador")
+          return json({ error: "forbidden" }, 403);
+        if (!body.automations || typeof body.automations !== "object")
+          return json({ error: "automations_missing" }, 400);
+        const tok = await googleToken(env);
+        const url = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Configuracoes/WhatsAppAutomations.json`;
+        const putRes = await fetch(url, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body.automations, AtualizadoEm: new Date().toISOString() }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!putRes.ok) throw new Error(`firebase_${putRes.status}`);
+        return json({ ok: true });
+      } catch (err) {
+        return json({ configured: Boolean(env.WA_API_URL), connected: false, status: "error", error: String(err.message || err) }, 502);
+      }
+    }
+
+    if (route === "/wa-automations-get") {
+      try {
+        if (!isAdminOrManager(profile)) return json({ error: "forbidden" }, 403);
+        const tok = await googleToken(env);
+        const data = await database(env, tok, "tables/Configuracoes/WhatsAppAutomations");
+        return json({ ok: true, automations: data || {} });
+      } catch (err) {
+        return json({ configured: Boolean(env.WA_API_URL), connected: false, status: "error", error: String(err.message || err) }, 502);
+      }
+    }
+
     return json({ error: "not_found" }, 404);
   } catch {
     return json({ error: "request_failed" }, 400);

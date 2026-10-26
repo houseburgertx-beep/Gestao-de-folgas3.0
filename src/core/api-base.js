@@ -669,57 +669,186 @@ export async function audit(action, module, recordId, details = {}) {
   });
 }
 
-export async function dispatchWhatsAppNotification({ employeeId = "", subject = "", message = "", type = "" }) {
-  if (!employeeId || typeof fetch === "undefined") return;
-  try {
-    const employees = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
-    const emp = employees.find(
-      (e) => String(e.FuncionarioID || e.funcionarioId || "") === String(employeeId)
-    );
-    if (!emp || !emp.Telefone) return;
+// Chaves de tipo de automação mapeadas por categoria de evento
+const WA_AUTOMATION_KEYS = Object.freeze({
+  "Folga":        "aut_folga_nova",
+  "FolgaAprovada": "aut_folga_aprovada",
+  "FolgaRecusada": "aut_folga_recusada",
+  "Atestado":     "aut_folga_nova",
+  "Troca":        "aut_troca_folga",
+  "Ponto":        "aut_ponto",
+  "Tarefa":       "aut_tarefas",
+  "Tarefas":      "aut_tarefas",
+  "Documentos":   "aut_documentos",
+  "Documento":   "aut_documentos",
+  "Comunicado":   "aut_comunicados",
+  "Comunicados":  "aut_comunicados",
+  "Aviso":        "aut_comunicados",
+  "Avisos":       "aut_comunicados",
+  "EspelhoPonto": "aut_espelho_ponto",
+  "Sistema":      null, // sem toggle específico — sempre envia
+});
 
-    let digits = String(emp.Telefone).replace(/\D/g, "");
-    if (digits.startsWith("0")) digits = digits.slice(1);
-    if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
-    if (!digits.startsWith("55") || (digits.length !== 12 && digits.length !== 13)) {
-      if (digits.length < 10 || digits.length > 15) return;
+/**
+ * Retorna as configurações de automação WhatsApp salvas no Firestore/RTDB.
+ * Cache de 2 minutos para não sobrecarregar leituras.
+ */
+let _waAutomationsCache = null;
+let _waAutomationsCacheAt = 0;
+async function getWaAutomations() {
+  const now = Date.now();
+  if (_waAutomationsCache && now - _waAutomationsCacheAt < 120000) return _waAutomationsCache;
+  try {
+    const cfg = await runtime.getById("Configuracoes", "WhatsAppAutomations").catch(() => null);
+    _waAutomationsCache = cfg || {};
+    _waAutomationsCacheAt = now;
+  } catch (_) {
+    _waAutomationsCache = {};
+  }
+  return _waAutomationsCache;
+}
+
+/**
+ * Constrói texto da mensagem WhatsApp conforme tipo do evento,
+ * com templates humanizados por categoria.
+ */
+function buildWaText({ firstName, subject, message, type }) {
+  const greeting = firstName ? `Olá, *${firstName}*!\n\n` : "Olá!\n\n";
+  const isTask = type === "Tarefa" || String(type || "").startsWith("TAREFA");
+  const isCozinha = isTask;
+  const footer = isCozinha ? "\n\n_House 190 · CozinhaFlow_" : "\n\n_House 190_";
+  return `${greeting}*${subject}*\n${message}${footer}`;
+}
+
+/**
+ * Dispara notificação WhatsApp ao colaborador ou liderança da loja.
+ * Usa o Cloudflare Worker (/wa-send) como relay seguro quando disponível;
+ * faz fallback para chamada direta ao gateway WA-AKG em último caso.
+ * Respeita as configurações de automação salvas em Configuracoes/WhatsAppAutomations.
+ */
+export async function dispatchWhatsAppNotification({ employeeId = "", storeId = "", email = "", subject = "", message = "", type = "" }) {
+  if (typeof fetch === "undefined") return;
+  try {
+    // 1. Verifica se a automação para este tipo está habilitada
+    const automations = await getWaAutomations();
+    const automationKey = WA_AUTOMATION_KEYS[type];
+    if (automationKey !== undefined && automationKey !== null && automations[automationKey] === false) return;
+    const hasAnyConfig = Object.keys(automations).some((k) => k.startsWith("aut_"));
+    if (hasAnyConfig && automationKey && automations[automationKey] === undefined) return;
+
+    // 2. Localiza destinatários (colaborador individual ou gerência da loja)
+    const employees = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
+    const targets = [];
+    if (employeeId) {
+      const emp = employees.find(
+        (e) => String(e.FuncionarioID || e.funcionarioId || "") === String(employeeId)
+      );
+      if (emp) targets.push(emp);
+    } else if (storeId) {
+      const managers = employees.filter(
+        (e) => (isManager(e) || isAdmin(e)) && (String(e.LojaID || "") === String(storeId) || isAdmin(e)) && e.Ativo !== false
+      );
+      targets.push(...managers.slice(0, 3));
     }
 
-    const rawName = (emp.Nome || emp.nome || "").trim();
-    const firstName = rawName ? rawName.split(/\s+/)[0] : "";
-    const greeting = firstName ? `Olá, *${firstName}*! 👋\n\n` : "Olá! 👋\n\n";
-    const footer = (type === "Tarefa" || String(type || "").startsWith("TAREFA"))
-      ? "\n\n_House 190 · CozinhaFlow_"
-      : "\n\n_House 190_";
-    const text = `${greeting}*${subject}*\n${message}${footer}`;
+    if (!targets.length) return;
 
-    const apiUrls = [
-      "https://handed-behalf-functioning-hawk.trycloudflare.com/api",
-      "https://house190-wa.loca.lt/api",
-      "http://localhost:3000/api",
-    ];
-
-    for (const baseUrl of apiUrls) {
+    // 3. Obtém credenciais de relay do Worker ou Gateway direto
+    const workerUrl = (() => {
       try {
-        const endpoint = `${baseUrl}/messages/house190/${encodeURIComponent(digits + "@s.whatsapp.net")}/send`;
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl",
-            "bypass-tunnel-reminder": "true",
+        if (typeof window !== "undefined" && window.__PUSH_ENDPOINT__) return window.__PUSH_ENDPOINT__;
+      } catch (_) {}
+      return "https://house-folgas-notifications.house-folgas-notifications.workers.dev";
+    })();
+
+    const idToken = typeof window !== "undefined"
+      ? (window.__SESSION_TOKEN__ || "")
+      : "";
+
+    const gwConfig = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
+    const gwUrl = gwConfig?.GatewayUrl || "";
+    const gwKey = gwConfig?.ApiKey || "";
+    const sessionId = gwConfig?.InstanceName || "house190";
+
+    for (const emp of targets) {
+      const phone = emp?.WhatsApp || emp?.Telefone || emp?.Celular || "";
+      if (!phone) continue;
+
+      let digits = String(phone).replace(/\D/g, "");
+      if (digits.startsWith("0")) digits = digits.slice(1);
+      if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+      if (digits.length < 10 || digits.length > 15) continue;
+
+      const rawName = (emp.Nome || emp.nome || "").trim();
+      const firstName = rawName ? rawName.split(/\s+/)[0] : "";
+      const text = buildWaText({ firstName, subject, message, type });
+
+      let sent = false;
+
+      // Via Cloudflare Worker
+      if (workerUrl && idToken) {
+        try {
+          const workerRes = await fetch(`${workerUrl}/wa-send`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ phone: digits, text }),
+            signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined,
+          });
+          if (workerRes.ok) {
+            const workerData = await workerRes.json().catch(() => ({}));
+            if (workerData.success) {
+              sent = true;
+              console.log(`[WA] Notificação enviada via Worker para ${digits} (${type})`);
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Fallback via Gateway direto
+      if (!sent && gwUrl) {
+        try {
+          const endpoint = `${gwUrl.replace(/\/+$/, "")}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(digits + "@s.whatsapp.net")}/send`;
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(gwKey ? { "X-API-Key": gwKey } : {}),
+            },
+            body: JSON.stringify({ message: { text } }),
+            signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
+          });
+          if (res.ok) {
+            sent = true;
+            console.log(`[WA] Notificação enviada via Gateway para ${digits} (${type})`);
+          }
+        } catch (_) {}
+      }
+
+      // Registro de histórico de envio em Auditoria
+      try {
+        await runtime.upsert("Auditoria", {
+          AuditoriaID: uuid(),
+          Acao: "Disparo Automático WhatsApp",
+          Tabela: "WhatsAppDisparos",
+          RegistroID: digits,
+          Detalhes: {
+            Tipo: type,
+            Assunto: subject,
+            Destinatario: rawName,
+            Telefone: digits,
+            Status: sent ? "Enviado" : "Falha/GatewayOffline",
+            DataHora: nowIso(),
           },
-          body: JSON.stringify({ message: { text } }),
-          signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
+          DataHora: nowIso(),
+          Usuario: "Sistema/WhatsApp",
         });
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          if (data.status) break;
-        }
       } catch (_) {}
     }
   } catch (err) {
-    console.warn("Falha no disparo do WhatsApp:", err);
+    console.warn("[WA] dispatchWhatsAppNotification falhou:", err?.message || err);
   }
 }
 
@@ -733,7 +862,7 @@ export async function createNotification({
   relatedId = "",
   severity = "info",
 }) {
-  dispatchWhatsAppNotification({ employeeId, subject, message, type }).catch(() => {});
+  dispatchWhatsAppNotification({ employeeId, storeId, email, subject, message, type }).catch(() => {});
 
   return runtime.upsert("Notificacoes", {
     NotificacaoID: uuid(),
@@ -1913,6 +2042,14 @@ export function createBaseHandlers() {
       await audit("Solicitar folga", "Folgas", saved.FolgaID, {
         after: saved,
       });
+      createNotification({
+        storeId: saved.LojaID,
+        subject: "Nova solicitação de folga",
+        message: `${saved.NomeFuncionario || "Colaborador"} solicitou folga para ${saved.DataInicio}. Acesse o Gestão de Folgas para avaliar.`,
+        type: "Folga",
+        relatedId: saved.FolgaID,
+        severity: "info",
+      }).catch(() => {});
       return success(saved, "Pedido de folga enviado.");
     },
 
@@ -2102,6 +2239,15 @@ export function createBaseHandlers() {
       await audit("Enviar atestado médico", "Documentos", docId, {
         after: { documento: docRecord, folga: savedFolga },
       });
+
+      createNotification({
+        storeId: savedFolga.LojaID,
+        subject: "Novo atestado médico enviado",
+        message: `${savedFolga.NomeFuncionario || "Colaborador"} enviou atestado médico de ${savedFolga.DataInicio} (${savedFolga.DiasAbono || 1} dia(s)). Acesse para homologar.`,
+        type: "Atestado",
+        relatedId: savedFolga.FolgaID,
+        severity: "info",
+      }).catch(() => {});
 
       return success(
         { documento: docRecord, folga: savedFolga },
