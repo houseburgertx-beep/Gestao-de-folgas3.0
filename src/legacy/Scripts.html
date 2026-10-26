@@ -117,6 +117,7 @@
     clockStoreLocation: "saveTimeClockStoreLocation",
     clockSheet: "generateMonthlyTimeClockSheet",
     clockMirrorData: "getMonthlyTimeClockMirrorData",
+    clockSignMirror: "signMonthlyTimeClockMirror",
     operationalRules: "getOperationalRules",
     saveOperationalRule: "saveOperationalRule",
     swaps: "getTimeOffSwaps",
@@ -1273,6 +1274,7 @@
       $("#clockDayFilter").value = defaultClockDay;
     if ($("#clockExportBtn")) $("#clockExportBtn").onclick = exportTimeClockSheet;
     if ($("#clockDownloadMirrorPdfBtn")) $("#clockDownloadMirrorPdfBtn").onclick = openTimeClockMirrorPrint;
+    if ($("#clockSignMirrorBtn")) $("#clockSignMirrorBtn").onclick = openTimeClockMirrorSign;
     if ($("#clockManualPunchBtn")) $("#clockManualPunchBtn").onclick = openManualClockPunch_;
     if ($("#clockRepairDuplicatesBtn")) $("#clockRepairDuplicatesBtn").onclick = repairDuplicateClockEntries_;
     if ($("#clockManualPunchForm")) $("#clockManualPunchForm").onsubmit = saveManualClockPunch_;
@@ -1420,6 +1422,7 @@
     if ($("#newOperationalRuleBtn")) $("#newOperationalRuleBtn").onclick = openOperationalRuleDialog;
     if ($("#operationalRuleForm")) $("#operationalRuleForm").onsubmit = saveOperationalRuleUI;
     if ($("#newSwapBtn")) $("#newSwapBtn").onclick = openSwapDialog;
+    if ($("#timeOffSwapBtn")) $("#timeOffSwapBtn").onclick = openSwapDialog;
     if ($("#pendingNewTimeOff")) $("#pendingNewTimeOff").onclick = () => editTimeOff();
     if ($("#pendingTimeOffAction")) $("#pendingTimeOffAction").onclick = () => editTimeOff();
     if ($("#pendingClockAction")) $("#pendingClockAction").onclick = () => switchView("timeclock");
@@ -6516,6 +6519,7 @@
       `<div class="panel pending-empty-state"><span>⌁</span><strong>${isManager() ? "Nenhum ajuste de ponto pendente" : "Você não possui pedidos de ajuste"}</strong><p>${isManager() ? "As correções enviadas pela equipe aparecerão aqui." : "Para solicitar uma correção, abra Meu ponto e escolha uma marcação."}</p></div>`;
     renderPendingCenterSummary_();
     renderEmployeeClockDashboard();
+    refreshTimeClockMirrorSignatureStatus_();
   }
   function openClockJustification_(employeeId, date) {
     const day = arr((state.timeClock || {}).days).find(
@@ -8694,6 +8698,390 @@
       setLoading(false);
     }
   }
+
+  const clockSignCanvasState_ = {
+    isDrawing: false,
+    hasDrawn: false,
+    ctx: null,
+    currentPayload: null,
+  };
+
+  async function getClientIpForSign_() {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch("https://api.ipify.org?format=json", { signal: controller.signal });
+      clearTimeout(timer);
+      const data = await res.json();
+      return String(data.ip || "Dispositivo Móvel").trim();
+    } catch {
+      return "Dispositivo Móvel";
+    }
+  }
+
+  async function refreshTimeClockMirrorSignatureStatus_() {
+    const signBtn = $("#clockSignMirrorBtn");
+    const badgeEl = $("#clockMirrorSignedBadge");
+    if (!signBtn && !badgeEl) return;
+    const selectedMonth = $("#clockMonth")?.value || new Date().toISOString().slice(0, 7);
+    const selectedEmp = $("#clockEmployeeFilter")?.value || String(val(state.user, "funcionarioId", "FuncionarioID", "id") || "");
+    if (!selectedEmp) {
+      if (badgeEl) badgeEl.classList.add("hidden");
+      return;
+    }
+
+    try {
+      const res = await call(FN.clockMirrorData, {
+        month: selectedMonth,
+        funcionarioId: selectedEmp,
+      });
+      if (res?.signature?.isSigned) {
+        if (signBtn) signBtn.textContent = "Ver espelho assinado";
+        if (badgeEl) {
+          badgeEl.textContent = `✓ Assinado (${res.signature.codigoValidacao || "Portaria 671"})`;
+          badgeEl.classList.remove("hidden");
+          badgeEl.className = "badge badge-success";
+        }
+      } else if (res?.signature?.status === "Contestado") {
+        if (signBtn) signBtn.textContent = "Revisar contestação";
+        if (badgeEl) {
+          badgeEl.textContent = "⚠ Contestado";
+          badgeEl.classList.remove("hidden");
+          badgeEl.className = "badge badge-warning";
+        }
+      } else {
+        if (signBtn) signBtn.textContent = "Assinar espelho digitalmente";
+        if (badgeEl) badgeEl.classList.add("hidden");
+      }
+    } catch (err) {
+      // Falha silenciosa em background
+    }
+  }
+
+  async function openTimeClockMirrorSign() {
+    setLoading(true);
+    try {
+      const selectedMonth = $("#clockMonth")?.value || new Date().toISOString().slice(0, 7);
+      const selectedEmp = $("#clockEmployeeFilter")?.value || String(val(state.user, "funcionarioId", "FuncionarioID", "id") || "");
+      if (!selectedEmp) {
+        throw new Error("Selecione um colaborador para abrir o espelho de ponto.");
+      }
+
+      const res = await call(FN.clockMirrorData, {
+        month: selectedMonth,
+        funcionarioId: selectedEmp,
+      });
+
+      if (!res || !res.days) {
+        throw new Error("Não foi possível carregar os dados do espelho de ponto.");
+      }
+
+      clockSignCanvasState_.currentPayload = {
+        res,
+        month: selectedMonth,
+        funcionarioId: selectedEmp,
+      };
+
+      const emp = res.employee || {};
+      const days = res.days || [];
+      const summary = res.summary || {};
+      const signature = res.signature || {};
+
+      const [year, monthNum] = (res.month || selectedMonth).split("-");
+      const monthNames = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+      ];
+      const monthLabel = `${monthNames[Number(monthNum) - 1] || monthNum} de ${year}`;
+
+      if ($("#clockSignModalTitle")) {
+        $("#clockSignModalTitle").textContent = `Espelho de Ponto — ${monthLabel}`;
+      }
+
+      if ($("#clockSignEmployeeInfo")) {
+        $("#clockSignEmployeeInfo").innerHTML = `
+          <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+            <div><strong>Empregado(a):</strong> ${esc(emp.nome)} (CPF: ${esc(emp.cpf || "---")})</div>
+            <div><strong>Unidade:</strong> ${esc(emp.loja || "---")}</div>
+          </div>
+          <div style="margin-top:4px; color:var(--muted, #64748b);">
+            <strong>Cargo:</strong> ${esc(emp.cargo || "Colaborador")} &bull; <strong>CNPJ:</strong> ${esc(emp.cnpj || "---")} &bull; <strong>Período:</strong> ${esc(monthLabel)}
+          </div>
+        `;
+      }
+
+      if ($("#clockSignMetricsRow")) {
+        $("#clockSignMetricsRow").innerHTML = `
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Total Trabalhado</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.trabalhadoTexto || "0h 00min")}</strong>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Carga Prevista</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.previstoTexto || "0h 00min")}</strong>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Saldo do Mês</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.saldoMesTexto || summary.saldoTexto || "0h 00min")}</strong>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Banco Acumulado</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.saldoAcumuladoTexto || summary.saldoTexto || "0h 00min")}</strong>
+          </div>
+        `;
+      }
+
+      if ($("#clockSignDaysBody")) {
+        const weekdayShort = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        $("#clockSignDaysBody").innerHTML = days.map((d) => {
+          const parts = d.data.split("-");
+          const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          const wk = weekdayShort[dt.getDay()] || "";
+          const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+          const bg = (d.folga || d.folgaFixa) ? "background:#f1f5f9;" : (isWeekend ? "background:#f8fafc;" : "");
+          return `
+            <tr style="${bg} border-bottom:1px solid #f1f5f9;">
+              <td style="padding:5px 6px; text-align:center; font-weight:600;">${parts[2]}/${parts[1]} <small style="color:#64748b;">${wk}</small></td>
+              <td style="padding:5px 6px; text-align:center;">${d.entrada || "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.saidaIntervalo || "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.retornoIntervalo || "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.saida || "—"}</td>
+              <td style="padding:5px 6px; text-align:center; font-weight:600;">${d.trabalhado !== "0h 00min" ? d.trabalhado : "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.saldo !== "+0h 00min" ? d.saldo : "0h 00min"}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      const banner = $("#clockSignStatusBanner");
+      const actionSec = $("#clockSignActionSection");
+      const contestSec = $("#clockContestSection");
+      const toggleContestBtn = $("#clockToggleContestBtn");
+      const confirmSignBtn = $("#clockConfirmSignBtn");
+
+      contestSec?.classList.add("hidden");
+
+      if (signature.isSigned) {
+        if (banner) {
+          banner.className = "banner-success";
+          banner.style.display = "block";
+          banner.style.background = "#dcfce7";
+          banner.style.color = "#166534";
+          banner.style.border = "1px solid #bbf7d0";
+          banner.innerHTML = `
+            <div><strong>✓ Espelho assinado digitalmente</strong> em ${formatBrasiliaDateTime(signature.dataAssinatura || new Date().toISOString())}</div>
+            <div style="font-size:11.5px; margin-top:4px;">Código de Autenticação: <strong>${esc(signature.codigoValidacao)}</strong></div>
+            <div style="font-size:10.5px; margin-top:2px; font-family:monospace; word-break:break-all;">SHA-256: ${esc(signature.hashDocumentoFinalSHA256)}</div>
+          `;
+        }
+        if (actionSec) actionSec.style.display = "none";
+        if (toggleContestBtn) toggleContestBtn.style.display = "none";
+        if (confirmSignBtn) {
+          confirmSignBtn.textContent = "Imprimir / Salvar PDF";
+          confirmSignBtn.style.background = "#0284c7";
+          confirmSignBtn.style.borderColor = "#0284c7";
+          confirmSignBtn.onclick = () => {
+            closeDialog("timeClockSignDialog");
+            openTimeClockMirrorPrint();
+          };
+        }
+      } else if (signature.status === "Contestado") {
+        if (banner) {
+          banner.className = "banner-warning";
+          banner.style.display = "block";
+          banner.style.background = "#fff7ed";
+          banner.style.color = "#9a3412";
+          banner.style.border = "1px solid #fed7aa";
+          banner.innerHTML = `
+            <div><strong>⚠ Espelho em contestação</strong> pelo colaborador</div>
+            <div style="font-size:12px; margin-top:4px;">Motivo: "${esc(signature.ultimoMotivoContestacao)}"</div>
+            <div style="font-size:11px; margin-top:2px; color:#7c2d12;">Aguardando revisão ou alinhamento do gestor.</div>
+          `;
+        }
+        if (actionSec) actionSec.style.display = "flex";
+        if (toggleContestBtn) toggleContestBtn.style.display = "inline-block";
+        if (confirmSignBtn) {
+          confirmSignBtn.textContent = "Reassinar com ajuste";
+          confirmSignBtn.style.background = "#16a34a";
+          confirmSignBtn.style.borderColor = "#16a34a";
+          confirmSignBtn.onclick = () => confirmTimeClockMirrorSign_();
+        }
+        initClockSignCanvas_();
+      } else {
+        if (banner) {
+          banner.className = "hidden";
+          banner.style.display = "none";
+        }
+        if (actionSec) actionSec.style.display = "flex";
+        if (toggleContestBtn) toggleContestBtn.style.display = "inline-block";
+        if (confirmSignBtn) {
+          confirmSignBtn.textContent = "Confirmar assinatura digital";
+          confirmSignBtn.style.background = "#16a34a";
+          confirmSignBtn.style.borderColor = "#16a34a";
+          confirmSignBtn.onclick = () => confirmTimeClockMirrorSign_();
+        }
+        initClockSignCanvas_();
+      }
+
+      if (toggleContestBtn) {
+        toggleContestBtn.onclick = () => {
+          contestSec?.classList.remove("hidden");
+          if (actionSec) actionSec.style.display = "none";
+          toggleContestBtn.style.display = "none";
+        };
+      }
+      if ($("#clockCancelContestBtn")) {
+        $("#clockCancelContestBtn").onclick = () => {
+          contestSec?.classList.add("hidden");
+          if (actionSec) actionSec.style.display = "flex";
+          if (toggleContestBtn) toggleContestBtn.style.display = "inline-block";
+        };
+      }
+      if ($("#clockSubmitContestBtn")) {
+        $("#clockSubmitContestBtn").onclick = () => submitTimeClockMirrorContest_();
+      }
+
+      openDialog("timeClockSignDialog");
+    } catch (err) {
+      toast(err.message || "Erro ao carregar espelho de ponto para assinatura.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function initClockSignCanvas_() {
+    const canvas = $("#clockSignCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    clockSignCanvasState_.ctx = ctx;
+    clockSignCanvasState_.hasDrawn = false;
+    clockSignCanvasState_.isDrawing = false;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = (rect.width || 320) * dpr;
+    canvas.height = (rect.height || 140) * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0f172a";
+
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - r.left, y: clientY - r.top };
+    };
+
+    const start = (e) => {
+      e.preventDefault();
+      clockSignCanvasState_.isDrawing = true;
+      clockSignCanvasState_.hasDrawn = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    };
+
+    const move = (e) => {
+      if (!clockSignCanvasState_.isDrawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    };
+
+    const end = (e) => {
+      if (!clockSignCanvasState_.isDrawing) return;
+      e.preventDefault();
+      clockSignCanvasState_.isDrawing = false;
+      ctx.closePath();
+    };
+
+    canvas.onmousedown = start;
+    canvas.onmousemove = move;
+    window.onmouseup = end;
+
+    canvas.ontouchstart = start;
+    canvas.ontouchmove = move;
+    canvas.ontouchend = end;
+
+    const clearBtn = $("#clockSignClearCanvasBtn");
+    if (clearBtn) {
+      clearBtn.onclick = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        clockSignCanvasState_.hasDrawn = false;
+      };
+    }
+
+    const checkTerms = $("#clockSignCheckTerms");
+    if (checkTerms) checkTerms.checked = false;
+  }
+
+  async function confirmTimeClockMirrorSign_() {
+    if (!clockSignCanvasState_.hasDrawn) {
+      toast("Por favor, desenhe sua rubrica manuscrita no quadro antes de confirmar.", true);
+      return;
+    }
+    const terms = $("#clockSignCheckTerms");
+    if (terms && !terms.checked) {
+      toast("Por favor, confirme a declaração de conferência do espelho de ponto.", true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const canvas = $("#clockSignCanvas");
+      const rubricBase64 = canvas ? canvas.toDataURL("image/png") : "";
+      const ip = await getClientIpForSign_();
+      const payload = clockSignCanvasState_.currentPayload;
+
+      const res = await call(FN.clockSignMirror, {
+        month: payload.month,
+        funcionarioId: payload.funcionarioId,
+        rubricaBase64: rubricBase64,
+        enderecoIp: ip,
+        dispositivoInfo: `${navigator.platform || "Device"} (${navigator.userAgent || "Web"})`,
+        summary: payload.res?.summary || {},
+      });
+
+      toast(res?.message || "Espelho de ponto assinado digitalmente com sucesso!");
+      closeDialog("timeClockSignDialog");
+      await refreshTimeClockMirrorSignatureStatus_();
+    } catch (err) {
+      toast(err.message || "Erro ao registrar assinatura do espelho de ponto.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitTimeClockMirrorContest_() {
+    const reasonInput = $("#clockContestReason");
+    const reason = String(reasonInput?.value || "").trim();
+    if (reason.length < 5) {
+      toast("Por favor, detalhe o motivo da contestação (mínimo 5 caracteres).", true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = clockSignCanvasState_.currentPayload;
+      const res = await call(FN.clockSignMirror, {
+        month: payload.month,
+        funcionarioId: payload.funcionarioId,
+        contestar: true,
+        motivoContestacao: reason,
+      });
+
+      toast(res?.message || "Contestação registrada com sucesso. O gestor analisará.");
+      closeDialog("timeClockSignDialog");
+      await refreshTimeClockMirrorSignatureStatus_();
+    } catch (err) {
+      toast(err.message || "Erro ao registrar contestação do espelho de ponto.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
   async function repairDuplicateClockEntries_() {
     if (!isAdmin())
       return toast("Somente o Administrador pode executar esta correção.", true);
@@ -8948,7 +9336,15 @@
       return false;
     return !fixed || swapWeekKey_(sourceDate) === swapWeekKey_(destinationDate);
   }
-  function openSwapDialog() {
+  async function openSwapDialog() {
+    if (!state.swapCandidates || !state.swapCandidates.length) {
+      setLoading(true);
+      try {
+        await loadSwaps();
+      } finally {
+        setLoading(false);
+      }
+    }
     const currentEmployeeId = String(
         val(state.user, "funcionarioId", "FuncionarioID", "id"),
       ),

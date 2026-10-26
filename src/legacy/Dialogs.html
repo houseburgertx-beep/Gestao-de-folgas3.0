@@ -1948,6 +1948,101 @@
   </div>
 </dialog>
 
+<!-- Espelho de Ponto - Assinatura Eletrônica e Contestação (Portaria MTP nº 671/2021) -->
+<dialog id="timeClockSignDialog" class="timeclock-sign-dialog" style="max-width: 680px; width: 95vw; border-radius: 20px; padding: 0; border: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <form id="timeClockSignForm" method="dialog" style="display:flex; flex-direction:column; max-height:90vh; margin:0;">
+    <div class="dialog-head" style="padding: 16px 20px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center; background: var(--surface-muted, #f8fafc);">
+      <div>
+        <span class="eyebrow" style="font-size: 11px; font-weight: 700; color: var(--primary, #007aff); letter-spacing: 0.5px; text-transform: uppercase;">PORTARIA MTP Nº 671/2021 &bull; MP 2.200-2</span>
+        <h3 id="clockSignModalTitle" style="margin: 4px 0 0; font-size: 17px; font-weight: 700; color: var(--text, #0f172a);">Assinar Espelho de Ponto</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="timeClockSignDialog" style="border:none; background:none; font-size:18px; cursor:pointer; color:var(--muted, #64748b);">✕</button>
+    </div>
+
+    <div class="dialog-body" style="padding: 18px 20px; overflow-y: auto; flex: 1; display:flex; flex-direction:column; gap:16px;">
+      <!-- Identificação do Colaborador e Mês -->
+      <div id="clockSignEmployeeInfo" style="background: var(--surface-muted, #f8fafc); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--line, #e2e8f0); font-size: 13px; line-height: 1.5;"></div>
+
+      <!-- Resumo de Horas (KPIs) -->
+      <div id="clockSignMetricsRow" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;"></div>
+
+      <!-- Alerta ou Selo de Status -->
+      <div id="clockSignStatusBanner" class="hidden" style="border-radius: 12px; padding: 12px 14px; font-size: 13px; font-weight: 500;"></div>
+
+      <!-- Tabela Resumo dos Dias do Mês (Rolável) -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <strong style="font-size: 13px; color: var(--text, #0f172a);">Demonstrativo Diário de Apuração</strong>
+          <span style="font-size: 11px; color: var(--muted, #64748b);">Role para conferir todos os dias</span>
+        </div>
+        <div id="clockSignDaysWrap" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--line, #e2e8f0); border-radius: 12px; background: var(--surface, #ffffff);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums;">
+            <thead style="position: sticky; top: 0; background: var(--surface-muted, #f1f5f9); z-index: 1;">
+              <tr>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Dia</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Entrada</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Intervalo</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Retorno</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Saída</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Trabalhado</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Saldo</th>
+              </tr>
+            </thead>
+            <tbody id="clockSignDaysBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Seção de Assinatura (Canvas de Rubrica) -->
+      <div id="clockSignActionSection" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 13px; color: var(--text, #0f172a);">Rubrica Digital (desenhe no quadro abaixo):</strong>
+          <button id="clockSignClearCanvasBtn" type="button" class="btn btn-ghost" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px;">Limpar traço</button>
+        </div>
+
+        <div style="border: 2px dashed var(--line, #cbd5e1); border-radius: 14px; background: #ffffff; height: 140px; position: relative; touch-action: none; overflow: hidden;">
+          <canvas id="clockSignCanvas" style="width: 100%; height: 100%; display: block; cursor: crosshair;"></canvas>
+          <div style="position: absolute; bottom: 8px; left: 14px; right: 14px; border-top: 1px solid rgba(0,0,0,0.12); display: flex; justify-content: space-between; pointer-events: none;">
+            <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Linha de assinatura</span>
+            <span style="font-size: 10px; color: #94a3b8;">Tela touch</span>
+          </div>
+        </div>
+
+        <!-- Termo de Declaração Legal -->
+        <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 12px; color: var(--muted, #475569); line-height: 1.4; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="clockSignCheckTerms" required style="margin-top: 2px; width: 16px; height: 16px; accent-color: var(--primary, #007aff);" />
+          <span>Declaro que conferi todos os registros de ponto e o saldo do mês acima, concordando plenamente com as informações nos termos da Portaria MTP nº 671/2021.</span>
+        </label>
+      </div>
+
+      <!-- Seção de Contestação (Opcional) -->
+      <div id="clockContestSection" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+        <strong style="font-size: 13px; color: #9a3412;">Motivo da Contestação / Divergência</strong>
+        <p style="margin: 0; font-size: 12px; color: #7c2d12;">Descreva quais dias e horários estão incorretos para que o gestor possa analisar e ajustar.</p>
+        <textarea id="clockContestReason" rows="3" placeholder="Ex: No dia 14/10 realizei hora extra até as 23h mas constou saída às 22h..." style="width: 100%; border-radius: 8px; border: 1px solid #fdba74; padding: 8px; font-size: 12.5px; box-sizing: border-box;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" id="clockCancelContestBtn" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px; min-height: 36px; border-radius: 8px;">Cancelar contestação</button>
+          <button type="button" id="clockSubmitContestBtn" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; min-height: 36px; border-radius: 8px; background: #ea580c; border-color: #ea580c;">Enviar contestação ao gestor</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-actions" style="padding: 14px 20px; border-top: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center; background: var(--surface-muted, #f8fafc);">
+      <button type="button" id="clockToggleContestBtn" class="btn btn-ghost" style="color: #dc2626; font-size: 12.5px; padding: 6px 10px; min-height: 44px; border-radius: 10px;">
+        Contestar apuração
+      </button>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-secondary" data-close="timeClockSignDialog" style="min-height: 44px; border-radius: 12px; padding: 8px 16px;">
+          Fechar
+        </button>
+        <button type="button" id="clockConfirmSignBtn" class="btn btn-primary" style="min-height: 44px; border-radius: 12px; padding: 8px 20px; font-weight: 700; background: #16a34a; border-color: #16a34a;">
+          Confirmar assinatura digital
+        </button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 
 
 

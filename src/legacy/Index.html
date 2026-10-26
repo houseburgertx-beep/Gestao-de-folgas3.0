@@ -621,6 +621,9 @@
                   <option>Aprovada</option>
                   <option>Rejeitada</option>
                   <option>Cancelada</option></select
+                ><button id="timeOffSwapBtn" class="btn btn-secondary" type="button" title="Trocar folga com colega">
+                  ⇄ Trocar folga
+                </button
                 ><button id="newTimeOffBtn" class="btn btn-primary">
                   ＋ Nova folga
                 </button>
@@ -1098,6 +1101,16 @@
                   >
                     📄 Espelho de Ponto (Portaria 671)
                   </button>
+                  <button
+                    id="clockSignMirrorBtn"
+                    class="btn btn-primary clock-sign-mirror-btn"
+                    type="button"
+                    style="font-size:12.5px; padding:6px 14px; border-radius:10px; display:inline-flex; align-items:center; gap:6px; font-weight:600;"
+                    title="Conferir e assinar digitalmente o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
+                  >
+                    Assinar espelho digitalmente
+                  </button>
+                  <span id="clockMirrorSignedBadge" class="badge badge-success hidden" style="font-size:11px; padding:5px 9px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; font-weight:600;"></span>
                   <label for="clockDayFilter">Dia exibido</label>
                   <div>
                     <button

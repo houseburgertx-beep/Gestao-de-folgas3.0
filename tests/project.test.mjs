@@ -3822,6 +3822,39 @@ test("CozinhaFlow 100% Mobile: design fluido Apple iOS, zero NaN em selos, naveg
   assert.match(cozinhaCss, /\.team-member-card\.rank-gold/, "CSS deve estilizar pódio ouro");
 });
 
+test("Sólides Clone (Módulos 1 e 3): Troca de Folgas P2P com Duplo Aceite e Assinatura Digital do Espelho Mensal (Portaria 671 MTE)", async () => {
+  const [indexHtml, dialogsHtml, scriptsHtml, apiClockJs] = await Promise.all([
+    readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8"),
+  ]);
+
+  // 1. Módulo 1: Botão direto de Troca de Folga em Folgas e chamada a openSwapDialog
+  assert.match(indexHtml, /id="timeOffSwapBtn"/, "Index.html deve conter o botão timeOffSwapBtn na visualização de folgas");
+  assert.match(scriptsHtml, /\$\("#timeOffSwapBtn"\)\.onclick\s*=\s*openSwapDialog/, "Scripts.html deve vincular timeOffSwapBtn a openSwapDialog");
+  assert.match(scriptsHtml, /async function openSwapDialog\(\)/, "openSwapDialog deve ser assíncrona para garantir carregamento prévio de candidatos");
+
+  // 2. Módulo 3: Botão de Assinatura do Espelho e Badge de Status no Ponto
+  assert.match(indexHtml, /id="clockSignMirrorBtn"/, "Index.html deve conter o botão clockSignMirrorBtn no controle de ponto");
+  assert.match(indexHtml, /id="clockMirrorSignedBadge"/, "Index.html deve conter o badge de status de assinatura do espelho");
+  assert.match(scriptsHtml, /clockSignMirror:\s*"signMonthlyTimeClockMirror"/, "Scripts.html deve mapear a função clockSignMirror no FN");
+  assert.match(scriptsHtml, /\$\("#clockSignMirrorBtn"\)\.onclick\s*=\s*openTimeClockMirrorSign/, "Scripts.html deve vincular clockSignMirrorBtn a openTimeClockMirrorSign");
+
+  // 3. Módulo 3: Dialog modal de Assinatura e Contestação (Portaria 671 MTE)
+  assert.match(dialogsHtml, /id="timeClockSignDialog"/, "Dialogs.html deve conter timeClockSignDialog");
+  assert.match(dialogsHtml, /id="clockSignCanvas"/, "Dialogs.html deve conter canvas para rubrica digital touch");
+  assert.match(dialogsHtml, /id="clockSignCheckTerms"/, "Dialogs.html deve conter checkbox de declaração da Portaria 671");
+  assert.match(dialogsHtml, /id="clockContestSection"/, "Dialogs.html deve conter seção de contestação de apuração");
+
+  // 4. Módulo 3: Backend de Assinatura e Contestação em api-clock.js
+  assert.match(apiClockJs, /async signMonthlyTimeClockMirror\(args\)/, "api-clock.js deve implementar signMonthlyTimeClockMirror");
+  assert.match(apiClockJs, /CodigoValidacao:\s*validationCode/, "signMonthlyTimeClockMirror deve gerar código de validação pericial");
+  assert.match(apiClockJs, /HashDocumentoFinalSHA256:\s*hashFinal/, "signMonthlyTimeClockMirror deve gravar hash SHA-256 de integridade");
+  assert.match(apiClockJs, /payload\.contestar/, "signMonthlyTimeClockMirror deve suportar contestação de divergências pelo colaborador");
+});
+
+
 
 
 

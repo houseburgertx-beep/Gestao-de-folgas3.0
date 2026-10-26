@@ -19754,6 +19754,85 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   color: #cbd5e1 !important;
 }
 
+/* ==========================================================================
+   MÓDULOS SÓLIDES: TROCA DE FOLGA E ASSINATURA DE ESPELHO (HOUSE 190)
+   ========================================================================== */
+
+/* Dialog de Assinatura do Espelho de Ponto (Portaria 671 MTE) */
+.timeclock-sign-dialog {
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.timeclock-sign-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.timeclock-sign-dialog table th,
+.timeclock-sign-dialog table td {
+  font-variant-numeric: tabular-nums !important;
+}
+
+.clock-sign-mirror-btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.clock-sign-mirror-btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Troca de Folgas: Cards e Dialog Mobile-First */
+.swap-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.swap-dialog {
+  border-radius: 20px !important;
+}
+
+.swap-dialog .dialog-grid label select,
+.swap-dialog .dialog-grid label textarea {
+  border-radius: 12px !important;
+  min-height: 44px !important;
+  font-size: 14px !important;
+}
+
+.swap-flow {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  background: var(--surface-muted, #f8fafc) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  overflow-x: auto !important;
+}
+
+.swap-flow span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+}
+
+.swap-flow span b {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  background: var(--primary, #007aff) !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+}
+
+
 
 
 
@@ -23346,6 +23425,9 @@ dialog#medicalCertificateDialog {
                   <option>Aprovada</option>
                   <option>Rejeitada</option>
                   <option>Cancelada</option></select
+                ><button id="timeOffSwapBtn" class="btn btn-secondary" type="button" title="Trocar folga com colega">
+                  ⇄ Trocar folga
+                </button
                 ><button id="newTimeOffBtn" class="btn btn-primary">
                   ＋ Nova folga
                 </button>
@@ -23823,6 +23905,16 @@ dialog#medicalCertificateDialog {
                   >
                     📄 Espelho de Ponto (Portaria 671)
                   </button>
+                  <button
+                    id="clockSignMirrorBtn"
+                    class="btn btn-primary clock-sign-mirror-btn"
+                    type="button"
+                    style="font-size:12.5px; padding:6px 14px; border-radius:10px; display:inline-flex; align-items:center; gap:6px; font-weight:600;"
+                    title="Conferir e assinar digitalmente o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
+                  >
+                    Assinar espelho digitalmente
+                  </button>
+                  <span id="clockMirrorSignedBadge" class="badge badge-success hidden" style="font-size:11px; padding:5px 9px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; font-weight:600;"></span>
                   <label for="clockDayFilter">Dia exibido</label>
                   <div>
                     <button
@@ -26778,6 +26870,101 @@ dialog#medicalCertificateDialog {
   </div>
 </dialog>
 
+<!-- Espelho de Ponto - Assinatura Eletrônica e Contestação (Portaria MTP nº 671/2021) -->
+<dialog id="timeClockSignDialog" class="timeclock-sign-dialog" style="max-width: 680px; width: 95vw; border-radius: 20px; padding: 0; border: 1px solid var(--border-color, #e2e8f0); background: var(--bg-card, #ffffff); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+  <form id="timeClockSignForm" method="dialog" style="display:flex; flex-direction:column; max-height:90vh; margin:0;">
+    <div class="dialog-head" style="padding: 16px 20px; border-bottom: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center; background: var(--surface-muted, #f8fafc);">
+      <div>
+        <span class="eyebrow" style="font-size: 11px; font-weight: 700; color: var(--primary, #007aff); letter-spacing: 0.5px; text-transform: uppercase;">PORTARIA MTP Nº 671/2021 &bull; MP 2.200-2</span>
+        <h3 id="clockSignModalTitle" style="margin: 4px 0 0; font-size: 17px; font-weight: 700; color: var(--text, #0f172a);">Assinar Espelho de Ponto</h3>
+      </div>
+      <button type="button" class="icon-btn" data-close="timeClockSignDialog" style="border:none; background:none; font-size:18px; cursor:pointer; color:var(--muted, #64748b);">✕</button>
+    </div>
+
+    <div class="dialog-body" style="padding: 18px 20px; overflow-y: auto; flex: 1; display:flex; flex-direction:column; gap:16px;">
+      <!-- Identificação do Colaborador e Mês -->
+      <div id="clockSignEmployeeInfo" style="background: var(--surface-muted, #f8fafc); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--line, #e2e8f0); font-size: 13px; line-height: 1.5;"></div>
+
+      <!-- Resumo de Horas (KPIs) -->
+      <div id="clockSignMetricsRow" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;"></div>
+
+      <!-- Alerta ou Selo de Status -->
+      <div id="clockSignStatusBanner" class="hidden" style="border-radius: 12px; padding: 12px 14px; font-size: 13px; font-weight: 500;"></div>
+
+      <!-- Tabela Resumo dos Dias do Mês (Rolável) -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <strong style="font-size: 13px; color: var(--text, #0f172a);">Demonstrativo Diário de Apuração</strong>
+          <span style="font-size: 11px; color: var(--muted, #64748b);">Role para conferir todos os dias</span>
+        </div>
+        <div id="clockSignDaysWrap" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--line, #e2e8f0); border-radius: 12px; background: var(--surface, #ffffff);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums;">
+            <thead style="position: sticky; top: 0; background: var(--surface-muted, #f1f5f9); z-index: 1;">
+              <tr>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Dia</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Entrada</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Intervalo</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Retorno</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Saída</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Trabalhado</th>
+                <th style="padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line, #cbd5e1);">Saldo</th>
+              </tr>
+            </thead>
+            <tbody id="clockSignDaysBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Seção de Assinatura (Canvas de Rubrica) -->
+      <div id="clockSignActionSection" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 13px; color: var(--text, #0f172a);">Rubrica Digital (desenhe no quadro abaixo):</strong>
+          <button id="clockSignClearCanvasBtn" type="button" class="btn btn-ghost" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px;">Limpar traço</button>
+        </div>
+
+        <div style="border: 2px dashed var(--line, #cbd5e1); border-radius: 14px; background: #ffffff; height: 140px; position: relative; touch-action: none; overflow: hidden;">
+          <canvas id="clockSignCanvas" style="width: 100%; height: 100%; display: block; cursor: crosshair;"></canvas>
+          <div style="position: absolute; bottom: 8px; left: 14px; right: 14px; border-top: 1px solid rgba(0,0,0,0.12); display: flex; justify-content: space-between; pointer-events: none;">
+            <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Linha de assinatura</span>
+            <span style="font-size: 10px; color: #94a3b8;">Tela touch</span>
+          </div>
+        </div>
+
+        <!-- Termo de Declaração Legal -->
+        <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 12px; color: var(--muted, #475569); line-height: 1.4; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="clockSignCheckTerms" required style="margin-top: 2px; width: 16px; height: 16px; accent-color: var(--primary, #007aff);" />
+          <span>Declaro que conferi todos os registros de ponto e o saldo do mês acima, concordando plenamente com as informações nos termos da Portaria MTP nº 671/2021.</span>
+        </label>
+      </div>
+
+      <!-- Seção de Contestação (Opcional) -->
+      <div id="clockContestSection" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+        <strong style="font-size: 13px; color: #9a3412;">Motivo da Contestação / Divergência</strong>
+        <p style="margin: 0; font-size: 12px; color: #7c2d12;">Descreva quais dias e horários estão incorretos para que o gestor possa analisar e ajustar.</p>
+        <textarea id="clockContestReason" rows="3" placeholder="Ex: No dia 14/10 realizei hora extra até as 23h mas constou saída às 22h..." style="width: 100%; border-radius: 8px; border: 1px solid #fdba74; padding: 8px; font-size: 12.5px; box-sizing: border-box;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" id="clockCancelContestBtn" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px; min-height: 36px; border-radius: 8px;">Cancelar contestação</button>
+          <button type="button" id="clockSubmitContestBtn" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; min-height: 36px; border-radius: 8px; background: #ea580c; border-color: #ea580c;">Enviar contestação ao gestor</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-actions" style="padding: 14px 20px; border-top: 1px solid var(--line, #e2e8f0); display: flex; justify-content: space-between; align-items: center; background: var(--surface-muted, #f8fafc);">
+      <button type="button" id="clockToggleContestBtn" class="btn btn-ghost" style="color: #dc2626; font-size: 12.5px; padding: 6px 10px; min-height: 44px; border-radius: 10px;">
+        Contestar apuração
+      </button>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-secondary" data-close="timeClockSignDialog" style="min-height: 44px; border-radius: 12px; padding: 8px 16px;">
+          Fechar
+        </button>
+        <button type="button" id="clockConfirmSignBtn" class="btn btn-primary" style="min-height: 44px; border-radius: 12px; padding: 8px 20px; font-weight: 700; background: #16a34a; border-color: #16a34a;">
+          Confirmar assinatura digital
+        </button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 
 
 
@@ -26921,6 +27108,7 @@ dialog#medicalCertificateDialog {
     clockStoreLocation: "saveTimeClockStoreLocation",
     clockSheet: "generateMonthlyTimeClockSheet",
     clockMirrorData: "getMonthlyTimeClockMirrorData",
+    clockSignMirror: "signMonthlyTimeClockMirror",
     operationalRules: "getOperationalRules",
     saveOperationalRule: "saveOperationalRule",
     swaps: "getTimeOffSwaps",
@@ -28077,6 +28265,7 @@ dialog#medicalCertificateDialog {
       $("#clockDayFilter").value = defaultClockDay;
     if ($("#clockExportBtn")) $("#clockExportBtn").onclick = exportTimeClockSheet;
     if ($("#clockDownloadMirrorPdfBtn")) $("#clockDownloadMirrorPdfBtn").onclick = openTimeClockMirrorPrint;
+    if ($("#clockSignMirrorBtn")) $("#clockSignMirrorBtn").onclick = openTimeClockMirrorSign;
     if ($("#clockManualPunchBtn")) $("#clockManualPunchBtn").onclick = openManualClockPunch_;
     if ($("#clockRepairDuplicatesBtn")) $("#clockRepairDuplicatesBtn").onclick = repairDuplicateClockEntries_;
     if ($("#clockManualPunchForm")) $("#clockManualPunchForm").onsubmit = saveManualClockPunch_;
@@ -28224,6 +28413,7 @@ dialog#medicalCertificateDialog {
     if ($("#newOperationalRuleBtn")) $("#newOperationalRuleBtn").onclick = openOperationalRuleDialog;
     if ($("#operationalRuleForm")) $("#operationalRuleForm").onsubmit = saveOperationalRuleUI;
     if ($("#newSwapBtn")) $("#newSwapBtn").onclick = openSwapDialog;
+    if ($("#timeOffSwapBtn")) $("#timeOffSwapBtn").onclick = openSwapDialog;
     if ($("#pendingNewTimeOff")) $("#pendingNewTimeOff").onclick = () => editTimeOff();
     if ($("#pendingTimeOffAction")) $("#pendingTimeOffAction").onclick = () => editTimeOff();
     if ($("#pendingClockAction")) $("#pendingClockAction").onclick = () => switchView("timeclock");
@@ -33320,6 +33510,7 @@ dialog#medicalCertificateDialog {
       `<div class="panel pending-empty-state"><span>⌁</span><strong>${isManager() ? "Nenhum ajuste de ponto pendente" : "Você não possui pedidos de ajuste"}</strong><p>${isManager() ? "As correções enviadas pela equipe aparecerão aqui." : "Para solicitar uma correção, abra Meu ponto e escolha uma marcação."}</p></div>`;
     renderPendingCenterSummary_();
     renderEmployeeClockDashboard();
+    refreshTimeClockMirrorSignatureStatus_();
   }
   function openClockJustification_(employeeId, date) {
     const day = arr((state.timeClock || {}).days).find(
@@ -35498,6 +35689,390 @@ dialog#medicalCertificateDialog {
       setLoading(false);
     }
   }
+
+  const clockSignCanvasState_ = {
+    isDrawing: false,
+    hasDrawn: false,
+    ctx: null,
+    currentPayload: null,
+  };
+
+  async function getClientIpForSign_() {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch("https://api.ipify.org?format=json", { signal: controller.signal });
+      clearTimeout(timer);
+      const data = await res.json();
+      return String(data.ip || "Dispositivo Móvel").trim();
+    } catch {
+      return "Dispositivo Móvel";
+    }
+  }
+
+  async function refreshTimeClockMirrorSignatureStatus_() {
+    const signBtn = $("#clockSignMirrorBtn");
+    const badgeEl = $("#clockMirrorSignedBadge");
+    if (!signBtn && !badgeEl) return;
+    const selectedMonth = $("#clockMonth")?.value || new Date().toISOString().slice(0, 7);
+    const selectedEmp = $("#clockEmployeeFilter")?.value || String(val(state.user, "funcionarioId", "FuncionarioID", "id") || "");
+    if (!selectedEmp) {
+      if (badgeEl) badgeEl.classList.add("hidden");
+      return;
+    }
+
+    try {
+      const res = await call(FN.clockMirrorData, {
+        month: selectedMonth,
+        funcionarioId: selectedEmp,
+      });
+      if (res?.signature?.isSigned) {
+        if (signBtn) signBtn.textContent = "Ver espelho assinado";
+        if (badgeEl) {
+          badgeEl.textContent = `✓ Assinado (${res.signature.codigoValidacao || "Portaria 671"})`;
+          badgeEl.classList.remove("hidden");
+          badgeEl.className = "badge badge-success";
+        }
+      } else if (res?.signature?.status === "Contestado") {
+        if (signBtn) signBtn.textContent = "Revisar contestação";
+        if (badgeEl) {
+          badgeEl.textContent = "⚠ Contestado";
+          badgeEl.classList.remove("hidden");
+          badgeEl.className = "badge badge-warning";
+        }
+      } else {
+        if (signBtn) signBtn.textContent = "Assinar espelho digitalmente";
+        if (badgeEl) badgeEl.classList.add("hidden");
+      }
+    } catch (err) {
+      // Falha silenciosa em background
+    }
+  }
+
+  async function openTimeClockMirrorSign() {
+    setLoading(true);
+    try {
+      const selectedMonth = $("#clockMonth")?.value || new Date().toISOString().slice(0, 7);
+      const selectedEmp = $("#clockEmployeeFilter")?.value || String(val(state.user, "funcionarioId", "FuncionarioID", "id") || "");
+      if (!selectedEmp) {
+        throw new Error("Selecione um colaborador para abrir o espelho de ponto.");
+      }
+
+      const res = await call(FN.clockMirrorData, {
+        month: selectedMonth,
+        funcionarioId: selectedEmp,
+      });
+
+      if (!res || !res.days) {
+        throw new Error("Não foi possível carregar os dados do espelho de ponto.");
+      }
+
+      clockSignCanvasState_.currentPayload = {
+        res,
+        month: selectedMonth,
+        funcionarioId: selectedEmp,
+      };
+
+      const emp = res.employee || {};
+      const days = res.days || [];
+      const summary = res.summary || {};
+      const signature = res.signature || {};
+
+      const [year, monthNum] = (res.month || selectedMonth).split("-");
+      const monthNames = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+      ];
+      const monthLabel = `${monthNames[Number(monthNum) - 1] || monthNum} de ${year}`;
+
+      if ($("#clockSignModalTitle")) {
+        $("#clockSignModalTitle").textContent = `Espelho de Ponto — ${monthLabel}`;
+      }
+
+      if ($("#clockSignEmployeeInfo")) {
+        $("#clockSignEmployeeInfo").innerHTML = `
+          <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+            <div><strong>Empregado(a):</strong> ${esc(emp.nome)} (CPF: ${esc(emp.cpf || "---")})</div>
+            <div><strong>Unidade:</strong> ${esc(emp.loja || "---")}</div>
+          </div>
+          <div style="margin-top:4px; color:var(--muted, #64748b);">
+            <strong>Cargo:</strong> ${esc(emp.cargo || "Colaborador")} &bull; <strong>CNPJ:</strong> ${esc(emp.cnpj || "---")} &bull; <strong>Período:</strong> ${esc(monthLabel)}
+          </div>
+        `;
+      }
+
+      if ($("#clockSignMetricsRow")) {
+        $("#clockSignMetricsRow").innerHTML = `
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Total Trabalhado</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.trabalhadoTexto || "0h 00min")}</strong>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Carga Prevista</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.previstoTexto || "0h 00min")}</strong>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Saldo do Mês</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.saldoMesTexto || summary.saldoTexto || "0h 00min")}</strong>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; text-align:center;">
+            <small style="color:#64748b; font-size:11px; display:block;">Banco Acumulado</small>
+            <strong style="font-size:14px; color:#0f172a; font-family:monospace;">${esc(summary.saldoAcumuladoTexto || summary.saldoTexto || "0h 00min")}</strong>
+          </div>
+        `;
+      }
+
+      if ($("#clockSignDaysBody")) {
+        const weekdayShort = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        $("#clockSignDaysBody").innerHTML = days.map((d) => {
+          const parts = d.data.split("-");
+          const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          const wk = weekdayShort[dt.getDay()] || "";
+          const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+          const bg = (d.folga || d.folgaFixa) ? "background:#f1f5f9;" : (isWeekend ? "background:#f8fafc;" : "");
+          return `
+            <tr style="${bg} border-bottom:1px solid #f1f5f9;">
+              <td style="padding:5px 6px; text-align:center; font-weight:600;">${parts[2]}/${parts[1]} <small style="color:#64748b;">${wk}</small></td>
+              <td style="padding:5px 6px; text-align:center;">${d.entrada || "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.saidaIntervalo || "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.retornoIntervalo || "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.saida || "—"}</td>
+              <td style="padding:5px 6px; text-align:center; font-weight:600;">${d.trabalhado !== "0h 00min" ? d.trabalhado : "—"}</td>
+              <td style="padding:5px 6px; text-align:center;">${d.saldo !== "+0h 00min" ? d.saldo : "0h 00min"}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      const banner = $("#clockSignStatusBanner");
+      const actionSec = $("#clockSignActionSection");
+      const contestSec = $("#clockContestSection");
+      const toggleContestBtn = $("#clockToggleContestBtn");
+      const confirmSignBtn = $("#clockConfirmSignBtn");
+
+      contestSec?.classList.add("hidden");
+
+      if (signature.isSigned) {
+        if (banner) {
+          banner.className = "banner-success";
+          banner.style.display = "block";
+          banner.style.background = "#dcfce7";
+          banner.style.color = "#166534";
+          banner.style.border = "1px solid #bbf7d0";
+          banner.innerHTML = `
+            <div><strong>✓ Espelho assinado digitalmente</strong> em ${formatBrasiliaDateTime(signature.dataAssinatura || new Date().toISOString())}</div>
+            <div style="font-size:11.5px; margin-top:4px;">Código de Autenticação: <strong>${esc(signature.codigoValidacao)}</strong></div>
+            <div style="font-size:10.5px; margin-top:2px; font-family:monospace; word-break:break-all;">SHA-256: ${esc(signature.hashDocumentoFinalSHA256)}</div>
+          `;
+        }
+        if (actionSec) actionSec.style.display = "none";
+        if (toggleContestBtn) toggleContestBtn.style.display = "none";
+        if (confirmSignBtn) {
+          confirmSignBtn.textContent = "Imprimir / Salvar PDF";
+          confirmSignBtn.style.background = "#0284c7";
+          confirmSignBtn.style.borderColor = "#0284c7";
+          confirmSignBtn.onclick = () => {
+            closeDialog("timeClockSignDialog");
+            openTimeClockMirrorPrint();
+          };
+        }
+      } else if (signature.status === "Contestado") {
+        if (banner) {
+          banner.className = "banner-warning";
+          banner.style.display = "block";
+          banner.style.background = "#fff7ed";
+          banner.style.color = "#9a3412";
+          banner.style.border = "1px solid #fed7aa";
+          banner.innerHTML = `
+            <div><strong>⚠ Espelho em contestação</strong> pelo colaborador</div>
+            <div style="font-size:12px; margin-top:4px;">Motivo: "${esc(signature.ultimoMotivoContestacao)}"</div>
+            <div style="font-size:11px; margin-top:2px; color:#7c2d12;">Aguardando revisão ou alinhamento do gestor.</div>
+          `;
+        }
+        if (actionSec) actionSec.style.display = "flex";
+        if (toggleContestBtn) toggleContestBtn.style.display = "inline-block";
+        if (confirmSignBtn) {
+          confirmSignBtn.textContent = "Reassinar com ajuste";
+          confirmSignBtn.style.background = "#16a34a";
+          confirmSignBtn.style.borderColor = "#16a34a";
+          confirmSignBtn.onclick = () => confirmTimeClockMirrorSign_();
+        }
+        initClockSignCanvas_();
+      } else {
+        if (banner) {
+          banner.className = "hidden";
+          banner.style.display = "none";
+        }
+        if (actionSec) actionSec.style.display = "flex";
+        if (toggleContestBtn) toggleContestBtn.style.display = "inline-block";
+        if (confirmSignBtn) {
+          confirmSignBtn.textContent = "Confirmar assinatura digital";
+          confirmSignBtn.style.background = "#16a34a";
+          confirmSignBtn.style.borderColor = "#16a34a";
+          confirmSignBtn.onclick = () => confirmTimeClockMirrorSign_();
+        }
+        initClockSignCanvas_();
+      }
+
+      if (toggleContestBtn) {
+        toggleContestBtn.onclick = () => {
+          contestSec?.classList.remove("hidden");
+          if (actionSec) actionSec.style.display = "none";
+          toggleContestBtn.style.display = "none";
+        };
+      }
+      if ($("#clockCancelContestBtn")) {
+        $("#clockCancelContestBtn").onclick = () => {
+          contestSec?.classList.add("hidden");
+          if (actionSec) actionSec.style.display = "flex";
+          if (toggleContestBtn) toggleContestBtn.style.display = "inline-block";
+        };
+      }
+      if ($("#clockSubmitContestBtn")) {
+        $("#clockSubmitContestBtn").onclick = () => submitTimeClockMirrorContest_();
+      }
+
+      openDialog("timeClockSignDialog");
+    } catch (err) {
+      toast(err.message || "Erro ao carregar espelho de ponto para assinatura.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function initClockSignCanvas_() {
+    const canvas = $("#clockSignCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    clockSignCanvasState_.ctx = ctx;
+    clockSignCanvasState_.hasDrawn = false;
+    clockSignCanvasState_.isDrawing = false;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = (rect.width || 320) * dpr;
+    canvas.height = (rect.height || 140) * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0f172a";
+
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - r.left, y: clientY - r.top };
+    };
+
+    const start = (e) => {
+      e.preventDefault();
+      clockSignCanvasState_.isDrawing = true;
+      clockSignCanvasState_.hasDrawn = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    };
+
+    const move = (e) => {
+      if (!clockSignCanvasState_.isDrawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    };
+
+    const end = (e) => {
+      if (!clockSignCanvasState_.isDrawing) return;
+      e.preventDefault();
+      clockSignCanvasState_.isDrawing = false;
+      ctx.closePath();
+    };
+
+    canvas.onmousedown = start;
+    canvas.onmousemove = move;
+    window.onmouseup = end;
+
+    canvas.ontouchstart = start;
+    canvas.ontouchmove = move;
+    canvas.ontouchend = end;
+
+    const clearBtn = $("#clockSignClearCanvasBtn");
+    if (clearBtn) {
+      clearBtn.onclick = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        clockSignCanvasState_.hasDrawn = false;
+      };
+    }
+
+    const checkTerms = $("#clockSignCheckTerms");
+    if (checkTerms) checkTerms.checked = false;
+  }
+
+  async function confirmTimeClockMirrorSign_() {
+    if (!clockSignCanvasState_.hasDrawn) {
+      toast("Por favor, desenhe sua rubrica manuscrita no quadro antes de confirmar.", true);
+      return;
+    }
+    const terms = $("#clockSignCheckTerms");
+    if (terms && !terms.checked) {
+      toast("Por favor, confirme a declaração de conferência do espelho de ponto.", true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const canvas = $("#clockSignCanvas");
+      const rubricBase64 = canvas ? canvas.toDataURL("image/png") : "";
+      const ip = await getClientIpForSign_();
+      const payload = clockSignCanvasState_.currentPayload;
+
+      const res = await call(FN.clockSignMirror, {
+        month: payload.month,
+        funcionarioId: payload.funcionarioId,
+        rubricaBase64: rubricBase64,
+        enderecoIp: ip,
+        dispositivoInfo: `${navigator.platform || "Device"} (${navigator.userAgent || "Web"})`,
+        summary: payload.res?.summary || {},
+      });
+
+      toast(res?.message || "Espelho de ponto assinado digitalmente com sucesso!");
+      closeDialog("timeClockSignDialog");
+      await refreshTimeClockMirrorSignatureStatus_();
+    } catch (err) {
+      toast(err.message || "Erro ao registrar assinatura do espelho de ponto.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitTimeClockMirrorContest_() {
+    const reasonInput = $("#clockContestReason");
+    const reason = String(reasonInput?.value || "").trim();
+    if (reason.length < 5) {
+      toast("Por favor, detalhe o motivo da contestação (mínimo 5 caracteres).", true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = clockSignCanvasState_.currentPayload;
+      const res = await call(FN.clockSignMirror, {
+        month: payload.month,
+        funcionarioId: payload.funcionarioId,
+        contestar: true,
+        motivoContestacao: reason,
+      });
+
+      toast(res?.message || "Contestação registrada com sucesso. O gestor analisará.");
+      closeDialog("timeClockSignDialog");
+      await refreshTimeClockMirrorSignatureStatus_();
+    } catch (err) {
+      toast(err.message || "Erro ao registrar contestação do espelho de ponto.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
   async function repairDuplicateClockEntries_() {
     if (!isAdmin())
       return toast("Somente o Administrador pode executar esta correção.", true);
@@ -35752,7 +36327,15 @@ dialog#medicalCertificateDialog {
       return false;
     return !fixed || swapWeekKey_(sourceDate) === swapWeekKey_(destinationDate);
   }
-  function openSwapDialog() {
+  async function openSwapDialog() {
+    if (!state.swapCandidates || !state.swapCandidates.length) {
+      setLoading(true);
+      try {
+        await loadSwaps();
+      } finally {
+        setLoading(false);
+      }
+    }
     const currentEmployeeId = String(
         val(state.user, "funcionarioId", "FuncionarioID", "id"),
       ),

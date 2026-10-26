@@ -6885,6 +6885,85 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   color: #cbd5e1 !important;
 }
 
+/* ==========================================================================
+   MÓDULOS SÓLIDES: TROCA DE FOLGA E ASSINATURA DE ESPELHO (HOUSE 190)
+   ========================================================================== */
+
+/* Dialog de Assinatura do Espelho de Ponto (Portaria 671 MTE) */
+.timeclock-sign-dialog {
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.timeclock-sign-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.timeclock-sign-dialog table th,
+.timeclock-sign-dialog table td {
+  font-variant-numeric: tabular-nums !important;
+}
+
+.clock-sign-mirror-btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.clock-sign-mirror-btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Troca de Folgas: Cards e Dialog Mobile-First */
+.swap-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.swap-dialog {
+  border-radius: 20px !important;
+}
+
+.swap-dialog .dialog-grid label select,
+.swap-dialog .dialog-grid label textarea {
+  border-radius: 12px !important;
+  min-height: 44px !important;
+  font-size: 14px !important;
+}
+
+.swap-flow {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  background: var(--surface-muted, #f8fafc) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  overflow-x: auto !important;
+}
+
+.swap-flow span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+}
+
+.swap-flow span b {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  background: var(--primary, #007aff) !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+}
+
+
 
 
 

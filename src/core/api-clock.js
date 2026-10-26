@@ -14,6 +14,7 @@ import {
 } from "./utils.js";
 import {
   audit,
+  createNotification,
   dropClientToken,
   isAdmin,
   requireAdmin,
@@ -1959,6 +1960,31 @@ export function createClockHandlers() {
         ? empAccum.saldoMinutos
         : (context.summary?.saldoMinutos || 0);
 
+      let signatureInfo = {
+        isSigned: false,
+        status: "Pendente",
+        dataAssinatura: "",
+        codigoValidacao: "",
+        hashDocumentoFinalSHA256: "",
+        ultimoMotivoContestacao: "",
+      };
+      try {
+        const docId = `ESPELHO_${context.month}_${targetEmpId}`;
+        const existingDoc = await runtime.getById("Documentos", docId);
+        if (existingDoc) {
+          signatureInfo = {
+            isSigned: existingDoc.Status === "Assinado",
+            status: existingDoc.Status || "Pendente",
+            dataAssinatura: existingDoc.DataAssinatura || "",
+            codigoValidacao: existingDoc.CodigoValidacao || "",
+            hashDocumentoFinalSHA256: existingDoc.HashDocumentoFinalSHA256 || "",
+            ultimoMotivoContestacao: existingDoc.UltimoMotivoContestacao || "",
+          };
+        }
+      } catch {
+        // Tabela ou documento ainda não gravado
+      }
+
       return success(
         {
           month: context.month,
@@ -1999,8 +2025,157 @@ export function createClockHandlers() {
             saldoAcumuladoTexto,
             saldoAcumuladoMinutos,
           },
+          signature: signatureInfo,
         },
         "Espelho de ponto apurado com sucesso.",
+      );
+    },
+
+    /**
+     * Assinatura Eletrônica e Contestação do Espelho de Ponto (Portaria MTP nº 671/2021)
+     */
+    async signMonthlyTimeClockMirror(args) {
+      const values = dropClientToken(args);
+      const payload = values[0] || {};
+      const profile = await runtime.requireProfile();
+      const isCollab = !isAdmin(profile) && !isManager(profile);
+      const month = String(payload.month || "").trim() || monthIso(todayIso());
+      const targetEmpId = isCollab
+        ? String(profile.FuncionarioID || "").trim()
+        : String(payload.funcionarioId || profile.FuncionarioID || "").trim();
+
+      assert(targetEmpId, "Funcionário não identificado.");
+      assert(month, "Mês de referência não informado.");
+
+      const employees = await runtime.list("Funcionarios", { profile }).catch(() => []);
+      const targetEmp =
+        employees.find((e) => String(e.FuncionarioID || e.id || "") === targetEmpId) || {};
+      const docId = `ESPELHO_${month}_${targetEmpId}`;
+
+      // Caso de Contestação
+      if (payload.contestar) {
+        const motivo = String(payload.motivoContestacao || "").trim();
+        assert(motivo.length >= 5, "Informe o motivo da contestação (mínimo 5 caracteres).");
+
+        const record = {
+          DocID: docId,
+          DocumentoID: docId,
+          Titulo: `Espelho de Ponto — ${month}`,
+          Tipo: "Espelho de Ponto",
+          Descricao: `Espelho de ponto mensal de ${month} contestado pelo colaborador.`,
+          FuncionarioID: targetEmpId,
+          NomeFuncionario: targetEmp.Nome || profile.Nome || "Colaborador",
+          CPFFuncionario: targetEmp.CPF || "",
+          CargoFuncionario: targetEmp.Cargo || "",
+          LojaID: targetEmp.LojaID || profile.LojaID || "",
+          MesReferencia: month,
+          Status: "Contestado",
+          UltimoMotivoContestacao: motivo,
+          DataContestacao: nowIso(),
+          DataEnvio: nowIso(),
+          CriadoPor: profile.Email || profile.Nome || "Colaborador",
+        };
+
+        await runtime.upsert("Documentos", record);
+
+        try {
+          await createNotification({
+            storeId: targetEmp.LojaID || profile.LojaID,
+            type: "Ponto",
+            subject: "Espelho de Ponto Contestado",
+            message: `${targetEmp.Nome || profile.Nome} contestou a apuração do espelho de ponto de ${month}: "${motivo}".`,
+            relatedId: docId,
+          });
+        } catch (err) {
+          console.warn("Falha ao notificar contestação:", err);
+        }
+
+        return success(
+          {
+            status: "Contestado",
+            motivo,
+            documentoId: docId,
+          },
+          "Contestação registrada com sucesso. O gestor analisará os apontamentos.",
+        );
+      }
+
+      // Caso de Assinatura Digital
+      const rubrica = String(payload.rubricaBase64 || "").trim();
+      assert(rubrica, "A rubrica manuscrita é obrigatória para a assinatura digital.");
+
+      const signTime = nowIso();
+      const timestampUtc = Date.now();
+      const validationCode = `H190-${uuid().slice(0, 4).toUpperCase()}-${uuid().slice(4, 8).toUpperCase()}`;
+
+      // Cálculo de integridade SHA-256 do espelho
+      const summaryStr = JSON.stringify(payload.summary || {}) + `_${month}_${targetEmpId}_${signTime}`;
+      const hashFinal = await sha256Hex(summaryStr);
+
+      const docRecord = {
+        DocID: docId,
+        DocumentoID: docId,
+        Titulo: `Espelho de Ponto — ${month}`,
+        Tipo: "Espelho de Ponto",
+        Descricao: `Espelho de ponto mensal de ${month} conferido e assinado digitalmente nos termos da Portaria MTP nº 671/2021.`,
+        FuncionarioID: targetEmpId,
+        NomeFuncionario: targetEmp.Nome || profile.Nome || "Colaborador",
+        CPFFuncionario: targetEmp.CPF || "",
+        CargoFuncionario: targetEmp.Cargo || "",
+        LojaID: targetEmp.LojaID || profile.LojaID || "",
+        MesReferencia: month,
+        Status: "Assinado",
+        OrigemTipo: "ESPELHO_PONTO",
+        CodigoValidacao: validationCode,
+        HashDocumentoFinalSHA256: hashFinal,
+        DataAssinatura: signTime,
+        DataEnvio: signTime,
+        CriadoPor: profile.Email || profile.Nome || "Colaborador",
+      };
+
+      await runtime.upsert("Documentos", docRecord);
+
+      const sigId = `ASS_${docId}`;
+      const sigRecord = {
+        AssinaturaID: sigId,
+        DocumentoID: docId,
+        FuncionarioID: targetEmpId,
+        NomeSignatario: targetEmp.Nome || profile.Nome || "Colaborador",
+        CPFSignatario: targetEmp.CPF || "",
+        LojaID: targetEmp.LojaID || profile.LojaID || "",
+        DataHoraAssinatura: signTime,
+        TimestampUTC: timestampUtc,
+        EnderecoIP: String(payload.enderecoIp || "Dispositivo Móvel"),
+        DispositivoInfo: String(payload.dispositivoInfo || "Navegador Web / Mobile"),
+        AssinaturaRubricaBase64: rubrica,
+        HashDocumentoFinalSHA256: hashFinal,
+        CodigoValidacao: validationCode,
+      };
+
+      await runtime.upsert("DocumentosAssinaturas", sigRecord);
+
+      try {
+        await createNotification({
+          storeId: targetEmp.LojaID || profile.LojaID,
+          type: "Ponto",
+          subject: "Espelho de Ponto Assinado",
+          message: `${targetEmp.Nome || profile.Nome} assinou digitalmente o espelho de ponto de ${month}.`,
+          relatedId: docId,
+        });
+      } catch (err) {
+        console.warn("Falha ao notificar assinatura:", err);
+      }
+
+      return success(
+        {
+          signed: true,
+          status: "Assinado",
+          codigoValidacao: validationCode,
+          dataAssinatura: signTime,
+          hashDocumentoFinalSHA256: hashFinal,
+          documentoId: docId,
+        },
+        "Espelho de ponto assinado digitalmente com sucesso!",
       );
     },
 
