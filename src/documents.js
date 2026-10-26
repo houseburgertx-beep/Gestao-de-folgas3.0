@@ -232,6 +232,8 @@ export async function initDocumentsModule(context = {}) {
 
   // Por padrão: se for gerente/admin, começa na aba de gestão; se for colaborador, em Meus Documentos
   state.activeTab = (state.isManager || state.isAdmin) ? "gestao" : "minhas";
+  if (context.activeTab) state.activeTab = context.activeTab;
+  if (context.statusFilter) state.statusFilter = context.statusFilter;
 
   setupEventListeners();
   await loadDocuments();
@@ -737,7 +739,22 @@ function renderEmployeeView() {
     : (myId ? state.documents.filter((d) => String(d.FuncionarioID || "").trim() === myId) : state.documents);
 
   const pending = myDocs.filter((d) => d.Status === "Pendente");
-  const signed = myDocs.filter((d) => d.Status === "Assinado");
+  const signed = myDocs.filter((d) => d.Status === "Assinado" || d.Status === "Aprovado");
+
+  let displayDocs = [...myDocs];
+  if (state.statusFilter && state.statusFilter !== "all") {
+    if (state.statusFilter === "Pendente") {
+      displayDocs = myDocs.filter((d) => d.Status === "Pendente");
+    } else if (state.statusFilter === "Assinado") {
+      displayDocs = myDocs.filter((d) => d.Status === "Assinado" || d.Status === "Aprovado");
+    }
+  }
+
+  displayDocs.sort((a, b) => {
+    if (a.Status === "Pendente" && b.Status !== "Pendente") return -1;
+    if (a.Status !== "Pendente" && b.Status === "Pendente") return 1;
+    return new Date(b.DataEnvio || 0) - new Date(a.DataEnvio || 0);
+  });
 
   // Atualiza chip de pendências no topo de forma sutil
   const pendingChip = $("#docPendingCounterChip");
@@ -751,18 +768,18 @@ function renderEmployeeView() {
   }
 
   let cardsHtml = "";
-  if (myDocs.length === 0) {
+  if (displayDocs.length === 0) {
     cardsHtml = `
       <div class="panel doc-empty-panel">
         <div class="doc-empty-icon">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <p class="doc-empty-title">Nenhum documento pendente</p>
-        <p class="doc-empty-desc">Todos os seus holerites, comprovantes e termos estão em dia.</p>
+        <p class="doc-empty-title">${state.statusFilter === "Pendente" ? "Nenhum documento pendente" : "Nenhum documento encontrado"}</p>
+        <p class="doc-empty-desc">${state.statusFilter === "Pendente" ? "Todos os seus holerites, espelhos de ponto e comprovantes estão em dia." : "Nenhum documento localizado nesta categoria."}</p>
       </div>
     `;
   } else {
-    cardsHtml = myDocs
+    cardsHtml = displayDocs
       .map((doc) => {
         const isMedical = doc.Tipo === "Atestado Médico" || String(doc.Titulo || "").toLowerCase().includes("atestado");
         if (isMedical) {
@@ -825,6 +842,7 @@ function renderEmployeeView() {
 
         const isSigned = doc.Status === "Assinado";
         const isHolerite = doc.Tipo === "Holerite" || String(doc.Titulo || "").toLowerCase().includes("holerite");
+        const isEspelho = doc.Tipo === "Espelho de Ponto" || doc.OrigemTipo === "ESPELHO_PONTO" || String(doc.DocumentoID || "").startsWith("ESPELHO_");
         const docStore = doc.NomeLoja || doc.LojaID || "";
         const docRef = doc.MesReferencia && doc.MesReferencia !== "Geral" ? `Ref. ${doc.MesReferencia}` : "";
         const docSubtitle = [docStore, docRef].filter(Boolean).join(" • ") || "Documento oficial";
@@ -833,7 +851,7 @@ function renderEmployeeView() {
           <div class="med-clean-card ${isSigned ? 'is-approved' : 'is-pending'}">
             <div class="med-clean-top">
               <div class="med-clean-ident">
-                <div class="med-clean-icon ${isHolerite ? 'purple' : 'blue'}">
+                <div class="med-clean-icon ${isHolerite ? 'purple' : isEspelho ? 'emerald' : 'blue'}">
                   ${
                     isHolerite
                       ? `
@@ -841,6 +859,13 @@ function renderEmployeeView() {
                       <rect x="2" y="4" width="20" height="16" rx="3"/>
                       <line x1="2" y1="10" x2="22" y2="10"/>
                       <line x1="6" y1="15" x2="10" y2="15"/>
+                    </svg>
+                  `
+                      : isEspelho
+                      ? `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
                     </svg>
                   `
                       : `
@@ -876,6 +901,13 @@ function renderEmployeeView() {
                     <span>Assinar</span>
                   </button>
                 `
+                    : isEspelho
+                    ? `
+                  <button type="button" class="med-clean-btn" data-action="view-mirror" data-id="${esc(doc.DocumentoID)}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>Ver Espelho</span>
+                  </button>
+                `
                     : `
                   <button type="button" class="med-clean-btn" data-action="download" data-id="${esc(doc.DocumentoID)}">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -898,13 +930,26 @@ function renderEmployeeView() {
     <div class="doc-employee-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem;">
       <div>
         <p style="margin:0; font-size:13.5px; color:var(--muted, #64748b); font-weight:500;">
-          Recibos, holerites e atestados médicos para abono de ausências.
+          Recibos, holerites, espelhos de ponto e atestados médicos para abono de ausências.
         </p>
       </div>
-      <button type="button" class="btn btn-primary" id="btnOpenMedicalCertificate" style="border-radius:14px; min-height:44px; padding:0 1.25rem; font-weight:600; display:inline-flex; align-items:center; gap:8px; box-shadow:0 2px 8px rgba(99,64,216,0.25);">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-        <span>Enviar Atestado Médico</span>
-      </button>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div class="doc-status-pills" role="tablist" aria-label="Filtro por Status">
+          <button type="button" class="doc-status-pill-btn ${state.statusFilter === "all" ? "active" : ""}" data-status-filter="all">
+            Todos (${myDocs.length})
+          </button>
+          <button type="button" class="doc-status-pill-btn ${state.statusFilter === "Pendente" ? "active" : ""}" data-status-filter="Pendente">
+            Pendentes (${pending.length})
+          </button>
+          <button type="button" class="doc-status-pill-btn ${state.statusFilter === "Assinado" ? "active" : ""}" data-status-filter="Assinado">
+            Assinados (${signed.length})
+          </button>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnOpenMedicalCertificate" style="border-radius:14px; min-height:44px; padding:0 1.25rem; font-weight:600; display:inline-flex; align-items:center; gap:8px; box-shadow:0 2px 8px rgba(99,64,216,0.25);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          <span>Enviar Atestado Médico</span>
+        </button>
+      </div>
     </div>
     <div class="doc-cards-list">
       ${cardsHtml}
@@ -965,7 +1010,21 @@ function setupEventListeners() {
       const action = actionBtn.getAttribute("data-action");
       const id = actionBtn.getAttribute("data-id");
       if (action === "sign") {
-        openSignDialog(id);
+        if (id && String(id).startsWith("ESPELHO_") && typeof window.openTimeClockMirrorSign === "function") {
+          const parts = String(id).split("_");
+          const month = parts[1];
+          const empId = parts.slice(2).join("_");
+          window.openTimeClockMirrorSign(month, empId);
+        } else {
+          openSignDialog(id);
+        }
+      } else if (action === "view-mirror") {
+        if (id && String(id).startsWith("ESPELHO_") && typeof window.openTimeClockMirrorSign === "function") {
+          const parts = String(id).split("_");
+          const month = parts[1];
+          const empId = parts.slice(2).join("_");
+          window.openTimeClockMirrorSign(month, empId);
+        }
       } else if (action === "download") {
         downloadPdf(id);
       } else if (action === "audit") {

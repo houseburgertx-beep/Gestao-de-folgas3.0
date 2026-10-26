@@ -3854,6 +3854,33 @@ test("Sólides Clone (Módulos 1 e 3): Troca de Folgas P2P com Duplo Aceite e As
   assert.match(apiClockJs, /payload\.contestar/, "signMonthlyTimeClockMirror deve suportar contestação de divergências pelo colaborador");
 });
 
+test("Assinatura Automática do Espelho Mensal: alerta interativo com navegação direta para Meus Documentos Pendentes", async () => {
+  const [scriptsHtml, apiClockJs, documentsJs] = await Promise.all([
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/documents.js", import.meta.url), "utf8"),
+  ]);
+
+  // 1. Criação automática de documento no fechamento mensal quando houver atividade
+  assert.match(apiClockJs, /const docId\s*=\s*`ESPELHO_\${context\.month}_\${targetEmpId}`;/, "api-clock.js deve identificar ou gerar ID padrão ESPELHO_");
+  assert.match(apiClockJs, /OrigemTipo:\s*"ESPELHO_PONTO"/, "api-clock.js deve classificar documento gerado com OrigemTipo ESPELHO_PONTO");
+  assert.match(apiClockJs, /Status:\s*"Pendente"/, "api-clock.js deve inicializar documento com Status Pendente");
+
+  // 2. Alerta interativo toastAction direciona diretamente para documentos pendentes
+  assert.match(scriptsHtml, /function toastAction\(message,\s*actionText,\s*onAction\)/, "Scripts.html deve implementar toastAction interativo");
+  assert.match(scriptsHtml, /toastAction\(\s*`Seu espelho de ponto de \${monthLabel} está disponível para assinatura digital\.`,\s*"Ir para Documentos"/, "checkPendingMonthlyMirrorSignature_ deve exibir toastAction para ir para documentos");
+  assert.match(scriptsHtml, /window\.__DOCUMENTS_INITIAL_STATUS_FILTER__\s*=\s*"Pendente";/, "Ação do toast deve pré-configurar filtro de documentos para Pendente");
+  assert.match(scriptsHtml, /switchView\("documents"\);/, "Ação do toast deve alternar diretamente para a visualização de documentos");
+
+  // 3. Módulo de Documentos inicializa com filtro e aba corretos
+  assert.match(documentsJs, /if \(context\.statusFilter\) state\.statusFilter = context\.statusFilter;/, "initDocumentsModule deve aceitar statusFilter inicial");
+  assert.match(documentsJs, /if \(context\.activeTab\) state\.activeTab = context\.activeTab;/, "initDocumentsModule deve aceitar activeTab inicial");
+
+  // 4. Meus Documentos exibe filtros rápidos e botão de assinar espelho
+  assert.match(documentsJs, /data-status-filter="Pendente"/, "Meus Documentos deve conter filtro de status Pendente");
+  assert.match(documentsJs, /openTimeClockMirrorSign\(month,\s*empId\)/, "Clique de assinar espelho em documentos deve abrir modal de assinatura com mês e colaborador");
+});
+
 
 
 

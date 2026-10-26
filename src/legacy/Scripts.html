@@ -959,6 +959,45 @@
       setTimeout(() => el.remove(), 220);
     }, 3800);
   }
+  function toastAction(message, actionText, onAction) {
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.style.cssText = "display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:300px; padding:12px 14px; border-radius:14px; background:#0f172a; color:#fff; box-shadow:0 10px 25px rgba(0,0,0,0.25);";
+
+    const copy = document.createElement("div");
+    copy.className = "toast-copy";
+    const title = document.createElement("strong");
+    title.style.cssText = "display:block; font-size:12.5px; color:#38bdf8; font-weight:700;";
+    title.textContent = "Assinatura Pendente";
+    const text = document.createElement("span");
+    text.style.cssText = "font-size:12px; color:#e2e8f0; line-height:1.3;";
+    text.textContent = message;
+    copy.append(title, text);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-primary btn-sm";
+    btn.style.cssText = "font-size:12px; padding:6px 12px; border-radius:8px; white-space:nowrap; background:#007aff; color:#fff; border:none; font-weight:700; cursor:pointer;";
+    btn.textContent = actionText;
+    btn.onclick = () => {
+      el.remove();
+      if (typeof onAction === "function") onAction();
+    };
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "toast-close";
+    close.style.cssText = "border:none; background:none; color:#94a3b8; font-size:18px; cursor:pointer;";
+    close.textContent = "×";
+    close.onclick = () => el.remove();
+
+    el.append(copy, btn, close);
+    $("#toastContainer")?.append(el);
+    setTimeout(() => {
+      el.classList.add("toast-out");
+      setTimeout(() => el.remove(), 220);
+    }, 10000);
+  }
   window.__GESTAO_TOAST__ = toast;
   function setLoading(on) {
     $("#loadingOverlay").classList.toggle("hidden", !on);
@@ -3444,10 +3483,25 @@
     else if (view === "documents") {
       window.__GESTAO_USER__ = state.user;
       window.__GESTAO_IS_MANAGER__ = isManager();
+      const initialStatus = window.__DOCUMENTS_INITIAL_STATUS_FILTER__;
+      const initialTab = window.__DOCUMENTS_INITIAL_TAB__;
+      delete window.__DOCUMENTS_INITIAL_STATUS_FILTER__;
+      delete window.__DOCUMENTS_INITIAL_TAB__;
+
+      const docContext = {
+        user: state.user,
+        stores: state.stores,
+        employees: state.employees,
+        isManager: isManager(),
+        isAdmin: isAdmin(),
+        ...(initialStatus ? { statusFilter: initialStatus } : {}),
+        ...(initialTab ? { activeTab: initialTab } : {}),
+      };
+
       if (typeof window.initDocumentsModule === "function") {
-        window.initDocumentsModule({ user: state.user, stores: state.stores, employees: state.employees, isManager: isManager(), isAdmin: isAdmin() });
+        window.initDocumentsModule(docContext);
       } else {
-        window.dispatchEvent(new CustomEvent("gestao-documents-open", { detail: { user: state.user, stores: state.stores, employees: state.employees, isManager: isManager(), isAdmin: isAdmin() } }));
+        window.dispatchEvent(new CustomEvent("gestao-documents-open", { detail: docContext }));
       }
     }
     else if (view === "tasks") {
@@ -8759,11 +8813,13 @@
     }
   }
 
-  async function openTimeClockMirrorSign() {
+  async function openTimeClockMirrorSign(targetMonth, targetEmpId) {
     setLoading(true);
     try {
-      const selectedMonth = $("#clockMonth")?.value || new Date().toISOString().slice(0, 7);
-      const selectedEmp = $("#clockEmployeeFilter")?.value || String(val(state.user, "funcionarioId", "FuncionarioID", "id") || "");
+      const selectedMonth = targetMonth || $("#clockMonth")?.value || new Date().toISOString().slice(0, 7);
+      const selectedEmp = targetEmpId || $("#clockEmployeeFilter")?.value || String(val(state.user, "funcionarioId", "FuncionarioID", "id") || "");
+      if ($("#clockMonth") && targetMonth) $("#clockMonth").value = targetMonth;
+      if ($("#clockEmployeeFilter") && targetEmpId) $("#clockEmployeeFilter").value = targetEmpId;
       if (!selectedEmp) {
         throw new Error("Selecione um colaborador para abrir o espelho de ponto.");
       }
@@ -9049,6 +9105,9 @@
       toast(res?.message || "Espelho de ponto assinado digitalmente com sucesso!");
       closeDialog("timeClockSignDialog");
       await refreshTimeClockMirrorSignatureStatus_();
+      if (typeof window.loadDocuments === "function" && document.querySelector("#documentsAppRoot")) {
+        window.loadDocuments().catch(() => {});
+      }
     } catch (err) {
       toast(err.message || "Erro ao registrar assinatura do espelho de ponto.", true);
     } finally {
@@ -9077,12 +9136,16 @@
       toast(res?.message || "Contestação registrada com sucesso. O gestor analisará.");
       closeDialog("timeClockSignDialog");
       await refreshTimeClockMirrorSignatureStatus_();
+      if (typeof window.loadDocuments === "function" && document.querySelector("#documentsAppRoot")) {
+        window.loadDocuments().catch(() => {});
+      }
     } catch (err) {
       toast(err.message || "Erro ao registrar contestação do espelho de ponto.", true);
     } finally {
       setLoading(false);
     }
   }
+  window.openTimeClockMirrorSign = openTimeClockMirrorSign;
 
   async function checkPendingMonthlyMirrorSignature_() {
     if (!isEmployee() && !isKitchenChief()) return;
@@ -9111,7 +9174,15 @@
           "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
         ];
         const monthLabel = `${monthNames[Number(mNum) - 1] || mNum} de ${year}`;
-        toast(`Seu espelho de ponto de ${monthLabel} está disponível para assinatura digital.`);
+        toastAction(
+          `Seu espelho de ponto de ${monthLabel} está disponível para assinatura digital.`,
+          "Ir para Documentos",
+          () => {
+            window.__DOCUMENTS_INITIAL_STATUS_FILTER__ = "Pendente";
+            window.__DOCUMENTS_INITIAL_TAB__ = "minhas";
+            switchView("documents");
+          },
+        );
       } else {
         sessionStorage.setItem(cacheKey, "ok");
       }

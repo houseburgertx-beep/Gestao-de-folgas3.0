@@ -1970,7 +1970,38 @@ export function createClockHandlers() {
       };
       try {
         const docId = `ESPELHO_${context.month}_${targetEmpId}`;
-        const existingDoc = await runtime.getById("Documentos", docId);
+        let existingDoc = await runtime.getById("Documentos", docId);
+
+        const hasWorkedDays = (context.days || []).some(
+          (item) => item.trabalhou || item.entrada || item.saida,
+        );
+        if (!existingDoc && hasWorkedDays) {
+          const [y, mNum] = context.month.split("-");
+          const mNames = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+          ];
+          const mLabel = `${mNames[Number(mNum) - 1] || mNum} de ${y}`;
+          const newDoc = {
+            DocID: docId,
+            DocumentoID: docId,
+            Titulo: `Espelho de Ponto — ${mLabel}`,
+            Tipo: "Espelho de Ponto",
+            Descricao: `Espelho de ponto mensal referente a ${mLabel} disponível para conferência e assinatura eletrônica (Portaria 671 MTE).`,
+            FuncionarioID: targetEmpId,
+            NomeFuncionario: employee.Nome || profile.Nome || "Colaborador",
+            CPFFuncionario: employee.CPF || "",
+            CargoFuncionario: employee.Cargo || profile.Cargo || "",
+            LojaID: employee.LojaID || profile.LojaID || "",
+            MesReferencia: context.month,
+            Status: "Pendente",
+            OrigemTipo: "ESPELHO_PONTO",
+            DataEnvio: nowIso(),
+            CriadoPor: "Fechamento Mensal Automático",
+          };
+          existingDoc = await runtime.upsert("Documentos", newDoc).catch(() => null);
+        }
+
         if (existingDoc) {
           signatureInfo = {
             isSigned: existingDoc.Status === "Assinado",
