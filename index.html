@@ -27138,6 +27138,11 @@ dialog#medicalCertificateDialog {
     documentsSign: "documentsSign",
     documentsDelete: "documentsDelete",
     documentsVerify: "documentsVerify",
+    waMagicLink: "generateWhatsAppMagicLink",
+    waConsumeMagic: "consumeWhatsAppMagicLink",
+    waNotifyMessage: "generateWhatsAppNotificationMessage",
+    waProcessWebhook: "processIncomingWhatsAppWebhook",
+    waConfigureGateway: "configureWhatsAppGateway",
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
@@ -30436,9 +30441,55 @@ dialog#medicalCertificateDialog {
         })
         .catch(() => {});
   }
-  function renderInitialView() {
+  async function checkWhatsAppMagicTokenArrival_() {
+    const params = new URLSearchParams(location.search);
+    const magicToken = params.get("magic_token") || (params.get("action") === "magic_access" ? params.get("token") : null);
+    if (!magicToken) return false;
+
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete("magic_token");
+      url.searchParams.delete("action");
+      url.searchParams.delete("token");
+      history.replaceState(null, "", url);
+
+      const res = await call(FN.waConsumeMagic, magicToken);
+      if (res && res.success) {
+        if (res.destino === "documents") {
+          window.__DOCUMENTS_INITIAL_STATUS_FILTER__ = res.filtroStatus || "Pendente";
+          window.__DOCUMENTS_INITIAL_TAB__ = "minhas";
+          switchView("documents");
+
+          if (res.tipo === "ESPELHO_PONTO" || String(res.docId || "").startsWith("ESPELHO_")) {
+            setTimeout(() => {
+              if (typeof window.openTimeClockMirrorSign === "function") {
+                window.openTimeClockMirrorSign(res.mesReferencia, res.funcionarioId);
+              }
+            }, 600);
+          }
+        } else if (res.destino) {
+          switchView(res.destino);
+        }
+        toastAction(
+          `Bem-vindo(a), ${res.nomeFuncionario || "Colaborador"}! Acesso validado via WhatsApp.`,
+          "Entendido",
+          () => {},
+        );
+        return true;
+      }
+    } catch (err) {
+      console.warn("[magic-token] Falha ao consumir token:", err);
+      toast(err.message || "Link de acesso do WhatsApp expirado ou inválido.", true);
+    }
+    return false;
+  }
+
+  async function renderInitialView() {
+    const handledMagic = await checkWhatsAppMagicTokenArrival_();
+    if (handledMagic) return;
+
     const pushView = new URLSearchParams(location.search).get("view");
-    if (["timeclock","notifications"].includes(pushView)) {
+    if (["timeclock","notifications","documents"].includes(pushView)) {
       const url = new URL(location.href); url.searchParams.delete("view"); history.replaceState(null,"",url);
       switchView(pushView); return;
     }
@@ -36137,6 +36188,30 @@ dialog#medicalCertificateDialog {
     }
   }
   window.openTimeClockMirrorSign = openTimeClockMirrorSign;
+
+  async function notifyDocumentViaWhatsApp(docId) {
+    if (!docId) return;
+    setLoading(true);
+    try {
+      const res = await call(FN.waNotifyMessage, {
+        docId,
+        origin: window.location.origin,
+      });
+      if (res && res.waUrl) {
+        window.open(res.waUrl, "_blank");
+        toast("Mensagem pronta aberta no WhatsApp com link de acesso.");
+      } else if (res && !res.hasPhone) {
+        toast("Colaborador não possui número de telefone/WhatsApp cadastrado.", true);
+      } else {
+        toast("Falha ao gerar notificação do WhatsApp.", true);
+      }
+    } catch (err) {
+      toast(err.message || "Erro ao preparar notificação do WhatsApp.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  window.notifyDocumentViaWhatsApp = notifyDocumentViaWhatsApp;
 
   async function checkPendingMonthlyMirrorSignature_() {
     if (!isEmployee() && !isKitchenChief()) return;

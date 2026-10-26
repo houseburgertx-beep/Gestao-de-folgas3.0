@@ -3,6 +3,7 @@ import { createBaseHandlers } from "./api-base.js";
 import { createClockHandlers } from "./api-clock.js";
 import { createTasksHandlers } from "./api-tasks.js";
 import { createDocumentsHandlers } from "./api-documents.js";
+import { createWhatsAppHandlers } from "./api-whatsapp.js";
 import { runtime } from "./runtime.js";
 
 export function createApi() {
@@ -12,6 +13,7 @@ export function createApi() {
     ...createAdvancedHandlers(),
     ...createTasksHandlers(),
     ...createDocumentsHandlers(),
+    ...createWhatsAppHandlers(),
   };
 
   return {
