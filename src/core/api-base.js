@@ -758,7 +758,7 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
       try {
         if (typeof window !== "undefined" && window.__PUSH_ENDPOINT__) return window.__PUSH_ENDPOINT__;
       } catch (_) {}
-      return "https://house-folgas-notifications.house-folgas-notifications.workers.dev";
+      return "https://house-folgas-notifications.brunohouse.workers.dev";
     })();
 
     const idToken = typeof window !== "undefined"

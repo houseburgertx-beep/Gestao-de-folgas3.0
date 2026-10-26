@@ -9282,7 +9282,8 @@
     setLoading(true);
     try {
       let res = null;
-      const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+      const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+      const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
       const tok = sessionToken ? sessionToken() : "";
       if (workerUrl && tok) {
         try {
@@ -9296,10 +9297,10 @@
             res = {
               connected: workerData.connected || false,
               status: workerData.status || "disconnected",
-              instanceName: workerData.instanceName || "house190-bot",
+              instanceName: workerData.instanceName || "house190",
               phone: workerData.phone || "",
               pairingCode: workerData.pairingCode || "",
-              qrcode: workerData.qrcode || "",
+              qrcode: workerData.qrcode || (typeof state !== "undefined" && state.lastRealQrCode) || "",
               gatewayUrl: workerData.gatewayUrl || "",
               gatewayAtivo: workerData.configured || false,
               workerConfigured: workerData.configured || false,
@@ -9308,10 +9309,10 @@
         } catch (_) {}
       }
       if (!res) {
-        try { res = await call(FN.waGetStatus); } catch(_) { res = { connected: false, status: "disconnected", instanceName: "house190-bot" }; }
+        try { res = await call(FN.waGetStatus); } catch(_) { res = { connected: false, status: "disconnected", instanceName: "house190" }; }
       }
-      const isConnected = Boolean(res?.connected);
-      const isQr = res?.status === "qrcode";
+      const isConnected = Boolean(res?.connected || res?.status === "CONNECTED" || res?.status === "connected");
+      const isQr = res?.status === "qrcode" || res?.status === "SCAN_QR" || Boolean(res?.qrcode) || Boolean(typeof state !== "undefined" && state.lastRealQrCode);
 
       const statusBadge = $("#waStatusBadge");
       const statusText = $("#waStatusText");
@@ -9320,7 +9321,7 @@
       const qrBox = $("#waQrCodeBox");
       const codeDisplay = $("#waPairingCodeDisplay");
 
-      if (instanceText) instanceText.textContent = res?.instanceName || "house190-bot";
+      if (instanceText) instanceText.textContent = res?.instanceName || "house190";
       if (phoneText) phoneText.textContent = res?.phone || "---";
 
       if (statusBadge && statusText) {
@@ -9345,8 +9346,10 @@
       if (codeDisplay) {
         codeDisplay.textContent = isConnected
           ? "CONECTADO"
-          : (res?.pairingCode || "---- - ----");
+          : (res?.pairingCode || (typeof state !== "undefined" && state.lastPairingCode) || "---- - ----");
       }
+
+      const activeQr = res?.qrcode || (typeof state !== "undefined" && state.lastRealQrCode) || "";
 
       if (qrBox) {
         if (isConnected) {
@@ -9357,10 +9360,13 @@
               <small style="color:#64748b; font-size:12px;">Disparos automáticos e autoatendimento ativos</small>
             </div>
           `;
-        } else if (isQr) {
+        } else if (isQr && activeQr) {
+          const qrHtml = activeQr.startsWith("data:image/")
+            ? `<img src="${activeQr}" alt="QR Code WhatsApp" style="width:180px; height:180px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.06); padding:8px; background:#fff;" />`
+            : renderSvgQrCode(activeQr);
           qrBox.innerHTML = `
             <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
-              ${renderSvgQrCode(res?.qrcode || "house190")}
+              ${qrHtml}
               <small style="color:#64748b; font-size:12px; margin-top:6px;">Aponte a câmera do WhatsApp para conectar</small>
             </div>
           `;
@@ -9376,7 +9382,8 @@
         $("#waBtnGenerateQr").onclick = async () => {
           setLoading(true);
           try {
-            const workerUrl2 = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+            const defaultWorkerUrl2 = "https://house-folgas-notifications.brunohouse.workers.dev";
+            const workerUrl2 = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl2;
             const tok2 = sessionToken ? sessionToken() : "";
             if (workerUrl2 && tok2) {
               const qrRes = await fetch(workerUrl2 + "/wa-qr", {
@@ -9387,12 +9394,15 @@
               const qrData = await qrRes.json().catch(() => ({}));
               if (!qrRes.ok || !qrData.success) {
                 if (qrData.error === "gateway_unreachable" || !qrData.configured) {
-                  toast("Gateway WhatsApp inacessivel. Configure e inicie o WA-AKG primeiro.", true);
+                  toast("Gateway WhatsApp inacessivel. Verifique o servidor WA-AKG.", true);
                 } else {
                   toast(qrData.error || "Erro ao solicitar QR Code ao gateway.", true);
                 }
               } else {
-                toast("QR Code real solicitado ao gateway com sucesso.");
+                toast("QR Code real gerado! Aponte a câmera do WhatsApp.");
+                if (typeof state !== "undefined") {
+                  state.lastRealQrCode = qrData.qrcode;
+                }
               }
             } else {
               await call(FN.waGenerateQr);
@@ -9503,7 +9513,8 @@
       // Central de Automações — carrega config salva
       async function loadWaAutomations_() {
         try {
-          const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+          const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
           if (!workerUrl) return;
           const tok = sessionToken ? sessionToken() : "";
           if (!tok) return;
@@ -9528,7 +9539,8 @@
       if ($("#waAutomationsForm")) {
         $("#waAutomationsForm").onsubmit = async (ev) => {
           ev.preventDefault();
-          const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || "";
+          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+          const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
           if (!workerUrl) return toast("Worker URL nao configurado.", true);
           const tok = sessionToken ? sessionToken() : "";
           if (!tok) return toast("Sessao expirada.", true);
