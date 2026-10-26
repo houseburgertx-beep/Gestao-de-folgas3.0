@@ -9832,6 +9832,24 @@
           if (el) el.innerHTML = '<span style="color:#94a3b8;">Sem registros recentes.</span>';
         }
       }
+      // Alternância de Abas Segmentadas do WhatsApp (Disparar Comunicado, Central de Automações, Pareamento & Gateway)
+      const tabBtns = $$("#view-whatsapp .wa-nav-tab");
+      const tabPanes = $$("#view-whatsapp [data-wa-tab-pane]");
+      tabBtns.forEach((btn) => {
+        btn.onclick = () => {
+          const targetTab = btn.getAttribute("data-wa-tab");
+          tabBtns.forEach((b) => {
+            const active = b === btn;
+            b.classList.toggle("active", active);
+            b.setAttribute("aria-selected", active ? "true" : "false");
+          });
+          tabPanes.forEach((pane) => {
+            const show = pane.getAttribute("data-wa-tab-pane") === targetTab;
+            pane.style.display = show ? "block" : "none";
+          });
+        };
+      });
+
       loadWaHistory_();
     } catch (err) {
       toast(err.message || "Falha ao carregar status da conexão do WhatsApp.", true);

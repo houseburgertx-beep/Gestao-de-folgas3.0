@@ -24835,255 +24835,341 @@ dialog#medicalCertificateDialog {
           </section>
 
           <section id="view-whatsapp" class="view">
-            <div class="section-toolbar">
+            <!-- Top Toolbar -->
+            <div class="section-toolbar" style="margin-bottom:18px;">
               <div>
                 <span class="eyebrow">INTEGRAÇÃO & MENSAGERIA</span>
                 <h2>Conexão WhatsApp</h2>
-                <p>Pareamento da instância oficial do WhatsApp para notificações ativas e autoatendimento.</p>
+                <p>Painel oficial de notificações ativas, comunicados em massa e automações do Grupo House 190.</p>
               </div>
-              <button id="refreshWhatsAppStatusBtn" class="btn btn-secondary">
-                ↻ Atualizar status
+              <button id="refreshWhatsAppStatusBtn" type="button" class="btn btn-secondary" style="min-height:42px; border-radius:12px; font-weight:600; display:inline-flex; align-items:center; gap:8px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Atualizar status
               </button>
             </div>
 
-            <div class="advanced-grid">
-              <!-- 1. Card de Status e Informações da Instância -->
-              <div class="panel feature-panel">
-                <span class="feature-icon">
+            <!-- Header Status Card (Sempre Visível) -->
+            <div class="panel" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:18px 22px; background:#ffffff; border:1px solid #e2e8f0; border-radius:18px; box-shadow:0 2px 10px rgba(15,23,42,0.03); margin-bottom:22px;">
+              <div style="display:flex; align-items:center; gap:14px;">
+                <div style="width:48px; height:48px; border-radius:14px; background:#f0fdf4; border:1px solid #bbf7d0; display:flex; align-items:center; justify-content:center; color:#16a34a; flex-shrink:0;">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
                   </svg>
-                </span>
-                <h3>Status da Instância</h3>
-                
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; padding:12px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
-                  <div>
-                    <span style="font-size:12px; color:#64748b; display:block;">Estado atual</span>
-                    <strong id="waStatusText" style="font-size:15px; color:#0f172a;">Verificando...</strong>
-                  </div>
-                  <span id="waStatusBadge" class="badge badge-warning">Carregando</span>
                 </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.25rem;">
-                  <div style="padding:10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0;">
-                    <small style="color:#64748b; font-size:11.5px; display:block;">Instância</small>
-                    <strong id="waInstanceNameText" style="font-size:13.5px; color:#0f172a;">house190</strong>
+                <div>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <strong style="font-size:15px; color:#0f172a;">Instância <span id="waInstanceNameText">house190</span></strong>
+                    <span id="waStatusBadge" class="badge badge-warning">Carregando</span>
                   </div>
-                  <div style="padding:10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0;">
-                    <small style="color:#64748b; font-size:11.5px; display:block;">Número Conectado</small>
-                    <strong id="waConnectedPhoneText" style="font-size:13.5px; color:#0f172a; font-family:monospace;">---</strong>
+                  <div style="font-size:13px; color:#64748b; margin-top:3px;">
+                    <span id="waStatusText">Verificando status da instância...</span> · Número: <strong id="waConnectedPhoneText" style="color:#0f172a; font-family:monospace; font-size:13.5px;">---</strong>
                   </div>
-                </div>
-
-                <div class="w-actions" style="display:flex; flex-direction:column; gap:8px;">
-                  <button type="button" id="waBtnGenerateQr" class="btn btn-primary" style="min-height:44px; border-radius:14px; font-weight:600;">
-                    Gerar QR Code de Conexão
-                  </button>
-                  <button type="button" id="waBtnConfirmPair" class="btn btn-secondary" style="min-height:44px; border-radius:14px; font-weight:600;">
-                    Confirmar Pareamento Manual
-                  </button>
-                  <button type="button" id="waBtnDisconnect" class="btn btn-secondary" style="min-height:44px; border-radius:14px; color:#ef4444; border-color:#fca5a5; font-weight:600;">
-                    Desconectar WhatsApp
-                  </button>
                 </div>
               </div>
-
-              <!-- 2. Card de Pareamento Visual (QR Code e Código de 8 Dígitos) -->
-              <div class="panel feature-panel">
-                <span class="feature-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                  </svg>
-                </span>
-                <h3>Pareamento no Celular</h3>
-                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Escaneie o QR Code abaixo ou insira o código de 8 dígitos no WhatsApp da empresa.</p>
-
-                <!-- Área do QR Code -->
-                <div id="waQrCodeWrapper" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; background:#ffffff; border:2px dashed #cbd5e1; border-radius:16px; margin-bottom:1rem; min-height:220px;">
-                  <div id="waQrCodeBox" style="display:flex; align-items:center; justify-content:center; text-align:center;">
-                    <span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code de Conexão" para iniciar</span>
-                  </div>
-                </div>
-
-                <!-- Código de Pareamento de 8 Dígitos -->
-                <div style="background:#f1f5f9; padding:12px; border-radius:12px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between;">
-                  <div>
-                    <small style="color:#64748b; font-size:11px; display:block; text-transform:uppercase; font-weight:700;">Código de Pareamento</small>
-                    <span id="waPairingCodeDisplay" style="font-size:18px; font-weight:800; color:#0f172a; letter-spacing:2px; font-family:monospace;">---- - ----</span>
-                  </div>
-                  <button type="button" id="waBtnCopyCode" class="btn btn-secondary btn-sm" style="border-radius:8px;">Copiar</button>
-                </div>
-                <button type="button" id="waBtnRequestPairCode" class="btn btn-secondary btn-sm" style="width:100%; margin-top:8px; border-radius:10px; font-weight:600; min-height:38px;">
-                  Solicitar Código de Pareamento por Telefone
+              <div style="display:flex; align-items:center; gap:10px;">
+                <button type="button" id="waBtnDisconnect" class="btn btn-secondary btn-sm" style="min-height:40px; border-radius:10px; color:#ef4444; border-color:#fca5a5; font-weight:600; padding:0 16px;">
+                  Desconectar WhatsApp
                 </button>
-
-                <ol style="font-size:12.5px; color:#64748b; margin:14px 0 0 1.25rem; line-height:1.5;">
-                  <li>Abra o WhatsApp no smartphone oficial da loja.</li>
-                  <li>Toque em <strong>Aparelhos Conectados</strong> no menu.</li>
-                  <li>Aponte a câmera para o QR Code ou selecione "Conectar com código".</li>
-                </ol>
               </div>
+            </div>
 
-              <!-- 3. Card de Teste de Disparo Rápido -->
-              <div class="panel feature-panel">
-                <span class="feature-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
-                </span>
-                <h3>Disparo de Teste</h3>
-                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Envie uma mensagem de teste imediata para verificar a rota de entrega.</p>
-
-                <form id="waTestMessageForm">
-                  <label>
-                    Telefone com DDD (ex: 73999887766)
-                    <input id="waTestPhoneInput" type="tel" placeholder="73999887766" required style="font-family:monospace;" />
-                  </label>
-                  <label>
-                    Mensagem de Teste
-                    <textarea id="waTestMessageInput" rows="3" required>Teste de comunicação e disparo oficial do sistema Grupo House 190 via WhatsApp.</textarea>
-                  </label>
-                  <button type="submit" id="waBtnSendTest" class="btn btn-primary" style="width:100%; min-height:44px; border-radius:14px; font-weight:600;">
-                    Enviar Notificação de Teste
-                  </button>
-                </form>
-
-                <div id="waTestFeedbackBox" class="hidden" style="margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px;"></div>
+            <!-- Segmented Control Apple iOS -->
+            <div class="view-segmented-wrap" style="margin-bottom:22px;">
+              <div class="view-segmented-control" role="tablist" style="background:#f1f5f9; padding:4px; border-radius:14px; border:1px solid #e2e8f0; display:flex; gap:4px;">
+                <button type="button" class="view-tab-btn wa-nav-tab active" data-wa-tab="broadcast" role="tab" aria-selected="true" style="border-radius:10px; font-weight:700; min-height:42px; flex:1;">
+                  Disparar Comunicado
+                </button>
+                <button type="button" class="view-tab-btn wa-nav-tab" data-wa-tab="automations" role="tab" aria-selected="false" style="border-radius:10px; font-weight:600; min-height:42px; flex:1;">
+                  Central de Automações
+                </button>
+                <button type="button" class="view-tab-btn wa-nav-tab" data-wa-tab="connection" role="tab" aria-selected="false" style="border-radius:10px; font-weight:600; min-height:42px; flex:1;">
+                  Pareamento & Gateway
+                </button>
               </div>
+            </div>
 
-              <!-- 4. Card de Parâmetros Técnicos & Webhook -->
-              <div class="panel feature-panel">
-                <span class="feature-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                  </svg>
-                </span>
-                <h3>Parâmetros do Gateway</h3>
-                
-                <form id="waGatewayConfigForm">
-                  <label>
-                    URL da API do Gateway (Evolution / Z-API / Meta)
-                    <input id="waGatewayUrlInput" type="url" placeholder="https://api.whatsapp.house190.com.br" />
-                  </label>
-                  <label>
-                    Nome da Instância
-                    <input id="waGatewayInstanceInput" type="text" placeholder="house190" />
-                  </label>
-                  <label>
-                    Token / API Key
-                    <input id="waGatewayApiKeyInput" type="password" placeholder="Chave de autenticação" />
-                  </label>
-                  <label>
-                    Webhook Receptivo do Sistema (Cole no seu Gateway)
-                    <input id="waSystemWebhookInput" type="text" readonly value="https://gestao.house190.com.br/api/whatsapp/webhook" style="background:#f1f5f9; font-family:monospace; font-size:12px;" />
-                  </label>
-                  <button type="submit" id="waBtnSaveGateway" class="btn btn-secondary" style="width:100%; min-height:44px; border-radius:14px; font-weight:600; margin-top:8px;">
-                    Salvar Parâmetros
-                  </button>
-                </form>
-              </div>
+            <!-- TAB 1: Disparar Comunicado & Teste -->
+            <div data-wa-tab-pane="broadcast" style="display:block;">
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start;">
+                <!-- Card 1: Broadcast em Massa -->
+                <div class="panel feature-panel" style="grid-column:1 / -1;">
+                  <span class="feature-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </span>
+                  <h3>Disparar Comunicado para Todos (WhatsApp)</h3>
+                  <p style="font-size:13px; color:#64748b; margin-bottom:14px;">
+                    Envie um comunicado oficial instantaneamente para o WhatsApp de todos os colaboradores ou filtre por unidade.
+                  </p>
 
-              <!-- 5. Card de Disparo de Comunicado em Massa (Broadcast WhatsApp) -->
-              <div class="panel feature-panel" style="grid-column: 1 / -1; margin-top:16px;">
-                <span class="feature-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                </span>
-                <h3>Disparar Comunicado para Todos (WhatsApp)</h3>
-                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">
-                  Envie um aviso ou comunicado oficial diretamente para o WhatsApp de todos os colaboradores cadastrados.
-                </p>
-
-                <form id="waBroadcastForm">
-                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px; margin-bottom:12px;">
-                    <label>
-                      Título do Comunicado
-                      <input id="waBroadcastTitleInput" type="text" placeholder="Ex: Reunião Geral de Equipe / Aviso da Diretoria" required style="font-weight:600;" />
-                    </label>
-                    <label>
-                      Destinatários / Unidade
-                      <select id="waBroadcastStoreSelect" style="min-height:44px; border-radius:12px;">
-                        <option value="TODAS">Toda a Equipe (Todas as Lojas)</option>
-                      </select>
-                    </label>
-                  </div>
-                  <label>
-                    Mensagem do Comunicado
-                    <textarea id="waBroadcastMessageInput" rows="4" placeholder="Escreva a mensagem que será enviada para o WhatsApp de cada colaborador..." required style="border-radius:12px; font-size:13.5px;"></textarea>
-                  </label>
-
-                  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:14px;">
-                    <div id="waBroadcastCountBadge" style="font-size:13px; color:#475569; font-weight:500;">
-                      <span id="waBroadcastTargetCount">Calculando</span> colaboradores com WhatsApp ativo
-                    </div>
-                    <button type="submit" id="waBtnSendBroadcast" class="btn btn-primary" style="min-height:44px; padding:0 24px; border-radius:14px; font-weight:600; font-size:14px; background:#0284c7; border-color:#0284c7;">
-                      Disparar para Todos no WhatsApp
-                    </button>
-                  </div>
-                </form>
-
-                <div id="waBroadcastFeedbackBox" class="hidden" style="margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px;"></div>
-              </div>
-
-              <!-- Central de Automações -->
-              <div class="card" style="margin-top:16px;">
-                <div class="card-body" style="padding:16px 18px;">
-                  <h4 class="card-title" style="font-size:15px; font-weight:700; margin:0 0 14px; color:#0f172a;">Central de Automações</h4>
-                  <form id="waAutomationsForm">
-                    <div style="display:grid; gap:10px;">
-                      <!-- Toggle cada tipo de notificação -->
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Registro de ponto (entrada/saida)</span>
-                        <input type="checkbox" name="aut_ponto" id="aut_ponto" style="width:18px;height:18px;accent-color:#16a34a;">
+                  <form id="waBroadcastForm">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-bottom:14px;">
+                      <label>
+                        Título do Comunicado
+                        <input id="waBroadcastTitleInput" type="text" placeholder="Ex: Reunião Geral de Equipe / Aviso da Diretoria" required style="font-weight:600; min-height:44px; border-radius:12px;" />
                       </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Folga solicitada (avisar gerente)</span>
-                        <input type="checkbox" name="aut_folga_nova" id="aut_folga_nova" style="width:18px;height:18px;accent-color:#16a34a;">
-                      </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Folga aprovada (avisar colaborador)</span>
-                        <input type="checkbox" name="aut_folga_aprovada" id="aut_folga_aprovada" style="width:18px;height:18px;accent-color:#16a34a;">
-                      </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Folga recusada (avisar colaborador)</span>
-                        <input type="checkbox" name="aut_folga_recusada" id="aut_folga_recusada" style="width:18px;height:18px;accent-color:#16a34a;">
-                      </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Troca de folga solicitada</span>
-                        <input type="checkbox" name="aut_troca_folga" id="aut_troca_folga" style="width:18px;height:18px;accent-color:#16a34a;">
-                      </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Avisos administrativos (comunicados)</span>
-                        <input type="checkbox" name="aut_comunicados" id="aut_comunicados" style="width:18px;height:18px;accent-color:#16a34a;">
-                      </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Espelho de ponto pendente de assinatura</span>
-                        <input type="checkbox" name="aut_espelho_ponto" id="aut_espelho_ponto" style="width:18px;height:18px;accent-color:#16a34a;">
-                      </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Documentos e holerites (emissão/assinatura)</span>
-                        <input type="checkbox" name="aut_documentos" id="aut_documentos" style="width:18px;height:18px;accent-color:#16a34a;">
-                      </label>
-                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#f8fafc; border-radius:10px; cursor:pointer; min-height:44px;">
-                        <span style="font-size:13px; color:#334155; font-weight:500;">Tarefas operacionais (atribuição/conclusão)</span>
-                        <input type="checkbox" name="aut_tarefas" id="aut_tarefas" style="width:18px;height:18px;accent-color:#16a34a;">
+                      <label>
+                        Destinatários / Unidade
+                        <select id="waBroadcastStoreSelect" style="min-height:44px; border-radius:12px;">
+                          <option value="TODAS">Toda a Equipe (Todas as Lojas)</option>
+                        </select>
                       </label>
                     </div>
-                    <div style="margin-top:14px; display:flex; gap:10px;">
-                      <button type="submit" class="btn btn-primary" style="flex:1; min-height:44px; font-size:13px; font-weight:600; border-radius:10px;">Salvar Automações</button>
-                      <button type="button" id="waAutomationsReloadBtn" class="btn btn-secondary" style="min-height:44px; padding:0 16px; font-size:13px; border-radius:10px;">Recarregar</button>
+                    <label>
+                      Mensagem do Comunicado
+                      <textarea id="waBroadcastMessageInput" rows="4" placeholder="Escreva a mensagem oficial que será enviada individualmente para o WhatsApp de cada colaborador..." required style="border-radius:12px; font-size:13.5px; line-height:1.5; padding:12px;"></textarea>
+                    </label>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-top:16px; padding-top:14px; border-top:1px solid #f1f5f9;">
+                      <div id="waBroadcastCountBadge" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; color:#334155; font-weight:600; background:#f8fafc; padding:8px 14px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <span id="waBroadcastTargetCount" style="font-weight:800; color:#0284c7;">Calculando</span> colaboradores com WhatsApp ativo
+                      </div>
+                      <button type="submit" id="waBtnSendBroadcast" class="btn btn-primary" style="min-height:44px; padding:0 24px; border-radius:12px; font-weight:700; font-size:14px; background:#0284c7; border-color:#0284c7;">
+                        Disparar para Todos no WhatsApp
+                      </button>
                     </div>
                   </form>
-                  <div id="waHistorySection" style="margin-top:18px;">
-                    <h5 style="font-size:13px; font-weight:700; color:#0f172a; margin:0 0 8px;">Historico de Disparos (ultimos 20)</h5>
-                    <div id="waHistoryList" style="font-size:12px; color:#64748b; background:#f8fafc; border-radius:10px; padding:10px 12px; min-height:40px;">Carregando...</div>
+
+                  <div id="waBroadcastFeedbackBox" class="hidden" style="margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px;"></div>
+                </div>
+
+                <!-- Card 2: Teste de Disparo Rápido -->
+                <div class="panel feature-panel" style="grid-column:1 / -1;">
+                  <span class="feature-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                  </span>
+                  <h3>Disparo de Teste</h3>
+                  <p style="font-size:13px; color:#64748b; margin-bottom:14px;">Envie uma mensagem de teste imediata para verificar a rota de entrega.</p>
+
+                  <form id="waTestMessageForm">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-bottom:14px;">
+                      <label>
+                        Telefone com DDD (ex: 73999887766)
+                        <input id="waTestPhoneInput" type="tel" placeholder="73999887766" required style="font-family:monospace; min-height:44px; border-radius:12px;" />
+                      </label>
+                      <label>
+                        Mensagem de Teste
+                        <input id="waTestMessageInput" type="text" required value="Teste de comunicação e disparo oficial do sistema Grupo House 190 via WhatsApp." style="min-height:44px; border-radius:12px;" />
+                      </label>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end;">
+                      <button type="submit" id="waBtnSendTest" class="btn btn-primary" style="min-height:44px; padding:0 24px; border-radius:12px; font-weight:600;">
+                        Enviar Notificação de Teste
+                      </button>
+                    </div>
+                  </form>
+
+                  <div id="waTestFeedbackBox" class="hidden" style="margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: Central de Automações & Histórico -->
+            <div data-wa-tab-pane="automations" style="display:none;">
+              <form id="waAutomationsForm">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px; margin-bottom:20px;">
+                  <!-- Grupo 1: Ponto & Jornada -->
+                  <div class="panel" style="padding:18px; border-radius:16px; background:#ffffff; border:1px solid #e2e8f0;">
+                    <h4 style="font-size:14.5px; font-weight:700; color:#0f172a; margin:0 0 12px; display:flex; align-items:center; gap:8px;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      Jornada & Ponto
+                    </h4>
+                    <div style="display:grid; gap:8px;">
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Registro de ponto (entrada/saida)</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Confirmação de batidas</small>
+                        </div>
+                        <input type="checkbox" name="aut_ponto" id="aut_ponto" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Espelho de ponto mensal</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Aviso de assinatura pendente</small>
+                        </div>
+                        <input type="checkbox" name="aut_espelho_ponto" id="aut_espelho_ponto" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                    </div>
                   </div>
+
+                  <!-- Grupo 2: Gestão de Folgas -->
+                  <div class="panel" style="padding:18px; border-radius:16px; background:#ffffff; border:1px solid #e2e8f0;">
+                    <h4 style="font-size:14.5px; font-weight:700; color:#0f172a; margin:0 0 12px; display:flex; align-items:center; gap:8px;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                      Gestão de Folgas
+                    </h4>
+                    <div style="display:grid; gap:8px;">
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Folga solicitada</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Notificar gerente responsável</small>
+                        </div>
+                        <input type="checkbox" name="aut_folga_nova" id="aut_folga_nova" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Folga aprovada</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Avisar colaborador</small>
+                        </div>
+                        <input type="checkbox" name="aut_folga_aprovada" id="aut_folga_aprovada" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Folga recusada</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Avisar colaborador com motivo</small>
+                        </div>
+                        <input type="checkbox" name="aut_folga_recusada" id="aut_folga_recusada" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Troca de folga solicitada</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Avisar colega substituto</small>
+                        </div>
+                        <input type="checkbox" name="aut_troca_folga" id="aut_troca_folga" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Grupo 3: Operação & RH -->
+                  <div class="panel" style="padding:18px; border-radius:16px; background:#ffffff; border:1px solid #e2e8f0;">
+                    <h4 style="font-size:14.5px; font-weight:700; color:#0f172a; margin:0 0 12px; display:flex; align-items:center; gap:8px;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      Operação & RH
+                    </h4>
+                    <div style="display:grid; gap:8px;">
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Avisos administrativos</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Comunicados gerais do mural</small>
+                        </div>
+                        <input type="checkbox" name="aut_comunicados" id="aut_comunicados" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Documentos e holerites</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Disponibilização de recibos</small>
+                        </div>
+                        <input type="checkbox" name="aut_documentos" id="aut_documentos" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                      <label style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; cursor:pointer; min-height:48px;">
+                        <div>
+                          <strong style="display:block; font-size:13px; color:#1e293b;">Tarefas operacionais</strong>
+                          <small style="color:#64748b; font-size:11.5px;">Atribuição e conclusão</small>
+                        </div>
+                        <input type="checkbox" name="aut_tarefas" id="aut_tarefas" style="width:18px; height:18px; accent-color:#0284c7;">
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom:24px;">
+                  <button type="button" id="waAutomationsReloadBtn" class="btn btn-secondary" style="min-height:42px; border-radius:12px; padding:0 18px; font-weight:600;">
+                    Recarregar
+                  </button>
+                  <button type="submit" class="btn btn-primary" style="min-height:42px; border-radius:12px; padding:0 24px; font-weight:700; background:#0284c7; border-color:#0284c7;">
+                    Salvar Automações
+                  </button>
+                </div>
+              </form>
+
+              <!-- Histórico de Disparos -->
+              <div class="panel" style="padding:20px; border-radius:16px; background:#ffffff; border:1px solid #e2e8f0;">
+                <h4 style="font-size:15px; font-weight:700; color:#0f172a; margin:0 0 12px; display:flex; align-items:center; gap:8px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                  Histórico de Disparos Recentes
+                </h4>
+                <div id="waHistoryList" style="font-size:12.5px; color:#64748b; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0; padding:12px 16px; max-height:360px; overflow-y:auto;">
+                  Carregando histórico...
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 3: Pareamento & Gateway -->
+            <div data-wa-tab-pane="connection" style="display:none;">
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start;">
+                <!-- Pareamento no Celular -->
+                <div class="panel feature-panel">
+                  <span class="feature-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="14" width="7" height="7"></rect>
+                      <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                  </span>
+                  <h3>Pareamento no Celular</h3>
+                  <p style="font-size:13px; color:#64748b; margin-bottom:14px;">Escaneie o QR Code abaixo ou insira o código de 8 dígitos no WhatsApp oficial da empresa.</p>
+
+                  <div id="waQrCodeWrapper" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.25rem; background:#ffffff; border:2px dashed #cbd5e1; border-radius:16px; margin-bottom:14px; min-height:200px;">
+                    <div id="waQrCodeBox" style="display:flex; align-items:center; justify-content:center; text-align:center;">
+                      <span style="color:#94a3b8; font-size:13px;">Clique em "Gerar QR Code de Conexão" para iniciar</span>
+                    </div>
+                  </div>
+
+                  <div style="display:flex; gap:10px; margin-bottom:12px;">
+                    <button type="button" id="waBtnGenerateQr" class="btn btn-primary" style="flex:1; min-height:44px; border-radius:12px; font-weight:600;">
+                      Gerar QR Code
+                    </button>
+                    <button type="button" id="waBtnConfirmPair" class="btn btn-secondary" style="flex:1; min-height:44px; border-radius:12px; font-weight:600;">
+                      Confirmar Pareamento
+                    </button>
+                  </div>
+
+                  <div style="background:#f1f5f9; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <div>
+                      <small style="color:#64748b; font-size:11px; display:block; text-transform:uppercase; font-weight:700;">Código de Pareamento</small>
+                      <span id="waPairingCodeDisplay" style="font-size:18px; font-weight:800; color:#0f172a; letter-spacing:2px; font-family:monospace;">---- - ----</span>
+                    </div>
+                    <button type="button" id="waBtnCopyCode" class="btn btn-secondary btn-sm" style="border-radius:8px; min-height:36px; padding:0 14px;">Copiar</button>
+                  </div>
+
+                  <button type="button" id="waBtnRequestPairCode" class="btn btn-secondary" style="width:100%; border-radius:12px; font-weight:600; min-height:42px; margin-bottom:12px;">
+                    Solicitar Código de Pareamento por Telefone
+                  </button>
+
+                  <ol style="font-size:12.5px; color:#64748b; margin:8px 0 0 1.25rem; line-height:1.5;">
+                    <li>Abra o WhatsApp no smartphone oficial da loja.</li>
+                    <li>Toque em <strong>Aparelhos Conectados</strong> no menu.</li>
+                    <li>Aponte a câmera para o QR Code ou selecione "Conectar com código".</li>
+                  </ol>
+                </div>
+
+                <!-- Parâmetros do Gateway -->
+                <div class="panel feature-panel">
+                  <span class="feature-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3"></circle>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                  </span>
+                  <h3>Parâmetros do Gateway</h3>
+                  <p style="font-size:13px; color:#64748b; margin-bottom:14px;">Configurações técnicas do gateway Baileys / WA-AKG e webhooks receptivos.</p>
+
+                  <form id="waGatewayConfigForm">
+                    <label>
+                      URL da API do Gateway
+                      <input id="waGatewayUrlInput" type="url" placeholder="https://api.whatsapp.house190.com.br" style="min-height:44px; border-radius:12px;" />
+                    </label>
+                    <label>
+                      Nome da Instância
+                      <input id="waGatewayInstanceInput" type="text" placeholder="house190" style="min-height:44px; border-radius:12px;" />
+                    </label>
+                    <label>
+                      Token / API Key
+                      <input id="waGatewayApiKeyInput" type="password" placeholder="Chave de autenticação" style="min-height:44px; border-radius:12px;" />
+                    </label>
+                    <label>
+                      Webhook Receptivo do Sistema
+                      <input id="waSystemWebhookInput" type="text" readonly value="https://gestao.house190.com.br/api/whatsapp/webhook" style="background:#f1f5f9; font-family:monospace; font-size:12px; min-height:44px; border-radius:12px;" />
+                    </label>
+                    <button type="submit" id="waBtnSaveGateway" class="btn btn-secondary" style="width:100%; min-height:44px; border-radius:12px; font-weight:600; margin-top:10px;">
+                      Salvar Parâmetros
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>
@@ -37086,6 +37172,24 @@ dialog#medicalCertificateDialog {
           if (el) el.innerHTML = '<span style="color:#94a3b8;">Sem registros recentes.</span>';
         }
       }
+      // Alternância de Abas Segmentadas do WhatsApp (Disparar Comunicado, Central de Automações, Pareamento & Gateway)
+      const tabBtns = $$("#view-whatsapp .wa-nav-tab");
+      const tabPanes = $$("#view-whatsapp [data-wa-tab-pane]");
+      tabBtns.forEach((btn) => {
+        btn.onclick = () => {
+          const targetTab = btn.getAttribute("data-wa-tab");
+          tabBtns.forEach((b) => {
+            const active = b === btn;
+            b.classList.toggle("active", active);
+            b.setAttribute("aria-selected", active ? "true" : "false");
+          });
+          tabPanes.forEach((pane) => {
+            const show = pane.getAttribute("data-wa-tab-pane") === targetTab;
+            pane.style.display = show ? "block" : "none";
+          });
+        };
+      });
+
       loadWaHistory_();
     } catch (err) {
       toast(err.message || "Falha ao carregar status da conexão do WhatsApp.", true);
