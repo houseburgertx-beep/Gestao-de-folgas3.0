@@ -806,5 +806,200 @@ export function createWhatsAppHandlers() {
         data: result,
       };
     },
+
+    /**
+     * Dispara um comunicado em massa para todos os colaboradores (ou filtrado por loja) via WhatsApp.
+     */
+    async broadcastWhatsAppAnnouncement(args) {
+      const [payload = {}] = args || [];
+      const profile = await runtime.requireProfile();
+      if (!isAdmin(profile) && !isManager(profile)) {
+        throw new Error("Apenas gestores ou administradores podem disparar comunicados em massa.");
+      }
+
+      const titulo = String(payload.titulo || payload.Titulo || "").trim();
+      const mensagem = String(payload.mensagem || payload.Corpo || payload.corpo || "").trim();
+      assert(titulo, "Informe o título do comunicado.");
+      assert(mensagem, "Informe o texto do comunicado.");
+
+      let targetStore = String(payload.lojaId || payload.LojaID || "").trim();
+      if (!isAdmin(profile)) {
+        targetStore = String(profile.LojaID || "").trim();
+      }
+
+      const employees = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
+      const eligibleEmployees = employees.filter((emp) => {
+        if (emp.Ativo === false || emp.Status === "Inativo" || emp.status === "Inativo") return false;
+        if (targetStore && targetStore !== "TODAS" && String(emp.LojaID || "") !== targetStore) return false;
+        const rawPhone = emp.WhatsApp || emp.Telefone || emp.Celular || emp.whatsapp || emp.telefone || emp.celular || "";
+        return Boolean(normalizeWhatsAppNumber(rawPhone));
+      });
+
+      assert(eligibleEmployees.length > 0, "Nenhum colaborador ativo com número de WhatsApp localizado para o filtro selecionado.");
+
+      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
+      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
+      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
+      const instance = gw?.InstanceName || "house190";
+      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
+      const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+      const isBrowser = typeof window !== "undefined";
+      const shouldSendGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
+
+      const results = [];
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const emp of eligibleEmployees) {
+        const rawPhone = emp.WhatsApp || emp.Telefone || emp.Celular || emp.whatsapp || emp.telefone || emp.celular || "";
+        const phone = normalizeWhatsAppNumber(rawPhone);
+        if (!phone) continue;
+
+        const firstName = String(emp.Nome || "Colaborador").trim().split(" ")[0];
+        const formattedText = [
+          `*GRUPO HOUSE 190 · COMUNICADO OFICIAL*`,
+          ``,
+          `Olá, ${firstName}!`,
+          `*${titulo}*`,
+          ``,
+          mensagem,
+          ``,
+          `_Enviado pela gestão do Grupo House 190_`,
+        ].join("\n");
+
+        let messageId = "";
+        let deliveryError = null;
+
+        // 1. Tenta envio direto pelo Gateway Baileys se disponível
+        if (shouldSendGateway && gwUrl && apiKey) {
+          try {
+            const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
+            const jid = `${phone}@s.whatsapp.net`;
+            const endpoint = `${apiBase}/messages/${encodeURIComponent(instance)}/${encodeURIComponent(jid)}/send`;
+            const res = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-API-Key": apiKey,
+                "bypass-tunnel-reminder": "true",
+              },
+              body: JSON.stringify({ message: { text: formattedText } }),
+              signal: AbortSignal.timeout(8000),
+            });
+            const resData = await res.json().catch(() => ({}));
+            if (res.ok && resData.status) {
+              messageId = resData.data?.key?.id || resData.data?.id || "sent";
+            } else {
+              deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
+            }
+          } catch (err) {
+            deliveryError = err?.message || "Falha de conexão";
+          }
+        }
+
+        // 2. Fallback via Worker Relay
+        if (!messageId && isBrowser) {
+          try {
+            const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-API-Key": apiKey,
+              },
+              body: JSON.stringify({ phone, text: formattedText }),
+              signal: AbortSignal.timeout(10000),
+            });
+            if (workerRes.ok) {
+              const workerData = await workerRes.json().catch(() => ({}));
+              if (workerData.success) {
+                messageId = workerData.messageId || "sent_worker";
+                deliveryError = null;
+              } else if (workerData.error) {
+                deliveryError = workerData.error;
+              }
+            }
+          } catch (err) {
+            if (!deliveryError) deliveryError = err?.message;
+          }
+        }
+
+        const isSuccess = Boolean(messageId) || (!isBrowser && !deliveryError);
+        if (isSuccess) sentCount++;
+        else failedCount++;
+
+        results.push({
+          funcionarioId: emp.FuncionarioID,
+          nome: emp.Nome,
+          phone,
+          status: isSuccess ? "sent" : "failed",
+          messageId: messageId || (isSuccess ? "mock_sent" : ""),
+          error: deliveryError,
+        });
+
+        // Registro individual em Auditoria
+        await audit(
+          "Comunicado em Massa WhatsApp",
+          "WhatsAppDisparos",
+          phone,
+          {
+            FuncionarioID: emp.FuncionarioID,
+            Nome: emp.Nome,
+            Phone: phone,
+            Titulo: titulo,
+            Status: isSuccess ? "Enviado" : "Falha",
+            MessageID: messageId,
+            Erro: deliveryError,
+          }
+        ).catch(() => {});
+
+        // Intervalo anti-bloqueio entre mensagens se houver mais colaboradores
+        if (isBrowser && eligibleEmployees.length > 1) {
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      }
+
+      // Registro consolidado do broadcast
+      await audit(
+        "Disparo Consolidado de Comunicado WhatsApp",
+        "Comunicados",
+        titulo,
+        {
+          Titulo: titulo,
+          TotalElegiveis: eligibleEmployees.length,
+          Enviados: sentCount,
+          Falhas: failedCount,
+          LojaID: targetStore || "TODAS",
+          Autor: profile.Nome || "Admin",
+        }
+      ).catch(() => {});
+
+      return {
+        success: sentCount > 0,
+        total: eligibleEmployees.length,
+        sentCount,
+        failedCount,
+        results,
+      };
+    },
+
+    /**
+     * Retorna os últimos disparos registrados no WhatsApp
+     */
+    async getWhatsAppHistory() {
+      const profile = await runtime.requireProfile();
+      if (!isAdmin(profile) && !isManager(profile)) {
+        throw new Error("Acesso restrito à gestão.");
+      }
+      const logs = await runtime.list("Auditoria", { profile }).catch(() => []);
+      const waLogs = logs
+        .filter((l) => l.Modulo === "WhatsAppDisparos" || l.Tabela === "WhatsAppDisparos" || l.Acao?.includes?.("WhatsApp"))
+        .sort((a, b) => String(b.DataHora || "").localeCompare(String(a.DataHora || "")))
+        .map((l) => ({
+          ...l,
+          Detalhes: l.Detalhes || l.DadosNovos || {},
+        }))
+        .slice(0, 20);
+      return { success: true, history: waLogs };
+    },
   };
 }

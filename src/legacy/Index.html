@@ -1740,6 +1740,13 @@
                   />
                   Exigir confirmação de leitura</label
                 >
+                <label class="switch-label"
+                  ><input
+                    id="announcementSendWhatsApp"
+                    type="checkbox"
+                  />
+                  Disparar também para o WhatsApp dos colaboradores</label
+                >
                 <button class="btn btn-primary" type="submit">Publicar</button>
               </form>
               <form
@@ -2175,6 +2182,49 @@
                     Salvar Parâmetros
                   </button>
                 </form>
+              </div>
+
+              <!-- 5. Card de Disparo de Comunicado em Massa (Broadcast WhatsApp) -->
+              <div class="panel feature-panel" style="grid-column: 1 / -1; margin-top:16px;">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </span>
+                <h3>Disparar Comunicado para Todos (WhatsApp)</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">
+                  Envie um aviso ou comunicado oficial diretamente para o WhatsApp de todos os colaboradores cadastrados.
+                </p>
+
+                <form id="waBroadcastForm">
+                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px; margin-bottom:12px;">
+                    <label>
+                      Título do Comunicado
+                      <input id="waBroadcastTitleInput" type="text" placeholder="Ex: Reunião Geral de Equipe / Aviso da Diretoria" required style="font-weight:600;" />
+                    </label>
+                    <label>
+                      Destinatários / Unidade
+                      <select id="waBroadcastStoreSelect" style="min-height:44px; border-radius:12px;">
+                        <option value="TODAS">Toda a Equipe (Todas as Lojas)</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    Mensagem do Comunicado
+                    <textarea id="waBroadcastMessageInput" rows="4" placeholder="Escreva a mensagem que será enviada para o WhatsApp de cada colaborador..." required style="border-radius:12px; font-size:13.5px;"></textarea>
+                  </label>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:14px;">
+                    <div id="waBroadcastCountBadge" style="font-size:13px; color:#475569; font-weight:500;">
+                      <span id="waBroadcastTargetCount">Calculando</span> colaboradores com WhatsApp ativo
+                    </div>
+                    <button type="submit" id="waBtnSendBroadcast" class="btn btn-primary" style="min-height:44px; padding:0 24px; border-radius:14px; font-weight:600; font-size:14px; background:#0284c7; border-color:#0284c7;">
+                      Disparar para Todos no WhatsApp
+                    </button>
+                  </div>
+                </form>
+
+                <div id="waBroadcastFeedbackBox" class="hidden" style="margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px;"></div>
               </div>
 
               <!-- Central de Automações -->

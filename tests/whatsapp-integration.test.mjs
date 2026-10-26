@@ -340,3 +340,137 @@ test("WhatsApp Connection Tab: marcação visual em Index.html e Scripts.html", 
   assert.match(scriptsHtml, /\/wa-qr/, "Scripts.html deve solicitar QR Code real via Worker");
   assert.match(scriptsHtml, /\/wa-automations/, "Scripts.html deve persistir automações via Worker");
 });
+
+test("WhatsApp Broadcast: disparo em massa de comunicado para colaboradores", async () => {
+  const tables = new Map();
+  const getTable = (name) => {
+    if (!tables.has(name)) tables.set(name, new Map());
+    return tables.get(name);
+  };
+  const originalMethods = {
+    getById: runtime.getById,
+    list: runtime.list,
+    upsert: runtime.upsert,
+    create: runtime.create,
+    update: runtime.update,
+    requireProfile: runtime.requireProfile,
+  };
+  runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
+  runtime.list = async (table) => [...getTable(table).values()];
+  runtime.create = async (table, record) => {
+    const idKey = table === "Funcionarios" ? "FuncionarioID" : table === "Auditoria" ? "AuditoriaID" : "id";
+    const id = String(record[idKey] || record.id || `rec_${Date.now()}_${Math.random()}`);
+    const saved = { ...record, [idKey]: id };
+    getTable(table).set(id, saved);
+    return saved;
+  };
+  runtime.upsert = async (table, record) => {
+    const idKey = table === "Funcionarios" ? "FuncionarioID" : table === "Auditoria" ? "AuditoriaID" : "id";
+    const id = String(record[idKey] || record.id || `rec_${Date.now()}_${Math.random()}`);
+    const saved = { ...record, [idKey]: id };
+    getTable(table).set(id, saved);
+    return saved;
+  };
+  runtime.update = async (table, id, data) => {
+    const existing = getTable(table).get(String(id)) || {};
+    const updated = { ...existing, ...data };
+    getTable(table).set(String(id), updated);
+    return updated;
+  };
+  runtime.requireProfile = async () => ({
+    Nome: "Administrador Geral",
+    Perfil: "Administrador",
+    LojaID: "CENTRO",
+  });
+
+  try {
+    const handlers = createWhatsAppHandlers();
+
+    // Colaboradores fictícios
+    await runtime.upsert("Funcionarios", {
+      FuncionarioID: "EMP_01",
+      Nome: "Ana Silva",
+      WhatsApp: "73999112233",
+      Status: "Ativo",
+      LojaID: "CENTRO",
+    });
+    await runtime.upsert("Funcionarios", {
+      FuncionarioID: "EMP_02",
+      Nome: "Bruno Costa",
+      Telefone: "(73) 98822-3344",
+      Status: "Ativo",
+      LojaID: "PRAIA",
+    });
+    await runtime.upsert("Funcionarios", {
+      FuncionarioID: "EMP_03",
+      Nome: "Carlos Inativo",
+      WhatsApp: "73999999999",
+      Status: "Inativo",
+      LojaID: "CENTRO",
+    });
+    await runtime.upsert("Funcionarios", {
+      FuncionarioID: "EMP_04",
+      Nome: "Daniel Sem Telefone",
+      Status: "Ativo",
+      LojaID: "CENTRO",
+    });
+
+    // 1. Falha sem título ou mensagem
+    await assert.rejects(
+      () => handlers.broadcastWhatsAppAnnouncement([{ titulo: "", mensagem: "" }]),
+      /Informe o título do comunicado/
+    );
+
+    // 2. Disparo para todas as lojas
+    const resAll = await handlers.broadcastWhatsAppAnnouncement([{
+      titulo: "Reunião Geral",
+      mensagem: "Reunião de alinhamento amanhã às 15h.",
+      lojaId: "TODAS",
+    }]);
+
+    assert.equal(resAll.success, true);
+    assert.equal(resAll.total, 2); // Apenas Ana e Bruno (ativos com telefone)
+    assert.equal(resAll.sentCount, 2);
+    assert.equal(resAll.failedCount, 0);
+
+    // 3. Disparo filtrado por loja
+    const resCentro = await handlers.broadcastWhatsAppAnnouncement([{
+      titulo: "Aviso Centro",
+      mensagem: "Manutenção na unidade Centro hoje.",
+      lojaId: "CENTRO",
+    }]);
+
+    assert.equal(resCentro.success, true);
+    assert.equal(resCentro.total, 1); // Apenas Ana Silva
+    assert.equal(resCentro.sentCount, 1);
+    assert.equal(resCentro.results[0].nome, "Ana Silva");
+
+    // 4. Histórico de disparos
+    const historyRes = await handlers.getWhatsAppHistory();
+    const history = historyRes.history || [];
+    assert.ok(history.length >= 3, "Deve retornar os registros de disparo na Auditoria");
+    assert.ok(history.some((h) => h.Acao?.includes("WhatsApp")), "Deve conter ações de WhatsApp");
+  } finally {
+    Object.assign(runtime, originalMethods);
+  }
+});
+
+test("WhatsApp Broadcast: elementos visuais e handlers em Index.html e Scripts.html", async () => {
+  const [indexHtml, scriptsHtml] = await Promise.all([
+    readFile(new URL("../src/legacy/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+  ]);
+
+  // Card de disparo em massa na aba WhatsApp
+  assert.match(indexHtml, /id="waBroadcastForm"/, "Index.html deve conter o formulário waBroadcastForm");
+  assert.match(indexHtml, /id="waBtnSendBroadcast"/, "Index.html deve conter o botão de disparo em massa");
+  assert.match(indexHtml, /id="waBroadcastTargetCount"/, "Index.html deve conter o contador de destinatários");
+
+  // Checkbox de envio WhatsApp na criação de comunicados
+  assert.match(indexHtml, /id="announcementSendWhatsApp"/, "Index.html deve conter checkbox de envio WhatsApp no mural de avisos");
+
+  // Handlers e bindings em Scripts.html
+  assert.match(scriptsHtml, /broadcastWhatsAppAnnouncement/, "Scripts.html deve registrar a action de broadcast");
+  assert.match(scriptsHtml, /broadcastExistingAnnouncement_/, "Scripts.html deve implementar broadcastExistingAnnouncement_");
+  assert.match(scriptsHtml, /Disparar WhatsApp/, "Scripts.html deve renderizar o botão Disparar WhatsApp nos comunicados");
+});

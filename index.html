@@ -24544,6 +24544,13 @@ dialog#medicalCertificateDialog {
                   />
                   Exigir confirmação de leitura</label
                 >
+                <label class="switch-label"
+                  ><input
+                    id="announcementSendWhatsApp"
+                    type="checkbox"
+                  />
+                  Disparar também para o WhatsApp dos colaboradores</label
+                >
                 <button class="btn btn-primary" type="submit">Publicar</button>
               </form>
               <form
@@ -24979,6 +24986,49 @@ dialog#medicalCertificateDialog {
                     Salvar Parâmetros
                   </button>
                 </form>
+              </div>
+
+              <!-- 5. Card de Disparo de Comunicado em Massa (Broadcast WhatsApp) -->
+              <div class="panel feature-panel" style="grid-column: 1 / -1; margin-top:16px;">
+                <span class="feature-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </span>
+                <h3>Disparar Comunicado para Todos (WhatsApp)</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">
+                  Envie um aviso ou comunicado oficial diretamente para o WhatsApp de todos os colaboradores cadastrados.
+                </p>
+
+                <form id="waBroadcastForm">
+                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px; margin-bottom:12px;">
+                    <label>
+                      Título do Comunicado
+                      <input id="waBroadcastTitleInput" type="text" placeholder="Ex: Reunião Geral de Equipe / Aviso da Diretoria" required style="font-weight:600;" />
+                    </label>
+                    <label>
+                      Destinatários / Unidade
+                      <select id="waBroadcastStoreSelect" style="min-height:44px; border-radius:12px;">
+                        <option value="TODAS">Toda a Equipe (Todas as Lojas)</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    Mensagem do Comunicado
+                    <textarea id="waBroadcastMessageInput" rows="4" placeholder="Escreva a mensagem que será enviada para o WhatsApp de cada colaborador..." required style="border-radius:12px; font-size:13.5px;"></textarea>
+                  </label>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:14px;">
+                    <div id="waBroadcastCountBadge" style="font-size:13px; color:#475569; font-weight:500;">
+                      <span id="waBroadcastTargetCount">Calculando</span> colaboradores com WhatsApp ativo
+                    </div>
+                    <button type="submit" id="waBtnSendBroadcast" class="btn btn-primary" style="min-height:44px; padding:0 24px; border-radius:14px; font-weight:600; font-size:14px; background:#0284c7; border-color:#0284c7;">
+                      Disparar para Todos no WhatsApp
+                    </button>
+                  </div>
+                </form>
+
+                <div id="waBroadcastFeedbackBox" class="hidden" style="margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px;"></div>
               </div>
 
               <!-- Central de Automações -->
@@ -27361,6 +27411,8 @@ dialog#medicalCertificateDialog {
     waDisconnect: "disconnectWhatsApp",
     waConfirmPair: "confirmWhatsAppConnection",
     waSendTest: "sendTestWhatsAppMessage",
+    waBroadcastAnnouncement: "broadcastWhatsAppAnnouncement",
+    waGetHistory: "getWhatsAppHistory",
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
@@ -36823,6 +36875,114 @@ dialog#medicalCertificateDialog {
         };
       }
 
+      // Disparo de Comunicado em Massa via WhatsApp
+      function updateBroadcastCount_() {
+        const storeVal = $("#waBroadcastStoreSelect")?.value || "TODAS";
+        const emps = Array.isArray(state?.employees) ? state.employees : [];
+        const eligible = emps.filter(e => {
+          if (e.Ativo === false) return false;
+          if (storeVal !== "TODAS" && String(e.LojaID || "") !== storeVal) return false;
+          const ph = e.WhatsApp || e.Telefone || e.Celular || e.whatsapp || e.telefone || e.celular || "";
+          return String(ph).replace(/\D/g, "").length >= 10;
+        });
+        if ($("#waBroadcastTargetCount")) {
+          $("#waBroadcastTargetCount").textContent = String(eligible.length);
+        }
+      }
+
+      if ($("#waBroadcastStoreSelect")) {
+        const stores = Array.isArray(state?.stores) ? state.stores : [];
+        const storeOptions = ['<option value="TODAS">Toda a Equipe (Todas as Lojas)</option>']
+          .concat(stores.map(s => `<option value="${esc(idOf(s, "Loja"))}">${esc(val(s, "NomeLoja", "nomeLoja"))}</option>`))
+          .join("");
+        $("#waBroadcastStoreSelect").innerHTML = storeOptions;
+        $("#waBroadcastStoreSelect").onchange = updateBroadcastCount_;
+      }
+      updateBroadcastCount_();
+
+      if ($("#waBroadcastForm")) {
+        $("#waBroadcastForm").onsubmit = async (ev) => {
+          ev.preventDefault();
+          const titulo = String($("#waBroadcastTitleInput")?.value || "").trim();
+          const mensagem = String($("#waBroadcastMessageInput")?.value || "").trim();
+          const lojaId = String($("#waBroadcastStoreSelect")?.value || "TODAS").trim();
+
+          if (!titulo) return toast("Informe o título do comunicado.", true);
+          if (!mensagem) return toast("Informe a mensagem do comunicado.", true);
+
+          const storeVal = lojaId;
+          const emps = Array.isArray(state?.employees) ? state.employees : [];
+          const eligible = emps.filter(e => {
+            if (e.Ativo === false) return false;
+            if (storeVal !== "TODAS" && String(e.LojaID || "") !== storeVal) return false;
+            const ph = e.WhatsApp || e.Telefone || e.Celular || e.whatsapp || e.telefone || e.celular || "";
+            return String(ph).replace(/\D/g, "").length >= 10;
+          });
+
+          const count = eligible.length;
+          if (count === 0) {
+            return toast("Nenhum colaborador com WhatsApp ativo localizado para esta seleção.", true);
+          }
+
+          const confirmed = window.confirm(`Confirma o disparo deste comunicado via WhatsApp para ${count} colaborador(es)?\n\nTítulo: ${titulo}`);
+          if (!confirmed) return;
+
+          const btn = $("#waBtnSendBroadcast");
+          const originalText = btn ? btn.textContent : "Disparar para Todos no WhatsApp";
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = `Disparando para ${count}...`;
+          }
+          setLoading(true);
+
+          const box = $("#waBroadcastFeedbackBox");
+          if (box) {
+            box.className = "";
+            box.style.cssText = "margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;";
+            box.innerHTML = `Disparando comunicado via WhatsApp para ${count} colaboradores... Aguarde a conclusão do lote.`;
+          }
+
+          try {
+            const rawRes = await call(FN.waBroadcastAnnouncement, { titulo, mensagem, lojaId });
+            const res = rawRes?.data || rawRes || {};
+            const sent = Number(res.sentCount || 0);
+            const failed = Number(res.failedCount || 0);
+
+            if (box) {
+              if (sent > 0) {
+                box.style.cssText = "margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;";
+                box.innerHTML = `<strong>Disparo concluído:</strong> Comunicado enviado com sucesso para ${sent} colaborador(es). ${failed > 0 ? `(${failed} falhas)` : ''}`;
+              } else {
+                box.style.cssText = "margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca;";
+                box.innerHTML = `<strong>Falha no disparo:</strong> Nenhuma mensagem foi entregue. Verifique se o gateway está conectado.`;
+              }
+            }
+
+            if (sent > 0) {
+              toast(`Comunicado entregue para ${sent} colaborador(es) no WhatsApp!`);
+              if ($("#waBroadcastTitleInput")) $("#waBroadcastTitleInput").value = "";
+              if ($("#waBroadcastMessageInput")) $("#waBroadcastMessageInput").value = "";
+            } else {
+              toast("Falha no disparo do comunicado pelo WhatsApp.", true);
+            }
+
+            await loadWaHistory_();
+          } catch (err) {
+            if (box) {
+              box.style.cssText = "margin-top:14px; padding:12px 16px; border-radius:12px; font-size:13px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca;";
+              box.innerHTML = `<strong>Erro ao disparar:</strong> ${escapeHtml(err.message || "Erro desconhecido")}`;
+            }
+            toast(err.message || "Erro ao disparar comunicado no WhatsApp.", true);
+          } finally {
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }
+            setLoading(false);
+          }
+        };
+      }
+
       // Central de Automações — carrega config salva
       async function loadWaAutomations_() {
         try {
@@ -36882,11 +37042,33 @@ dialog#medicalCertificateDialog {
         const el = $("#waHistoryList");
         if (!el) return;
         try {
-          const histRes = await call(FN.waGetStatus);
-          // Tenta carregar historico de notificacoes WA do RTDB (tabela Auditoria filtrada)
-          el.textContent = "Sem historico de disparos registrado ainda.";
+          const res = await call(FN.waGetHistory);
+          const list = res?.history || [];
+          if (!list.length) {
+            el.innerHTML = '<span style="color:#94a3b8;">Nenhum disparo registrado ainda.</span>';
+            return;
+          }
+          el.innerHTML = list.map(item => {
+            const dt = dateBR(item.DataHora) || item.DataHora || "";
+            const det = item.Detalhes || {};
+            const st = det.Status || "Registrado";
+            const phone = det.Phone || item.RegistroID || "";
+            const nome = det.Nome || det.Destinatario || "";
+            const isOk = st === "Enviado";
+            const color = isOk ? "#16a34a" : "#dc2626";
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #e2e8f0;">
+              <div>
+                <strong>${esc(item.Acao || "Disparo WhatsApp")}</strong>: ${esc(nome ? nome + ' (' + phone + ')' : phone)}
+                ${det.Titulo ? `<br><small style="color:#64748b;">${esc(det.Titulo)}</small>` : ''}
+              </div>
+              <div style="text-align:right;">
+                <span style="font-weight:700; color:${color}; font-size:11px;">${esc(st)}</span>
+                <br><small style="color:#94a3b8; font-size:10px;">${esc(dt)}</small>
+              </div>
+            </div>`;
+          }).join("");
         } catch (_) {
-          if (el) el.textContent = "Nao foi possivel carregar o historico.";
+          if (el) el.innerHTML = '<span style="color:#94a3b8;">Sem registros recentes.</span>';
         }
       }
       loadWaHistory_();
@@ -37702,6 +37884,7 @@ dialog#medicalCertificateDialog {
   /* ===================== TELAS VISUAIS V11 ===================== */
   var ADVANCED_UI_BOUND_ = false;
   var ADVANCED_POLLS_ = [];
+  var ADVANCED_ANNOUNCEMENTS_ = [];
 
   function advancedMonth_() {
     return iso(new Date()).slice(0, 7);
@@ -38180,20 +38363,42 @@ dialog#medicalCertificateDialog {
   async function submitAnnouncement_(e) {
     e.preventDefault();
     var b = e.submitter;
+    const sendWa = Boolean($("#announcementSendWhatsApp")?.checked);
+    const titleVal = String($("#announcementTitle")?.value || "").trim();
+    const bodyVal = String($("#announcementMessage")?.value || "").trim();
+    const storeVal = $("#announcementStore")?.value || "";
     await advancedAction_(
       b,
       function () {
         return call("publicarComunicado", sessionToken(), {
-          Titulo: $("#announcementTitle").value,
-          Corpo: $("#announcementMessage").value,
-          LojaID: $("#announcementStore").value,
-          PublicoAlvo: $("#announcementAudience").value,
-          ExigeConfirmacao: $("#announcementRequiresConfirmation").checked,
-          ExpiraEm: $("#announcementExpiresAt").value,
+          Titulo: titleVal,
+          Corpo: bodyVal,
+          LojaID: storeVal,
+          PublicoAlvo: $("#announcementAudience")?.value || "Todos",
+          ExigeConfirmacao: $("#announcementRequiresConfirmation")?.checked,
+          ExpiraEm: $("#announcementExpiresAt")?.value || "",
         });
       },
       "Comunicado publicado.",
     );
+
+    if (sendWa && titleVal && bodyVal) {
+      try {
+        toast("Disparando comunicado no WhatsApp...");
+        const waRes = await call(FN.waBroadcastAnnouncement, {
+          titulo: titleVal,
+          mensagem: bodyVal,
+          lojaId: storeVal,
+        });
+        const resData = waRes?.data || waRes || {};
+        if (resData.sentCount) {
+          toast(`Comunicado entregue via WhatsApp para ${resData.sentCount} colaborador(es)!`);
+        }
+      } catch (err) {
+        toast(`Aviso publicado, mas disparo WhatsApp falhou: ${err.message}`, true);
+      }
+    }
+
     e.target.reset();
     populateAdvancedSelects();
     loadCommunication_();
@@ -38297,6 +38502,7 @@ dialog#medicalCertificateDialog {
         call("listarEnquetesAtivas", sessionToken()),
       ]);
       var rows = responses[0].status === "fulfilled" ? responses[0].value : [];
+      ADVANCED_ANNOUNCEMENTS_ = arr(rows);
       ADVANCED_POLLS_ =
         responses[1].status === "fulfilled" ? arr(responses[1].value) : [];
       box.innerHTML =
@@ -38328,6 +38534,11 @@ dialog#medicalCertificateDialog {
                       : '<button class="btn btn-ghost" onclick="confirmAnnouncement_(\'' +
                         esc(id) +
                         "',this)\">Confirmar leitura</button>") +
+                  (isManager()
+                    ? ' <button class="btn btn-ghost" style="font-size:12px; font-weight:600; color:#0284c7; min-height:36px; padding:0 8px; margin-left:auto;" onclick="broadcastExistingAnnouncement_(\'' +
+                      esc(id) +
+                      '\', this)" title="Disparar este comunicado para todos no WhatsApp">Disparar WhatsApp</button>'
+                    : "") +
                   "</footer></article>"
                 );
               })
@@ -38400,6 +38611,55 @@ dialog#medicalCertificateDialog {
       "Leitura confirmada.",
     );
     loadCommunication_();
+  }
+  async function broadcastExistingAnnouncement_(comId, btn) {
+    if (!isManager()) {
+      toast("Apenas gerentes e administradores podem disparar comunicados.", true);
+      return;
+    }
+    const item = (ADVANCED_ANNOUNCEMENTS_ || []).find(function (c) {
+      return String(val(c, "ComID", "comId", "id")) === String(comId);
+    });
+    if (!item) {
+      toast("Comunicado não encontrado.", true);
+      return;
+    }
+    const titulo = val(item, "Titulo", "titulo") || "Comunicado House 190";
+    const mensagem = val(item, "Corpo", "corpo") || "";
+    const lojaId = val(item, "LojaID", "lojaId", "Loja", "loja") || "";
+
+    const emps = arr(state.employees || []);
+    const count = emps.filter(function (e) {
+      if (val(e, "Status", "Ativo", "status") === "Inativo") return false;
+      const num = String(val(e, "WhatsApp", "Telefone", "Celular", "whatsApp", "telefone", "whatsapp") || "").replace(/\D/g, "");
+      if (num.length < 10) return false;
+      if (lojaId && lojaId !== "TODAS" && String(val(e, "LojaID", "lojaId", "Loja", "loja")) !== String(lojaId)) return false;
+      return true;
+    }).length;
+
+    const confirmed = confirm(
+      "Deseja disparar este comunicado via WhatsApp para " + count + " colaborador(es)?\n\n" +
+      "Título: " + titulo + "\n\n" +
+      "Esta ação enviará mensagens aos números de WhatsApp cadastrados."
+    );
+    if (!confirmed) return;
+
+    await advancedAction_(
+      btn,
+      async function () {
+        const res = await call(FN.waBroadcastAnnouncement, {
+          titulo: titulo,
+          mensagem: mensagem,
+          lojaId: lojaId,
+        });
+        const resData = res?.data || res || {};
+        if (resData.sentCount) {
+          toast("Comunicado entregue via WhatsApp para " + resData.sentCount + " colaborador(es)!");
+        }
+        return resData;
+      },
+      "Disparo concluído com sucesso!",
+    );
   }
   async function votePoll_(pi, oi, b) {
     var p = ADVANCED_POLLS_[pi],
