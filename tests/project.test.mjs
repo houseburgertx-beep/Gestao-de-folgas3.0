@@ -2039,6 +2039,53 @@ test("jornada integral fechando a meia-noite: tolerância de 23:40 a 00:00 sem d
     { dateKey: "2026-09-30" },
   );
   assert.equal(earlyEntryWithOvertime.balance, 30, "Hora extra deve contar estritamente os minutos pós meia-noite");
+
+  // 7. Fechamento à meia-noite com intervalo previsto (60 min): trabalhar "Sem descanso" credita o intervalo suprimido
+  const scheduleWithBreak = {
+    TipoJornada: "Integral",
+    HoraEntrada: "15:30",
+    HoraSaida: "00:00",
+    CargaDiariaMinutos: 450,
+    DuracaoIntervaloMinutos: 60,
+    ToleranciaMinutos: 5,
+  };
+
+  // 7a. Ana Claudia: Entrada 15:30, Sem descanso, Saída 23:41 (tolerância saída ativa, +60 min de descanso suprimido)
+  const noBreakClosing = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-10-24T15:30:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SEM_DESCANSO", DataHora: "2026-10-24T15:30:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-24T23:41:00-03:00", Data: "2026-10-24" },
+    ],
+    scheduleWithBreak,
+    { dateKey: "2026-10-24" },
+  );
+  assert.equal(noBreakClosing.balance, 60, "Sem descanso em turno de fechamento deve creditar os 60 minutos do intervalo não usufruído");
+
+  // 7b. Weverton: Entrada 15:30, Intervalo 17:25 às 18:25 (60 min), Saída 23:51 -> Saldo 0 (dentro da tolerância)
+  const normalBreakClosing = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-10-24T15:30:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_INTERVALO", DataHora: "2026-10-24T17:25:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "RETORNO_INTERVALO", DataHora: "2026-10-24T18:25:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-24T23:51:00-03:00", Data: "2026-10-24" },
+    ],
+    scheduleWithBreak,
+    { dateKey: "2026-10-24" },
+  );
+  assert.equal(normalBreakClosing.balance, 0, "Descanso cumprido integralmente com saída às 23:51 deve resultar em saldo 0");
+
+  // 7c. Maria Clara: Entrada 15:35, Sem descanso, Saída 00:09 -> 514 min trabalhados - 450 esperados = +64 min (+1h 04min)
+  const noBreakAfterMidnight = dayMetrics(
+    [
+      { TipoMarcacao: "ENTRADA", DataHora: "2026-10-24T15:35:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SEM_DESCANSO", DataHora: "2026-10-24T15:35:00-03:00", Data: "2026-10-24" },
+      { TipoMarcacao: "SAIDA_FINAL", DataHora: "2026-10-25T00:09:00-03:00", Data: "2026-10-24" },
+    ],
+    scheduleWithBreak,
+    { dateKey: "2026-10-24" },
+  );
+  assert.equal(noBreakAfterMidnight.balance, 64, "Sem descanso e saída às 00:09 deve creditar +64 min (+1h 04min)");
 });
 
 test("CozinhaFlow: títulos, pontuação por prioridade e catálogo de prêmios da loja", async () => {

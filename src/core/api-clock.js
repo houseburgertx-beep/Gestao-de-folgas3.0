@@ -665,11 +665,14 @@ const dayMetrics = (records, schedule, options = {}) => {
           : null;
         if (bOut && bIn) {
           totalActualBreak += exactMinutesBetween(bOut.DataHora, bIn.DataHora);
+        } else if (bOut && !bIn) {
+          totalActualBreak += scheduledBreak;
         }
       });
-      const breakDeficit = Math.max(0, totalActualBreak - scheduledBreak);
+      const breakExcess = Math.max(0, totalActualBreak - scheduledBreak);
+      const breakSuppressed = Math.max(0, scheduledBreak - totalActualBreak);
       const exitContrib = exitDiff > 0 ? exitDiff : (exitDiff >= -20 ? 0 : exitDiff);
-      balance = exitContrib - entryDeficit - breakDeficit;
+      balance = exitContrib - entryDeficit - breakExcess + breakSuppressed;
       rawBalance = balance;
     }
   }

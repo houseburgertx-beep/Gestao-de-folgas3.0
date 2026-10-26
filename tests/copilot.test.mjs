@@ -57,8 +57,12 @@ const mockSwaps = [
   },
 ];
 
+const futureLeaveDate = new Date(Date.now() + 86400000 * 2);
+const futureLeaveIso = futureLeaveDate.toISOString().slice(0, 10);
+const futureLeaveDisplay = `${String(futureLeaveDate.getDate()).padStart(2, "0")}/${String(futureLeaveDate.getMonth() + 1).padStart(2, "0")}/${futureLeaveDate.getFullYear()}`;
+
 const mockTimeOff = [
-  { FuncionarioID: "emp_1", DataInicio: "2026-10-25", TipoFolga: "Folga regular", Status: "Aprovada" },
+  { FuncionarioID: "emp_1", DataInicio: futureLeaveIso, TipoFolga: "Folga regular", Status: "Aprovada" },
 ];
 
 test("Copiloto: detecção correta de papéis RBAC", () => {
@@ -176,7 +180,7 @@ test("Copiloto Consultas: Consulta de próxima folga e saldo de horas em memóri
 
   const folgaRes = parseCopilotIntent("Quando é minha próxima folga?", ctx);
   assert.equal(folgaRes.type, "query");
-  assert.match(folgaRes.reply, /25\/10\/2026/);
+  assert.match(folgaRes.reply, new RegExp(futureLeaveDisplay.replace(/\//g, "\\/")));
 
   const saldoRes = parseCopilotIntent("Qual é o meu saldo de horas?", ctx);
   assert.equal(saldoRes.type, "query");
@@ -252,7 +256,7 @@ test("Gemini Flash: Fallback para o motor local quando sem chave configurada", a
   // Sem chave: chama callGeminiCopilot e obtém resultado do motor local diretamente
   const res = await callGeminiCopilot("Quando é minha próxima folga?", ctx);
   assert.equal(res.type, "query");
-  assert.match(res.reply, /25\/10\/2026/);
+  assert.match(res.reply, new RegExp(futureLeaveDisplay.replace(/\//g, "\\/")));
 });
 
 test("Copiloto: SCREEN_KNOWLEDGE cobre todas as telas do sistema com regras e chips", () => {

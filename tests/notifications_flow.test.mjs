@@ -240,7 +240,7 @@ test("Aviso automático: Amanhã é sua folga é gerado na consulta de notifica�
       Email: "mariana@house.test",
       LojaID: "LOJA_1",
       Ativo: true,
-      DiaFolgaPreferencial: "Segunda-feira",
+      DiaFolgaPreferencial: null,
     });
 
     // Calcula amanhã no fuso da aplicação
