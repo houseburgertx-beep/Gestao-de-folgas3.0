@@ -366,16 +366,18 @@ export function createWhatsAppHandlers() {
     },
 
     /**
-     * Configura credenciais de gateway de WhatsApp (Admin apenas)
+     * Configura credenciais de gateway de WhatsApp (Liderança e Admin)
      */
     async configureWhatsAppGateway(args) {
       const [config = {}] = args;
       const profile = await runtime.requireProfile();
-      requireAdmin(profile);
+      if (!isAdmin(profile) && !isManager(profile)) {
+        throw new Error("Acesso restrito à liderança e administração.");
+      }
 
       const toSave = {
         Chave: "WhatsAppGateway",
-        GatewayUrl: String(config.gatewayUrl || "").trim(),
+        GatewayUrl: String(config.gatewayUrl || "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api").trim(),
         ApiKeyMasked: config.apiKey ? "********" + String(config.apiKey).slice(-4) : "",
         InstanceName: String(config.instanceName || "house190").trim(),
         Ativo: Boolean(config.ativo),
@@ -385,6 +387,12 @@ export function createWhatsAppHandlers() {
 
       if (config.apiKey && !config.apiKey.includes("***")) {
         toSave.ApiKey = String(config.apiKey).trim();
+      } else {
+        const existing = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
+        if (existing?.ApiKey) {
+          toSave.ApiKey = existing.ApiKey;
+          toSave.ApiKeyMasked = existing.ApiKeyMasked || ("********" + existing.ApiKey.slice(-4));
+        }
       }
 
       await runtime.upsert("Configuracoes", toSave);
@@ -410,16 +418,18 @@ export function createWhatsAppHandlers() {
       }
       const config = await runtime.getById("Configuracoes", "WhatsAppConnection").catch(() => null);
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
+      const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
       return {
         connected: Boolean(config?.Connected),
         status: config?.Status || (config?.Connected ? "connected" : "disconnected"),
-        instanceName: gw?.InstanceName || config?.InstanceName || "house190-bot",
+        instanceName: gw?.InstanceName || config?.InstanceName || "house190",
         phone: config?.Phone || "",
         pairingCode: config?.PairingCode || "",
         qrcode: config?.QrCode || "",
         updatedAt: config?.AtualizadoEm || nowIso(),
-        gatewayUrl: gw?.GatewayUrl || "",
-        gatewayAtivo: Boolean(gw?.Ativo),
+        gatewayUrl: gw?.GatewayUrl || defaultGatewayUrl,
+        gatewayAtivo: gw ? Boolean(gw.Ativo) : true,
+        apiKeyMasked: gw?.ApiKeyMasked || "wag_lHoX...hBl",
       };
     },
 
@@ -433,13 +443,40 @@ export function createWhatsAppHandlers() {
         throw new Error("Apenas gestores ou administradores podem parear o WhatsApp.");
       }
 
+      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
+      const gwUrl = (gw?.GatewayUrl || "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api").replace(/\/+$/, "");
+      const instance = gw?.InstanceName || "house190-bot";
+      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
+
+      let realQr = "";
+
+      if (gwUrl && apiKey) {
+        try {
+          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
+          await fetch(`${apiBase}/sessions/${encodeURIComponent(instance)}/start`, {
+            method: "POST",
+            headers: { "X-API-Key": apiKey, "Content-Type": "application/json", "bypass-tunnel-reminder": "true" },
+            body: JSON.stringify({}),
+          }).catch(() => null);
+
+          const r = await fetch(`${apiBase}/sessions/${encodeURIComponent(instance)}/qr`, {
+            headers: { "X-API-Key": apiKey, "bypass-tunnel-reminder": "true" },
+          });
+          if (r.ok) {
+            const d = await r.json();
+            if (d.base64) realQr = d.base64;
+            else if (d.qr) realQr = d.qr;
+          }
+        } catch (_) {}
+      }
+
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let code = "H190-";
       for (let i = 0; i < 4; i++) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
       }
 
-      const qrPayload = `2@${uuid().replace(/-/g, "")},${Date.now()},house190-bot`;
+      const qrPayload = realQr || `2@${uuid().replace(/-/g, "")},${Date.now()},${instance}`;
 
       const toSave = {
         Chave: "WhatsAppConnection",

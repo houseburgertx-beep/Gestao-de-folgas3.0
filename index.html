@@ -24909,6 +24909,9 @@ dialog#medicalCertificateDialog {
                   </div>
                   <button type="button" id="waBtnCopyCode" class="btn btn-secondary btn-sm" style="border-radius:8px;">Copiar</button>
                 </div>
+                <button type="button" id="waBtnRequestPairCode" class="btn btn-secondary btn-sm" style="width:100%; margin-top:8px; border-radius:10px; font-weight:600; min-height:38px;">
+                  Solicitar Código de Pareamento por Telefone
+                </button>
 
                 <ol style="font-size:12.5px; color:#64748b; margin:14px 0 0 1.25rem; line-height:1.5;">
                   <li>Abra o WhatsApp no smartphone oficial da loja.</li>
@@ -36495,9 +36498,12 @@ dialog#medicalCertificateDialog {
           });
           if (workerStatusRes.ok) {
             const workerData = await workerStatusRes.json();
+            if (workerData.qrcode && typeof state !== "undefined") {
+              state.lastRealQrCode = workerData.qrcode;
+            }
             res = {
-              connected: workerData.connected || false,
-              status: workerData.status || "disconnected",
+              connected: Boolean(workerData.connected),
+              status: workerData.status || (workerData.connected ? "connected" : "disconnected"),
               instanceName: workerData.instanceName || "house190",
               phone: workerData.phone || "",
               pairingCode: workerData.pairingCode || "",
@@ -36505,12 +36511,17 @@ dialog#medicalCertificateDialog {
               gatewayUrl: workerData.gatewayUrl || "",
               gatewayAtivo: workerData.configured || false,
               workerConfigured: workerData.configured || false,
+              apiKeyMasked: workerData.apiKeyMasked || "",
             };
           }
         } catch (_) {}
       }
       if (!res) {
-        try { res = await call(FN.waGetStatus); } catch(_) { res = { connected: false, status: "disconnected", instanceName: "house190" }; }
+        try {
+          res = await call(FN.waGetStatus);
+        } catch(_) {
+          res = { connected: false, status: "disconnected", instanceName: "house190" };
+        }
       }
       const isConnected = Boolean(res?.connected || res?.status === "CONNECTED" || res?.status === "connected");
       const isQr = res?.status === "qrcode" || res?.status === "SCAN_QR" || Boolean(res?.qrcode) || Boolean(typeof state !== "undefined" && state.lastRealQrCode);
@@ -36562,13 +36573,20 @@ dialog#medicalCertificateDialog {
             </div>
           `;
         } else if (isQr && activeQr) {
-          const qrHtml = activeQr.startsWith("data:image/")
-            ? `<img src="${activeQr}" alt="QR Code WhatsApp" style="width:180px; height:180px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.06); padding:8px; background:#fff;" />`
-            : renderSvgQrCode(activeQr);
+          let qrHtml = "";
+          if (activeQr.startsWith("data:image/")) {
+            qrHtml = `<img src="${activeQr}" alt="QR Code WhatsApp" style="width:200px; height:200px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.08); padding:8px; background:#fff; display:block;" />`;
+          } else if (activeQr.startsWith("2@") || activeQr.length > 20) {
+            const encoded = encodeURIComponent(activeQr);
+            const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=4&data=${encoded}`;
+            qrHtml = `<img src="${qrImgUrl}" alt="QR Code WhatsApp" style="width:200px; height:200px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.08); padding:8px; background:#fff; display:block;" />`;
+          } else {
+            qrHtml = renderSvgQrCode(activeQr);
+          }
           qrBox.innerHTML = `
             <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
               ${qrHtml}
-              <small style="color:#64748b; font-size:12px; margin-top:6px;">Aponte a câmera do WhatsApp para conectar</small>
+              <small style="color:#64748b; font-size:12px; margin-top:6px; font-weight:500;">Aponte a câmera do WhatsApp para conectar</small>
             </div>
           `;
         } else {
@@ -36576,8 +36594,14 @@ dialog#medicalCertificateDialog {
         }
       }
 
-      if ($("#waGatewayUrlInput") && res?.gatewayUrl) $("#waGatewayUrlInput").value = res.gatewayUrl;
-      if ($("#waGatewayInstanceInput") && res?.instanceName) $("#waGatewayInstanceInput").value = res.instanceName;
+      const defaultGateway = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+      if ($("#waGatewayUrlInput")) $("#waGatewayUrlInput").value = res?.gatewayUrl || defaultGateway;
+      if ($("#waGatewayInstanceInput")) $("#waGatewayInstanceInput").value = res?.instanceName || "house190";
+      if ($("#waGatewayApiKeyInput")) {
+        if (!$("#waGatewayApiKeyInput").value) {
+          $("#waGatewayApiKeyInput").placeholder = res?.apiKeyMasked || "wag_lHoX...hBl";
+        }
+      }
 
       if ($("#waBtnGenerateQr")) {
         $("#waBtnGenerateQr").onclick = async () => {
@@ -36586,6 +36610,7 @@ dialog#medicalCertificateDialog {
             const defaultWorkerUrl2 = "https://house-folgas-notifications.brunohouse.workers.dev";
             const workerUrl2 = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl2;
             const tok2 = sessionToken ? sessionToken() : "";
+            let generatedQr = "";
             if (workerUrl2 && tok2) {
               const qrRes = await fetch(workerUrl2 + "/wa-qr", {
                 method: "POST",
@@ -36600,18 +36625,58 @@ dialog#medicalCertificateDialog {
                   toast(qrData.error || "Erro ao solicitar QR Code ao gateway.", true);
                 }
               } else {
+                generatedQr = qrData.qrcode;
                 toast("QR Code real gerado! Aponte a câmera do WhatsApp.");
-                if (typeof state !== "undefined") {
-                  state.lastRealQrCode = qrData.qrcode;
-                }
               }
             } else {
-              await call(FN.waGenerateQr);
-              toast("QR Code de conexao gerado (modo local).");
+              const localRes = await call(FN.waGenerateQr);
+              generatedQr = localRes?.qrcode || "";
+              toast("QR Code de conexao gerado.");
+            }
+            if (generatedQr && typeof state !== "undefined") {
+              state.lastRealQrCode = generatedQr;
             }
             await loadWhatsAppConnectionView();
           } catch (e) {
             toast(e.message || "Erro ao gerar QR Code.", true);
+          } finally {
+            setLoading(false);
+          }
+        };
+      }
+
+      if ($("#waBtnRequestPairCode")) {
+        $("#waBtnRequestPairCode").onclick = async () => {
+          const ph = window.prompt("Informe o número do WhatsApp corporativo (com DDD, ex: 73999990190):", "73999990190");
+          if (!ph) return;
+          const cleanPhone = ph.replace(/\D/g, "");
+          if (cleanPhone.length < 10) {
+            return toast("Número de telefone inválido. Informe DDD + número.", true);
+          }
+          setLoading(true);
+          try {
+            const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+            const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
+            const tok = sessionToken ? sessionToken() : "";
+            if (workerUrl && tok) {
+              const pairRes = await fetch(workerUrl + "/wa-pair-code", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+                body: JSON.stringify({ phone: cleanPhone }),
+              });
+              const pairData = await pairRes.json().catch(() => ({}));
+              if (pairData.success && pairData.pairingCode) {
+                if (typeof state !== "undefined") state.lastPairingCode = pairData.pairingCode;
+                if ($("#waPairingCodeDisplay")) $("#waPairingCodeDisplay").textContent = pairData.pairingCode;
+                toast("Código de pareamento gerado! Digite no WhatsApp.");
+              } else {
+                toast(pairData.error || "Não foi possível obter código de pareamento.", true);
+              }
+            } else {
+              toast("Worker indisponível para pareamento por código.", true);
+            }
+          } catch (e) {
+            toast(e.message || "Erro ao solicitar código de pareamento.", true);
           } finally {
             setLoading(false);
           }
@@ -36640,7 +36705,21 @@ dialog#medicalCertificateDialog {
           if (!window.confirm("Deseja realmente desconectar o WhatsApp desta instância?")) return;
           setLoading(true);
           try {
+            const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+            const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
+            const tok = sessionToken ? sessionToken() : "";
+            if (workerUrl && tok) {
+              await fetch(workerUrl + "/wa-disconnect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+                body: JSON.stringify({}),
+              }).catch(() => null);
+            }
             await call(FN.waDisconnect);
+            if (typeof state !== "undefined") {
+              delete state.lastRealQrCode;
+              delete state.lastPairingCode;
+            }
             toast("Instância do WhatsApp desconectada.");
             await loadWhatsAppConnectionView();
           } catch (e) {
@@ -36702,7 +36781,20 @@ dialog#medicalCertificateDialog {
           setLoading(true);
           try {
             await call(FN.waConfigureGateway, { gatewayUrl, instanceName, apiKey, ativo: true });
-            toast("Parâmetros do Gateway salvos com sucesso.");
+
+            const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+            const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
+            const tok = sessionToken ? sessionToken() : "";
+            if (workerUrl && tok) {
+              await fetch(workerUrl + "/wa-gateway-config", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok },
+                body: JSON.stringify({ gatewayUrl, instanceName, apiKey }),
+              }).catch(() => null);
+            }
+
+            toast("Parâmetros do Gateway salvos e sincronizados com sucesso.");
+            await loadWhatsAppConnectionView();
           } catch (e) {
             toast(e.message || "Erro ao salvar parâmetros.", true);
           } finally {

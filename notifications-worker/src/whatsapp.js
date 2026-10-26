@@ -62,7 +62,7 @@ export function normalizeWhatsAppPhone(phone) {
  * @param {number} [options.timeoutMs=10000]
  * @returns {Promise<{ success: boolean, status?: number, error?: string, skipped?: boolean }>}
  */
-export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000 }) {
+export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000, gwConfig = null }) {
   const isEnabled =
     env.WA_ENABLED === true ||
     env.WA_ENABLED === 1 ||
@@ -72,7 +72,11 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000 
     return { success: false, skipped: true, error: "wa_disabled" };
   }
 
-  if (!env.WA_API_URL || !env.WA_SESSION_ID || !env.WA_API_KEY) {
+  const baseUrl = (gwConfig?.url || env.WA_API_URL || "").trim().replace(/\/+$/, "");
+  const sessionId = gwConfig?.instance || env.WA_SESSION_ID;
+  const apiKey = gwConfig?.apiKey || env.WA_API_KEY;
+
+  if (!baseUrl || !sessionId || !apiKey) {
     return { success: false, skipped: true, error: "wa_config_missing" };
   }
 
@@ -81,15 +85,16 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000 
     return { success: false, error: "invalid_phone" };
   }
 
-  const baseUrl = env.WA_API_URL.replace(/\/+$/, "");
-  const endpoint = `${baseUrl}/messages/${encodeURIComponent(env.WA_SESSION_ID)}/${encodeURIComponent(target.jid)}/send`;
+  const apiEndpoint = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+  const endpoint = `${apiEndpoint}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(target.jid)}/send`;
 
   try {
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": env.WA_API_KEY,
+        "X-API-Key": apiKey,
+        "bypass-tunnel-reminder": "true",
       },
       body: JSON.stringify({
         message: {
