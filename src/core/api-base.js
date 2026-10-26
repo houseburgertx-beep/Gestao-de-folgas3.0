@@ -756,7 +756,7 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
     if (!targets.length) return;
 
     // 3. Obtém credenciais de relay do Worker ou Gateway direto
-    const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+    const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
     const defaultApiKey = "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
     const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
 
@@ -768,7 +768,7 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
     })();
 
     const idToken = typeof window !== "undefined"
-      ? (window.__SESSION_TOKEN__ || "")
+      ? (await runtime.auth?.currentUser?.getIdToken?.().catch(() => "") || window.__SESSION_TOKEN__ || "")
       : "";
 
     const gwConfig = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
@@ -824,14 +824,16 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
       }
 
       // 2. Se não enviou pelo gateway direto, tenta via Cloudflare Worker
-      if (!sent && workerUrl && idToken) {
+      if (!sent && workerUrl) {
         try {
+          const headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": gwKey,
+          };
+          if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
           const workerRes = await fetch(`${workerUrl}/wa-send`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${idToken}`,
-            },
+            headers,
             body: JSON.stringify({ phone: digits, text }),
             signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined,
           });
@@ -840,7 +842,7 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
             if (workerData.success) {
               sent = true;
               messageId = workerData.messageId || "sent_worker";
-              console.log(`[WA] Notificação enviada via Worker para ${digits} (${type})`);
+              console.log(`[WA] Notificação enviada via Worker para ${digits} (${type}), ID: ${messageId}`);
             }
           }
         } catch (_) {}

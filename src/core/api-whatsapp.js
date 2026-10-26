@@ -62,7 +62,17 @@ export function createWhatsAppHandlers() {
 
       assert(funcionarioId, "Identificador do colaborador não informado.");
 
-      const emp = await runtime.getById("Funcionarios", funcionarioId).catch(() => null);
+      let emp = await runtime.getById("Funcionarios", funcionarioId).catch(() => null);
+      if (!emp) {
+        const allEmps = await runtime.list("Funcionarios").catch(() => []);
+        const targetId = String(funcionarioId).trim().toLowerCase();
+        emp = allEmps.find((e) => {
+          const fId = String(e.FuncionarioID || e.funcionarioId || e.id || "").trim().toLowerCase();
+          const fName = String(e.Nome || e.nome || "").trim().toLowerCase();
+          const fEmail = String(e.Email || e.email || "").trim().toLowerCase();
+          return fId === targetId || fName === targetId || (fEmail && fEmail === targetId);
+        });
+      }
       assert(emp, "Colaborador não encontrado.");
 
       const token = `wpp_${uuid().replace(/-/g, "")}_${Date.now().toString(36)}`;
@@ -190,7 +200,17 @@ export function createWhatsAppHandlers() {
       }
 
       assert(funcionarioId, "Identificador do colaborador não fornecido.");
-      const emp = await runtime.getById("Funcionarios", funcionarioId);
+      let emp = await runtime.getById("Funcionarios", funcionarioId).catch(() => null);
+      if (!emp) {
+        const allEmps = await runtime.list("Funcionarios").catch(() => []);
+        const targetId = String(funcionarioId).trim().toLowerCase();
+        emp = allEmps.find((e) => {
+          const fId = String(e.FuncionarioID || e.funcionarioId || e.id || "").trim().toLowerCase();
+          const fName = String(e.Nome || e.nome || "").trim().toLowerCase();
+          const fEmail = String(e.Email || e.email || "").trim().toLowerCase();
+          return fId === targetId || fName === targetId || (fEmail && fEmail === targetId);
+        });
+      }
       assert(emp, "Colaborador não cadastrado no sistema.");
 
       const phone = normalizeWhatsAppNumber(emp.Telefone || emp.WhatsApp || emp.Celular || "");
@@ -262,7 +282,7 @@ export function createWhatsAppHandlers() {
       const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}` : "";
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
       const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
@@ -288,18 +308,48 @@ export function createWhatsAppHandlers() {
             body: JSON.stringify({
               message: { text: messageText },
             }),
-            signal: AbortSignal.timeout(12000),
+            signal: AbortSignal.timeout(8000),
           });
 
           const resData = await res.json().catch(() => ({}));
-          if (!res.ok || !resData.status) {
-            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
-          } else {
+          if (res.ok && resData.status) {
             messageId = resData.data?.key?.id || resData.data?.id || "sent";
+          } else {
+            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
           }
         } catch (err) {
           console.warn("[WA] Disparo de documento ao gateway falhou:", err?.message || err);
           deliveryError = err?.message || "Falha de conexão";
+        }
+      }
+
+      // Se falhou no gateway direto ou se gateway offline, tenta via Cloudflare Worker
+      if (phone && !messageId && isBrowser) {
+        try {
+          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+          const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+            },
+            body: JSON.stringify({
+              phone,
+              text: messageText,
+            }),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (workerRes.ok) {
+            const workerData = await workerRes.json().catch(() => ({}));
+            if (workerData.success) {
+              messageId = workerData.messageId || "sent_worker";
+              deliveryError = null;
+            } else if (workerData.error) {
+              deliveryError = workerData.error;
+            }
+          }
+        } catch (err) {
+          console.warn("[WA] Disparo de documento via Worker falhou:", err?.message || err);
         }
       }
 
@@ -428,7 +478,7 @@ export function createWhatsAppHandlers() {
 
       const toSave = {
         Chave: "WhatsAppGateway",
-        GatewayUrl: String(config.gatewayUrl || "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api").trim(),
+        GatewayUrl: String(config.gatewayUrl || "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api").trim(),
         ApiKeyMasked: config.apiKey ? "********" + String(config.apiKey).slice(-4) : "",
         InstanceName: String(config.instanceName || "house190").trim(),
         Ativo: Boolean(config.ativo),
@@ -469,7 +519,7 @@ export function createWhatsAppHandlers() {
       }
       const config = await runtime.getById("Configuracoes", "WhatsAppConnection").catch(() => null);
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
       const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || config?.InstanceName || "house190";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
@@ -536,7 +586,7 @@ export function createWhatsAppHandlers() {
       }
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const gwUrl = (gw?.GatewayUrl || "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api").replace(/\/+$/, "");
+      const gwUrl = (gw?.GatewayUrl || "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api").replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190-bot";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
 
@@ -663,7 +713,7 @@ export function createWhatsAppHandlers() {
       const text = payload.message || `Teste de conexão oficial do Grupo House 190 via WhatsApp realizado por ${profile.Nome || "Gestão"} em ${new Date().toLocaleTimeString('pt-BR')}.`;
 
       const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://hopes-mitsubishi-funeral-delivery.trycloudflare.com/api";
+      const defaultGatewayUrl = "https://fabrics-usc-pushing-motorcycle.trycloudflare.com/api";
       const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
       const instance = gw?.InstanceName || "house190";
       const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
@@ -689,21 +739,50 @@ export function createWhatsAppHandlers() {
             body: JSON.stringify({
               message: { text },
             }),
-            signal: AbortSignal.timeout(12000),
+            signal: AbortSignal.timeout(8000),
           });
 
           const resData = await res.json().catch(() => ({}));
-          if (!res.ok || !resData.status) {
-            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
-          } else {
+          if (res.ok && resData.status) {
             messageId = resData.data?.key?.id || resData.data?.id || "sent";
+          } else {
+            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
           }
         } catch (err) {
           console.warn("Disparo direto ao gateway falhou:", err?.message || err);
+          deliveryError = err?.message || "Falha de conexão";
         }
       }
 
-      if (deliveryError && !deliveryError.includes("Failed to fetch") && !deliveryError.includes("NetworkError")) {
+      // Se não enviou pelo gateway direto, tenta via Cloudflare Worker
+      if (!messageId && isBrowser) {
+        try {
+          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+          const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+            },
+            body: JSON.stringify({ phone, text }),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (workerRes.ok) {
+            const workerData = await workerRes.json().catch(() => ({}));
+            if (workerData.success) {
+              messageId = workerData.messageId || "sent_worker";
+              deliveryError = null;
+            } else if (workerData.error) {
+              deliveryError = workerData.error;
+            }
+          }
+        } catch (err) {
+          console.warn("Disparo via Worker falhou:", err?.message || err);
+          if (!deliveryError) deliveryError = err?.message;
+        }
+      }
+
+      if (isBrowser && !messageId && deliveryError) {
         throw new Error(`Falha no envio pelo WhatsApp: ${deliveryError}`);
       }
 

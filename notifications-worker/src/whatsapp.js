@@ -113,9 +113,13 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000,
       };
     }
 
+    const resJson = await res.json().catch(() => ({}));
+    const messageId = resJson?.data?.key?.id || resJson?.data?.id || "";
+
     return {
       success: true,
       status: res.status,
+      messageId,
     };
   } catch (err) {
     return {
