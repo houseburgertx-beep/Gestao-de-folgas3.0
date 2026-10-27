@@ -22118,37 +22118,47 @@ dialog#medicalCertificateDialog {
 
 /* ==========================================================================
    MODAL DE ASSINATURA EM MODO PAISAGEM / TELA CHEIA (VIRAR TELA)
+   Usa <dialog> nativo com showModal() para entrar no top layer do navegador.
    Padrão Apple iOS / Grupo House 190 — Zero Emojis
    ========================================================================== */
 
-.doc-landscape-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100000;
-  background: #ffffff;
+/* O <dialog> já tem padding/margin/border resetados via inline style no JS.
+   Aqui garantimos que o backdrop funcione e o dialog tenha tamanho correto. */
+#docLandscapeSignDialog {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  width: 100dvw;
+  max-width: 100dvw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#docLandscapeSignDialog::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+#docLandscapeInnerWrap {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
-  animation: docLandscapeFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
+  background: #ffffff;
 }
 
-@keyframes docLandscapeFadeIn {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.doc-landscape-overlay.is-rotated-90 {
-  position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  width: 100vh !important;
-  height: 100vw !important;
-  transform: translate(-50%, -50%) rotate(90deg) !important;
-  transform-origin: center center !important;
-  border-radius: 0 !important;
+#docLandscapeInnerWrap.rotated-90 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100dvh;
+  height: 100dvw;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
 }
 
 .doc-landscape-header {
@@ -22227,7 +22237,7 @@ dialog#medicalCertificateDialog {
   touch-action: none;
 }
 
-.doc-landscape-canvas {
+.doc-landscape-canvas-wrap canvas {
   width: 100%;
   height: 100%;
   display: block;

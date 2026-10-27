@@ -294,12 +294,12 @@ test("Assinatura em Modo Paisagem (Virar tela para assinar)", async () => {
 
   const docsCss = await readFile("src/documents.css", "utf8");
   assert.ok(
-    docsCss.includes(".doc-landscape-overlay"),
-    "src/documents.css deve estilizar .doc-landscape-overlay",
+    docsCss.includes("#docLandscapeSignDialog"),
+    "src/documents.css deve estilizar #docLandscapeSignDialog (dialog nativo modo paisagem)",
   );
   assert.ok(
-    docsCss.includes(".is-rotated-90"),
-    "src/documents.css deve ter suporte a .is-rotated-90",
+    docsCss.includes(".rotated-90"),
+    "src/documents.css deve ter suporte à classe .rotated-90 para rotação do canvas",
   );
 
   const dialogsHtml = await readFile("src/legacy/Dialogs.html", "utf8");
