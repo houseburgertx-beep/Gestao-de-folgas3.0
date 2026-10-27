@@ -1749,11 +1749,15 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
   setTimeout(resizeLandscapeCanvas, 350);
 
   // Coordenadas do canvas com remapeamento para rotação CSS.
-  // CSS transform: rotate(90deg) gira o VISUAL mas NÃO transforma os eventos de toque —
-  // o toque ainda chega em coordenadas de tela (portrait). Quando rotacionado 90° CW:
-  //   canvas_x = canvas.width  * (1 - ry/rect.height)
-  //   canvas_y = canvas.height * (rx / rect.width)
-  // onde rx = clientX - rect.left, ry = clientY - rect.top
+  // CSS transform: rotate(90deg) CW gira o VISUAL mas NÃO transforma eventos de toque.
+  // O toque chega em coords de tela; o canvas interno NÃO está rotacionado — só o wrapper.
+  // Com rotate(90deg) CW, o canto superior-esquerdo do VISUAL corresponde ao canto
+  // superior-DIREITO do canvas (X=cW, Y=0). Portanto:
+  //   dedo desce (ry↑)  → canvas_x cresce  (da esquerda para direita do canvas)
+  //   dedo vai →  (rx↑) → canvas_y cresce  (de cima para baixo do canvas)
+  // Fórmula validada empiricamente para rotate(90deg) + transform-origin:center:
+  //   canvas_x = cW * (ry / rect.height)
+  //   canvas_y = cH * (rx / rect.width)
   const getPos = (e) => {
     const r = lCanvas.getBoundingClientRect();
     const touch = e.touches ? e.touches[0] : e;
@@ -1764,15 +1768,15 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
     const cH = lCanvas.height / dpr;  // altura  lógica do canvas
 
     if (isRotated90) {
-      // Rotação 90° horária: mover dedo →  →  traço ↑  no canvas
-      const x = cW * (1 - ry / r.height);
+      // rotate(90deg) CW: eixo visual-Y → canvas-X | eixo visual-X → canvas-Y
+      const x = cW * (ry / r.height);
       const y = cH * (rx / r.width);
       return {
         x: Math.max(0, Math.min(cW, x)),
         y: Math.max(0, Math.min(cH, y)),
       };
     }
-    // Sem rotação: mapeamento direto
+    // Sem rotação: mapeamento proporcional direto
     return {
       x: Math.max(0, Math.min(cW, rx * (cW / r.width))),
       y: Math.max(0, Math.min(cH, ry * (cH / r.height))),
