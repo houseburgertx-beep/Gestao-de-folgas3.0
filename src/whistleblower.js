@@ -107,7 +107,10 @@ export function renderWhistleblowerView() {
   root.innerHTML = `
     <div class="wb-container">
       <div class="wb-header-banner">
-        <div class="wb-header-badge">CANAL CONFIDENCIAL &amp; ANÔNIMO</div>
+        <div class="wb-header-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          CANAL CONFIDENCIAL &amp; ANÔNIMO
+        </div>
         <h2 class="wb-title">Canal de Integridade e Denúncias</h2>
         <p class="wb-subtitle">
           Espaço seguro e independente para relatar irregularidades, assédio ou infrações às normas da House 190, com proteção integral e opção de anonimato total conforme a Lei 14.457/2022.
@@ -172,29 +175,35 @@ function renderFormularioNovo() {
       <div class="wb-mode-selector">
         <label class="wb-mode-card active" id="wbModeAnonimo">
           <input type="radio" name="wbAnonimo" value="true" checked />
-          <div>
+          <div class="wb-mode-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="wb-mode-text">
             <strong>Relato 100% Anônimo</strong>
             <span>Nenhum dado pessoal ou identificação será registrado.</span>
           </div>
         </label>
         <label class="wb-mode-card" id="wbModeIdentificado">
           <input type="radio" name="wbAnonimo" value="false" />
-          <div>
+          <div class="wb-mode-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="wb-mode-text">
             <strong>Relato Identificado / Confidencial</strong>
             <span>Seus dados ficam restritos estritamente ao Comitê de Ética.</span>
           </div>
         </label>
       </div>
 
-      <div id="wbContatoFields" class="wb-hidden" style="margin-top: 12px;">
+      <div id="wbContatoFields" class="wb-hidden" style="margin-top: 14px;">
         <div class="form-grid">
           <label>
             Seu Nome (Opcional):
-            <input type="text" id="wbNomeContato" placeholder="Nome completo" />
+            <input type="text" id="wbNomeContato" placeholder="Nome completo" autocomplete="name" />
           </label>
           <label>
             Telefone / WhatsApp para contato (Opcional):
-            <input type="text" id="wbTelefoneContato" placeholder="(XX) 9XXXX-XXXX" />
+            <input type="tel" id="wbTelefoneContato" placeholder="(XX) 9XXXX-XXXX" autocomplete="tel" />
           </label>
         </div>
       </div>
@@ -229,10 +238,10 @@ function renderFormularioNovo() {
 
       <div class="wb-form-footer">
         <span class="wb-security-badge">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           Transmissão Criptografada SSL
         </span>
-        <button type="submit" class="btn btn-primary" id="wbSubmitBtn" style="min-height: 44px; padding: 0 24px;">
+        <button type="submit" class="btn btn-primary" id="wbSubmitBtn">
           Enviar Relato Seguro
         </button>
       </div>
@@ -265,9 +274,9 @@ function renderConsulta() {
     return `
       <div class="wb-consulta-card">
         <div class="wb-consulta-head">
-          <div>
+          <div class="wb-consulta-meta">
             <span class="wb-label">PROTOCOLO: ${esc(c.protocolo)}</span>
-            <h3 style="margin:4px 0 0; font-size:1.15rem;">${esc(c.categoria)}</h3>
+            <h3 style="margin:4px 0 0; font-size:1.15rem; font-weight:700;">${esc(c.categoria)}</h3>
             <span style="font-size:12px; color:#64748b;">Registrado em ${formatDate(c.dataCriacao)}</span>
           </div>
           <span class="doc-badge ${badgeClass}" style="font-size:13px; font-weight:700; padding:6px 14px;">
@@ -287,7 +296,7 @@ function renderConsulta() {
         }
 
         <div class="wb-chat-section">
-          <h4 style="margin:0 0 12px; font-size:0.95rem; color:#1e293b;">Comunicação Sigilosa com o Comitê:</h4>
+          <h4 style="margin:0 0 12px; font-size:0.95rem; color:#1e293b; font-weight:700;">Comunicação Sigilosa com o Comitê:</h4>
           <div class="wb-chat-list">
             ${msgsHtml}
           </div>
@@ -309,19 +318,22 @@ function renderConsulta() {
 
   return `
     <div class="wb-search-card">
+      <div class="wb-search-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>
       <h3>Acompanhar Andamento do Caso</h3>
-      <p>Insira abaixo o número de protocolo e o PIN de 4 dígitos gerados no momento do registro.</p>
+      <p>Insira abaixo o número de protocolo e o PIN de 4 dígitos gerados no momento do registro para acompanhar o status com sigilo total.</p>
 
       <form id="wbSearchForm" class="wb-search-form">
         <label>
           Número de Protocolo
-          <input type="text" id="wbSearchProtocolo" placeholder="Ex: DEN-123456" required />
+          <input type="text" id="wbSearchProtocolo" placeholder="Ex: DEN-123456" required autocomplete="off" />
         </label>
         <label>
           PIN de 4 Dígitos
-          <input type="password" id="wbSearchPin" maxlength="4" placeholder="••••" required />
+          <input type="password" id="wbSearchPin" maxlength="4" placeholder="••••" required autocomplete="off" />
         </label>
-        <button type="submit" class="btn btn-primary" style="min-height: 44px;">
+        <button type="submit" class="btn btn-primary" id="wbSearchSubmitBtn">
           Consultar Relato
         </button>
       </form>
@@ -345,13 +357,13 @@ function renderPainelGestao() {
           const badgeClass = STATUS_BADGE_CLASSES[c.Status] || "badge-slate";
           return `
             <tr>
-              <td><strong>${esc(c.DenunciaID)}</strong></td>
-              <td>${formatDate(c.DataCriacao)}</td>
+              <td><strong style="font-family:ui-monospace, monospace; font-size:12.5px;">${esc(c.DenunciaID)}</strong></td>
+              <td style="font-variant-numeric:tabular-nums;">${formatDate(c.DataCriacao)}</td>
               <td>${esc(c.Categoria)}</td>
               <td>${esc(c.LojaID || "GERAL")}</td>
               <td><span class="doc-badge ${badgeClass}">${esc(c.Status)}</span></td>
               <td style="text-align:right;">
-                <button type="button" class="btn btn-secondary btn-sm" data-wb-action="analisar" data-id="${esc(c.DenunciaID)}">
+                <button type="button" class="btn btn-secondary btn-sm" data-wb-action="analisar" data-id="${esc(c.DenunciaID)}" style="min-height:36px; padding:0 12px; border-radius:8px;">
                   Analisar
                 </button>
               </td>
@@ -364,7 +376,7 @@ function renderPainelGestao() {
     <div class="wb-admin-panel">
       <div class="wb-admin-header">
         <div>
-          <h3 style="margin:0; font-size:1.1rem;">Painel de Governança e Compliance</h3>
+          <h3 style="margin:0; font-size:1.1rem; font-weight:700;">Painel de Governança e Compliance</h3>
           <span style="font-size:12px; color:#64748b;">Gestão confidencial de relatos da House 190</span>
         </div>
         <div class="wb-status-filters">
@@ -375,8 +387,8 @@ function renderPainelGestao() {
         </div>
       </div>
 
-      <div class="table-responsive" style="margin-top: 14px; border-radius: 12px; border: 1px solid var(--line, #e2e8f0); overflow: hidden;">
-        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+      <div class="table-responsive" style="margin-top: 14px; border-radius: 14px; border: 1px solid var(--line, #e2e8f0); overflow-x: auto;">
+        <table class="data-table" style="width: 100%; min-width: 600px; border-collapse: collapse;">
           <thead>
             <tr style="background: var(--surface-2, #f8fafc); text-align: left; font-size: 12px; color: #64748b;">
               <th style="padding: 10px 12px;">PROTOCOLO</th>
