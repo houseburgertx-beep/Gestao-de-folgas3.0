@@ -1569,6 +1569,62 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
 
   checkAffirmation?.addEventListener("change", checkCanSubmit);
 
+/**
+ * Recorta automaticamente os espacos vazios em volta da assinatura,
+ * garantindo que a rubrica ocupe o espaco de forma proporcional e nitida no documento.
+ */
+function cropSignatureCanvas(sourceCanvas, padding = 10) {
+  if (!sourceCanvas || sourceCanvas.width <= 0 || sourceCanvas.height <= 0) {
+    return sourceCanvas;
+  }
+  const ctx = sourceCanvas.getContext("2d");
+  const w = sourceCanvas.width;
+  const h = sourceCanvas.height;
+
+  try {
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+    let minX = w;
+    let minY = h;
+    let maxX = 0;
+    let maxY = 0;
+    let hasPixel = false;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const alpha = data[(y * w + x) * 4 + 3];
+        if (alpha > 15) {
+          hasPixel = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (!hasPixel) return sourceCanvas;
+
+    const pad = Math.max(2, padding);
+    const cropX = Math.max(0, minX - pad);
+    const cropY = Math.max(0, minY - pad);
+    const cropW = Math.min(w - cropX, (maxX - minX + 1) + pad * 2);
+    const cropH = Math.min(h - cropY, (maxY - minY + 1) + pad * 2);
+
+    if (cropW <= 0 || cropH <= 0) return sourceCanvas;
+
+    const cropped = document.createElement("canvas");
+    cropped.width = cropW;
+    cropped.height = cropH;
+    const cCtx = cropped.getContext("2d");
+    cCtx.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+    return cropped;
+  } catch (err) {
+    console.warn("[documents] Falha no auto-crop da assinatura:", err);
+    return sourceCanvas;
+  }
+}
+
   // Submissão da Assinatura
   confirmBtn?.addEventListener("click", async () => {
     if (!state.signatureHasDrawn || !checkAffirmation?.checked) {
@@ -1580,7 +1636,9 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
     confirmBtn.innerHTML = "Autenticando criptografia...";
 
     try {
-      const rubricDataUrl = canvas.toDataURL("image/png");
+      // Recorta os espacos em branco da rubrica para nao sair minuscula no PDF
+      const croppedCanvas = cropSignatureCanvas(canvas, 12);
+      const rubricDataUrl = croppedCanvas.toDataURL("image/png");
       const clientIp = await getClientIp();
 
       const signPayload = {
@@ -2045,7 +2103,9 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
     }
     aCtx.drawImage(lCanvas, 0, 0, srcW, srcH);
 
-    const finalDataUrl = aux.toDataURL("image/png");
+    // Recorta automaticamente os espacos vazios para a assinatura preencher o documento com nitidez
+    const croppedAux = cropSignatureCanvas(aux, 12);
+    const finalDataUrl = croppedAux.toDataURL("image/png");
 
     if (targetCanvas) {
       const tCtx = targetCanvas.getContext("2d");
@@ -2061,9 +2121,9 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
       const img = new Image();
       img.onload = () => {
         const aspect = img.width / img.height;
-        let dw = tw * 0.88;
+        let dw = tw * 0.92;
         let dh = dw / aspect;
-        if (dh > th * 0.82) { dh = th * 0.82; dw = dh * aspect; }
+        if (dh > th * 0.88) { dh = th * 0.88; dw = dh * aspect; }
         const dx = (tw - dw) / 2;
         const dy = (th - dh) / 2;
         tCtx.drawImage(img, dx, dy, dw, dh);

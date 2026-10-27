@@ -317,12 +317,12 @@ async function stampHoleriteVerticalStub({
   for (const slip of slips) {
     // 1. Rubrica Manuscrita rotacionada 90° assentada no espaço reservado para assinatura
     if (rubricImg) {
-      const maxW = 85; // comprimento ao longo da linha
+      const maxW = 140; // comprimento ao longo da linha
       const maxH = 12; // altura perpendicular à linha (dentro do vão do canhoto, sem encavalar no texto)
       const scale = Math.min(maxW / rubricImg.width, maxH / rubricImg.height, 1);
       const drawW = rubricImg.width * scale;
       const drawH = rubricImg.height * scale;
-      const drawX = signSlotX; // repousa no vão limpo, sem tocar em "Assinatura do Funcionário"
+      const drawX = signSlotX; // repousa no vão limpo, alinhada à linha oficial de assinatura
       const drawY = slip.centerY - drawW / 2;
 
       targetPage.drawImage(rubricImg, {
