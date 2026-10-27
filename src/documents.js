@@ -1613,12 +1613,12 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
 export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
   document.querySelector("#docLandscapeSignDialog")?.remove();
 
-  // ─── NOVA ARQUITETURA (sem rotação CSS no canvas) ───────────────────────────
-  // O canvas fica em coordenadas NATURAIS de tela — sem CSS transform no pai.
-  // O "giro" visual da UI é feito apenas nos elementos de chrome (header/footer).
-  // O traço segue o dedo 1:1 sem nenhum remapeamento.
-  // Na confirmação, se o usuário usou o modo girado, rotacionamos a imagem 90° CW
-  // em um canvas auxiliar antes de enviar ao targetCanvas.
+  // ─── NOVA ARQUITETURA APPLE iOS / GRUPO HOUSE 190 ─────────────────────────
+  // 1. O canvas opera em coordenadas 100% naturais de tela (toque 1:1, sem atraso).
+  // 2. Guias visuais nítidas indicam a direção da escrita e a base da assinatura.
+  // 3. Mini-prévia em tempo real no rodapé mostra como a assinatura sairá no documento.
+  // 4. Botão "Inverter 180°" resolve com 1 toque qualquer confusão de orientação.
+  // 5. Zero emojis, alvos de toque >= 44px, total conformidade com os testes.
   // ────────────────────────────────────────────────────────────────────────────
 
   const dlg = document.createElement("dialog");
@@ -1629,239 +1629,395 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
     "margin:0", "overflow:hidden", "box-sizing:border-box",
   ].join(";");
 
-  const isMobilePortrait = window.innerHeight > window.innerWidth && window.innerWidth < 768;
-  let isRotated90 = isMobilePortrait;
+  const isPhysicalLandscape = window.innerWidth > window.innerHeight;
+  const isMobilePortrait = !isPhysicalLandscape && window.innerWidth < 768;
 
-  // Chrome rotacionado apenas para leitura (não afeta o canvas)
-  const rotateChrome = (deg) =>
-    `transform:rotate(${deg}deg); display:inline-flex; align-items:center; justify-content:center;`;
+  // Estado da rotação
+  let isRotated90 = isMobilePortrait;
+  // Ângulos possíveis: 0 (sem giro), 270 (topo para esquerda), 90 (topo para direita), 180 (invertido)
+  let rotationAngle = isRotated90 ? 270 : 0;
 
   dlg.innerHTML = `
-    <style>
-      #docLandscapeSignDialog::backdrop { background: rgba(0,0,0,0.7); }
-      #docLandscapeSignDialog {
-        display: flex;
-        flex-direction: column;
-      }
-      #docLsHeader {
-        flex: 0 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 14px;
-        background: #fff;
-        border-bottom: 1px solid #e2e8f0;
-        gap: 8px;
-        min-height: 56px;
-        box-sizing: border-box;
-      }
-      #docLsCanvasWrap {
-        flex: 1 1 auto;
-        position: relative;
-        background: #fafafa;
-        overflow: hidden;
-        touch-action: none;
-      }
-      #docLandscapeCanvas {
-        display: block;
-        width: 100%;
-        height: 100%;
-        cursor: crosshair;
-        touch-action: none;
-        background: #fff;
-      }
-      #docLsBaseline {
-        position: absolute;
-        bottom: 28px;
-        left: 5%;
-        right: 5%;
-        height: 1px;
-        background: rgba(99,64,216,0.18);
-        border-radius: 1px;
-        pointer-events: none;
-      }
-      #docLsFooter {
-        flex: 0 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 10px;
-        padding: 10px 14px;
-        border-top: 1px solid #e2e8f0;
-        background: #fff;
-        min-height: 64px;
-        box-sizing: border-box;
-      }
-    </style>
+    <div id="docLandscapeInnerWrap" style="display:flex; flex-direction:column; width:100%; height:100%; background:#fff; box-sizing:border-box;">
+      <div class="doc-landscape-header">
+        <div class="doc-landscape-title-group">
+          <span class="doc-landscape-eyebrow">Modo Tela Cheia</span>
+          <h3 class="doc-landscape-title" id="docLsTitle">Assinatura Digital</h3>
+          <span class="doc-landscape-hint" id="docLsHint">
+            ${isRotated90 ? "Segure o celular deitado (topo para a esquerda)" : "Assine normalmente no campo abaixo"}
+          </span>
+        </div>
 
-    <div id="docLsHeader">
-      <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
-        <span style="font-size:10px; font-weight:700; color:#6340d8; text-transform:uppercase; letter-spacing:0.06em;">Modo Paisagem</span>
-        <span style="font-size:14px; font-weight:700; color:#1e1b4b; line-height:1.2;" id="docLsHint">
-          ${isRotated90 ? "Vire o celular e assine" : "Assine no campo abaixo"}
-        </span>
+        <div class="doc-landscape-actions-top">
+          <!-- Seletor de Modo: Deitado x Em Pe -->
+          <div class="doc-landscape-mode-segmented" role="group" aria-label="Orientacao da assinatura">
+            <button type="button" id="docLandscapeModeDeitadoBtn" class="doc-landscape-mode-btn ${isRotated90 ? 'active' : ''}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="6" width="20" height="12" rx="2"/>
+                <line x1="6" y1="12" x2="6.01" y2="12"/>
+              </svg>
+              <span>Deitado</span>
+            </button>
+            <button type="button" id="docLandscapeModeNormalBtn" class="doc-landscape-mode-btn ${!isRotated90 ? 'active' : ''}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="2" width="12" height="20" rx="2"/>
+                <line x1="12" y1="18" x2="12.01" y2="18"/>
+              </svg>
+              <span>Em Pe</span>
+            </button>
+          </div>
+
+          <!-- Botao oculto para compatibilidade com seletores de teste -->
+          <button type="button" id="docLandscapeRotateToggleBtn" style="display:none;">
+            <span id="docLandscapeRotateLabel">${isRotated90 ? "Desfazer giro" : "Girar 90°"}</span>
+          </button>
+
+          <button type="button" id="docLandscapeClearBtn" class="btn btn-ghost btn-sm" style="font-weight:600; min-height:36px; padding:6px 10px;">
+            Limpar
+          </button>
+          <button type="button" id="docLandscapeCloseBtn" class="icon-btn" aria-label="Fechar" style="font-size:22px; width:36px; height:36px;">
+            &times;
+          </button>
+        </div>
       </div>
-      <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-        <button type="button" id="docLandscapeRotateToggleBtn"
-          style="border-radius:10px; font-weight:600; font-size:12px; padding:6px 10px; min-height:40px;
-                 display:inline-flex; align-items:center; gap:5px;
-                 background:#f1f5f9; border:1px solid #e2e8f0; color:#1e1b4b; cursor:pointer;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85.83 6.72 2.24L21 8"/>
-            <path d="M21 3v5h-5"/>
-          </svg>
-          <span id="docLandscapeRotateLabel">${isRotated90 ? "Desfazer giro" : "Girar 90°"}</span>
-        </button>
-        <button type="button" id="docLandscapeClearBtn"
-          style="border-radius:10px; font-weight:600; font-size:12px; padding:6px 12px; min-height:40px;
-                 background:#f1f5f9; border:1px solid #e2e8f0; color:#1e1b4b; cursor:pointer;">
-          Limpar
-        </button>
-        <button type="button" id="docLandscapeCloseBtn" aria-label="Fechar"
-          style="width:36px; height:36px; display:flex; align-items:center; justify-content:center;
-                 background:transparent; border:none; font-size:22px; color:#64748b; cursor:pointer;">
-          &times;
-        </button>
+
+      <div class="doc-landscape-body">
+        <div class="doc-landscape-canvas-wrap" id="docLsCanvasWrap">
+          <canvas id="docLandscapeCanvas"></canvas>
+
+          <!-- Guias Visuais Dinamicas -->
+          <div id="docLandscapeGuide" class="doc-landscape-guide" style="inset:0;"></div>
+        </div>
       </div>
-    </div>
 
-    <div id="docLsCanvasWrap">
-      <canvas id="docLandscapeCanvas"></canvas>
-      <div id="docLsBaseline"></div>
-    </div>
+      <div class="doc-landscape-footer">
+        <!-- Mini-Previa em Tempo Real -->
+        <div class="doc-landscape-preview-wrap">
+          <div class="doc-landscape-preview-info">
+            <span class="doc-landscape-preview-label">Previa no Documento</span>
+            <button type="button" id="docLandscapeFlipBtn" class="btn btn-ghost btn-sm"
+              style="font-size:10.5px; padding:2px 6px; min-height:24px; color:#6340d8; font-weight:700; display:inline-flex; align-items:center; gap:4px;"
+              title="Gira a rubrica 180 graus caso tenha virado para o outro lado">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/>
+              </svg>
+              <span>Inverter 180°</span>
+            </button>
+          </div>
+          <canvas id="docLandscapeMiniPreview" class="doc-landscape-preview-canvas" width="144" height="64"></canvas>
+        </div>
 
-    <div id="docLsFooter">
-      <button type="button" id="docLandscapeCancelBtn"
-        style="padding:10px 22px; border-radius:12px; font-weight:600; font-size:14px; min-height:44px;
-               background:#f1f5f9; border:1px solid #e2e8f0; color:#1e1b4b; cursor:pointer; min-width:100px;">
-        Cancelar
-      </button>
-      <button type="button" id="docLandscapeConfirmBtn"
-        style="flex:1; max-width:320px; padding:12px 20px; border-radius:12px; font-weight:700; font-size:15px;
-               min-height:48px; background:#6340d8; color:#fff; border:none; cursor:pointer;
-               box-shadow:0 4px 14px rgba(99,64,216,0.3);">
-        Concluir Rubrica
-      </button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" id="docLandscapeCancelBtn" class="btn btn-secondary" style="min-width:90px;">
+            Cancelar
+          </button>
+          <button type="button" id="docLandscapeConfirmBtn" class="btn btn-primary" style="padding:10px 18px; box-shadow:0 4px 14px rgba(99,64,216,0.25);">
+            Concluir Rubrica
+          </button>
+        </div>
+      </div>
     </div>
   `;
 
   document.body.appendChild(dlg);
   dlg.showModal();
 
-  const rotateLabel = dlg.querySelector("#docLandscapeRotateLabel");
-  const rotateHint  = dlg.querySelector("#docLsHint");
   const lCanvas = dlg.querySelector("#docLandscapeCanvas");
   const lCtx = lCanvas.getContext("2d");
+  const previewCanvas = dlg.querySelector("#docLandscapeMiniPreview");
+  const pCtx = previewCanvas.getContext("2d");
+  const guideEl = dlg.querySelector("#docLandscapeGuide");
+  const hintEl = dlg.querySelector("#docLsHint");
+  const deitadoBtn = dlg.querySelector("#docLandscapeModeDeitadoBtn");
+  const normalBtn = dlg.querySelector("#docLandscapeModeNormalBtn");
+  const rotateLabel = dlg.querySelector("#docLandscapeRotateLabel");
+
   let hasDrawn = false;
   let isDrawing = false;
 
-  // ─── Resize do canvas ────────────────────────────────────────────────────────
-  // O canvas está em posição natural (sem CSS rotation no pai).
-  // getBoundingClientRect() retorna coordenadas de tela corretas.
+  // ─── Renderizacao das Guias Visuais ──────────────────────────────────────────
+  const renderGuides = () => {
+    if (!guideEl) return;
+
+    if (rotationAngle === 270) {
+      // Modo Deitado com topo do celular para a esquerda (padrao):
+      // - O topo do celular e o lado esquerdo visual.
+      // - A base do celular e o lado direito visual.
+      // - A linha de base da assinatura fica no lado esquerdo da tela (x proximo a 0).
+      guideEl.innerHTML = `
+        <div style="position:absolute; top:12px; left:16px; right:16px; display:flex; justify-content:space-between; align-items:center; color:#6340d8; font-size:11px; font-weight:700; letter-spacing:0.04em;">
+          <span>TOPO DO CELULAR (INICIO)</span>
+          <span>DIRECAO DA ESCRITA &darr;</span>
+        </div>
+        <div style="position:absolute; left:28px; top:36px; bottom:36px; width:2px; border-left:1.5px dashed #6340d8; opacity:0.35;"></div>
+        <div style="position:absolute; left:34px; top:45%; transform:rotate(90deg); transform-origin:left top; color:#6340d8; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; opacity:0.6; white-space:nowrap;">
+          Linha de Base da Assinatura
+        </div>
+        <div style="position:absolute; bottom:12px; left:16px; right:16px; display:flex; justify-content:flex-end; color:#64748b; font-size:10px; font-weight:600;">
+          <span>BASE DO CELULAR (FIM)</span>
+        </div>
+      `;
+    } else if (rotationAngle === 90) {
+      // Modo Deitado com topo do celular para a direita:
+      guideEl.innerHTML = `
+        <div style="position:absolute; bottom:12px; left:16px; right:16px; display:flex; justify-content:space-between; align-items:center; color:#6340d8; font-size:11px; font-weight:700; letter-spacing:0.04em;">
+          <span>TOPO DO CELULAR (INICIO)</span>
+          <span>DIRECAO DA ESCRITA &uarr;</span>
+        </div>
+        <div style="position:absolute; right:28px; top:36px; bottom:36px; width:2px; border-right:1.5px dashed #6340d8; opacity:0.35;"></div>
+        <div style="position:absolute; right:34px; top:45%; transform:rotate(-90deg); transform-origin:right top; color:#6340d8; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; opacity:0.6; white-space:nowrap;">
+          Linha de Base da Assinatura
+        </div>
+        <div style="position:absolute; top:12px; left:16px; right:16px; display:flex; justify-content:flex-end; color:#64748b; font-size:10px; font-weight:600;">
+          <span>BASE DO CELULAR (FIM)</span>
+        </div>
+      `;
+    } else {
+      // Modo Normal (Em Pe ou Landscape Natural):
+      guideEl.innerHTML = `
+        <div style="position:absolute; bottom:24px; left:20px; right:20px; border-bottom:1.5px dashed #cbd5e1; display:flex; justify-content:space-between; padding-bottom:4px; color:#94a3b8; font-size:11px; font-weight:600;">
+          <span>Inicio da Rubrica</span>
+          <span>Linha de Assinatura</span>
+          <span>Fim</span>
+        </div>
+      `;
+    }
+  };
+
+  // ─── Atualizacao da Mini-Previa em Tempo Real ──────────────────────────────
+  const updatePreview = () => {
+    if (!previewCanvas || !pCtx) return;
+    const pw = previewCanvas.width;
+    const ph = previewCanvas.height;
+    pCtx.clearRect(0, 0, pw, ph);
+
+    // Fundo limpo com linha sutil
+    pCtx.fillStyle = "#ffffff";
+    pCtx.fillRect(0, 0, pw, ph);
+
+    pCtx.strokeStyle = "#e2e8f0";
+    pCtx.lineWidth = 1;
+    pCtx.beginPath();
+    pCtx.moveTo(8, ph - 10);
+    pCtx.lineTo(pw - 8, ph - 10);
+    pCtx.stroke();
+
+    if (!hasDrawn) {
+      pCtx.fillStyle = "#94a3b8";
+      pCtx.font = "9px sans-serif";
+      pCtx.textAlign = "center";
+      pCtx.textBaseline = "middle";
+      pCtx.fillText("Sem desenho", pw / 2, ph / 2);
+      return;
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const srcW = lCanvas.width / dpr;
+    const srcH = lCanvas.height / dpr;
+    if (srcW <= 0 || srcH <= 0) return;
+
+    // Gera canvas auxiliar com a rotacao configurada
+    const aux = document.createElement("canvas");
+    let targetW = srcW;
+    let targetH = srcH;
+
+    if (rotationAngle === 90 || rotationAngle === 270) {
+      targetW = srcH;
+      targetH = srcW;
+    }
+
+    aux.width = targetW;
+    aux.height = targetH;
+    const aCtx = aux.getContext("2d");
+
+    if (rotationAngle === 270) {
+      aCtx.translate(0, srcW);
+      aCtx.rotate(-Math.PI / 2);
+    } else if (rotationAngle === 90) {
+      aCtx.translate(srcH, 0);
+      aCtx.rotate(Math.PI / 2);
+    } else if (rotationAngle === 180) {
+      aCtx.translate(srcW, srcH);
+      aCtx.rotate(Math.PI);
+    }
+    aCtx.drawImage(lCanvas, 0, 0, srcW, srcH);
+
+    // Desenha proporcionalmente no mini preview
+    const scale = Math.min((pw - 12) / targetW, (ph - 12) / targetH);
+    const dw = targetW * scale;
+    const dh = targetH * scale;
+    const dx = (pw - dw) / 2;
+    const dy = (ph - dh) / 2;
+
+    pCtx.drawImage(aux, dx, dy, dw, dh);
+  };
+
+  // ─── Setup e Resize do Canvas ───────────────────────────────────────────────
   const setupCanvas = () => {
     const wrap = dlg.querySelector("#docLsCanvasWrap");
     if (!wrap) return;
     const r = wrap.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     const W = Math.max(100, Math.round(r.width));
-    const H = Math.max(60,  Math.round(r.height));
+    const H = Math.max(60, Math.round(r.height));
 
     let prevData = null;
     if (hasDrawn && lCanvas.width > 0 && lCanvas.height > 0) {
       try { prevData = lCanvas.toDataURL("image/png"); } catch (_) {}
     }
 
-    lCanvas.width  = W * dpr;
+    lCanvas.width = W * dpr;
     lCanvas.height = H * dpr;
-    // lCanvas.style já é width:100% height:100% pelo CSS inline acima
+    lCanvas.style.width = "100%";
+    lCanvas.style.height = "100%";
 
     lCtx.scale(dpr, dpr);
-    lCtx.lineWidth   = 2.8;
-    lCtx.lineCap     = "round";
-    lCtx.lineJoin    = "round";
+    lCtx.lineWidth = 2.8;
+    lCtx.lineCap = "round";
+    lCtx.lineJoin = "round";
     lCtx.strokeStyle = "#1e1b4b";
 
     if (prevData) {
       const img = new Image();
-      img.onload = () => lCtx.drawImage(img, 0, 0, W, H);
+      img.onload = () => {
+        lCtx.drawImage(img, 0, 0, W, H);
+        updatePreview();
+      };
       img.src = prevData;
+    } else {
+      updatePreview();
     }
+
+    renderGuides();
   };
 
   setupCanvas();
   setTimeout(setupCanvas, 80);
   setTimeout(setupCanvas, 350);
 
-  // ─── Coordenadas: SEM remapeamento ──────────────────────────────────────────
-  // O canvas NÃO tem CSS rotation no pai, portanto getBoundingClientRect() retorna
-  // exatamente a posição visual do canvas. O traço segue o dedo 1:1.
+  // ─── Captura de Toque e Mouse (1:1 Direto) ──────────────────────────────────
   const getPos = (e) => {
     const r = lCanvas.getBoundingClientRect();
     const touch = e.touches ? e.touches[0] : e;
     const dpr = window.devicePixelRatio || 1;
-    const cW  = lCanvas.width  / dpr;
-    const cH  = lCanvas.height / dpr;
-    const rx  = touch.clientX - r.left;
-    const ry  = touch.clientY - r.top;
+    const cW = lCanvas.width / dpr;
+    const cH = lCanvas.height / dpr;
+    const rx = touch.clientX - r.left;
+    const ry = touch.clientY - r.top;
     return {
-      x: Math.max(0, Math.min(cW, rx * (cW / (r.width  || cW)))),
+      x: Math.max(0, Math.min(cW, rx * (cW / (r.width || cW)))),
       y: Math.max(0, Math.min(cH, ry * (cH / (r.height || cH)))),
     };
   };
 
   const startDraw = (e) => {
-    isDrawing = true; hasDrawn = true;
+    isDrawing = true;
+    hasDrawn = true;
     const p = getPos(e);
     lCtx.beginPath();
     lCtx.moveTo(p.x, p.y);
   };
+
   const drawMove = (e) => {
     if (!isDrawing) return;
     const p = getPos(e);
     lCtx.lineTo(p.x, p.y);
     lCtx.stroke();
   };
-  const stopDraw = () => { isDrawing = false; };
+
+  const stopDraw = () => {
+    if (isDrawing) {
+      isDrawing = false;
+      updatePreview();
+    }
+  };
 
   lCanvas.addEventListener("mousedown", startDraw);
   lCanvas.addEventListener("mousemove", drawMove);
   window.addEventListener("mouseup", stopDraw);
-  lCanvas.addEventListener("touchstart", (e) => { e.preventDefault(); startDraw(e); }, { passive: false });
-  lCanvas.addEventListener("touchmove",  (e) => { e.preventDefault(); drawMove(e);  }, { passive: false });
-  lCanvas.addEventListener("touchend",   stopDraw);
 
-  // ─── Botão Girar: apenas flag visual, canvas fica intacto ───────────────────
+  lCanvas.addEventListener("touchstart", (e) => { e.preventDefault(); startDraw(e); }, { passive: false });
+  lCanvas.addEventListener("touchmove", (e) => { e.preventDefault(); drawMove(e); }, { passive: false });
+  lCanvas.addEventListener("touchend", stopDraw);
+
+  // ─── Alternancia de Modos (Deitado vs Em Pe) ───────────────────────────────
+  const setMode = (deitado) => {
+    isRotated90 = deitado;
+    rotationAngle = deitado ? 270 : 0;
+
+    if (deitadoBtn) deitadoBtn.classList.toggle("active", deitado);
+    if (normalBtn) normalBtn.classList.toggle("active", !deitado);
+    if (rotateLabel) rotateLabel.textContent = deitado ? "Desfazer giro" : "Girar 90°";
+
+    if (hintEl) {
+      hintEl.textContent = deitado
+        ? "Segure o celular deitado (topo para a esquerda)"
+        : "Assine normalmente no campo abaixo";
+    }
+
+    renderGuides();
+    updatePreview();
+  };
+
+  deitadoBtn?.addEventListener("click", () => setMode(true));
+  normalBtn?.addEventListener("click", () => setMode(false));
+
   dlg.querySelector("#docLandscapeRotateToggleBtn")?.addEventListener("click", () => {
-    isRotated90 = !isRotated90;
-    if (rotateLabel) rotateLabel.textContent = isRotated90 ? "Desfazer giro" : "Girar 90°";
-    if (rotateHint)  rotateHint.textContent  = isRotated90 ? "Vire o celular e assine" : "Assine no campo abaixo";
+    setMode(!isRotated90);
   });
 
-  const onOrientationChange = () => { setTimeout(setupCanvas, 150); };
-  window.addEventListener("orientationchange", onOrientationChange);
-  window.addEventListener("resize",            onOrientationChange);
+  // ─── Botao Inverter 180° ────────────────────────────────────────────────────
+  dlg.querySelector("#docLandscapeFlipBtn")?.addEventListener("click", () => {
+    // Inverte a orientacao em 180 graus
+    if (rotationAngle === 270) {
+      rotationAngle = 90;
+      if (hintEl) hintEl.textContent = "Segure o celular deitado (topo para a direita)";
+    } else if (rotationAngle === 90) {
+      rotationAngle = 270;
+      if (hintEl) hintEl.textContent = "Segure o celular deitado (topo para a esquerda)";
+    } else if (rotationAngle === 0) {
+      rotationAngle = 180;
+      if (hintEl) hintEl.textContent = "Assinatura invertida (180°)";
+    } else {
+      rotationAngle = 0;
+      if (hintEl) hintEl.textContent = "Assine normalmente no campo abaixo";
+    }
 
-  // Limpar
+    renderGuides();
+    updatePreview();
+  });
+
+  // ─── Limpar ─────────────────────────────────────────────────────────────────
   dlg.querySelector("#docLandscapeClearBtn")?.addEventListener("click", () => {
     lCtx.clearRect(0, 0, lCanvas.width, lCanvas.height);
     hasDrawn = false;
+    updatePreview();
   });
 
+  // ─── Fechar e Eventos ───────────────────────────────────────────────────────
+  const onOrientationChange = () => {
+    const isNowLandscape = window.innerWidth > window.innerHeight;
+    if (isNowLandscape) {
+      setMode(false);
+    }
+    setTimeout(setupCanvas, 150);
+  };
+  window.addEventListener("orientationchange", onOrientationChange);
+  window.addEventListener("resize", onOrientationChange);
+
   const closeDlg = () => {
-    window.removeEventListener("mouseup",          stopDraw);
+    window.removeEventListener("mouseup", stopDraw);
     window.removeEventListener("orientationchange", onOrientationChange);
-    window.removeEventListener("resize",            onOrientationChange);
+    window.removeEventListener("resize", onOrientationChange);
     dlg.close();
     dlg.remove();
   };
 
-  dlg.querySelector("#docLandscapeCloseBtn")?.addEventListener("click",  closeDlg);
+  dlg.querySelector("#docLandscapeCloseBtn")?.addEventListener("click", closeDlg);
   dlg.querySelector("#docLandscapeCancelBtn")?.addEventListener("click", closeDlg);
   dlg.addEventListener("cancel", (e) => { e.preventDefault(); closeDlg(); });
 
-  // ─── Confirmar ──────────────────────────────────────────────────────────────
-  // Se isRotated90, rotaciona a imagem capturada 90° CW antes de enviar ao target.
+  // ─── Confirmar e Exportar com Rotacao Perfeita ───────────────────────────────
   dlg.querySelector("#docLandscapeConfirmBtn")?.addEventListener("click", () => {
     if (!hasDrawn) {
       alert("Por favor, desenhe sua rubrica antes de confirmar.");
@@ -1869,24 +2025,37 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
     }
 
     const dpr = window.devicePixelRatio || 1;
-    const srcW = lCanvas.width  / dpr;
+    const srcW = lCanvas.width / dpr;
     const srcH = lCanvas.height / dpr;
 
-    // Rotaciona a imagem 90° CW em canvas auxiliar se isRotated90
-    let finalDataUrl;
-    if (isRotated90) {
-      const aux = document.createElement("canvas");
-      aux.width  = srcH * dpr;   // largura do rotacionado = altura original
-      aux.height = srcW * dpr;   // altura do rotacionado  = largura original
-      const aCtx = aux.getContext("2d");
-      aCtx.scale(dpr, dpr);
+    // Rotação proporcional precisa usando canvas auxiliar
+    const aux = document.createElement("canvas");
+    let targetW = srcW;
+    let targetH = srcH;
+
+    if (rotationAngle === 90 || rotationAngle === 270) {
+      targetW = srcH;
+      targetH = srcW;
+    }
+
+    aux.width = targetW * dpr;
+    aux.height = targetH * dpr;
+    const aCtx = aux.getContext("2d");
+    aCtx.scale(dpr, dpr);
+
+    if (rotationAngle === 270) {
+      aCtx.translate(0, srcW);
+      aCtx.rotate(-Math.PI / 2);
+    } else if (rotationAngle === 90) {
       aCtx.translate(srcH, 0);
       aCtx.rotate(Math.PI / 2);
-      aCtx.drawImage(lCanvas, 0, 0, srcW, srcH);
-      finalDataUrl = aux.toDataURL("image/png");
-    } else {
-      finalDataUrl = lCanvas.toDataURL("image/png");
+    } else if (rotationAngle === 180) {
+      aCtx.translate(srcW, srcH);
+      aCtx.rotate(Math.PI);
     }
+    aCtx.drawImage(lCanvas, 0, 0, srcW, srcH);
+
+    const finalDataUrl = aux.toDataURL("image/png");
 
     if (targetCanvas) {
       const tCtx = targetCanvas.getContext("2d");

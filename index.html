@@ -22278,6 +22278,80 @@ dialog#medicalCertificateDialog {
   border-radius: 12px;
 }
 
+/* Controles de Orientação e Prévia em Tempo Real */
+.doc-landscape-mode-segmented {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid #e2e8f0;
+}
+
+.doc-landscape-mode-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  min-height: 32px;
+}
+
+.doc-landscape-mode-btn.active {
+  background: #ffffff;
+  color: #1e1b4b;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  font-weight: 700;
+}
+
+.doc-landscape-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.doc-landscape-preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.doc-landscape-preview-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.doc-landscape-preview-canvas {
+  width: 72px;
+  height: 32px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  display: block;
+}
+
+.doc-landscape-guide {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
 
 
 
