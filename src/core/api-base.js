@@ -1850,6 +1850,10 @@ export function createBaseHandlers() {
       return success(await runtime.list("Lojas"));
     },
 
+    async listarLojas() {
+      return this.getStores();
+    },
+
     async createStore(args) {
       const profile = await runtime.requireProfile();
       requireAdmin(profile);

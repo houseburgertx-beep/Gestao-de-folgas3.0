@@ -166,8 +166,22 @@ function renderFormularioNovo() {
     `;
   }
 
-  const lojasOptions = state.lojas
-    .map((l) => `<option value="${esc(l.LojaID || l.id)}">${esc(l.NomeLoja || l.Nome || l.id)}</option>`)
+  const availableStores = (Array.isArray(state.lojas) && state.lojas.length)
+    ? state.lojas
+    : (Array.isArray(window.state?.stores) && window.state.stores.length)
+      ? window.state.stores
+      : [
+          { LojaID: "FOOD_PARK", NomeLoja: "Food Park" },
+          { LojaID: "CENTRO", NomeLoja: "House Burger - Centro" },
+          { LojaID: "DELIVERY", NomeLoja: "Delivery House" },
+        ];
+
+  const lojasOptions = availableStores
+    .map((l) => {
+      const id = String(l.LojaID || l.lojaId || l.id || "");
+      const name = String(l.NomeLoja || l.nomeLoja || l.Nome || l.nome || id);
+      return `<option value="${esc(id)}">${esc(name)}</option>`;
+    })
     .join("");
 
   return `
@@ -218,9 +232,10 @@ function renderFormularioNovo() {
         </label>
 
         <label>
-          Unidade / Loja do Fato
-          <select id="wbLoja">
-            <option value="GERAL">Toda a Rede / Geral</option>
+          Unidade / Loja do Fato *
+          <select id="wbLoja" required>
+            <option value="">Selecione a unidade</option>
+            <option value="GERAL">Toda a Rede / Geral (Todas as Unidades)</option>
             ${lojasOptions}
           </select>
         </label>
@@ -473,6 +488,11 @@ function bindEvents() {
         state.pinRecente = data.pin;
         renderWhistleblowerView();
       } catch (err) {
+        const submitBtn = $("#wbSubmitBtn");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Enviar Relato Seguro";
+        }
         alert(err.message || "Erro ao registrar o relato.");
       }
     };
@@ -692,11 +712,32 @@ export async function loadWhistleblower() {
       state.userProfile = profRes?.data || profRes;
     } catch (_) {}
 
-    // Lojas
+    // Lojas: carrega de window.state, getStores ou listarLojas
     try {
-      const lojasRes = await window.call("listarLojas");
-      state.lojas = lojasRes?.data || lojasRes || [];
-    } catch (_) {}
+      if (Array.isArray(window.state?.stores) && window.state.stores.length) {
+        state.lojas = window.state.stores;
+      } else {
+        const lojasRes = await window.call("getStores").catch(() => window.call("listarLojas"));
+        state.lojas = lojasRes?.data || lojasRes || [];
+      }
+    } catch (_) {
+      try {
+        const lojasRes = await window.call("listarLojas");
+        state.lojas = lojasRes?.data || lojasRes || [];
+      } catch (_) {}
+    }
+
+    if (!Array.isArray(state.lojas) || !state.lojas.length) {
+      if (Array.isArray(window.state?.stores) && window.state.stores.length) {
+        state.lojas = window.state.stores;
+      } else {
+        state.lojas = [
+          { LojaID: "FOOD_PARK", NomeLoja: "Food Park" },
+          { LojaID: "CENTRO", NomeLoja: "House Burger - Centro" },
+          { LojaID: "DELIVERY", NomeLoja: "Delivery House" },
+        ];
+      }
+    }
 
     // Se for admin ou gerente, carrega lista de casos
     if (
