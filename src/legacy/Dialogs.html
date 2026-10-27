@@ -1995,9 +1995,15 @@
 
       <!-- Seção de Assinatura (Canvas de Rubrica) -->
       <div id="clockSignActionSection" style="display: flex; flex-direction: column; gap: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
           <strong style="font-size: 13px; color: var(--text, #0f172a);">Rubrica Digital (desenhe no quadro abaixo):</strong>
-          <button id="clockSignClearCanvasBtn" type="button" class="btn btn-ghost" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px;">Limpar traço</button>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button id="clockSignRotateCanvasBtn" type="button" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="m14 2 3 3-3 3"/><path d="M5 2h9"/></svg>
+              <span>Virar para assinar</span>
+            </button>
+            <button id="clockSignClearCanvasBtn" type="button" class="btn btn-ghost" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px;">Limpar traço</button>
+          </div>
         </div>
 
         <div style="border: 2px dashed var(--line, #cbd5e1); border-radius: 14px; background: #ffffff; height: 140px; position: relative; touch-action: none; overflow: hidden;">

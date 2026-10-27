@@ -59,7 +59,8 @@ const mockSwaps = [
 
 const futureLeaveDate = new Date(Date.now() + 86400000 * 2);
 const futureLeaveIso = futureLeaveDate.toISOString().slice(0, 10);
-const futureLeaveDisplay = `${String(futureLeaveDate.getDate()).padStart(2, "0")}/${String(futureLeaveDate.getMonth() + 1).padStart(2, "0")}/${futureLeaveDate.getFullYear()}`;
+const [fYear, fMonth, fDay] = futureLeaveIso.split("-");
+const futureLeaveDisplay = `${fDay}/${fMonth}/${fYear}`;
 
 const mockTimeOff = [
   { FuncionarioID: "emp_1", DataInicio: futureLeaveIso, TipoFolga: "Folga regular", Status: "Aprovada" },

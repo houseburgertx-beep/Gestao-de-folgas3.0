@@ -22116,6 +22116,158 @@ dialog#medicalCertificateDialog {
   overflow-x: auto;
 }
 
+/* ==========================================================================
+   MODAL DE ASSINATURA EM MODO PAISAGEM / TELA CHEIA (VIRAR TELA)
+   Padrão Apple iOS / Grupo House 190 — Zero Emojis
+   ========================================================================== */
+
+.doc-landscape-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  animation: docLandscapeFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+@keyframes docLandscapeFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.doc-landscape-overlay.is-rotated-90 {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 100vh !important;
+  height: 100vw !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center center !important;
+  border-radius: 0 !important;
+}
+
+.doc-landscape-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.doc-landscape-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.doc-landscape-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6340d8;
+}
+
+.doc-landscape-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-landscape-hint {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-landscape-actions-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.doc-landscape-body {
+  flex: 1;
+  position: relative;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.doc-landscape-canvas-wrap {
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+  border: 2px dashed #cbd5e1;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.doc-landscape-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.doc-landscape-baseline {
+  position: absolute;
+  bottom: 32px;
+  left: 24px;
+  right: 24px;
+  border-bottom: 1.5px dashed #94a3b8;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  color: #94a3b8;
+  font-size: 11px;
+  padding-bottom: 4px;
+  font-weight: 500;
+}
+
+.doc-landscape-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.doc-landscape-footer .btn {
+  min-height: 44px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
 
 
 
@@ -27630,9 +27782,15 @@ dialog#medicalCertificateDialog {
 
       <!-- Seção de Assinatura (Canvas de Rubrica) -->
       <div id="clockSignActionSection" style="display: flex; flex-direction: column; gap: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
           <strong style="font-size: 13px; color: var(--text, #0f172a);">Rubrica Digital (desenhe no quadro abaixo):</strong>
-          <button id="clockSignClearCanvasBtn" type="button" class="btn btn-ghost" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px;">Limpar traço</button>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button id="clockSignRotateCanvasBtn" type="button" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="m14 2 3 3-3 3"/><path d="M5 2h9"/></svg>
+              <span>Virar para assinar</span>
+            </button>
+            <button id="clockSignClearCanvasBtn" type="button" class="btn btn-ghost" style="font-size: 12px; padding: 4px 10px; min-height: 32px; border-radius: 8px;">Limpar traço</button>
+          </div>
         </div>
 
         <div style="border: 2px dashed var(--line, #cbd5e1); border-radius: 14px; background: #ffffff; height: 140px; position: relative; touch-action: none; overflow: hidden;">
@@ -36846,6 +37004,20 @@ dialog#medicalCertificateDialog {
       clearBtn.onclick = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         clockSignCanvasState_.hasDrawn = false;
+      };
+    }
+
+    const rotateBtn = $("#clockSignRotateCanvasBtn");
+    if (rotateBtn) {
+      rotateBtn.onclick = () => {
+        if (typeof window.openLandscapeSignatureModal === "function") {
+          window.openLandscapeSignatureModal({
+            targetCanvas: canvas,
+            onConfirm: () => {
+              clockSignCanvasState_.hasDrawn = true;
+            },
+          });
+        }
       };
     }
 

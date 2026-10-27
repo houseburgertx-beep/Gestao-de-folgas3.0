@@ -2276,6 +2276,158 @@ dialog#medicalCertificateDialog {
   overflow-x: auto;
 }
 
+/* ==========================================================================
+   MODAL DE ASSINATURA EM MODO PAISAGEM / TELA CHEIA (VIRAR TELA)
+   Padrão Apple iOS / Grupo House 190 — Zero Emojis
+   ========================================================================== */
+
+.doc-landscape-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  animation: docLandscapeFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+@keyframes docLandscapeFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.doc-landscape-overlay.is-rotated-90 {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 100vh !important;
+  height: 100vw !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center center !important;
+  border-radius: 0 !important;
+}
+
+.doc-landscape-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.doc-landscape-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.doc-landscape-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6340d8;
+}
+
+.doc-landscape-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-landscape-hint {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-landscape-actions-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.doc-landscape-body {
+  flex: 1;
+  position: relative;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.doc-landscape-canvas-wrap {
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+  border: 2px dashed #cbd5e1;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.doc-landscape-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.doc-landscape-baseline {
+  position: absolute;
+  bottom: 32px;
+  left: 24px;
+  right: 24px;
+  border-bottom: 1.5px dashed #94a3b8;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  color: #94a3b8;
+  font-size: 11px;
+  padding-bottom: 4px;
+  font-weight: 500;
+}
+
+.doc-landscape-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.doc-landscape-footer .btn {
+  min-height: 44px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
 
 
 

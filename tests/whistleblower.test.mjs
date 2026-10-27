@@ -276,3 +276,41 @@ test("Integração do Canal de Denúncias no App Shell e scripts", async () => {
     "src/legacy/Scripts.html deve incluir a rota whistleblower",
   );
 });
+
+test("Assinatura em Modo Paisagem (Virar tela para assinar)", async () => {
+  const docsJs = await readFile("src/documents.js", "utf8");
+  assert.ok(
+    docsJs.includes('id="docRotateCanvasBtn"'),
+    "src/documents.js deve conter o botão docRotateCanvasBtn para virar a tela",
+  );
+  assert.ok(
+    docsJs.includes("openLandscapeSignatureModal"),
+    "src/documents.js deve definir openLandscapeSignatureModal",
+  );
+  assert.ok(
+    docsJs.includes("isRotated90"),
+    "src/documents.js deve suportar rotação CSS de 90 graus",
+  );
+
+  const docsCss = await readFile("src/documents.css", "utf8");
+  assert.ok(
+    docsCss.includes(".doc-landscape-overlay"),
+    "src/documents.css deve estilizar .doc-landscape-overlay",
+  );
+  assert.ok(
+    docsCss.includes(".is-rotated-90"),
+    "src/documents.css deve ter suporte a .is-rotated-90",
+  );
+
+  const dialogsHtml = await readFile("src/legacy/Dialogs.html", "utf8");
+  assert.ok(
+    dialogsHtml.includes('id="clockSignRotateCanvasBtn"'),
+    "src/legacy/Dialogs.html deve conter clockSignRotateCanvasBtn",
+  );
+
+  const scriptsHtml = await readFile("src/legacy/Scripts.html", "utf8");
+  assert.ok(
+    scriptsHtml.includes("clockSignRotateCanvasBtn"),
+    "src/legacy/Scripts.html deve configurar o evento do clockSignRotateCanvasBtn",
+  );
+});

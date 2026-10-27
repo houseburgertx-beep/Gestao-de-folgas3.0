@@ -1354,9 +1354,15 @@ export async function openSignDialog(docId) {
       </div>
 
       <div id="docSignatureSection" class="doc-signature-box disabled">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <strong style="font-size:13px; color:#1e293b;">Desenhe sua Rubrica no quadro abaixo:</strong>
-          <button id="docClearCanvasBtn" class="btn btn-ghost btn-sm" type="button">Limpar</button>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button id="docRotateCanvasBtn" class="btn btn-secondary btn-sm" type="button" title="Girar tela para assinar com mais espaço na horizontal" style="border-radius:10px; font-weight:600; font-size:12px; padding:6px 12px; min-height:36px; display:inline-flex; align-items:center; gap:6px; color:#4338ca; background:#eef2ff; border:1px solid #c7d2fe;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="m14 2 3 3-3 3"/><path d="M5 2h9"/></svg>
+              <span>Virar para Assinar</span>
+            </button>
+            <button id="docClearCanvasBtn" class="btn btn-ghost btn-sm" type="button">Limpar</button>
+          </div>
         </div>
 
         <div class="doc-canvas-wrap">
@@ -1539,6 +1545,20 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
       state.signatureHasDrawn = false;
       checkCanSubmit();
     });
+
+    $("#docRotateCanvasBtn")?.addEventListener("click", () => {
+      if (!state.hasScrolledToBottom) {
+        alert("Por favor, confira o documento até o final para liberar a assinatura.");
+        return;
+      }
+      openLandscapeSignatureModal({
+        targetCanvas: canvas,
+        onConfirm: () => {
+          state.signatureHasDrawn = true;
+          checkCanSubmit();
+        },
+      });
+    });
   }
 
   const checkAffirmation = $("#docAffirmationCheck");
@@ -1580,6 +1600,261 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
       alert(`Erro na assinatura: ${err.message}`);
       confirmBtn.disabled = false;
       confirmBtn.innerHTML = "Confirmar e Assinar";
+    }
+  });
+}
+
+/**
+ * Abre o Modal de Assinatura em Modo Paisagem / Tela Cheia (Girar Tela)
+ * Permite ao usuário virar o aparelho na horizontal para assinar com espaço generoso.
+ * Suporta rotação automática CSS (para usuários com bloqueio de orientação ativado no iOS/Android)
+ * e rotação física (orientationchange / resize).
+ */
+export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
+  document.querySelector("#docLandscapeSignOverlay")?.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "docLandscapeSignOverlay";
+  overlay.className = "doc-landscape-overlay";
+
+  // Se o dispositivo estiver em modo retrato em tela estreita, ativa rotação CSS de 90°
+  const isMobilePortrait = window.innerHeight > window.innerWidth && window.innerWidth < 768;
+  let isRotated90 = isMobilePortrait;
+
+  if (isRotated90) {
+    overlay.classList.add("is-rotated-90");
+  }
+
+  overlay.innerHTML = `
+    <div class="doc-landscape-header">
+      <div class="doc-landscape-title-group">
+        <span class="doc-landscape-eyebrow">Modo Paisagem</span>
+        <h3 class="doc-landscape-title">Assinatura na Horizontal</h3>
+        <span class="doc-landscape-hint">Segure o aparelho de lado para ter mais espaço para a sua rubrica</span>
+      </div>
+      <div class="doc-landscape-actions-top">
+        <button type="button" id="docLandscapeRotateToggleBtn" class="btn btn-secondary btn-sm" style="border-radius:10px; font-weight:600; font-size:12px; padding:6px 10px; min-height:36px; display:inline-flex; align-items:center; gap:5px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85.83 6.72 2.24L21 8"/><path d="M21 3v5h-5"/></svg>
+          <span id="docLandscapeRotateLabel">${isRotated90 ? "Desvirar" : "Girar 90°"}</span>
+        </button>
+        <button type="button" id="docLandscapeClearBtn" class="btn btn-ghost btn-sm" style="font-weight:600; min-height:36px;">Limpar</button>
+        <button type="button" id="docLandscapeCloseBtn" class="icon-btn" aria-label="Fechar" style="font-size:22px; width:36px; height:36px;">&times;</button>
+      </div>
+    </div>
+
+    <div class="doc-landscape-body">
+      <div class="doc-landscape-canvas-wrap">
+        <canvas id="docLandscapeCanvas"></canvas>
+        <div class="doc-landscape-baseline">
+          <span>Rubrica Manuscreve</span>
+          <span>Assinatura Digital</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-landscape-footer">
+      <button type="button" id="docLandscapeCancelBtn" class="btn btn-secondary" style="min-width:110px;">Cancelar</button>
+      <button type="button" id="docLandscapeConfirmBtn" class="btn btn-primary" style="flex:1; max-width:360px; box-shadow:0 4px 14px rgba(99,64,216,0.25);">
+        Concluir Rubrica
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const lCanvas = overlay.querySelector("#docLandscapeCanvas");
+  const lCtx = lCanvas.getContext("2d");
+  let hasDrawn = false;
+  let isDrawing = false;
+
+  const resizeLandscapeCanvas = () => {
+    const wrap = lCanvas.parentElement;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    // Se estiver com rotação CSS de 90°, as dimensões visual e de desenho se invertem
+    const w = isRotated90 ? rect.height : rect.width;
+    const h = isRotated90 ? rect.width : rect.height;
+
+    const currentW = Math.max(300, Math.round(w || 600));
+    const currentH = Math.max(140, Math.round(h || 260));
+
+    // Salva imagem atual antes de redimensionar o canvas
+    let prevData = null;
+    if (hasDrawn && lCanvas.width > 0 && lCanvas.height > 0) {
+      try {
+        prevData = lCanvas.toDataURL("image/png");
+      } catch (_) {}
+    }
+
+    lCanvas.width = currentW * dpr;
+    lCanvas.height = currentH * dpr;
+    lCanvas.style.width = "100%";
+    lCanvas.style.height = "100%";
+
+    lCtx.scale(dpr, dpr);
+    lCtx.lineWidth = 2.8;
+    lCtx.lineCap = "round";
+    lCtx.lineJoin = "round";
+    lCtx.strokeStyle = "#1e1b4b";
+
+    if (prevData) {
+      const img = new Image();
+      img.onload = () => {
+        lCtx.drawImage(img, 0, 0, currentW, currentH);
+      };
+      img.src = prevData;
+    }
+  };
+
+  resizeLandscapeCanvas();
+  setTimeout(resizeLandscapeCanvas, 80);
+
+  const getPos = (e) => {
+    const r = lCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    if (isRotated90) {
+      const normX = Math.max(0, Math.min(1, (clientY - r.top) / (r.height || 1)));
+      const normY = Math.max(0, Math.min(1, (r.right - clientX) / (r.width || 1)));
+      const cssW = r.height || 1;
+      const cssH = r.width || 1;
+      return {
+        x: normX * cssW,
+        y: normY * cssH,
+      };
+    } else {
+      const normX = Math.max(0, Math.min(1, (clientX - r.left) / (r.width || 1)));
+      const normY = Math.max(0, Math.min(1, (clientY - r.top) / (r.height || 1)));
+      const cssW = r.width || 1;
+      const cssH = r.height || 1;
+      return {
+        x: normX * cssW,
+        y: normY * cssH,
+      };
+    }
+  };
+
+  const startDraw = (e) => {
+    isDrawing = true;
+    hasDrawn = true;
+    const pos = getPos(e);
+    lCtx.beginPath();
+    lCtx.moveTo(pos.x, pos.y);
+  };
+
+  const drawMove = (e) => {
+    if (!isDrawing) return;
+    const pos = getPos(e);
+    lCtx.lineTo(pos.x, pos.y);
+    lCtx.stroke();
+  };
+
+  const stopDraw = () => {
+    isDrawing = false;
+  };
+
+  lCanvas.addEventListener("mousedown", startDraw);
+  lCanvas.addEventListener("mousemove", drawMove);
+  window.addEventListener("mouseup", stopDraw);
+
+  lCanvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    startDraw(e);
+  }, { passive: false });
+  lCanvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    drawMove(e);
+  }, { passive: false });
+  lCanvas.addEventListener("touchend", stopDraw);
+
+  // Botão Inverter Rotação (Girar / Desvirar 90°)
+  const rotateToggleBtn = overlay.querySelector("#docLandscapeRotateToggleBtn");
+  const rotateLabel = overlay.querySelector("#docLandscapeRotateLabel");
+  if (rotateToggleBtn) {
+    rotateToggleBtn.onclick = () => {
+      isRotated90 = !isRotated90;
+      overlay.classList.toggle("is-rotated-90", isRotated90);
+      if (rotateLabel) rotateLabel.textContent = isRotated90 ? "Desvirar" : "Girar 90°";
+      setTimeout(resizeLandscapeCanvas, 100);
+    };
+  }
+
+  // Monitora rotação física do aparelho
+  const onOrientationChange = () => {
+    const isPhysicalLandscape = window.innerWidth > window.innerHeight;
+    if (isPhysicalLandscape && isRotated90) {
+      isRotated90 = false;
+      overlay.classList.remove("is-rotated-90");
+      if (rotateLabel) rotateLabel.textContent = "Girar 90°";
+    }
+    setTimeout(resizeLandscapeCanvas, 120);
+  };
+  window.addEventListener("orientationchange", onOrientationChange);
+  window.addEventListener("resize", onOrientationChange);
+
+  // Limpar traço
+  overlay.querySelector("#docLandscapeClearBtn")?.addEventListener("click", () => {
+    lCtx.clearRect(0, 0, lCanvas.width, lCanvas.height);
+    hasDrawn = false;
+  });
+
+  const closeOverlay = () => {
+    window.removeEventListener("mouseup", stopDraw);
+    window.removeEventListener("orientationchange", onOrientationChange);
+    window.removeEventListener("resize", onOrientationChange);
+    overlay.remove();
+  };
+
+  overlay.querySelector("#docLandscapeCloseBtn")?.addEventListener("click", closeOverlay);
+  overlay.querySelector("#docLandscapeCancelBtn")?.addEventListener("click", closeOverlay);
+
+  // Confirmar e transferir rubrica
+  overlay.querySelector("#docLandscapeConfirmBtn")?.addEventListener("click", () => {
+    if (!hasDrawn) {
+      alert("Por favor, desenhe sua rubrica antes de confirmar.");
+      return;
+    }
+
+    const landscapeDataUrl = lCanvas.toDataURL("image/png");
+
+    if (targetCanvas) {
+      const tCtx = targetCanvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const tRect = targetCanvas.getBoundingClientRect();
+      const tw = tRect.width || 320;
+      const th = tRect.height || 140;
+
+      targetCanvas.width = tw * dpr;
+      targetCanvas.height = th * dpr;
+      tCtx.scale(dpr, dpr);
+      tCtx.clearRect(0, 0, tw, th);
+
+      const img = new Image();
+      img.onload = () => {
+        const aspect = img.width / img.height;
+        let dw = tw * 0.88;
+        let dh = dw / aspect;
+        if (dh > th * 0.82) {
+          dh = th * 0.82;
+          dw = dh * aspect;
+        }
+        const dx = (tw - dw) / 2;
+        const dy = (th - dh) / 2;
+        tCtx.drawImage(img, dx, dy, dw, dh);
+        closeOverlay();
+        if (typeof onConfirm === "function") {
+          onConfirm(landscapeDataUrl);
+        }
+      };
+      img.src = landscapeDataUrl;
+    } else {
+      closeOverlay();
+      if (typeof onConfirm === "function") {
+        onConfirm(landscapeDataUrl);
+      }
     }
   });
 }
@@ -3581,6 +3856,7 @@ if (typeof window !== "undefined") {
   window.openPreviewDialog = openPreviewDialog;
   window.openMedicalCertificateDialog = openMedicalCertificateDialog;
   window.renderPdfToContainer = renderPdfToContainer;
+  window.openLandscapeSignatureModal = openLandscapeSignatureModal;
   window.addEventListener?.("gestao-documents-open", (e) => {
     initDocumentsModule(e.detail);
   });

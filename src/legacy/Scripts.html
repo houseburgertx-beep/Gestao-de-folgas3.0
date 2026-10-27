@@ -9145,6 +9145,20 @@
       };
     }
 
+    const rotateBtn = $("#clockSignRotateCanvasBtn");
+    if (rotateBtn) {
+      rotateBtn.onclick = () => {
+        if (typeof window.openLandscapeSignatureModal === "function") {
+          window.openLandscapeSignatureModal({
+            targetCanvas: canvas,
+            onConfirm: () => {
+              clockSignCanvasState_.hasDrawn = true;
+            },
+          });
+        }
+      };
+    }
+
     const checkTerms = $("#clockSignCheckTerms");
     if (checkTerms) checkTerms.checked = false;
   }
