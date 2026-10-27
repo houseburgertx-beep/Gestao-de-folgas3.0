@@ -3387,6 +3387,9 @@
   function isEmployee() {
     return profile(state.user).toLowerCase().includes("funcion");
   }
+  window.isAdmin = isAdmin;
+  window.isManager = isManager;
+  window.isStoreManager = isStoreManager;
   navigator.serviceWorker?.addEventListener("message", event => {
     if (event.data?.type === "gestao-open-view" && ["timeclock","notifications"].includes(event.data.view)) {
       if (state.user) switchView(event.data.view);

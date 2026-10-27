@@ -1729,6 +1729,16 @@ export function createBaseHandlers() {
       );
     },
 
+    async perfilObter() {
+      const profile = await runtime.requireProfile();
+      return success(profile);
+    },
+
+    async getProfile() {
+      const profile = await runtime.requireProfile();
+      return success(profile);
+    },
+
     async linkGoogleAccount() {
       const res = await runtime.linkGoogleAccount();
       const data = await bootstrap();

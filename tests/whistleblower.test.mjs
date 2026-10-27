@@ -314,3 +314,36 @@ test("Assinatura em Modo Paisagem (Virar tela para assinar)", async () => {
     "src/legacy/Scripts.html deve configurar o evento do clockSignRotateCanvasBtn",
   );
 });
+
+test("Canal de Denúncias: Administrador e Gestor acessam painel de Gestão e Triagem por padrão", async () => {
+  const wbJs = await readFile("src/whistleblower.js", "utf8");
+  assert.ok(
+    wbJs.includes("checkIsAdminOrManager"),
+    "whistleblower.js deve conter a função de verificação checkIsAdminOrManager",
+  );
+  assert.ok(
+    wbJs.includes('state.activeTab = "gestao"'),
+    "whistleblower.js deve definir activeTab como gestao por padrão para gestores",
+  );
+  assert.ok(
+    wbJs.includes("denunciasAdminListar"),
+    "whistleblower.js deve invocar denunciasAdminListar para alimentar o painel",
+  );
+  assert.ok(
+    wbJs.includes("wb-kpi-grid"),
+    "whistleblower.js deve renderizar os KPIs de governança",
+  );
+
+  const apiBaseJs = await readFile("src/core/api-base.js", "utf8");
+  assert.ok(
+    apiBaseJs.includes("perfilObter"),
+    "api-base.js deve registrar o handler perfilObter",
+  );
+
+  const docsCss = await readFile("src/documents.css", "utf8");
+  assert.ok(
+    docsCss.includes(".wb-kpi-grid"),
+    "documents.css deve conter estilos para .wb-kpi-grid",
+  );
+});
+

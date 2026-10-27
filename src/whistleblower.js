@@ -42,7 +42,8 @@ const CATEGORIAS = [
 ];
 
 const state = {
-  activeTab: "novo", // "novo" | "consultar" | "gestao"
+  activeTab: "gestao", // "gestao" | "novo" | "consultar"
+  userHasChosenTab: false,
   activeConsulta: null,
   protocoloRecente: null,
   pinRecente: null,
@@ -61,6 +62,21 @@ const STATUS_BADGE_CLASSES = {
   Arquivada: "badge-slate",
 };
 
+export function checkIsAdminOrManager(user) {
+  if (typeof window !== "undefined") {
+    if (typeof window.isAdmin === "function" && window.isAdmin()) return true;
+    if (typeof window.isStoreAdmin === "function" && window.isStoreAdmin()) return true;
+    if (typeof window.isManager === "function" && window.isManager()) return true;
+  }
+  const u = user || state.userProfile;
+  const p = String(u?.Perfil || u?.perfil || u?.role || "").trim().toLowerCase();
+  return (
+    p.includes("admin") ||
+    p.includes("gerente") ||
+    p.includes("respons")
+  );
+}
+
 /**
  * Renderiza o aplicativo no contêiner raiz
  */
@@ -68,44 +84,67 @@ export function renderWhistleblowerView() {
   const root = $("#whistleblowerAppRoot");
   if (!root) return;
 
-  const isAdminOrManager = state.userProfile && (
-    state.userProfile.Perfil === "Administrador" ||
-    state.userProfile.Perfil === "Gerente" ||
-    state.userProfile.Perfil === "Responsável de loja"
-  );
+  const isAdminOrManager = checkIsAdminOrManager(state.userProfile);
 
-  let tabsHtml = `
-    <div class="wb-nav-tabs" role="tablist">
-      <button type="button" class="wb-tab-btn ${state.activeTab === "novo" ? "active" : ""}" data-wb-tab="novo">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Registrar Relato
-      </button>
-      <button type="button" class="wb-tab-btn ${state.activeTab === "consultar" ? "active" : ""}" data-wb-tab="consultar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        Acompanhar por Protocolo
-      </button>
-      ${
-        isAdminOrManager
-          ? `<button type="button" class="wb-tab-btn ${state.activeTab === "gestao" ? "active" : ""}" data-wb-tab="gestao">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              Gestão de Integridade (${state.adminCasos.length})
-            </button>`
-          : ""
-      }
-    </div>
-  `;
+  let tabsHtml = "";
+  if (isAdminOrManager) {
+    tabsHtml = `
+      <div class="wb-nav-tabs" role="tablist">
+        <button type="button" class="wb-tab-btn ${state.activeTab === "gestao" ? "active" : ""}" data-wb-tab="gestao">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Gestão e Triagem (${state.adminCasos.length})
+        </button>
+        <button type="button" class="wb-tab-btn ${state.activeTab === "novo" ? "active" : ""}" data-wb-tab="novo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Registrar Novo Relato
+        </button>
+        <button type="button" class="wb-tab-btn ${state.activeTab === "consultar" ? "active" : ""}" data-wb-tab="consultar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Acompanhar por Protocolo
+        </button>
+      </div>
+    `;
+  } else {
+    tabsHtml = `
+      <div class="wb-nav-tabs" role="tablist">
+        <button type="button" class="wb-tab-btn ${state.activeTab === "novo" ? "active" : ""}" data-wb-tab="novo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Registrar Relato
+        </button>
+        <button type="button" class="wb-tab-btn ${state.activeTab === "consultar" ? "active" : ""}" data-wb-tab="consultar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Acompanhar por Protocolo
+        </button>
+      </div>
+    `;
+  }
 
   let contentHtml = "";
-  if (state.activeTab === "novo") {
+  if (state.activeTab === "gestao" && isAdminOrManager) {
+    contentHtml = renderPainelGestao();
+  } else if (state.activeTab === "novo") {
     contentHtml = renderFormularioNovo();
   } else if (state.activeTab === "consultar") {
     contentHtml = renderConsulta();
-  } else if (state.activeTab === "gestao" && isAdminOrManager) {
-    contentHtml = renderPainelGestao();
+  } else {
+    contentHtml = isAdminOrManager ? renderPainelGestao() : renderFormularioNovo();
   }
 
-  root.innerHTML = `
-    <div class="wb-container">
+  const isGestao = isAdminOrManager && state.activeTab === "gestao";
+  const headerHtml = isGestao
+    ? `
+      <div class="wb-header-banner">
+        <div class="wb-header-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          PAINEL DE GOVERNANÇA E COMPLIANCE
+        </div>
+        <h2 class="wb-title">Triagem de Denúncias e Integridade</h2>
+        <p class="wb-subtitle">
+          Área restrita de governança e comitê de ética para análise confidencial de relatos, emissão de pareceres oficiais e acompanhamento de medidas cabíveis.
+        </p>
+      </div>
+    `
+    : `
       <div class="wb-header-banner">
         <div class="wb-header-badge">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -116,6 +155,11 @@ export function renderWhistleblowerView() {
           Espaço seguro e independente para relatar irregularidades, assédio ou infrações às normas da House 190, com proteção integral e opção de anonimato total conforme a Lei 14.457/2022.
         </p>
       </div>
+    `;
+
+  root.innerHTML = `
+    <div class="wb-container">
+      ${headerHtml}
       ${tabsHtml}
       <div class="wb-content-panel">
         ${contentHtml}
@@ -365,60 +409,108 @@ function renderPainelGestao() {
     ? casos
     : casos.filter((c) => c.Status === state.filtroStatusAdmin);
 
+  const total = casos.length;
+  const recebidas = casos.filter((c) => c.Status === "Recebida").length;
+  const emAnalise = casos.filter((c) => c.Status === "Em Análise").length;
+  const emInvestigacao = casos.filter((c) => c.Status === "Em Investigação").length;
+  const concluidas = casos.filter((c) => c.Status === "Concluída").length;
+  const arquivadas = casos.filter((c) => c.Status === "Arquivada").length;
+
   const rowsHtml = filtered.length === 0
-    ? `<tr><td colspan="6" style="text-align:center; padding:32px; color:#64748b;">Nenhum relato registrado neste filtro.</td></tr>`
-    : filtered
-        .map((c) => {
-          const badgeClass = STATUS_BADGE_CLASSES[c.Status] || "badge-slate";
-          return `
-            <tr>
-              <td><strong style="font-family:ui-monospace, monospace; font-size:12.5px;">${esc(c.DenunciaID)}</strong></td>
-              <td style="font-variant-numeric:tabular-nums;">${formatDate(c.DataCriacao)}</td>
-              <td>${esc(c.Categoria)}</td>
-              <td>${esc(c.LojaID || "GERAL")}</td>
-              <td><span class="doc-badge ${badgeClass}">${esc(c.Status)}</span></td>
-              <td style="text-align:right;">
-                <button type="button" class="btn btn-secondary btn-sm" data-wb-action="analisar" data-id="${esc(c.DenunciaID)}" style="min-height:36px; padding:0 12px; border-radius:8px;">
-                  Analisar
-                </button>
-              </td>
-            </tr>
-          `;
-        })
-        .join("");
-
-  return `
-    <div class="wb-admin-panel">
-      <div class="wb-admin-header">
-        <div>
-          <h3 style="margin:0; font-size:1.1rem; font-weight:700;">Painel de Governança e Compliance</h3>
-          <span style="font-size:12px; color:#64748b;">Gestão confidencial de relatos da House 190</span>
+    ? `
+      <div class="wb-empty-state" style="padding: 48px 24px; text-align: center; border: 1px dashed var(--line, #cbd5e1); border-radius: 12px; margin-top: 14px; background: #ffffff;">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; color: #64748b;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
-        <div class="wb-status-filters">
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "todos" ? "active" : ""}" data-wb-filter="todos">Todos (${casos.length})</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Recebida" ? "active" : ""}" data-wb-filter="Recebida">Recebidas</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Em Investigação" ? "active" : ""}" data-wb-filter="Em Investigação">Em Investigação</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Concluída" ? "active" : ""}" data-wb-filter="Concluída">Concluídas</button>
-        </div>
+        <h4 style="margin: 0 0 4px; font-size: 14.5px; font-weight: 600; color: #1e293b;">Nenhum relato encontrado</h4>
+        <p style="margin: 0; font-size: 12.5px; color: #64748b;">Não há denúncias sob o filtro selecionado no momento.</p>
       </div>
-
-      <div class="table-responsive" style="margin-top: 14px; border-radius: 14px; border: 1px solid var(--line, #e2e8f0); overflow-x: auto;">
-        <table class="data-table" style="width: 100%; min-width: 600px; border-collapse: collapse;">
+    `
+    : `
+      <div class="table-responsive" style="margin-top: 14px; border-radius: 14px; border: 1px solid var(--line, #e2e8f0); overflow-x: auto; background: #ffffff;">
+        <table class="data-table" style="width: 100%; min-width: 680px; border-collapse: collapse;">
           <thead>
-            <tr style="background: var(--surface-2, #f8fafc); text-align: left; font-size: 12px; color: #64748b;">
-              <th style="padding: 10px 12px;">PROTOCOLO</th>
-              <th style="padding: 10px 12px;">DATA</th>
-              <th style="padding: 10px 12px;">CATEGORIA</th>
-              <th style="padding: 10px 12px;">UNIDADE</th>
-              <th style="padding: 10px 12px;">STATUS</th>
-              <th style="padding: 10px 12px; text-align: right;">AÇÃO</th>
+            <tr style="background: var(--surface-2, #f8fafc); text-align: left; font-size: 11.5px; color: #64748b; border-bottom: 1px solid var(--line, #e2e8f0);">
+              <th style="padding: 10px 14px;">PROTOCOLO</th>
+              <th style="padding: 10px 14px;">DATA</th>
+              <th style="padding: 10px 14px;">CATEGORIA</th>
+              <th style="padding: 10px 14px;">UNIDADE</th>
+              <th style="padding: 10px 14px;">TIPO</th>
+              <th style="padding: 10px 14px;">STATUS</th>
+              <th style="padding: 10px 14px; text-align: right;">AÇÃO</th>
             </tr>
           </thead>
           <tbody>
-            ${rowsHtml}
+            ${filtered
+              .map((c) => {
+                const badgeClass = STATUS_BADGE_CLASSES[c.Status] || "badge-slate";
+                const isAnon = c.Anonimo === true;
+                const tipoBadge = isAnon
+                  ? `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#059669; font-weight:600;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Anônimo</span>`
+                  : `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#2563eb; font-weight:600;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg> ${esc(c.NomeContato || "Identificado")}</span>`;
+                return `
+                  <tr style="border-bottom: 1px solid var(--line, #f1f5f9);">
+                    <td style="padding: 12px 14px;"><strong style="font-family:ui-monospace, monospace; font-size:12.5px; letter-spacing:0.5px; color:#0f172a;">${esc(c.DenunciaID)}</strong></td>
+                    <td style="padding: 12px 14px; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px; color:#475569;">${formatDate(c.DataCriacao)}</td>
+                    <td style="padding: 12px 14px; font-size:13px; font-weight:600; color:#1e293b;">${esc(c.Categoria)}</td>
+                    <td style="padding: 12px 14px; font-size:12.5px; color:#475569;">${esc(c.LojaID || "Geral")}</td>
+                    <td style="padding: 12px 14px;">${tipoBadge}</td>
+                    <td style="padding: 12px 14px;"><span class="doc-badge ${badgeClass}">${esc(c.Status)}</span></td>
+                    <td style="padding: 12px 14px; text-align:right;">
+                      <button type="button" class="btn btn-secondary btn-sm" data-wb-action="analisar" data-id="${esc(c.DenunciaID)}" style="min-height:34px; padding:0 14px; border-radius:8px; font-weight:600; font-size:12px;">
+                        Analisar e Tratar
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              })
+              .join("")}
           </tbody>
         </table>
       </div>
+    `;
+
+  return `
+    <div class="wb-admin-panel">
+      <div class="wb-kpi-grid">
+        <div class="wb-kpi-card">
+          <span class="wb-kpi-label">TOTAL DE CASOS</span>
+          <strong class="wb-kpi-value">${total}</strong>
+          <span class="wb-kpi-sub">Relatos protocolados</span>
+        </div>
+        <div class="wb-kpi-card">
+          <span class="wb-kpi-label">AGUARDANDO TRIAGEM</span>
+          <strong class="wb-kpi-value" style="color:#d97706;">${recebidas}</strong>
+          <span class="wb-kpi-sub">Casos novos recebidos</span>
+        </div>
+        <div class="wb-kpi-card">
+          <span class="wb-kpi-label">EM APURAÇÃO</span>
+          <strong class="wb-kpi-value" style="color:#7c3aed;">${emAnalise + emInvestigacao}</strong>
+          <span class="wb-kpi-sub">Análise e investigação</span>
+        </div>
+        <div class="wb-kpi-card">
+          <span class="wb-kpi-label">FINALIZADOS</span>
+          <strong class="wb-kpi-value" style="color:#059669;">${concluidas + arquivadas}</strong>
+          <span class="wb-kpi-sub">Concluídos e arquivados</span>
+        </div>
+      </div>
+
+      <div class="wb-admin-header" style="margin-top: 18px;">
+        <div>
+          <h3 style="margin:0; font-size:1.05rem; font-weight:700;">Relatos e Ocorrências Recebidas</h3>
+          <span style="font-size:12px; color:#64748b;">Filtrar denúncias por fase de apuração</span>
+        </div>
+        <div class="wb-status-filters">
+          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "todos" ? "active" : ""}" data-wb-filter="todos">Todos (${total})</button>
+          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Recebida" ? "active" : ""}" data-wb-filter="Recebida">Recebidas (${recebidas})</button>
+          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Em Análise" ? "active" : ""}" data-wb-filter="Em Análise">Em Análise (${emAnalise})</button>
+          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Em Investigação" ? "active" : ""}" data-wb-filter="Em Investigação">Em Investigação (${emInvestigacao})</button>
+          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Concluída" ? "active" : ""}" data-wb-filter="Concluída">Concluídas (${concluidas})</button>
+          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Arquivada" ? "active" : ""}" data-wb-filter="Arquivada">Arquivadas (${arquivadas})</button>
+        </div>
+      </div>
+
+      ${rowsHtml}
     </div>
   `;
 }
@@ -430,6 +522,7 @@ function bindEvents() {
   // Navegação entre abas
   $$("[data-wb-tab]").forEach((btn) => {
     btn.onclick = () => {
+      state.userHasChosenTab = true;
       state.activeTab = btn.getAttribute("data-wb-tab");
       renderWhistleblowerView();
     };
@@ -517,6 +610,7 @@ function bindEvents() {
     goToConsultaBtn.onclick = async () => {
       const proto = state.protocoloRecente;
       const pin = state.pinRecente;
+      state.userHasChosenTab = true;
       state.activeTab = "consultar";
       try {
         const res = await window.call("denunciaConsultar", { protocolo: proto, pin });
@@ -615,7 +709,7 @@ function bindEvents() {
  */
 function openAdminModal(casoData) {
   const d = casoData.denuncia;
-  const msgs = casoData.mensagens || [];
+  const msgs = Array.isArray(casoData.mensagens) ? casoData.mensagens : [];
 
   let modal = $("#wbAdminModal");
   if (!modal) {
@@ -624,6 +718,25 @@ function openAdminModal(casoData) {
     modal.className = "dialog doc-sign-dialog";
     document.body.appendChild(modal);
   }
+
+  const msgsHtml = msgs.length === 0
+    ? `<span style="font-size:12px; color:#94a3b8;">Nenhuma mensagem registrada além do relato inicial.</span>`
+    : msgs
+        .map((m) => {
+          const isDenunciante = m.AutorTipo === "Denunciante";
+          const borderCol = isDenunciante ? "#94a3b8" : "#2563eb";
+          const bgCol = isDenunciante ? "#f8fafc" : "#eff6ff";
+          return `
+            <div style="font-size:12px; padding:8px 10px; border-radius:8px; background:${bgCol}; border-left:3px solid ${borderCol}; margin-bottom:6px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:3px; font-size:11px; color:#64748b;">
+                <strong>${esc(m.AutorNome || m.AutorTipo)}</strong>
+                <span style="font-variant-numeric:tabular-nums;">${formatDate(m.DataHora)}</span>
+              </div>
+              <div style="color:#1e293b; white-space:pre-wrap;">${esc(m.Texto)}</div>
+            </div>
+          `;
+        })
+        .join("");
 
   modal.innerHTML = `
     <div class="dialog-head">
@@ -634,40 +747,59 @@ function openAdminModal(casoData) {
       <button type="button" class="icon-btn" id="wbAdminModalClose" aria-label="Fechar">&times;</button>
     </div>
 
-    <div class="dialog-body" style="padding:16px;">
-      <div style="background:var(--surface-2, #f8fafc); padding:12px; border-radius:10px; font-size:13px; margin-bottom:12px;">
-        <div><strong>Categoria:</strong> ${esc(d.Categoria)}</div>
-        <div><strong>Unidade:</strong> ${esc(d.LojaID)}</div>
-        <div><strong>Tipo:</strong> ${d.Anonimo ? "Anônimo" : `Identificado (${esc(d.NomeContato || "")} - ${esc(d.TelefoneContato || "")})`}</div>
-        <div><strong>Envolvidos:</strong> ${esc(d.Envolvidos || "Não informado")}</div>
-        <div style="margin-top:6px;"><strong>Relato:</strong><br/>${esc(d.Descricao)}</div>
+    <div class="dialog-body" style="padding:16px; max-height:calc(85vh - 70px); overflow-y:auto;">
+      <div style="background:var(--surface-2, #f8fafc); padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:14px; border:1px solid var(--line, #e2e8f0); line-height:1.5;">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
+          <div><strong style="color:#64748b;">Categoria:</strong> <span style="font-weight:600; color:#0f172a;">${esc(d.Categoria)}</span></div>
+          <div><strong style="color:#64748b;">Unidade:</strong> <span style="font-weight:600; color:#0f172a;">${esc(d.LojaID || "Geral")}</span></div>
+          <div><strong style="color:#64748b;">Data:</strong> <span style="font-variant-numeric:tabular-nums;">${formatDate(d.DataCriacao)}</span></div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <strong style="color:#64748b;">Identificação:</strong>
+          <span>${d.Anonimo ? "Anônimo (identidade protegida)" : `Identificado (${esc(d.NomeContato || "")} - Tel: ${esc(d.TelefoneContato || "Não informado")})`}</span>
+        </div>
+        <div style="margin-bottom:8px;">
+          <strong style="color:#64748b;">Pessoas / Setores Citados:</strong>
+          <span>${esc(d.Envolvidos || "Não informado")}</span>
+        </div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0;">
+          <strong style="color:#64748b; display:block; margin-bottom:4px;">Descrição dos Fatos:</strong>
+          <div style="color:#0f172a; white-space:pre-wrap; background:#ffffff; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">${esc(d.Descricao)}</div>
+        </div>
+      </div>
+
+      <div class="wb-modal-msgs" style="margin-bottom:14px;">
+        <div style="font-size:11.5px; font-weight:700; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Histórico de Mensagens e Réplicas (${msgs.length})</div>
+        <div style="max-height:140px; overflow-y:auto; padding:8px; background:#ffffff; border:1px solid var(--line, #e2e8f0); border-radius:8px;">
+          ${msgsHtml}
+        </div>
       </div>
 
       <form id="wbAdminFormModal">
-        <label style="display:block; margin-bottom:10px;">
-          <strong>Alterar Status da Ocorrência:</strong>
-          <select id="wbAdminStatusSelect" style="width:100%; margin-top:4px;">
-            <option value="Recebida" ${d.Status === "Recebida" ? "selected" : ""}>Recebida</option>
-            <option value="Em Análise" ${d.Status === "Em Análise" ? "selected" : ""}>Em Análise</option>
-            <option value="Em Investigação" ${d.Status === "Em Investigação" ? "selected" : ""}>Em Investigação</option>
-            <option value="Concluída" ${d.Status === "Concluída" ? "selected" : ""}>Concluída</option>
-            <option value="Arquivada" ${d.Status === "Arquivada" ? "selected" : ""}>Arquivada</option>
+        <label style="display:block; margin-bottom:12px;">
+          <strong style="font-size:12.5px; color:#334155;">Alterar Status da Ocorrência:</strong>
+          <select id="wbAdminStatusSelect" style="width:100%; margin-top:4px; height:40px; border-radius:8px; border:1px solid var(--line, #cbd5e1); padding:0 10px; font-size:13px;">
+            <option value="Recebida" ${d.Status === "Recebida" ? "selected" : ""}>Recebida (Aguardando triagem)</option>
+            <option value="Em Análise" ${d.Status === "Em Análise" ? "selected" : ""}>Em Análise preliminar</option>
+            <option value="Em Investigação" ${d.Status === "Em Investigação" ? "selected" : ""}>Em Investigação ativa</option>
+            <option value="Concluída" ${d.Status === "Concluída" ? "selected" : ""}>Concluída (Procedente / Medidas aplicadas)</option>
+            <option value="Arquivada" ${d.Status === "Arquivada" ? "selected" : ""}>Arquivada (Improcedente / Sem elementos)</option>
           </select>
         </label>
 
-        <label style="display:block; margin-bottom:10px;">
-          <strong>Parecer Formal da Conclusão / Apuração:</strong>
-          <textarea id="wbAdminParecerText" rows="3" style="width:100%; margin-top:4px;" placeholder="Parecer formal do comitê de ética...">${esc(d.ParecerComite || "")}</textarea>
+        <label style="display:block; margin-bottom:12px;">
+          <strong style="font-size:12.5px; color:#334155;">Parecer Formal da Conclusão / Apuração:</strong>
+          <textarea id="wbAdminParecerText" rows="3" style="width:100%; margin-top:4px; border-radius:8px; border:1px solid var(--line, #cbd5e1); padding:8px 10px; font-size:13px;" placeholder="Parecer formal do comitê de ética sobre as medidas tomadas...">${esc(d.ParecerComite || "")}</textarea>
         </label>
 
-        <label style="display:block; margin-bottom:10px;">
-          <strong>Enviar Mensagem Oficial ao Denunciante (Opcional):</strong>
-          <textarea id="wbAdminRespostaText" rows="2" style="width:100%; margin-top:4px;" placeholder="Esta resposta ficará visível para o denunciante ao consultar o protocolo..."></textarea>
+        <label style="display:block; margin-bottom:14px;">
+          <strong style="font-size:12.5px; color:#334155;">Enviar Mensagem Oficial ao Denunciante (Opcional):</strong>
+          <textarea id="wbAdminRespostaText" rows="2" style="width:100%; margin-top:4px; border-radius:8px; border:1px solid var(--line, #cbd5e1); padding:8px 10px; font-size:13px;" placeholder="Esta mensagem ficará visível para o denunciante ao consultar o protocolo..."></textarea>
         </label>
 
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
-          <button type="button" class="btn btn-secondary" id="wbAdminModalCancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="wbAdminModalSave">Salvar Decisão</button>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" id="wbAdminModalCancel" style="min-height:40px; border-radius:8px;">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="wbAdminModalSave" style="min-height:40px; border-radius:8px; font-weight:600;">Salvar Decisão</button>
         </div>
       </form>
     </div>
@@ -685,6 +817,12 @@ function openAdminModal(casoData) {
     const respostaTexto = $("#wbAdminRespostaText")?.value;
 
     try {
+      const saveBtn = $("#wbAdminModalSave");
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Salvando...";
+      }
+
       await window.call("denunciaAdminAtualizar", {
         protocolo: d.DenunciaID,
         status: novoStatus,
@@ -694,6 +832,11 @@ function openAdminModal(casoData) {
       modal.close();
       await loadWhistleblower();
     } catch (err) {
+      const saveBtn = $("#wbAdminModalSave");
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Salvar Decisão";
+      }
       alert(err.message || "Erro ao salvar atualização.");
     }
   };
@@ -706,11 +849,24 @@ export async function loadWhistleblower() {
   try {
     if (typeof window.call !== "function") return;
 
-    // Obtém perfil atual
+    // Obtém perfil atual de forma robusta
     try {
-      const profRes = await window.call("perfilObter");
-      state.userProfile = profRes?.data || profRes;
+      const candidate =
+        window.state?.user ||
+        window.__GESTAO_USER__ ||
+        window.state?.profile ||
+        window.__GESTAO_FIREBASE__?.runtime?.profile ||
+        null;
+      if (candidate) {
+        state.userProfile = candidate;
+      }
+      if (!state.userProfile || !state.userProfile.Perfil) {
+        const profRes = await window.call("perfilObter").catch(() => window.call("getProfile")).catch(() => null);
+        if (profRes) state.userProfile = profRes?.data || profRes;
+      }
     } catch (_) {}
+
+    const isAdminOrManager = checkIsAdminOrManager(state.userProfile);
 
     // Lojas: carrega de window.state, getStores ou listarLojas
     try {
@@ -739,16 +895,22 @@ export async function loadWhistleblower() {
       }
     }
 
-    // Se for admin ou gerente, carrega lista de casos
-    if (
-      state.userProfile &&
-      (state.userProfile.Perfil === "Administrador" ||
-        state.userProfile.Perfil === "Gerente" ||
-        state.userProfile.Perfil === "Responsável de loja")
-    ) {
-      const res = await window.call("denunciasAdminListar", {});
-      const data = res?.data || res;
-      state.adminCasos = data?.denuncias || [];
+    // Se for admin ou gerente, carrega lista de casos e define a aba inicial como "gestao"
+    if (isAdminOrManager) {
+      if (!state.userHasChosenTab) {
+        state.activeTab = "gestao";
+      }
+      try {
+        const res = await window.call("denunciasAdminListar", {});
+        const data = res?.data || res;
+        state.adminCasos = Array.isArray(data?.denuncias) ? data.denuncias : [];
+      } catch (err) {
+        console.warn("[whistleblower] Falha ao carregar denúncias administrativas:", err);
+      }
+    } else {
+      if (!state.userHasChosenTab) {
+        state.activeTab = "novo";
+      }
     }
 
     renderWhistleblowerView();
