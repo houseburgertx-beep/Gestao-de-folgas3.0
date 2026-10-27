@@ -708,6 +708,33 @@ async function getWaAutomations() {
   return _waAutomationsCache;
 }
 
+// Cache de deduplicação e idempotência para disparos do WhatsApp
+const _waSentDedupe = new Map();
+
+function isWaDeduplicated(dedupeKey, cooldownMs) {
+  const now = Date.now();
+  const memTime = _waSentDedupe.get(dedupeKey) || 0;
+  if (now - memTime < cooldownMs) return true;
+
+  if (typeof localStorage !== "undefined") {
+    try {
+      const stored = Number(localStorage.getItem(`wa_dedupe_${dedupeKey}`) || 0);
+      if (now - stored < cooldownMs) return true;
+    } catch (_) {}
+  }
+  return false;
+}
+
+function markWaDeduplicated(dedupeKey) {
+  const now = Date.now();
+  _waSentDedupe.set(dedupeKey, now);
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(`wa_dedupe_${dedupeKey}`, String(now));
+    } catch (_) {}
+  }
+}
+
 /**
  * Constrói texto da mensagem WhatsApp conforme tipo do evento,
  * com templates humanizados por categoria.
@@ -724,15 +751,23 @@ function buildWaText({ firstName, subject, message, type }) {
  * Dispara notificação WhatsApp ao colaborador ou liderança da loja.
  * Usa o Cloudflare Worker (/wa-send) como relay seguro quando disponível;
  * faz fallback para chamada direta ao gateway WA-AKG em último caso.
- * Respeita as configurações de automação salvas em Configuracoes/WhatsAppAutomations.
+ * Respeita as configurações de automação salvas em Configuracoes/WhatsAppAutomations
+ * e aplica deduplicação estrita para evitar disparos repetidos.
  */
-export async function dispatchWhatsAppNotification({ employeeId = "", storeId = "", email = "", subject = "", message = "", type = "" }) {
+export async function dispatchWhatsAppNotification({ employeeId = "", storeId = "", email = "", subject = "", message = "", type = "", relatedId = "" }) {
   if (typeof fetch === "undefined") return;
   try {
     // 1. Verifica se a automação para este tipo está explicitamente desabilitada
     const automations = await getWaAutomations();
     const automationKey = WA_AUTOMATION_KEYS[type];
     if (automationKey && automations[automationKey] === false) return;
+
+    // Janela de cooldown por categoria:
+    // - Folga: 20 horas (evita reenviar lembrete no mesmo dia)
+    // - Ponto (intervalo): 15 minutos
+    // - Tarefas / Demais: 30 minutos
+    const isFolga = type === "Folga" || String(relatedId).includes("folga") || String(subject).toLowerCase().includes("folga");
+    const cooldownMs = isFolga ? 20 * 3600 * 1000 : (type === "Ponto" ? 15 * 60 * 1000 : 30 * 60 * 1000);
 
     // 2. Localiza destinatários (colaborador individual ou gerência da loja)
     const employees = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
@@ -788,6 +823,19 @@ export async function dispatchWhatsAppNotification({ employeeId = "", storeId = 
       if (digits.startsWith("0")) digits = digits.slice(1);
       if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
       if (digits.length < 10 || digits.length > 15) continue;
+
+      // Chave única de deduplicação por destinatário e evento
+      const dedupeKey = relatedId
+        ? `${digits}_${type}_${relatedId}`
+        : `${digits}_${type}_${subject}`;
+
+      if (isWaDeduplicated(dedupeKey, cooldownMs)) {
+        console.log(`[WA] Disparo deduplicado ignorado para ${digits} (${dedupeKey})`);
+        continue;
+      }
+
+      // Registra a chave antes do envio assíncrono para prevenir condições de corrida
+      markWaDeduplicated(dedupeKey);
 
       const rawName = (emp.Nome || emp.nome || "").trim();
       const firstName = rawName ? rawName.split(/\s+/)[0] : "";
@@ -884,10 +932,14 @@ export async function createNotification({
   relatedId = "",
   severity = "info",
 }) {
-  dispatchWhatsAppNotification({ employeeId, storeId, email, subject, message, type }).catch(() => {});
+  dispatchWhatsAppNotification({ employeeId, storeId, email, subject, message, type, relatedId }).catch(() => {});
+
+  const notifId = relatedId
+    ? `notif_${String(relatedId).replace(/[^a-zA-Z0-9_-]/g, "_")}`
+    : uuid();
 
   return runtime.upsert("Notificacoes", {
-    NotificacaoID: uuid(),
+    NotificacaoID: notifId,
     Destinatario: normalizeEmail(email),
     DestinatarioID: employeeId,
     LojaID: storeId,
@@ -925,8 +977,7 @@ export async function createNotificationOnce({
         (n) =>
           n.Tipo === type &&
           String(n.RegistoRelacionadoID || "") === String(relatedId) &&
-          (!employeeId || String(n.DestinatarioID || "") === String(employeeId)) &&
-          n.Status !== "Lida"
+          (!employeeId || String(n.DestinatarioID || "") === String(employeeId))
       );
       if (found) return found;
     } catch (_) {}

@@ -102,6 +102,119 @@ test("createNotificationOnce é idempotente e evita duplicações de notificaç�
   }
 });
 
+test("createNotificationOnce é idempotente mesmo se a notificação já foi marcada como Lida", async () => {
+  const mock = createMockRuntime();
+  const originalList = runtime.list;
+  const originalUpsert = runtime.upsert;
+  runtime.list = mock.list.bind(mock);
+  runtime.upsert = mock.upsert.bind(mock);
+
+  try {
+    const notif1 = await createNotificationOnce({
+      employeeId: "EMP_01",
+      email: "colab@house.test",
+      storeId: "LOJA_1",
+      subject: "Amanhã é sua folga! 🎉",
+      message: "Lembrete: amanhã (Terça) você estará de folga.",
+      type: "Folga",
+      relatedId: "folga_amanha_EMP_01_2026-10-27",
+      severity: "info",
+    });
+
+    assert.ok(notif1.NotificacaoID);
+
+    // Colaborador visualiza e marca como Lida
+    notif1.Status = "Lida";
+    await mock.upsert("Notificacoes", notif1);
+
+    // Próxima chamada (ex: no ciclo de polling) NÃO deve criar outra nem disparar novamente
+    const notif2 = await createNotificationOnce({
+      employeeId: "EMP_01",
+      email: "colab@house.test",
+      storeId: "LOJA_1",
+      subject: "Amanhã é sua folga! 🎉",
+      message: "Lembrete: amanhã (Terça) você estará de folga.",
+      type: "Folga",
+      relatedId: "folga_amanha_EMP_01_2026-10-27",
+      severity: "info",
+    });
+
+    assert.equal(notif2.NotificacaoID, notif1.NotificacaoID, "Não deve duplicar notificação que já foi lida");
+    const all = mock.dump("Notificacoes");
+    assert.equal(all.length, 1, "Deve existir apenas 1 registro no banco");
+  } finally {
+    runtime.list = originalList;
+    runtime.upsert = originalUpsert;
+  }
+});
+
+test("dispatchWhatsAppNotification deduplica chamadas consecutivas para o mesmo destinatário e evento", async () => {
+  const mock = createMockRuntime();
+  const originalList = runtime.list;
+  const originalGetById = runtime.getById;
+  runtime.list = mock.list.bind(mock);
+  runtime.getById = mock.getById.bind(mock);
+
+  // Cadastra colaborador com telefone
+  await mock.upsert("Funcionarios", {
+    FuncionarioID: "EMP_DEDUPE_01",
+    Nome: "Ana Claudia",
+    WhatsApp: "73999998888",
+    Email: "ana@house.test",
+    LojaID: "LOJA_1",
+    Ativo: true,
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fetchCount = 0;
+  globalThis.fetch = async () => {
+    fetchCount++;
+    return {
+      ok: true,
+      json: async () => ({ status: true, data: { key: { id: `msg_${fetchCount}` } } }),
+    };
+  };
+
+  try {
+    const { dispatchWhatsAppNotification } = await import("../src/core/api-base.js");
+
+    // Primeiro disparo
+    await dispatchWhatsAppNotification({
+      employeeId: "EMP_DEDUPE_01",
+      subject: "Amanhã é sua folga! 🎉",
+      message: "Lembrete de folga",
+      type: "Folga",
+      relatedId: "folga_amanha_EMP_DEDUPE_01_2026-10-27",
+    });
+
+    assert.equal(fetchCount, 1, "Primeiro envio deve acionar o fetch");
+
+    // Segundo disparo imediato com mesmo relatedId
+    await dispatchWhatsAppNotification({
+      employeeId: "EMP_DEDUPE_01",
+      subject: "Amanhã é sua folga! 🎉",
+      message: "Lembrete de folga",
+      type: "Folga",
+      relatedId: "folga_amanha_EMP_DEDUPE_01_2026-10-27",
+    });
+
+    // Terceiro disparo imediato
+    await dispatchWhatsAppNotification({
+      employeeId: "EMP_DEDUPE_01",
+      subject: "Amanhã é sua folga! 🎉",
+      message: "Lembrete de folga",
+      type: "Folga",
+      relatedId: "folga_amanha_EMP_DEDUPE_01_2026-10-27",
+    });
+
+    assert.equal(fetchCount, 1, "Disparos subsequentes dentro do cooldown devem ser bloqueados pela deduplicação");
+  } finally {
+    globalThis.fetch = originalFetch;
+    runtime.list = originalList;
+    runtime.getById = originalGetById;
+  }
+});
+
 test("Fluxo CozinhaFlow: atribuição, envio para visto, aprovação com pontos e devolução geram notificações", async () => {
   const mock = createMockRuntime();
   const originalList = runtime.list;
