@@ -1748,13 +1748,35 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
   setTimeout(resizeLandscapeCanvas, 80);
   setTimeout(resizeLandscapeCanvas, 350);
 
-  // Coordenadas do canvas (sem necessidade de cálculo de rotação — o CSS faz o giro, o canvas recebe coordenadas normais)
+  // Coordenadas do canvas com remapeamento para rotação CSS.
+  // CSS transform: rotate(90deg) gira o VISUAL mas NÃO transforma os eventos de toque —
+  // o toque ainda chega em coordenadas de tela (portrait). Quando rotacionado 90° CW:
+  //   canvas_x = canvas.width  * (1 - ry/rect.height)
+  //   canvas_y = canvas.height * (rx / rect.width)
+  // onde rx = clientX - rect.left, ry = clientY - rect.top
   const getPos = (e) => {
     const r = lCanvas.getBoundingClientRect();
     const touch = e.touches ? e.touches[0] : e;
-    const x = Math.max(0, Math.min(r.width, touch.clientX - r.left));
-    const y = Math.max(0, Math.min(r.height, touch.clientY - r.top));
-    return { x, y };
+    const rx = touch.clientX - r.left;
+    const ry = touch.clientY - r.top;
+    const dpr = window.devicePixelRatio || 1;
+    const cW = lCanvas.width / dpr;   // largura lógica do canvas
+    const cH = lCanvas.height / dpr;  // altura  lógica do canvas
+
+    if (isRotated90) {
+      // Rotação 90° horária: mover dedo →  →  traço ↑  no canvas
+      const x = cW * (1 - ry / r.height);
+      const y = cH * (rx / r.width);
+      return {
+        x: Math.max(0, Math.min(cW, x)),
+        y: Math.max(0, Math.min(cH, y)),
+      };
+    }
+    // Sem rotação: mapeamento direto
+    return {
+      x: Math.max(0, Math.min(cW, rx * (cW / r.width))),
+      y: Math.max(0, Math.min(cH, ry * (cH / r.height))),
+    };
   };
 
   const startDraw = (e) => {
