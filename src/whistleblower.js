@@ -19,13 +19,13 @@ const formatDate = (iso) => {
   if (!iso) return "---";
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (isNaN(d.getTime())) return iso;
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const ano = d.getFullYear();
+    const hora = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    return `${dia}/${mes}/${ano} • ${hora}:${min}`;
   } catch {
     return iso;
   }
@@ -62,6 +62,31 @@ const STATUS_BADGE_CLASSES = {
   Arquivada: "badge-slate",
 };
 
+const STATUS_PILL_CLASSES = {
+  Recebida: "wb-st-recebida",
+  "Em Análise": "wb-st-analise",
+  "Em Investigação": "wb-st-investigacao",
+  Concluída: "wb-st-concluida",
+  Arquivada: "wb-st-arquivada",
+};
+
+export function formatLojaNome(lojaId) {
+  if (!lojaId || lojaId === "GERAL") return "Toda a Rede";
+  const stores = (Array.isArray(state.lojas) && state.lojas.length)
+    ? state.lojas
+    : (Array.isArray(window.state?.stores) && window.state.stores.length)
+      ? window.state.stores
+      : [];
+  const found = stores.find(
+    (s) => String(s.LojaID || s.lojaId || s.id || "").toLowerCase() === String(lojaId).toLowerCase()
+  );
+  if (found) return found.NomeLoja || found.nomeLoja || found.Nome || found.nome || lojaId;
+  if (lojaId === "FOOD_PARK") return "Food Park";
+  if (lojaId === "CENTRO") return "House Burger - Centro";
+  if (lojaId === "DELIVERY") return "Delivery House";
+  return lojaId;
+}
+
 export function checkIsAdminOrManager(user) {
   if (typeof window !== "undefined") {
     if (typeof window.isAdmin === "function" && window.isAdmin()) return true;
@@ -89,32 +114,37 @@ export function renderWhistleblowerView() {
   let tabsHtml = "";
   if (isAdminOrManager) {
     tabsHtml = `
-      <div class="wb-nav-tabs" role="tablist">
-        <button type="button" class="wb-tab-btn ${state.activeTab === "gestao" ? "active" : ""}" data-wb-tab="gestao">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Gestão e Triagem (${state.adminCasos.length})
-        </button>
-        <button type="button" class="wb-tab-btn ${state.activeTab === "novo" ? "active" : ""}" data-wb-tab="novo">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          Registrar Novo Relato
-        </button>
-        <button type="button" class="wb-tab-btn ${state.activeTab === "consultar" ? "active" : ""}" data-wb-tab="consultar">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          Acompanhar por Protocolo
-        </button>
+      <div class="wb-nav-wrapper">
+        <div class="wb-nav-tabs" role="tablist">
+          <button type="button" class="wb-tab-btn ${state.activeTab === "gestao" ? "active" : ""}" data-wb-tab="gestao">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Gestão e Triagem
+            <span class="wb-tab-counter">${state.adminCasos.length}</span>
+          </button>
+          <button type="button" class="wb-tab-btn ${state.activeTab === "novo" ? "active" : ""}" data-wb-tab="novo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Registrar Novo Relato
+          </button>
+          <button type="button" class="wb-tab-btn ${state.activeTab === "consultar" ? "active" : ""}" data-wb-tab="consultar">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Acompanhar por Protocolo
+          </button>
+        </div>
       </div>
     `;
   } else {
     tabsHtml = `
-      <div class="wb-nav-tabs" role="tablist">
-        <button type="button" class="wb-tab-btn ${state.activeTab === "novo" ? "active" : ""}" data-wb-tab="novo">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          Registrar Relato
-        </button>
-        <button type="button" class="wb-tab-btn ${state.activeTab === "consultar" ? "active" : ""}" data-wb-tab="consultar">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          Acompanhar por Protocolo
-        </button>
+      <div class="wb-nav-wrapper">
+        <div class="wb-nav-tabs" role="tablist">
+          <button type="button" class="wb-tab-btn ${state.activeTab === "novo" ? "active" : ""}" data-wb-tab="novo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Registrar Relato
+          </button>
+          <button type="button" class="wb-tab-btn ${state.activeTab === "consultar" ? "active" : ""}" data-wb-tab="consultar">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Acompanhar por Protocolo
+          </button>
+        </div>
       </div>
     `;
   }
@@ -134,9 +164,15 @@ export function renderWhistleblowerView() {
   const headerHtml = isGestao
     ? `
       <div class="wb-header-banner">
-        <div class="wb-header-badge">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          PAINEL DE GOVERNANÇA E COMPLIANCE
+        <div class="wb-header-top">
+          <span class="wb-badge-security">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            GOVERNANÇA &amp; COMPLIANCE
+          </span>
+          <span class="wb-secure-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Canal Sigiloso • Lei 14.457/22
+          </span>
         </div>
         <h2 class="wb-title">Triagem de Denúncias e Integridade</h2>
         <p class="wb-subtitle">
@@ -146,9 +182,15 @@ export function renderWhistleblowerView() {
     `
     : `
       <div class="wb-header-banner">
-        <div class="wb-header-badge">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          CANAL CONFIDENCIAL &amp; ANÔNIMO
+        <div class="wb-header-top">
+          <span class="wb-badge-security">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            CANAL CONFIDENCIAL &amp; ANÔNIMO
+          </span>
+          <span class="wb-secure-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            100% Criptografado
+          </span>
         </div>
         <h2 class="wb-title">Canal de Integridade e Denúncias</h2>
         <p class="wb-subtitle">
@@ -158,12 +200,10 @@ export function renderWhistleblowerView() {
     `;
 
   root.innerHTML = `
-    <div class="wb-container">
+    <div class="wb-container ${isGestao ? "wb-admin-layout" : "wb-public-layout"}">
       ${headerHtml}
       ${tabsHtml}
-      <div class="wb-content-panel">
-        ${contentHtml}
-      </div>
+      ${isGestao ? contentHtml : `<div class="wb-content-panel">${contentHtml}</div>`}
     </div>
   `;
 
@@ -418,46 +458,50 @@ function renderPainelGestao() {
 
   const rowsHtml = filtered.length === 0
     ? `
-      <div class="wb-empty-state" style="padding: 48px 24px; text-align: center; border: 1px dashed var(--line, #cbd5e1); border-radius: 12px; margin-top: 14px; background: #ffffff;">
-        <div style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; color: #64748b;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <div class="wb-empty-state">
+        <div class="wb-empty-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
-        <h4 style="margin: 0 0 4px; font-size: 14.5px; font-weight: 600; color: #1e293b;">Nenhum relato encontrado</h4>
-        <p style="margin: 0; font-size: 12.5px; color: #64748b;">Não há denúncias sob o filtro selecionado no momento.</p>
+        <h4>Nenhum relato encontrado</h4>
+        <p>Não há denúncias sob o filtro selecionado no momento.</p>
       </div>
     `
     : `
-      <div class="table-responsive" style="margin-top: 14px; border-radius: 14px; border: 1px solid var(--line, #e2e8f0); overflow-x: auto; background: #ffffff;">
-        <table class="data-table" style="width: 100%; min-width: 680px; border-collapse: collapse;">
+      <!-- Tabela para Desktop (>= 768px) -->
+      <div class="wb-desktop-table">
+        <table class="wb-table">
           <thead>
-            <tr style="background: var(--surface-2, #f8fafc); text-align: left; font-size: 11.5px; color: #64748b; border-bottom: 1px solid var(--line, #e2e8f0);">
-              <th style="padding: 10px 14px;">PROTOCOLO</th>
-              <th style="padding: 10px 14px;">DATA</th>
-              <th style="padding: 10px 14px;">CATEGORIA</th>
-              <th style="padding: 10px 14px;">UNIDADE</th>
-              <th style="padding: 10px 14px;">TIPO</th>
-              <th style="padding: 10px 14px;">STATUS</th>
-              <th style="padding: 10px 14px; text-align: right;">AÇÃO</th>
+            <tr>
+              <th style="width: 140px;">PROTOCOLO</th>
+              <th style="width: 165px;">DATA / HORA</th>
+              <th>CATEGORIA</th>
+              <th style="width: 160px;">UNIDADE</th>
+              <th style="width: 130px;">TIPO</th>
+              <th style="width: 140px;">STATUS</th>
+              <th style="width: 160px; text-align: right;">AÇÃO</th>
             </tr>
           </thead>
           <tbody>
             ${filtered
               .map((c) => {
-                const badgeClass = STATUS_BADGE_CLASSES[c.Status] || "badge-slate";
+                const statusClass = STATUS_PILL_CLASSES[c.Status] || "wb-st-arquivada";
                 const isAnon = c.Anonimo === true;
                 const tipoBadge = isAnon
-                  ? `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#059669; font-weight:600;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Anônimo</span>`
-                  : `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#2563eb; font-weight:600;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg> ${esc(c.NomeContato || "Identificado")}</span>`;
+                  ? `<span class="wb-pill wb-pill-anon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Anônimo</span>`
+                  : `<span class="wb-pill wb-pill-ident"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg> ${esc(c.NomeContato || "Identificado")}</span>`;
+                const lojaNome = formatLojaNome(c.LojaID);
+
                 return `
-                  <tr style="border-bottom: 1px solid var(--line, #f1f5f9);">
-                    <td style="padding: 12px 14px;"><strong style="font-family:ui-monospace, monospace; font-size:12.5px; letter-spacing:0.5px; color:#0f172a;">${esc(c.DenunciaID)}</strong></td>
-                    <td style="padding: 12px 14px; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12px; color:#475569;">${formatDate(c.DataCriacao)}</td>
-                    <td style="padding: 12px 14px; font-size:13px; font-weight:600; color:#1e293b;">${esc(c.Categoria)}</td>
-                    <td style="padding: 12px 14px; font-size:12.5px; color:#475569;">${esc(c.LojaID || "Geral")}</td>
-                    <td style="padding: 12px 14px;">${tipoBadge}</td>
-                    <td style="padding: 12px 14px;"><span class="doc-badge ${badgeClass}">${esc(c.Status)}</span></td>
-                    <td style="padding: 12px 14px; text-align:right;">
-                      <button type="button" class="btn btn-secondary btn-sm" data-wb-action="analisar" data-id="${esc(c.DenunciaID)}" style="min-height:34px; padding:0 14px; border-radius:8px; font-weight:600; font-size:12px;">
+                  <tr class="wb-row">
+                    <td><span class="wb-proto-badge">${esc(c.DenunciaID)}</span></td>
+                    <td><span class="wb-date-text">${formatDate(c.DataCriacao)}</span></td>
+                    <td><strong class="wb-cat-name">${esc(c.Categoria)}</strong></td>
+                    <td><span class="wb-unit-tag">${esc(lojaNome)}</span></td>
+                    <td>${tipoBadge}</td>
+                    <td><span class="wb-status-badge ${statusClass}">${esc(c.Status)}</span></td>
+                    <td style="text-align: right;">
+                      <button type="button" class="wb-btn-action" data-wb-action="analisar" data-id="${esc(c.DenunciaID)}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                         Analisar e Tratar
                       </button>
                     </td>
@@ -468,49 +512,129 @@ function renderPainelGestao() {
           </tbody>
         </table>
       </div>
+
+      <!-- Cards para Mobile (< 768px) -->
+      <div class="wb-mobile-cards">
+        ${filtered
+          .map((c) => {
+            const statusClass = STATUS_PILL_CLASSES[c.Status] || "wb-st-arquivada";
+            const isAnon = c.Anonimo === true;
+            const tipoBadge = isAnon
+              ? `<span class="wb-pill wb-pill-anon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Anônimo</span>`
+              : `<span class="wb-pill wb-pill-ident"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg> ${esc(c.NomeContato || "Identificado")}</span>`;
+            const lojaNome = formatLojaNome(c.LojaID);
+
+            return `
+              <div class="wb-card-item">
+                <div class="wb-card-item-top">
+                  <span class="wb-proto-badge">${esc(c.DenunciaID)}</span>
+                  <span class="wb-status-badge ${statusClass}">${esc(c.Status)}</span>
+                </div>
+                <div class="wb-card-item-main">
+                  <h4 class="wb-card-item-title">${esc(c.Categoria)}</h4>
+                  <div class="wb-card-item-meta">
+                    <span class="wb-unit-tag">${esc(lojaNome)}</span>
+                    ${tipoBadge}
+                  </div>
+                </div>
+                <div class="wb-card-item-footer">
+                  <span class="wb-date-text">${formatDate(c.DataCriacao)}</span>
+                  <button type="button" class="wb-btn-action" data-wb-action="analisar" data-id="${esc(c.DenunciaID)}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Analisar e Tratar
+                  </button>
+                </div>
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
     `;
 
   return `
     <div class="wb-admin-panel">
+      <!-- 4 KPIs de Governança -->
       <div class="wb-kpi-grid">
-        <div class="wb-kpi-card">
-          <span class="wb-kpi-label">TOTAL DE CASOS</span>
+        <div class="wb-kpi-card ${state.filtroStatusAdmin === "todos" ? "wb-kpi-active" : ""}" data-wb-filter="todos">
+          <div class="wb-kpi-top">
+            <span class="wb-kpi-label">TOTAL DE CASOS</span>
+            <div class="wb-kpi-icon wb-icon-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+          </div>
           <strong class="wb-kpi-value">${total}</strong>
           <span class="wb-kpi-sub">Relatos protocolados</span>
         </div>
-        <div class="wb-kpi-card">
-          <span class="wb-kpi-label">AGUARDANDO TRIAGEM</span>
-          <strong class="wb-kpi-value" style="color:#d97706;">${recebidas}</strong>
+
+        <div class="wb-kpi-card ${recebidas > 0 ? "wb-kpi-warn" : ""} ${state.filtroStatusAdmin === "Recebida" ? "wb-kpi-active" : ""}" data-wb-filter="Recebida">
+          <div class="wb-kpi-top">
+            <span class="wb-kpi-label">AGUARDANDO TRIAGEM</span>
+            <div class="wb-kpi-icon wb-icon-amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+          </div>
+          <strong class="wb-kpi-value wb-val-amber">${recebidas}</strong>
           <span class="wb-kpi-sub">Casos novos recebidos</span>
         </div>
-        <div class="wb-kpi-card">
-          <span class="wb-kpi-label">EM APURAÇÃO</span>
-          <strong class="wb-kpi-value" style="color:#7c3aed;">${emAnalise + emInvestigacao}</strong>
+
+        <div class="wb-kpi-card ${state.filtroStatusAdmin === "Em Análise" || state.filtroStatusAdmin === "Em Investigação" ? "wb-kpi-active" : ""}" data-wb-filter="Em Análise">
+          <div class="wb-kpi-top">
+            <span class="wb-kpi-label">EM APURAÇÃO</span>
+            <div class="wb-kpi-icon wb-icon-purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+          </div>
+          <strong class="wb-kpi-value wb-val-purple">${emAnalise + emInvestigacao}</strong>
           <span class="wb-kpi-sub">Análise e investigação</span>
         </div>
-        <div class="wb-kpi-card">
-          <span class="wb-kpi-label">FINALIZADOS</span>
-          <strong class="wb-kpi-value" style="color:#059669;">${concluidas + arquivadas}</strong>
+
+        <div class="wb-kpi-card ${state.filtroStatusAdmin === "Concluída" ? "wb-kpi-active" : ""}" data-wb-filter="Concluída">
+          <div class="wb-kpi-top">
+            <span class="wb-kpi-label">FINALIZADOS</span>
+            <div class="wb-kpi-icon wb-icon-emerald">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+          </div>
+          <strong class="wb-kpi-value wb-val-emerald">${concluidas + arquivadas}</strong>
           <span class="wb-kpi-sub">Concluídos e arquivados</span>
         </div>
       </div>
 
-      <div class="wb-admin-header" style="margin-top: 18px;">
-        <div>
-          <h3 style="margin:0; font-size:1.05rem; font-weight:700;">Relatos e Ocorrências Recebidas</h3>
-          <span style="font-size:12px; color:#64748b;">Filtrar denúncias por fase de apuração</span>
-        </div>
-        <div class="wb-status-filters">
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "todos" ? "active" : ""}" data-wb-filter="todos">Todos (${total})</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Recebida" ? "active" : ""}" data-wb-filter="Recebida">Recebidas (${recebidas})</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Em Análise" ? "active" : ""}" data-wb-filter="Em Análise">Em Análise (${emAnalise})</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Em Investigação" ? "active" : ""}" data-wb-filter="Em Investigação">Em Investigação (${emInvestigacao})</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Concluída" ? "active" : ""}" data-wb-filter="Concluída">Concluídas (${concluidas})</button>
-          <button type="button" class="btn-chip ${state.filtroStatusAdmin === "Arquivada" ? "active" : ""}" data-wb-filter="Arquivada">Arquivadas (${arquivadas})</button>
-        </div>
-      </div>
+      <!-- Card Principal de Tabela e Filtros -->
+      <div class="wb-table-card">
+        <div class="wb-card-header">
+          <div class="wb-card-title-group">
+            <div class="wb-title-row">
+              <h3 class="wb-card-title">Relatos e Ocorrências</h3>
+              <span class="wb-count-badge">${filtered.length} ${filtered.length === 1 ? "caso" : "casos"}</span>
+            </div>
+            <p class="wb-card-sub">Triagem e tratamento sigiloso das denúncias registradas na rede House 190</p>
+          </div>
 
-      ${rowsHtml}
+          <div class="wb-status-filters" role="group" aria-label="Filtrar por status">
+            <button type="button" class="wb-filter-pill ${state.filtroStatusAdmin === "todos" ? "active" : ""}" data-wb-filter="todos">
+              Todos <span class="wb-pill-count">${total}</span>
+            </button>
+            <button type="button" class="wb-filter-pill ${state.filtroStatusAdmin === "Recebida" ? "active" : ""}" data-wb-filter="Recebida">
+              Recebidas <span class="wb-pill-count">${recebidas}</span>
+            </button>
+            <button type="button" class="wb-filter-pill ${state.filtroStatusAdmin === "Em Análise" ? "active" : ""}" data-wb-filter="Em Análise">
+              Em Análise <span class="wb-pill-count">${emAnalise}</span>
+            </button>
+            <button type="button" class="wb-filter-pill ${state.filtroStatusAdmin === "Em Investigação" ? "active" : ""}" data-wb-filter="Em Investigação">
+              Em Investigação <span class="wb-pill-count">${emInvestigacao}</span>
+            </button>
+            <button type="button" class="wb-filter-pill ${state.filtroStatusAdmin === "Concluída" ? "active" : ""}" data-wb-filter="Concluída">
+              Concluídas <span class="wb-pill-count">${concluidas}</span>
+            </button>
+            <button type="button" class="wb-filter-pill ${state.filtroStatusAdmin === "Arquivada" ? "active" : ""}" data-wb-filter="Arquivada">
+              Arquivadas <span class="wb-pill-count">${arquivadas}</span>
+            </button>
+          </div>
+        </div>
+
+        ${rowsHtml}
+      </div>
     </div>
   `;
 }
@@ -715,7 +839,7 @@ function openAdminModal(casoData) {
   if (!modal) {
     modal = document.createElement("dialog");
     modal.id = "wbAdminModal";
-    modal.className = "dialog doc-sign-dialog";
+    modal.className = "dialog wb-admin-dialog";
     document.body.appendChild(modal);
   }
 
@@ -727,79 +851,94 @@ function openAdminModal(casoData) {
           const borderCol = isDenunciante ? "#94a3b8" : "#2563eb";
           const bgCol = isDenunciante ? "#f8fafc" : "#eff6ff";
           return `
-            <div style="font-size:12px; padding:8px 10px; border-radius:8px; background:${bgCol}; border-left:3px solid ${borderCol}; margin-bottom:6px;">
-              <div style="display:flex; justify-content:space-between; margin-bottom:3px; font-size:11px; color:#64748b;">
-                <strong>${esc(m.AutorNome || m.AutorTipo)}</strong>
+            <div style="font-size:12.5px; padding:10px 12px; border-radius:10px; background:${bgCol}; border-left:3px solid ${borderCol}; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:11px; color:#64748b;">
+                <strong style="color:#0f172a;">${esc(m.AutorNome || m.AutorTipo)}</strong>
                 <span style="font-variant-numeric:tabular-nums;">${formatDate(m.DataHora)}</span>
               </div>
-              <div style="color:#1e293b; white-space:pre-wrap;">${esc(m.Texto)}</div>
+              <div style="color:#1e293b; white-space:pre-wrap; line-height:1.45;">${esc(m.Texto)}</div>
             </div>
           `;
         })
         .join("");
 
+  const statusClass = STATUS_PILL_CLASSES[d.Status] || "wb-st-arquivada";
+  const lojaNome = formatLojaNome(d.LojaID);
+
   modal.innerHTML = `
-    <div class="dialog-head">
+    <div class="wb-modal-header">
       <div>
-        <span class="eyebrow" style="color:#2563eb; font-weight:700; font-size:11px;">TRIAGEM DE CONFORMIDADE</span>
-        <h3 style="margin:0; font-size:1.15rem; font-weight:700;">Protocolo ${esc(d.DenunciaID)}</h3>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:2px;">
+          <span style="font-family:ui-monospace, monospace; font-size:11.5px; font-weight:700; color:#1d4ed8; background:#eff6ff; padding:2px 8px; border-radius:4px;">${esc(d.DenunciaID)}</span>
+          <span class="wb-status-badge ${statusClass}">${esc(d.Status)}</span>
+        </div>
+        <h3 class="wb-modal-title">Triagem de Ocorrência</h3>
       </div>
       <button type="button" class="icon-btn" id="wbAdminModalClose" aria-label="Fechar">&times;</button>
     </div>
 
-    <div class="dialog-body" style="padding:16px; max-height:calc(85vh - 70px); overflow-y:auto;">
-      <div style="background:var(--surface-2, #f8fafc); padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:14px; border:1px solid var(--line, #e2e8f0); line-height:1.5;">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
-          <div><strong style="color:#64748b;">Categoria:</strong> <span style="font-weight:600; color:#0f172a;">${esc(d.Categoria)}</span></div>
-          <div><strong style="color:#64748b;">Unidade:</strong> <span style="font-weight:600; color:#0f172a;">${esc(d.LojaID || "Geral")}</span></div>
-          <div><strong style="color:#64748b;">Data:</strong> <span style="font-variant-numeric:tabular-nums;">${formatDate(d.DataCriacao)}</span></div>
+    <div class="wb-modal-body">
+      <div style="background:#f8fafc; padding:14px 16px; border-radius:14px; font-size:13px; margin-bottom:16px; border:1px solid #e2e8f0; line-height:1.55;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
+          <div><span style="color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; display:block;">Categoria</span> <strong style="color:#0f172a;">${esc(d.Categoria)}</strong></div>
+          <div><span style="color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; display:block;">Unidade</span> <strong style="color:#0f172a;">${esc(lojaNome)}</strong></div>
+          <div><span style="color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; display:block;">Data do Envio</span> <span style="font-variant-numeric:tabular-nums; color:#334155;">${formatDate(d.DataCriacao)}</span></div>
+          <div><span style="color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; display:block;">Identificação</span> <span style="font-weight:600; color:#334155;">${d.Anonimo ? "Anônimo" : `Identificado (${esc(d.NomeContato || "")})`}</span></div>
         </div>
-        <div style="margin-bottom:8px;">
-          <strong style="color:#64748b;">Identificação:</strong>
-          <span>${d.Anonimo ? "Anônimo (identidade protegida)" : `Identificado (${esc(d.NomeContato || "")} - Tel: ${esc(d.TelefoneContato || "Não informado")})`}</span>
+
+        ${
+          !d.Anonimo && (d.TelefoneContato || d.NomeContato)
+            ? `<div style="margin-bottom:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:12.5px; color:#475569;">
+                <strong>Contato do Denunciante:</strong> ${esc(d.NomeContato || "")} ${d.TelefoneContato ? `• Tel: ${esc(d.TelefoneContato)}` : ""}
+              </div>`
+            : ""
+        }
+
+        <div style="margin-bottom:10px; font-size:12.5px; color:#475569;">
+          <strong>Pessoas ou Setores Citados:</strong> ${esc(d.Envolvidos || "Não especificado")}
         </div>
-        <div style="margin-bottom:8px;">
-          <strong style="color:#64748b;">Pessoas / Setores Citados:</strong>
-          <span>${esc(d.Envolvidos || "Não informado")}</span>
-        </div>
-        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0;">
-          <strong style="color:#64748b; display:block; margin-bottom:4px;">Descrição dos Fatos:</strong>
-          <div style="color:#0f172a; white-space:pre-wrap; background:#ffffff; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">${esc(d.Descricao)}</div>
+
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
+          <span style="color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; display:block; margin-bottom:4px;">Descrição Detalhada do Fato</span>
+          <div style="color:#0f172a; white-space:pre-wrap; background:#ffffff; padding:12px 14px; border-radius:10px; border:1px solid #e2e8f0; font-size:13px; line-height:1.6;">${esc(d.Descricao)}</div>
         </div>
       </div>
 
-      <div class="wb-modal-msgs" style="margin-bottom:14px;">
-        <div style="font-size:11.5px; font-weight:700; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Histórico de Mensagens e Réplicas (${msgs.length})</div>
-        <div style="max-height:140px; overflow-y:auto; padding:8px; background:#ffffff; border:1px solid var(--line, #e2e8f0); border-radius:8px;">
+      <div class="wb-modal-msgs" style="margin-bottom:18px;">
+        <div style="font-size:11.5px; font-weight:750; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Histórico de Comunicação Sigilosa (${msgs.length})
+        </div>
+        <div style="max-height:160px; overflow-y:auto; padding:10px; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px;">
           ${msgsHtml}
         </div>
       </div>
 
       <form id="wbAdminFormModal">
-        <label style="display:block; margin-bottom:12px;">
-          <strong style="font-size:12.5px; color:#334155;">Alterar Status da Ocorrência:</strong>
-          <select id="wbAdminStatusSelect" style="width:100%; margin-top:4px; height:40px; border-radius:8px; border:1px solid var(--line, #cbd5e1); padding:0 10px; font-size:13px;">
-            <option value="Recebida" ${d.Status === "Recebida" ? "selected" : ""}>Recebida (Aguardando triagem)</option>
-            <option value="Em Análise" ${d.Status === "Em Análise" ? "selected" : ""}>Em Análise preliminar</option>
-            <option value="Em Investigação" ${d.Status === "Em Investigação" ? "selected" : ""}>Em Investigação ativa</option>
-            <option value="Concluída" ${d.Status === "Concluída" ? "selected" : ""}>Concluída (Procedente / Medidas aplicadas)</option>
-            <option value="Arquivada" ${d.Status === "Arquivada" ? "selected" : ""}>Arquivada (Improcedente / Sem elementos)</option>
+        <label style="display:block; margin-bottom:14px;">
+          <strong style="font-size:12.5px; color:#334155; display:block; margin-bottom:6px;">Alterar Fase / Status da Apuração:</strong>
+          <select id="wbAdminStatusSelect" style="width:100%; height:42px; border-radius:10px; border:1px solid #cbd5e1; padding:0 12px; font-size:13.5px; font-weight:600; color:#0f172a; background:#ffffff;">
+            <option value="Recebida" ${d.Status === "Recebida" ? "selected" : ""}>Recebida (Aguardando triagem preliminar)</option>
+            <option value="Em Análise" ${d.Status === "Em Análise" ? "selected" : ""}>Em Análise (Avaliação inicial de procedência)</option>
+            <option value="Em Investigação" ${d.Status === "Em Investigação" ? "selected" : ""}>Em Investigação (Apuração ativa de provas)</option>
+            <option value="Concluída" ${d.Status === "Concluída" ? "selected" : ""}>Concluída (Procedente com medidas adotadas)</option>
+            <option value="Arquivada" ${d.Status === "Arquivada" ? "selected" : ""}>Arquivada (Improcedente ou sem elementos)</option>
           </select>
         </label>
 
-        <label style="display:block; margin-bottom:12px;">
-          <strong style="font-size:12.5px; color:#334155;">Parecer Formal da Conclusão / Apuração:</strong>
-          <textarea id="wbAdminParecerText" rows="3" style="width:100%; margin-top:4px; border-radius:8px; border:1px solid var(--line, #cbd5e1); padding:8px 10px; font-size:13px;" placeholder="Parecer formal do comitê de ética sobre as medidas tomadas...">${esc(d.ParecerComite || "")}</textarea>
+        <label style="display:block; margin-bottom:14px;">
+          <strong style="font-size:12.5px; color:#334155; display:block; margin-bottom:6px;">Parecer Formal do Comitê de Ética / Diretoria:</strong>
+          <textarea id="wbAdminParecerText" rows="3" style="width:100%; border-radius:10px; border:1.5px solid #cbd5e1; padding:10px 12px; font-size:13px; font-family:inherit; line-height:1.5; box-sizing:border-box;" placeholder="Registro formal do comitê com as decisões tomadas, encaminhamentos e medidas institucionais adotadas...">${esc(d.ParecerComite || "")}</textarea>
         </label>
 
         <label style="display:block; margin-bottom:14px;">
-          <strong style="font-size:12.5px; color:#334155;">Enviar Mensagem Oficial ao Denunciante (Opcional):</strong>
-          <textarea id="wbAdminRespostaText" rows="2" style="width:100%; margin-top:4px; border-radius:8px; border:1px solid var(--line, #cbd5e1); padding:8px 10px; font-size:13px;" placeholder="Esta mensagem ficará visível para o denunciante ao consultar o protocolo..."></textarea>
+          <strong style="font-size:12.5px; color:#334155; display:block; margin-bottom:6px;">Enviar Mensagem Oficial ao Denunciante (Opcional):</strong>
+          <textarea id="wbAdminRespostaText" rows="2" style="width:100%; border-radius:10px; border:1.5px solid #cbd5e1; padding:10px 12px; font-size:13px; font-family:inherit; line-height:1.5; box-sizing:border-box;" placeholder="Esta resposta ficará disponível para o denunciante consultar utilizando o protocolo e PIN..."></textarea>
         </label>
 
-        <div style="display:flex; justify-content:flex-end; gap:8px;">
-          <button type="button" class="btn btn-secondary" id="wbAdminModalCancel" style="min-height:40px; border-radius:8px;">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="wbAdminModalSave" style="min-height:40px; border-radius:8px; font-weight:600;">Salvar Decisão</button>
+        <div class="wb-modal-footer">
+          <button type="button" class="btn btn-secondary" id="wbAdminModalCancel" style="min-height:42px; padding:0 18px; border-radius:10px; font-weight:600;">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="wbAdminModalSave" style="min-height:42px; padding:0 22px; border-radius:10px; font-weight:700; background:#1B365D; border:none; box-shadow:0 2px 8px rgba(27,54,93,0.25);">Salvar Decisão</button>
         </div>
       </form>
     </div>

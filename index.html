@@ -21759,33 +21759,41 @@ dialog#medicalCertificateDialog {
 
 /* ==========================================================================
    CANAL DE DENÚNCIAS & INTEGRIDADE (WHISTLEBLOWING) - HOUSE 190
+   Apple iOS / Design System Grupo House 190 — Zero Emojis
    ========================================================================== */
 
 .wb-container {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 8px 8px 120px 8px;
-  max-width: 840px;
+  gap: 16px;
+  padding: 8px 12px 120px 12px;
+  width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
-  width: 100%;
+}
+
+.wb-container.wb-admin-layout {
+  max-width: 1180px;
+}
+
+.wb-container.wb-public-layout {
+  max-width: 760px;
 }
 
 @media (max-width: 759px) {
   .wb-container {
-    padding: 4px 0 calc(120px + env(safe-area-inset-bottom, 0px)) 0;
-    gap: 16px;
+    padding: 4px 6px calc(120px + env(safe-area-inset-bottom, 0px)) 6px;
+    gap: 14px;
   }
 }
 
 .wb-header-banner {
   background: #ffffff;
   color: #0f172a;
-  padding: 22px 20px;
+  padding: 20px 24px;
   border-radius: 20px;
   border: 1px solid var(--line, #e2e8f0);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
@@ -21798,30 +21806,51 @@ dialog#medicalCertificateDialog {
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #059669 0%, #10b981 50%, #2563eb 100%);
+  background: linear-gradient(90deg, #1B365D 0%, #2563eb 50%, #059669 100%);
   border-radius: 20px 20px 0 0;
 }
 
-.wb-header-badge {
+.wb-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.wb-badge-security {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.wb-secure-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   background: #ecfdf5;
   color: #059669;
   border: 1px solid #a7f3d0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
   border-radius: 999px;
-  margin-bottom: 12px;
 }
 
 .wb-title {
   margin: 0 0 6px;
-  font-size: 1.35rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 1.45rem;
+  font-weight: 750;
+  letter-spacing: -0.025em;
   color: #0f172a;
   line-height: 1.25;
 }
@@ -21831,33 +21860,41 @@ dialog#medicalCertificateDialog {
   font-size: 13px;
   line-height: 1.55;
   color: #64748b;
-  max-width: 680px;
+  max-width: 780px;
+}
+
+/* iOS Segmented Navigation */
+.wb-nav-wrapper {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .wb-nav-tabs {
-  display: flex;
-  background: var(--surface-2, #f1f5f9);
+  display: inline-flex;
+  background: #f1f5f9;
   padding: 4px;
-  border-radius: 16px;
+  border-radius: 14px;
   gap: 4px;
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .wb-tab-btn {
-  flex: 1 1 0%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 38px;
   padding: 0 16px;
   border: none;
   background: transparent;
-  color: var(--muted, #64748b);
-  font-size: 13.5px;
+  color: #64748b;
+  font-size: 13px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.18s ease;
@@ -21866,11 +21903,27 @@ dialog#medicalCertificateDialog {
 .wb-tab-btn.active {
   background: #ffffff;
   color: #0f172a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
 }
 
 .wb-tab-btn:active {
   transform: scale(0.98);
+}
+
+.wb-tab-counter {
+  background: #e2e8f0;
+  color: #1e293b;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.3;
+}
+
+.wb-tab-btn.active .wb-tab-counter {
+  background: #1B365D;
+  color: #ffffff;
 }
 
 .wb-content-panel {
@@ -22406,59 +22459,499 @@ dialog#medicalCertificateDialog {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-.wb-admin-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.wb-status-filters {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
+/* Executive KPI Grid */
 .wb-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wb-kpi-card {
-  background: var(--surface-1, #ffffff);
+  background: #ffffff;
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 14px;
-  padding: 14px 16px;
+  border-radius: 18px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.wb-kpi-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.wb-kpi-card.wb-kpi-active {
+  border-color: #1B365D;
+  box-shadow: 0 0 0 2px rgba(27, 54, 93, 0.18), 0 6px 16px rgba(27, 54, 93, 0.08);
+}
+
+.wb-kpi-card.wb-kpi-warn {
+  border-color: #fed7aa;
+}
+
+.wb-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
 }
 
 .wb-kpi-label {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
   color: #64748b;
   text-transform: uppercase;
 }
 
+.wb-kpi-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wb-icon-blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.wb-icon-amber {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.wb-icon-purple {
+  background: #faf5ff;
+  color: #7c3aed;
+}
+
+.wb-icon-emerald {
+  background: #ecfdf5;
+  color: #059669;
+}
+
 .wb-kpi-value {
-  font-size: 1.55rem;
+  font-size: 1.85rem;
   font-weight: 800;
   color: #0f172a;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
+
+.wb-val-amber { color: #d97706; }
+.wb-val-purple { color: #7c3aed; }
+.wb-val-emerald { color: #059669; }
 
 .wb-kpi-sub {
   font-size: 11.5px;
   color: #94a3b8;
 }
+
+/* Main Table / Data Card */
+.wb-table-card {
+  background: #ffffff;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.wb-card-header {
+  padding: 22px 24px 18px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wb-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wb-card-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.wb-count-badge {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.wb-card-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Status Filter Pills */
+.wb-status-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.wb-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.wb-filter-pill:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.wb-filter-pill.active {
+  background: #1B365D;
+  border-color: #1B365D;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(27, 54, 93, 0.25);
+}
+
+.wb-pill-count {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.3;
+}
+
+.wb-filter-pill.active .wb-pill-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Desktop Table Styling */
+.wb-desktop-table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.wb-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.wb-table thead th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.wb-table tbody td {
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.wb-row:hover {
+  background: #f8fafc;
+}
+
+.wb-proto-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #1e293b;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  display: inline-block;
+  letter-spacing: 0.3px;
+}
+
+.wb-date-text {
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wb-cat-name {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.wb-unit-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.wb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.wb-pill-anon {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.wb-pill-ident {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+/* Status Badges */
+.wb-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.wb-st-recebida {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.wb-st-analise {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.wb-st-investigacao {
+  background: #faf5ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+.wb-st-concluida {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.wb-st-arquivada {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* Action Button */
+.wb-btn-action {
+  background: #1B365D;
+  color: #ffffff;
+  border: none;
+  border-radius: 9px;
+  padding: 7px 15px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.wb-btn-action:hover {
+  background: #244675;
+  box-shadow: 0 2px 8px rgba(27, 54, 93, 0.25);
+  transform: translateY(-1px);
+}
+
+.wb-btn-action:active {
+  transform: scale(0.98);
+}
+
+/* Mobile Cards Stack (<768px) */
+.wb-mobile-cards {
+  display: none;
+  padding: 14px;
+}
+
+.wb-card-item {
+  background: #ffffff;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.wb-card-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wb-card-item-title {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.wb-card-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wb-card-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+  gap: 10px;
+}
+
+@media (max-width: 767px) {
+  .wb-desktop-table {
+    display: none;
+  }
+  .wb-mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .wb-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .wb-kpi-card {
+    padding: 14px;
+  }
+  .wb-kpi-value {
+    font-size: 1.5rem;
+  }
+  .wb-card-header {
+    padding: 16px 14px;
+  }
+  .wb-btn-action {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+}
+
+/* Modal Administrativo de Triagem */
+#wbAdminModal.wb-admin-dialog {
+  max-width: 620px;
+  width: 95%;
+  border-radius: 20px;
+  border: 1px solid var(--line, #e2e8f0);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  padding: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+#wbAdminModal.wb-admin-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.wb-modal-header {
+  padding: 18px 22px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wb-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.wb-modal-body {
+  padding: 20px 22px;
+  max-height: calc(85vh - 130px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.wb-modal-footer {
+  padding: 14px 22px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 
 /* ==========================================================================
    MODAL DE ASSINATURA EM MODO PAISAGEM / TELA CHEIA (VIRAR TELA)
