@@ -1640,24 +1640,25 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
   dlg.innerHTML = `
     <div id="docLandscapeInnerWrap" style="display:flex; flex-direction:column; width:100%; height:100%; background:#fff; box-sizing:border-box;">
       <div class="doc-landscape-header">
-        <div class="doc-landscape-title-group">
-          <span class="doc-landscape-eyebrow">Modo Tela Cheia</span>
-          <h3 class="doc-landscape-title" id="docLsTitle">Assinatura Digital</h3>
-          <span class="doc-landscape-hint" id="docLsHint">
-            ${isRotated90 ? "Segure o celular deitado (topo para a esquerda)" : "Assine normalmente no campo abaixo"}
-          </span>
+        <div class="doc-landscape-header-top">
+          <div class="doc-landscape-title-group">
+            <span class="doc-landscape-eyebrow">Espaco Amplo</span>
+            <h3 class="doc-landscape-title" id="docLsTitle">Assinar em Tela Cheia</h3>
+          </div>
+
+          <div class="doc-landscape-actions-top">
+            <button type="button" id="docLandscapeClearBtn" class="btn btn-ghost btn-sm" style="font-weight:600; min-height:36px; padding:6px 10px;">
+              Limpar
+            </button>
+            <button type="button" id="docLandscapeCloseBtn" class="icon-btn" aria-label="Fechar" style="font-size:22px; width:36px; height:36px;">
+              &times;
+            </button>
+          </div>
         </div>
 
-        <div class="doc-landscape-actions-top">
-          <!-- Seletor de Modo: Deitado x Em Pe -->
+        <div class="doc-landscape-header-controls">
+          <!-- Seletor de Modo: Em Pe x Deitado -->
           <div class="doc-landscape-mode-segmented" role="group" aria-label="Orientacao da assinatura">
-            <button type="button" id="docLandscapeModeDeitadoBtn" class="doc-landscape-mode-btn ${isRotated90 ? 'active' : ''}">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="6" width="20" height="12" rx="2"/>
-                <line x1="6" y1="12" x2="6.01" y2="12"/>
-              </svg>
-              <span>Deitado</span>
-            </button>
             <button type="button" id="docLandscapeModeNormalBtn" class="doc-landscape-mode-btn ${!isRotated90 ? 'active' : ''}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="6" y="2" width="12" height="20" rx="2"/>
@@ -1665,18 +1666,22 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
               </svg>
               <span>Em Pe</span>
             </button>
+            <button type="button" id="docLandscapeModeDeitadoBtn" class="doc-landscape-mode-btn ${isRotated90 ? 'active' : ''}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="6" width="20" height="12" rx="2"/>
+                <line x1="6" y1="12" x2="6.01" y2="12"/>
+              </svg>
+              <span>Deitado</span>
+            </button>
           </div>
+
+          <span class="doc-landscape-hint" id="docLsHint" style="font-size:11px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${isRotated90 ? "Gire o celular de lado" : "Assine de frente"}
+          </span>
 
           <!-- Botao oculto para compatibilidade com seletores de teste -->
           <button type="button" id="docLandscapeRotateToggleBtn" style="display:none;">
             <span id="docLandscapeRotateLabel">${isRotated90 ? "Desfazer giro" : "Girar 90°"}</span>
-          </button>
-
-          <button type="button" id="docLandscapeClearBtn" class="btn btn-ghost btn-sm" style="font-weight:600; min-height:36px; padding:6px 10px;">
-            Limpar
-          </button>
-          <button type="button" id="docLandscapeCloseBtn" class="icon-btn" aria-label="Fechar" style="font-size:22px; width:36px; height:36px;">
-            &times;
           </button>
         </div>
       </div>
@@ -1685,34 +1690,35 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
         <div class="doc-landscape-canvas-wrap" id="docLsCanvasWrap">
           <canvas id="docLandscapeCanvas"></canvas>
 
-          <!-- Guias Visuais Dinamicas -->
+          <!-- Guias Visuais Sutis e Limpas (sem poluicao) -->
           <div id="docLandscapeGuide" class="doc-landscape-guide" style="inset:0;"></div>
         </div>
       </div>
 
       <div class="doc-landscape-footer">
         <!-- Mini-Previa em Tempo Real -->
-        <div class="doc-landscape-preview-wrap">
-          <div class="doc-landscape-preview-info">
-            <span class="doc-landscape-preview-label">Previa no Documento</span>
-            <button type="button" id="docLandscapeFlipBtn" class="btn btn-ghost btn-sm"
-              style="font-size:10.5px; padding:2px 6px; min-height:24px; color:#6340d8; font-weight:700; display:inline-flex; align-items:center; gap:4px;"
-              title="Gira a rubrica 180 graus caso tenha virado para o outro lado">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/>
-              </svg>
-              <span>Inverter 180°</span>
-            </button>
+        <div class="doc-landscape-footer-preview">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Previa</span>
+            <canvas id="docLandscapeMiniPreview" style="width:60px; height:26px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; display:block;" width="120" height="52"></canvas>
           </div>
-          <canvas id="docLandscapeMiniPreview" class="doc-landscape-preview-canvas" width="144" height="64"></canvas>
+
+          <button type="button" id="docLandscapeFlipBtn" class="btn btn-ghost btn-sm"
+            style="font-size:11px; padding:4px 8px; min-height:28px; color:#6340d8; font-weight:700; display:inline-flex; align-items:center; gap:4px;"
+            title="Gira a rubrica 180 graus">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/>
+            </svg>
+            <span>Inverter 180°</span>
+          </button>
         </div>
 
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" id="docLandscapeCancelBtn" class="btn btn-secondary" style="min-width:90px;">
+        <div class="doc-landscape-footer-actions">
+          <button type="button" id="docLandscapeCancelBtn" class="btn btn-secondary" style="flex:1;">
             Cancelar
           </button>
-          <button type="button" id="docLandscapeConfirmBtn" class="btn btn-primary" style="padding:10px 18px; box-shadow:0 4px 14px rgba(99,64,216,0.25);">
-            Concluir Rubrica
+          <button type="button" id="docLandscapeConfirmBtn" class="btn btn-primary" style="flex:2; box-shadow:0 4px 14px rgba(99,64,216,0.25);">
+            Concluir Assinatura
           </button>
         </div>
       </div>
@@ -1735,48 +1741,32 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
   let hasDrawn = false;
   let isDrawing = false;
 
-  // ─── Renderizacao das Guias Visuais ──────────────────────────────────────────
+  // ─── Renderizacao das Guias Visuais (Limpo e Elegante) ──────────────────────
   const renderGuides = () => {
     if (!guideEl) return;
 
     if (rotationAngle === 270) {
-      // Modo Deitado com topo do celular para a esquerda (padrao):
-      // - O topo do celular e o lado esquerdo visual.
-      // - A base do celular e o lado direito visual.
-      // - A linha de base da assinatura fica no lado esquerdo da tela (x proximo a 0).
+      // Modo Deitado (topo para a esquerda):
+      // Linha sutil na lateral esquerda que vira a base ao deitar o celular
       guideEl.innerHTML = `
-        <div style="position:absolute; top:12px; left:16px; right:16px; display:flex; justify-content:space-between; align-items:center; color:#6340d8; font-size:11px; font-weight:700; letter-spacing:0.04em;">
-          <span>TOPO DO CELULAR (INICIO)</span>
-          <span>DIRECAO DA ESCRITA &darr;</span>
-        </div>
-        <div style="position:absolute; left:28px; top:36px; bottom:36px; width:2px; border-left:1.5px dashed #6340d8; opacity:0.35;"></div>
-        <div style="position:absolute; left:34px; top:45%; transform:rotate(90deg); transform-origin:left top; color:#6340d8; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; opacity:0.6; white-space:nowrap;">
-          Linha de Base da Assinatura
-        </div>
-        <div style="position:absolute; bottom:12px; left:16px; right:16px; display:flex; justify-content:flex-end; color:#64748b; font-size:10px; font-weight:600;">
-          <span>BASE DO CELULAR (FIM)</span>
+        <div style="position:absolute; left:24px; top:20px; bottom:20px; width:1px; border-left:1.5px dashed #cbd5e1;"></div>
+        <div style="position:absolute; left:30px; top:50%; transform:rotate(90deg); transform-origin:left top; color:#94a3b8; font-size:11px; font-weight:500; letter-spacing:0.04em; white-space:nowrap; opacity:0.8;">
+          Linha da Assinatura &rarr;
         </div>
       `;
     } else if (rotationAngle === 90) {
-      // Modo Deitado com topo do celular para a direita:
+      // Modo Deitado (topo para a direita):
       guideEl.innerHTML = `
-        <div style="position:absolute; bottom:12px; left:16px; right:16px; display:flex; justify-content:space-between; align-items:center; color:#6340d8; font-size:11px; font-weight:700; letter-spacing:0.04em;">
-          <span>TOPO DO CELULAR (INICIO)</span>
-          <span>DIRECAO DA ESCRITA &uarr;</span>
-        </div>
-        <div style="position:absolute; right:28px; top:36px; bottom:36px; width:2px; border-right:1.5px dashed #6340d8; opacity:0.35;"></div>
-        <div style="position:absolute; right:34px; top:45%; transform:rotate(-90deg); transform-origin:right top; color:#6340d8; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; opacity:0.6; white-space:nowrap;">
-          Linha de Base da Assinatura
-        </div>
-        <div style="position:absolute; top:12px; left:16px; right:16px; display:flex; justify-content:flex-end; color:#64748b; font-size:10px; font-weight:600;">
-          <span>BASE DO CELULAR (FIM)</span>
+        <div style="position:absolute; right:24px; top:20px; bottom:20px; width:1px; border-right:1.5px dashed #cbd5e1;"></div>
+        <div style="position:absolute; right:30px; top:50%; transform:rotate(-90deg); transform-origin:right top; color:#94a3b8; font-size:11px; font-weight:500; letter-spacing:0.04em; white-space:nowrap; opacity:0.8;">
+          Linha da Assinatura &rarr;
         </div>
       `;
     } else {
       // Modo Normal (Em Pe ou Landscape Natural):
       guideEl.innerHTML = `
-        <div style="position:absolute; bottom:24px; left:20px; right:20px; border-bottom:1.5px dashed #cbd5e1; display:flex; justify-content:space-between; padding-bottom:4px; color:#94a3b8; font-size:11px; font-weight:600;">
-          <span>Inicio da Rubrica</span>
+        <div style="position:absolute; bottom:24px; left:20px; right:20px; border-bottom:1.5px dashed #cbd5e1; display:flex; justify-content:space-between; padding-bottom:4px; color:#94a3b8; font-size:11px; font-weight:500;">
+          <span>Inicio</span>
           <span>Linha de Assinatura</span>
           <span>Fim</span>
         </div>
@@ -1951,8 +1941,8 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
 
     if (hintEl) {
       hintEl.textContent = deitado
-        ? "Segure o celular deitado (topo para a esquerda)"
-        : "Assine normalmente no campo abaixo";
+        ? "Gire o celular de lado"
+        : "Assine de frente";
     }
 
     renderGuides();
@@ -1971,16 +1961,16 @@ export function openLandscapeSignatureModal({ targetCanvas, onConfirm } = {}) {
     // Inverte a orientacao em 180 graus
     if (rotationAngle === 270) {
       rotationAngle = 90;
-      if (hintEl) hintEl.textContent = "Segure o celular deitado (topo para a direita)";
+      if (hintEl) hintEl.textContent = "Giro invertido 180°";
     } else if (rotationAngle === 90) {
       rotationAngle = 270;
-      if (hintEl) hintEl.textContent = "Segure o celular deitado (topo para a esquerda)";
+      if (hintEl) hintEl.textContent = "Giro invertido 180°";
     } else if (rotationAngle === 0) {
       rotationAngle = 180;
-      if (hintEl) hintEl.textContent = "Assinatura invertida (180°)";
+      if (hintEl) hintEl.textContent = "Giro invertido 180°";
     } else {
       rotationAngle = 0;
-      if (hintEl) hintEl.textContent = "Assine normalmente no campo abaixo";
+      if (hintEl) hintEl.textContent = "Assine de frente";
     }
 
     renderGuides();
