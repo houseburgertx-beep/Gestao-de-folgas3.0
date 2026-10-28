@@ -1067,6 +1067,12 @@
     }
     const dialogId = typeof id === "string" ? id : (d ? d.id : "");
     if (dialogId === "clockSelfieDialog") resetClockSelfieCapture_();
+    if (dialogId === "privacyPolicyDialog") {
+      window.__PRIVACY_POLICY_POPUP_DISMISSED__ = true;
+      try {
+        sessionStorage.setItem("gf_privacy_policy_session_dismissed", "1");
+      } catch (_) {}
+    }
   }
   function showUnauthorized(m) {
     $("#app").classList.add("hidden");
@@ -7979,17 +7985,98 @@
     }, 60);
   }
 
+  function getPrivacyPolicyCandidateKeys_(user) {
+    const u = user || state.user || {};
+    const p = state.profile || {};
+    const b = state.bootstrap?.user || {};
+    const keys = new Set();
+    [
+      u.UsuarioID, u.usuarioId, u.FuncionarioID, u.funcionarioId, u.id,
+      p.UsuarioID, p.usuarioId, p.FuncionarioID, p.funcionarioId, p.id,
+      b.UsuarioID, b.usuarioId, b.FuncionarioID, b.funcionarioId, b.id,
+      u.Email, u.email, p.Email, p.email, b.Email, b.email,
+      u.CPF, u.cpf, p.CPF, p.cpf, b.CPF, b.cpf,
+    ].forEach((val) => {
+      if (val !== undefined && val !== null) {
+        const clean = String(val).trim();
+        if (clean) {
+          keys.add(clean);
+          if (clean.includes("@")) keys.add(clean.toLowerCase());
+          const digits = clean.replace(/\D/g, "");
+          if (digits.length >= 6) keys.add(digits);
+        }
+      }
+    });
+    return Array.from(keys);
+  }
+
   function getPrivacyPolicyAck_() {
-    const user = state.user;
+    const user = state.user || state.profile || state.bootstrap?.user;
     if (!user) return null;
-    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
-    if (!uid) return null;
-    try {
-      const raw = localStorage.getItem(`gf_privacy_policy_ack_${uid}`);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
+
+    // 1. Verificação direta nos objetos de usuário e perfil em memória
+    if (
+      bool(user.PoliticaPrivacidadeCiente) ||
+      bool(state.user?.PoliticaPrivacidadeCiente) ||
+      bool(state.profile?.PoliticaPrivacidadeCiente) ||
+      bool(state.bootstrap?.user?.PoliticaPrivacidadeCiente)
+    ) {
+      return {
+        version: user.PoliticaPrivacidadeVersao || state.profile?.PoliticaPrivacidadeVersao || "1.0",
+        acknowledgedAt: user.PoliticaPrivacidadeData || state.profile?.PoliticaPrivacidadeData || new Date().toISOString(),
+        signature: user.PoliticaPrivacidadeAssinatura || state.profile?.PoliticaPrivacidadeAssinatura || "",
+      };
     }
+
+    // 2. Verificação no cadastro de funcionários em memória
+    const uEmail = (user.Email || user.email || "").toLowerCase();
+    const uFuncId = String(user.FuncionarioID || user.funcionarioId || user.id || "");
+    const uCpfDigits = String(user.CPF || user.cpf || "").replace(/\D/g, "");
+    if (Array.isArray(state.employees) && state.employees.length > 0) {
+      const emp = state.employees.find((e) => {
+        if (!e) return false;
+        if (uFuncId && String(e.FuncionarioID || "") === uFuncId) return true;
+        if (uEmail && String(e.Email || "").toLowerCase() === uEmail) return true;
+        if (uCpfDigits && String(e.CPF || "").replace(/\D/g, "") === uCpfDigits) return true;
+        return false;
+      });
+      if (emp && bool(emp.PoliticaPrivacidadeCiente)) {
+        return {
+          version: emp.PoliticaPrivacidadeVersao || "1.0",
+          acknowledgedAt: emp.PoliticaPrivacidadeData || new Date().toISOString(),
+          signature: emp.PoliticaPrivacidadeAssinatura || "",
+        };
+      }
+    }
+
+    // 3. Verificação no localStorage para todas as chaves candidatas
+    const candKeys = getPrivacyPolicyCandidateKeys_(user);
+    for (const key of candKeys) {
+      try {
+        const raw = localStorage.getItem(`gf_privacy_policy_ack_${key}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.acknowledgedAt || parsed.version)) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+
+    // 4. Fallback no localStorage para chave global / último usuário autenticado
+    try {
+      const rawCurrent = localStorage.getItem("gf_privacy_policy_ack_current");
+      if (rawCurrent) {
+        const parsed = JSON.parse(rawCurrent);
+        if (parsed && (parsed.acknowledgedAt || parsed.version)) {
+          if (!parsed.email || !uEmail || parsed.email.toLowerCase() === uEmail) {
+            return parsed;
+          }
+        }
+      }
+    } catch {}
+
+    return null;
   }
 
   function updatePrivacyPolicyAckUI_() {
@@ -8003,7 +8090,7 @@
     const signedImg = $("#privacyPolicySignedImage");
     const checkbox = $("#privacyPolicyConfirmCheckbox");
 
-    const user = state.user;
+    const user = state.user || state.profile || state.bootstrap?.user;
     const userName = user?.NomeCompleto || user?.Nome || user?.nome || state.profile?.Nome || "Colaborador";
     const userCpf = user?.CPF || user?.cpf || state.profile?.CPF || "";
 
@@ -8011,11 +8098,7 @@
       metaEl.innerHTML = `<div style="font-weight:700; color:var(--text-primary, #0f172a);">${esc(userName)}</div>${userCpf ? `<div>CPF: ${esc(userCpf)}</div>` : ""}`;
     }
 
-    const ack = getPrivacyPolicyAck_() || (user && user.PoliticaPrivacidadeCiente ? {
-      version: user.PoliticaPrivacidadeVersao || "1.0",
-      acknowledgedAt: user.PoliticaPrivacidadeData || "",
-      signature: user.PoliticaPrivacidadeAssinatura || "",
-    } : null);
+    const ack = getPrivacyPolicyAck_();
 
     if (!user) {
       if (statusEl) statusEl.textContent = "Disponível para consulta pública.";
@@ -8064,7 +8147,7 @@
   }
 
   async function acknowledgePrivacyPolicy_() {
-    const user = state.user;
+    const user = state.user || state.profile || state.bootstrap?.user;
     if (!user) {
       return toast("Entre com sua conta para registrar a ciência da política.", true);
     }
@@ -8096,8 +8179,20 @@
         signature: rubricBase64,
         device: navigator.userAgent || "",
       };
-      localStorage.setItem(`gf_privacy_policy_ack_${uid}`, JSON.stringify(ackRecord));
 
+      // Persistir em localStorage sob todas as variações de chaves possíveis
+      const candKeys = getPrivacyPolicyCandidateKeys_(user);
+      candKeys.forEach((key) => {
+        try {
+          localStorage.setItem(`gf_privacy_policy_ack_${key}`, JSON.stringify(ackRecord));
+        } catch {}
+      });
+      try {
+        localStorage.setItem("gf_privacy_policy_ack_current", JSON.stringify(ackRecord));
+        sessionStorage.setItem("gf_privacy_policy_session_dismissed", "1");
+      } catch {}
+
+      // Atualizar o estado em memória imediatamente
       if (state.user) {
         state.user.PoliticaPrivacidadeCiente = true;
         state.user.PoliticaPrivacidadeData = now;
@@ -8110,6 +8205,44 @@
         state.profile.PoliticaPrivacidadeVersao = "1.0";
         state.profile.PoliticaPrivacidadeAssinatura = rubricBase64;
       }
+      if (state.bootstrap?.user) {
+        state.bootstrap.user.PoliticaPrivacidadeCiente = true;
+        state.bootstrap.user.PoliticaPrivacidadeData = now;
+        state.bootstrap.user.PoliticaPrivacidadeVersao = "1.0";
+        state.bootstrap.user.PoliticaPrivacidadeAssinatura = rubricBase64;
+      }
+      if (Array.isArray(state.employees)) {
+        const uEmail = (user.Email || user.email || "").toLowerCase();
+        const uFuncId = String(user.FuncionarioID || user.funcionarioId || user.id || "");
+        const emp = state.employees.find((e) => {
+          if (!e) return false;
+          if (uFuncId && String(e.FuncionarioID || "") === uFuncId) return true;
+          if (uEmail && String(e.Email || "").toLowerCase() === uEmail) return true;
+          return false;
+        });
+        if (emp) {
+          emp.PoliticaPrivacidadeCiente = true;
+          emp.PoliticaPrivacidadeData = now;
+          emp.PoliticaPrivacidadeVersao = "1.0";
+          emp.PoliticaPrivacidadeAssinatura = rubricBase64;
+        }
+      }
+
+      // Atualizar caches locais de inicialização do shell rápido
+      ["gf-turbo-shell-latest", "gf-turbo-shell-v2"].forEach((cacheKey) => {
+        try {
+          const raw = localStorage.getItem(cacheKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.user) {
+              parsed.user.PoliticaPrivacidadeCiente = true;
+              parsed.user.PoliticaPrivacidadeData = now;
+              parsed.user.PoliticaPrivacidadeVersao = "1.0";
+              localStorage.setItem(cacheKey, JSON.stringify(parsed));
+            }
+          }
+        } catch {}
+      });
 
       updatePrivacyPolicyAckUI_();
       toast("Ciência e assinatura da Política de Privacidade registradas com sucesso.");
@@ -8128,14 +8261,8 @@
             }),
             new Promise((_, reject) => setTimeout(() => reject(new Error("tempo limite")), 4000)),
           ]);
-        } catch {
-          await call(FN.patchUser, sessionToken(), {
-            usuarioId: uid,
-            PoliticaPrivacidadeCiente: true,
-            PoliticaPrivacidadeData: now,
-            PoliticaPrivacidadeVersao: "1.0",
-            PoliticaPrivacidadeAssinatura: rubricBase64,
-          }).catch(() => {});
+        } catch (callErr) {
+          console.warn("Aviso ao sincronizar ciência no backend:", callErr);
         }
       }
     } catch (err) {
@@ -8148,24 +8275,28 @@
   }
 
   function checkPrivacyPolicyPopup_() {
-    if (!state.user) return;
-    const user = state.user;
-    const uid = String(user.UsuarioID || user.usuarioId || user.id || user.FuncionarioID || user.funcionarioId || "").trim();
-    if (!uid) return;
+    if (!state.user && !state.profile && !state.bootstrap?.user) return;
 
-    const ackLocal = getPrivacyPolicyAck_();
-    const ackRemote = Boolean(state.user.PoliticaPrivacidadeCiente || state.profile?.PoliticaPrivacidadeCiente);
-    if (ackLocal || ackRemote) {
-      return;
-    }
+    // 1. Já assinou localmente ou remotamente?
+    const ack = getPrivacyPolicyAck_();
+    if (ack) return;
 
-    if (window.__PRIVACY_POLICY_POPUP_DISMISSED__) {
-      return;
-    }
+    // 2. Já dispensado na sessão atual do navegador?
+    if (window.__PRIVACY_POLICY_POPUP_DISMISSED__) return;
+    try {
+      if (sessionStorage.getItem("gf_privacy_policy_session_dismissed") === "1") return;
+    } catch {}
 
     window.__PRIVACY_POLICY_POPUP_DISMISSED__ = true;
+    try {
+      sessionStorage.setItem("gf_privacy_policy_session_dismissed", "1");
+    } catch {}
+
     setTimeout(() => {
-      openPrivacyPolicyDialog(true);
+      // Re-verificar antes de abrir caso tenha assinado durante o intervalo
+      if (!getPrivacyPolicyAck_()) {
+        openPrivacyPolicyDialog(true);
+      }
     }, 500);
   }
 

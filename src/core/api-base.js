@@ -40,6 +40,11 @@ export const sessionUser = (profile) => ({
   Ativo: asBoolean(profile.Ativo),
   GoogleLinked: asBoolean(profile.GoogleLinked),
   googleLinked: asBoolean(profile.GoogleLinked),
+  PoliticaPrivacidadeCiente: asBoolean(profile.PoliticaPrivacidadeCiente),
+  politicaPrivacidadeCiente: asBoolean(profile.PoliticaPrivacidadeCiente),
+  PoliticaPrivacidadeData: profile.PoliticaPrivacidadeData || "",
+  PoliticaPrivacidadeVersao: profile.PoliticaPrivacidadeVersao || "",
+  PoliticaPrivacidadeAssinatura: profile.PoliticaPrivacidadeAssinatura || "",
 });
 
 const dropClientToken = (args) => {
@@ -1089,6 +1094,21 @@ async function bootstrap() {
     LojaID: ownStoreId,
     NomeLoja: ownStoreName,
     Cargo: profile.Cargo || currentEmployee.Cargo || "",
+    PoliticaPrivacidadeCiente: asBoolean(
+      profile.PoliticaPrivacidadeCiente || ownEmployee?.PoliticaPrivacidadeCiente,
+    ),
+    PoliticaPrivacidadeData:
+      profile.PoliticaPrivacidadeData ||
+      ownEmployee?.PoliticaPrivacidadeData ||
+      "",
+    PoliticaPrivacidadeVersao:
+      profile.PoliticaPrivacidadeVersao ||
+      ownEmployee?.PoliticaPrivacidadeVersao ||
+      "1.0",
+    PoliticaPrivacidadeAssinatura:
+      profile.PoliticaPrivacidadeAssinatura ||
+      ownEmployee?.PoliticaPrivacidadeAssinatura ||
+      "",
   };
   const visibleStores =
     stores.length || !ownStoreId
@@ -2703,9 +2723,20 @@ export function createBaseHandlers() {
         });
       }
 
-      if (profile.FuncionarioID) {
+      let employeeId = profile.FuncionarioID || "";
+      if (!employeeId && profile.Email) {
+        try {
+          const employees = await runtime.list("Funcionarios", { profile }).catch(() => []);
+          const matched = currentEmployeeFrom(employees, profile);
+          if (matched?.FuncionarioID) employeeId = matched.FuncionarioID;
+        } catch (err) {
+          console.warn("Aviso ao buscar funcionário correspondente:", err.message);
+        }
+      }
+
+      if (employeeId) {
         await runtime
-          .patch("Funcionarios", profile.FuncionarioID, {
+          .patch("Funcionarios", employeeId, {
             PoliticaPrivacidadeCiente: true,
             PoliticaPrivacidadeData: now,
             PoliticaPrivacidadeVersao: version,

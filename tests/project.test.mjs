@@ -3409,6 +3409,30 @@ test("LGPD: Pop-up único de leitura, rubrica/assinatura e registro de ciência 
   }
 });
 
+test("LGPD: Otimização compacta do modal e blindagem de persistência multi-identificador", async () => {
+  const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
+  const stylesHtml = await readFile(new URL("../src/legacy/Styles.html", import.meta.url), "utf8");
+  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
+  const apiBase = await readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8");
+
+  // 1. Modal não ocupa a tela inteira (altura contida, formato bottom-sheet elegante)
+  assert.match(stylesHtml, /max-height:\s*min\(520px,\s*72vh\)/, "Modal mobile deve ser limitado a 72vh para não cobrir a tela inteira");
+  assert.match(stylesHtml, /max-height:\s*min\(620px,\s*80vh\)/, "Modal desktop deve ser limitado a 80vh");
+  assert.doesNotMatch(stylesHtml, /height:\s*min\(92dvh/, "Não deve mais forçar 92% da tela de altura");
+
+  // 2. Elemento visual de puxador (sheet handle) estilo Apple iOS
+  assert.match(dialogsHtml, /background:\s*#cbd5e1;\s*border-radius:\s*999px/, "Dialogs.html deve conter o pill handle estilo iOS");
+
+  // 3. Blindagem de persistência multi-identificador no Scripts.html
+  assert.match(scriptsHtml, /function getPrivacyPolicyCandidateKeys_/, "Deve implementar resolução de chaves multi-identificador");
+  assert.match(scriptsHtml, /gf_privacy_policy_ack_current/, "Deve gravar e checar fallback de usuário atual");
+  assert.match(scriptsHtml, /sessionStorage\.setItem\("gf_privacy_policy_session_dismissed"/, "Deve respeitar supressão por sessão");
+
+  // 4. SessionUser e Bootstrap no api-base.js exportam o estado de ciência da LGPD
+  assert.match(apiBase, /PoliticaPrivacidadeCiente:\s*asBoolean\(profile\.PoliticaPrivacidadeCiente\)/, "sessionUser deve expor PoliticaPrivacidadeCiente");
+  assert.match(apiBase, /ownEmployee\?\.PoliticaPrivacidadeCiente/, "bootstrap deve mesclar ciência do funcionário e do perfil");
+});
+
 test("Resiliência do Ponto: triplo fallback de câmera, captura nativa e contingência Portaria 671", async () => {
   const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
   const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
