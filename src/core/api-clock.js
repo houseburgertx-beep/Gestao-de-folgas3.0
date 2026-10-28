@@ -1546,6 +1546,29 @@ export function createClockHandlers() {
           `Ponto já registrado: ${repeated.TipoMarcacao}.`,
         );
       }
+
+      // 1. Blindagem Anti-Bounce CLT / Portaria 671 MTE:
+      // Duas marcações de ponto com intervalo inferior a 60 segundos são tratadas como duplicidade ou toque acidental.
+      // Retorna a marcação recém-efetuada com idempotência estrita sem gravar nova fase nem avançar indevidamente.
+      const validRecordsToday = records
+        .filter((r) => r.Status !== "Substituído" && r.DataHora)
+        .sort((a, b) => new Date(b.DataHora).getTime() - new Date(a.DataHora).getTime());
+      const lastRecordToday = validRecordsToday[0];
+      if (lastRecordToday) {
+        const lastPunchTime = new Date(lastRecordToday.DataHora).getTime();
+        const nowMs = Date.now();
+        const diffSeconds = Math.round((nowMs - lastPunchTime) / 1000);
+        if (diffSeconds >= 0 && diffSeconds < 60) {
+          return success(
+            {
+              ...lastRecordToday,
+              ProximaMarcacao: nextClockAction(records, schedule),
+            },
+            `Ponto já registrado há ${diffSeconds}s: ${lastRecordToday.TipoMarcacao}.`,
+          );
+        }
+      }
+
       const next = nextClockAction(records, schedule);
       const expected = String(payload.expectedAction || next).toUpperCase();
 
@@ -1568,9 +1591,16 @@ export function createClockHandlers() {
         type = "SEM_DESCANSO";
       } else if (expected === next) {
         type = next;
-      } else if (next && sequenceFor(schedule).includes(next)) {
-        // Se a tela enviou ação defasada mas a próxima marcação necessária é válida, registra o próximo passo da jornada com segurança:
+      } else if (!payload.expectedAction && next) {
         type = next;
+      } else if (alreadyDoneExpected) {
+        return success(
+          {
+            ...alreadyDoneExpected,
+            ProximaMarcacao: next,
+          },
+          `Ponto já registrado: ${alreadyDoneExpected.TipoMarcacao}.`,
+        );
       } else {
         assert(expected === next, "A tela estava desatualizada. Atualize o ponto.");
       }

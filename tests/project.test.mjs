@@ -3881,6 +3881,72 @@ test("Assinatura Automática do Espelho Mensal: alerta interativo com navegaçã
   assert.match(documentsJs, /openTimeClockMirrorSign\(month,\s*empId\)/, "Clique de assinar espelho em documentos deve abrir modal de assinatura com mês e colaborador");
 });
 
+test("Blindagem do Ponto Eletrônico (Portaria 671 MTE / Mobile PWA): anti-bounce 60s, trava de duplo clique e GPS híbrido", async () => {
+  const [apiClockJs, scriptsHtml] = await Promise.all([
+    readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+  ]);
+
+  // 1. Blindagem Anti-Bounce CLT / Portaria 671 MTE no backend (api-clock.js)
+  assert.match(
+    apiClockJs,
+    /diffSeconds >= 0 && diffSeconds < 60/,
+    "api-clock.js deve aplicar cooldown estrito de 60s entre marcações do mesmo colaborador",
+  );
+  assert.match(
+    apiClockJs,
+    /Ponto já registrado há/,
+    "api-clock.js deve retornar mensagem informativa de idempotência temporal sem duplicar ponto",
+  );
+
+  // 2. Proibição de avanço arbitrário de fase por cliques repetidos ou tela defasada
+  assert.doesNotMatch(
+    apiClockJs,
+    /sequenceFor\(schedule\)\.includes\(next\)[\s\S]*type = next/,
+    "api-clock.js NUNCA deve promover automaticamente para a próxima fase se a tela enviou ação divergente",
+  );
+
+  // 3. Front-end: GPS híbrido resiliente com fallback rápido para ambientes fechados (cozinhas)
+  assert.match(
+    scriptsHtml,
+    /fastFallbackTimer = setTimeout\(/,
+    "Scripts.html deve disparar triangulação de rede rapidamente para não travar em cozinhas",
+  );
+  assert.match(
+    scriptsHtml,
+    /warmClockLocation_/,
+    "Scripts.html deve disponibilizar função de aquecimento de localização",
+  );
+  assert.match(
+    scriptsHtml,
+    /renderDashboard\(\) \{[\s\S]*warmClockLocation_/,
+    "Scripts.html deve aquecer o GPS ao renderizar o dashboard",
+  );
+  assert.match(
+    scriptsHtml,
+    /window\.addEventListener\("focus"/,
+    "Scripts.html deve reaquecer a localização ao focar no aplicativo",
+  );
+
+  // 4. Trava de múltiplos cliques e estados ocupados no botão de bater ponto
+  assert.match(
+    scriptsHtml,
+    /window\.__IS_STARTING_CLOCK_PUNCH_\s*=\s*true;/,
+    "Scripts.html deve travar múltiplos toques concorrentes ao abrir o ponto",
+  );
+  assert.match(
+    scriptsHtml,
+    /punchBtn\.disabled\s*=\s*true;/,
+    "Scripts.html deve desabilitar imediatamente o botão de ponto ao clicar",
+  );
+  assert.match(
+    scriptsHtml,
+    /window\.__IS_CONFIRMING_CLOCK_PUNCH_\s*=\s*true;/,
+    "Scripts.html deve travar envio duplo ao confirmar ponto com selfie",
+  );
+});
+
+
 
 
 
