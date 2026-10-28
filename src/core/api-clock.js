@@ -1468,11 +1468,31 @@ export function createClockHandlers() {
         ),
       ]);
       assert(employee && asBoolean(employee.Ativo), "Funcionário inativo.");
-      assert(
-        String(employee.LojaID || "") === storeId,
-        "O funcionário está vinculado a outra loja. Atualize o acesso.",
-      );
-      assert(location && asBoolean(location.Ativo), "Configure o local do ponto.");
+      const targetStoreId = String(employee.LojaID || storeId);
+      let loc = location;
+      if (!loc) {
+        const allLocations = await runtime.list("LocaisPonto", { profile }).catch(() => []);
+        loc = allLocations.find(
+          (item) =>
+            String(item.LojaID || "").trim() === targetStoreId ||
+            Number(item.LojaID) === Number(targetStoreId),
+        );
+      }
+      if (!loc) {
+        const store = await runtime.getById("Lojas", targetStoreId).catch(() => null);
+        if (store?.Latitude && store?.Longitude) {
+          loc = {
+            LocalPontoID: `store-loc-${targetStoreId}`,
+            LojaID: targetStoreId,
+            NomeLoja: store.NomeLoja || store.Nome || "Loja",
+            Latitude: store.Latitude,
+            Longitude: store.Longitude,
+            RaioMetros: store.RaioMetros || 150,
+            Ativo: true,
+          };
+        }
+      }
+      assert(loc && asBoolean(loc.Ativo), "Configure o local do ponto.");
       const empId = String(employee.FuncionarioID ?? "").trim();
       const day = operationalDayFor(
         allRecords,
@@ -1501,11 +1521,11 @@ export function createClockHandlers() {
         haversineMeters(
           latitude,
           longitude,
-          Number(location.Latitude),
-          Number(location.Longitude),
+          Number(loc.Latitude),
+          Number(loc.Longitude),
         ),
       );
-      const configuredRadius = Number(location.RaioMetros || 150);
+      const configuredRadius = Number(loc.RaioMetros || 150);
       const radius = Math.max(150, configuredRadius);
       const safeAccuracy = Math.ceil(Math.max(0, accuracy));
 
@@ -1576,15 +1596,6 @@ export function createClockHandlers() {
       const alreadyDoneExpected = records.find(
         (item) => item.TipoMarcacao === expected && item.Status !== "Substituído",
       );
-      if (alreadyDoneExpected && expected !== next) {
-        return success(
-          {
-            ...alreadyDoneExpected,
-            ProximaMarcacao: next,
-          },
-          `Ponto já registrado: ${alreadyDoneExpected.TipoMarcacao}.`,
-        );
-      }
 
       let type = next;
       if (expected === "SEM_DESCANSO" && next === "SAIDA_INTERVALO") {
@@ -1594,13 +1605,18 @@ export function createClockHandlers() {
       } else if (!payload.expectedAction && next) {
         type = next;
       } else if (alreadyDoneExpected) {
-        return success(
-          {
-            ...alreadyDoneExpected,
-            ProximaMarcacao: next,
-          },
-          `Ponto já registrado: ${alreadyDoneExpected.TipoMarcacao}.`,
-        );
+        const doneTime = new Date(alreadyDoneExpected.DataHora).getTime();
+        const isRecent = Number.isFinite(doneTime) && (Date.now() - doneTime) < 60000;
+        if (isRecent || !next) {
+          return success(
+            {
+              ...alreadyDoneExpected,
+              ProximaMarcacao: next,
+            },
+            `Ponto já registrado: ${alreadyDoneExpected.TipoMarcacao}.`,
+          );
+        }
+        type = next;
       } else {
         assert(expected === next, "A tela estava desatualizada. Atualize o ponto.");
       }

@@ -35201,7 +35201,7 @@ dialog#medicalCertificateDialog {
     return input.value;
   }
   async function loadTimeClockQuick_() {
-    if (!sessionToken() || !isEmployee()) return null;
+    if (!sessionToken() || (!isEmployee() && !isKitchenChief())) return null;
     if (CLOCK_QUICK_PROMISE_) return CLOCK_QUICK_PROMISE_;
     CLOCK_QUICK_PROMISE_ = (async () => {
       try {
@@ -35213,6 +35213,8 @@ dialog#medicalCertificateDialog {
         state.timeClock = data;
         renderTimeClock();
         renderEmployeeDashboardCards();
+        if (typeof renderEmployeeClockDashboard === "function") renderEmployeeClockDashboard();
+        if (typeof publishJourney_ === "function") publishJourney_();
         saveTurboShellCache_();
         console.info("[performance] ponto imediato pronto", {
           elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
@@ -36460,6 +36462,9 @@ dialog#medicalCertificateDialog {
     delete data.loadError;
     state.timeClock = data;
     renderTimeClock();
+    if (typeof renderEmployeeClockDashboard === "function") renderEmployeeClockDashboard();
+    if (typeof renderEmployeeDashboardCards === "function") renderEmployeeDashboardCards();
+    if (typeof publishJourney_ === "function") publishJourney_();
     saveTurboShellCache_();
   }
   function refreshClockAfterPunch_() {
@@ -37039,9 +37044,9 @@ dialog#medicalCertificateDialog {
         requestId: CLOCK_PUNCH_REQUEST_ID_,
       });
 
-      // Timeout limite da rede móvel (8.5s). Se a rede ou Google Drive demorar, salva em contingência offline imediatamente!
+      // Timeout limite da rede móvel (18s). Se a rede ou Google Drive demorar, salva em contingência offline com segurança!
       const timeoutCall = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("NETWORK_TIMEOUT")), 8500),
+        setTimeout(() => reject(new Error("NETWORK_TIMEOUT")), 18000),
       );
 
       const saved = await Promise.race([punchCall, timeoutCall]);
@@ -37078,10 +37083,10 @@ dialog#medicalCertificateDialog {
           longitude: pos?.coords?.longitude || 0,
           accuracy: pos?.coords?.accuracy || 0,
           timestamp: new Date().toISOString(),
-          funcionarioId: state.profile?.FuncionarioID || "",
-          nomeFuncionario: state.profile?.Nome || "",
-          lojaId: state.profile?.LojaID || "",
-          nomeLoja: state.profile?.NomeLoja || "",
+          funcionarioId: state.profile?.FuncionarioID || state.user?.FuncionarioID || "",
+          nomeFuncionario: state.profile?.Nome || state.user?.Nome || "",
+          lojaId: state.profile?.LojaID || state.user?.LojaID || "",
+          nomeLoja: state.profile?.NomeLoja || state.user?.NomeLoja || "",
         });
         applySavedClockPunch_(offlineRecord);
         confirmed = true;
@@ -37127,7 +37132,11 @@ dialog#medicalCertificateDialog {
       el.disabled = busy;
       if (busy) el.textContent = "Registrando ponto…";
     });
-    if (!busy && state.timeClock) renderTimeClock();
+    if (!busy && state.timeClock) {
+      renderTimeClock();
+      if (typeof renderEmployeeClockDashboard === "function") renderEmployeeClockDashboard();
+      if (typeof publishJourney_ === "function") publishJourney_();
+    }
   }
   function manualClockNextType_(employeeId, operationalDay) {
     const records = arr((state.timeClock || {}).records)
