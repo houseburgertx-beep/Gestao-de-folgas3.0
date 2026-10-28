@@ -2,7 +2,7 @@
 /**
  * wa-service-manager.mjs
  * Gerenciador de alta performance e resiliência do WhatsApp House 190.
- * Roda em modo de produção compilado com auto-wake, caffeinate e túnel persistente.
+ * Roda em modo de produção compilado com auto-wake protegido, caffeinate e túnel persistente.
  */
 
 import { spawn, execSync } from "node:child_process";
@@ -68,14 +68,21 @@ async function ensureWaAkg() {
   });
 
   akgProcess.on("exit", (code) => {
-    log(`WA-AKG encerrou com código ${code}. Tentando reiniciar em 2s...`);
+    log(`WA-AKG encerrou com código ${code}. Tentando reiniciar em 3s...`);
     akgProcess = null;
   });
 
   await new Promise((r) => setTimeout(r, 4000));
 }
 
+let lastStartAttempt = 0;
+
 async function startSessionIfStopped() {
+  const now = Date.now();
+  if (now - lastStartAttempt < 120000) {
+    return;
+  }
+
   try {
     const check = await fetch(`http://127.0.0.1:3000/api/sessions/${INSTANCE}`, {
       headers: { "X-API-Key": API_KEY },
@@ -84,26 +91,24 @@ async function startSessionIfStopped() {
     if (check.ok) {
       const data = await check.json();
       const sess = data?.data || data || {};
-      if (sess.status === "STOPPED" || !sess.hasInstance || (!sess.me && sess.status !== "CONNECTED")) {
-        log("Sessão parada. Disparando auto-wake...");
+      const isOk = sess.status === "CONNECTED" || sess.status === "WORKING" || Boolean(sess.me);
+      if (!isOk && sess.status === "STOPPED") {
+        lastStartAttempt = now;
+        log("Sessão em STOPPED. Disparando auto-wake com debounce...");
         await fetch(`http://127.0.0.1:3000/api/sessions/${INSTANCE}/start`, {
           method: "POST",
           headers: { "X-API-Key": API_KEY, "Content-Type": "application/json" },
           body: JSON.stringify({}),
           signal: AbortSignal.timeout(4000),
-        });
+        }).catch(() => {});
       }
     }
-  } catch (err) {
-    // Se não respondeu, pode estar travado
-  }
+  } catch (_) {}
 }
 
 export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
   const cleanUrl = url.replace(/\/+$/, "");
   const gatewayUrl = cleanUrl.endsWith("/api") ? cleanUrl : `${cleanUrl}/api`;
-
-  await startSessionIfStopped();
 
   let phone = "557197069291";
   let isConnected = true;
@@ -116,7 +121,7 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
     if (sRes.ok) {
       const data = await sRes.json();
       const sess = data?.data || data || {};
-      isConnected = sess.status === "CONNECTED" || Boolean(sess.me);
+      isConnected = sess.status === "CONNECTED" || sess.status === "WORKING" || Boolean(sess.me);
       if (sess.me?.id) {
         phone = sess.me.id.split("@")[0].split(":")[0];
       }
@@ -179,14 +184,14 @@ export async function startSupervisor() {
   await startSessionIfStopped();
   runTunnel();
 
-  // Monitoramento a cada 20 segundos
+  // Monitoramento a cada 30 segundos
   setInterval(async () => {
     try {
       await ensureMysql();
       await ensureWaAkg();
       await startSessionIfStopped();
     } catch (_) {}
-  }, 20000);
+  }, 30000);
 }
 
 if (process.argv[1]?.endsWith("wa-service-manager.mjs")) {
