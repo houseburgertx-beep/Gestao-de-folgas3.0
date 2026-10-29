@@ -117,55 +117,69 @@ const DIAS_SEMANA = [
   "Sábado",
 ];
 
+const MONTH_NAMES = {
+  janeiro: 1, jan: 1,
+  fevereiro: 2, fev: 2,
+  marco: 3, mar: 3,
+  abril: 4, abr: 4,
+  maio: 5, mai: 5,
+  junho: 6, jun: 6,
+  julho: 7, jul: 7,
+  agosto: 8, ago: 8,
+  setembro: 9, set: 9,
+  outubro: 10, out: 10,
+  novembro: 11, nov: 11,
+  dezembro: 12, dez: 12,
+};
+
+function formatIso(y, m, d) {
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function getDaysInRange(startDateStr, endDateStr) {
+  const dates = [];
+  const cur = new Date(startDateStr + "T12:00:00Z");
+  const end = new Date(endDateStr + "T12:00:00Z");
+  while (cur <= end) {
+    dates.push(cur.toISOString().slice(0, 10));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 /**
- * Extrai data (YYYY-MM-DD) a partir de termos naturais em português
+ * Extrai múltiplas datas ou períodos (YYYY-MM-DD) a partir de termos naturais em português
  */
-export function extractDateFromText(text, now = Date.now()) {
+export function extractDatesFromText(text, now = Date.now()) {
   const norm = String(text || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+
   const nowBahia = new Date(now - 3 * 3600000);
   const curYear = nowBahia.getFullYear();
-  const curMonth = nowBahia.getMonth();
+  const curMonth = nowBahia.getMonth() + 1; // 1-based
   const curDate = nowBahia.getDate();
 
-  // 1. DD/MM/YYYY
-  const mFull = norm.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (mFull) {
-    const d = String(mFull[1]).padStart(2, "0");
-    const m = String(mFull[2]).padStart(2, "0");
-    const y = mFull[3];
-    return `${y}-${m}-${d}`;
+  // Detecta menção a mês explícito
+  let explicitMonth = null;
+  for (const [mName, mNum] of Object.entries(MONTH_NAMES)) {
+    if (new RegExp(`\\b${mName}\\b`).test(norm)) {
+      explicitMonth = mNum;
+      break;
+    }
   }
 
-  // 2. DD/MM
-  const mShort = norm.match(/(\d{1,2})\/(\d{1,2})/);
-  if (mShort) {
-    const d = String(mShort[1]).padStart(2, "0");
-    const m = Number(mShort[2]);
-    let y = curYear;
-    if (m < curMonth + 1) y++;
-    return `${y}-${String(m).padStart(2, "0")}-${d}`;
-  }
+  // Detecta ano explícito de 4 dígitos
+  const mYear = norm.match(/\b(202\d)\b/);
+  const explicitYear = mYear ? Number(mYear[1]) : null;
 
-  // 3. 'amanha' / 'depois de amanha'
-  if (norm.includes("amanha")) {
-    const target = new Date(nowBahia);
-    target.setDate(curDate + (norm.includes("depois de amanha") ? 2 : 1));
-    return target.toISOString().slice(0, 10);
-  }
-
-  // 4. 'hoje'
-  if (norm.includes("hoje")) {
-    return nowBahia.toISOString().slice(0, 10);
-  }
-
-  // 5. 'dia XX'
-  const mDia = norm.match(/dia\s+(\d{1,2})/);
-  if (mDia) {
-    const d = Number(mDia[1]);
-    let m = curMonth + 1;
+  function resolveMonthYear(d) {
+    if (explicitMonth) {
+      const y = explicitYear || (explicitMonth < curMonth ? curYear + 1 : curYear);
+      return { y, m: explicitMonth };
+    }
+    let m = curMonth;
     let y = curYear;
     if (d < curDate) {
       m++;
@@ -174,22 +188,141 @@ export function extractDateFromText(text, now = Date.now()) {
         y++;
       }
     }
-    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    return { y, m };
   }
 
-  // 6. Dias da semana
-  const dias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
-  for (let i = 0; i < dias.length; i++) {
-    if (norm.includes(dias[i])) {
-      const target = new Date(nowBahia);
-      let diff = (i - nowBahia.getDay() + 7) % 7;
-      if (diff === 0) diff = 7;
-      target.setDate(curDate + diff);
-      return target.toISOString().slice(0, 10);
+  const foundDates = new Set();
+
+  // 1. Range com barras: "de 10/11 a 12/11", "10/11 a 12/11", "de 10/11/2026 a 12/11/2026"
+  const mRangeSlash = norm.match(/(?:de\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s*(?:a|ate|ao)\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
+  if (mRangeSlash) {
+    const d1 = Number(mRangeSlash[1]);
+    const m1 = Number(mRangeSlash[2]);
+    const y1 = mRangeSlash[3] ? Number(mRangeSlash[3]) : (m1 < curMonth ? curYear + 1 : curYear);
+
+    const d2 = Number(mRangeSlash[4]);
+    const m2 = Number(mRangeSlash[5]);
+    const y2 = mRangeSlash[6] ? Number(mRangeSlash[6]) : (m2 < m1 ? y1 + 1 : y1);
+
+    const start = formatIso(y1, m1, d1);
+    const end = formatIso(y2, m2, d2);
+    getDaysInRange(start, end).forEach((dt) => foundDates.add(dt));
+    return Array.from(foundDates).sort();
+  }
+
+  // 2. Range por extenso: "de 10 a 12 de novembro", "do dia 10 ao dia 12"
+  const mRangeNamed = norm.match(/(?:de\s+|do\s+dia\s+|dia\s+)?(\d{1,2})\s*(?:a|ate|ao\s*dia|ao)\s*(\d{1,2})\b/);
+  if (mRangeNamed && !norm.includes("/") && Number(mRangeNamed[1]) <= 31 && Number(mRangeNamed[2]) <= 31) {
+    const d1 = Number(mRangeNamed[1]);
+    const d2 = Number(mRangeNamed[2]);
+
+    if (d1 < d2) {
+      const { y, m } = resolveMonthYear(d1);
+      const start = formatIso(y, m, d1);
+      const end = formatIso(y, m, d2);
+      getDaysInRange(start, end).forEach((dt) => foundDates.add(dt));
+      return Array.from(foundDates).sort();
     }
   }
 
-  return null;
+  // 3. Múltiplas datas com barra: "10/11 e 11/11", "10/11, 11/11 e 12/11"
+  const slashMatches = [...norm.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/g)];
+  if (slashMatches.length > 0) {
+    for (const match of slashMatches) {
+      const d = Number(match[1]);
+      const m = Number(match[2]);
+      let y = match[3] ? Number(match[3]) : curYear;
+      if (!match[3] && m < curMonth) y++;
+      foundDates.add(formatIso(y, m, d));
+    }
+    return Array.from(foundDates).sort();
+  }
+
+  // 4. "amanha e depois de amanha", "depois de amanha", "amanha", "hoje"
+  if (norm.includes("amanha") || norm.includes("hoje")) {
+    if (norm.includes("hoje")) {
+      foundDates.add(nowBahia.toISOString().slice(0, 10));
+    }
+    if (norm.includes("amanha")) {
+      const target1 = new Date(nowBahia);
+      target1.setDate(curDate + 1);
+      foundDates.add(target1.toISOString().slice(0, 10));
+    }
+    if (norm.includes("depois de amanha")) {
+      const target2 = new Date(nowBahia);
+      target2.setDate(curDate + 2);
+      foundDates.add(target2.toISOString().slice(0, 10));
+    }
+    if (foundDates.size > 0) {
+      return Array.from(foundDates).sort();
+    }
+  }
+
+  // 5. Múltiplos "dia X e dia Y"
+  const allDiaMatches = [...norm.matchAll(/dia\s+(\d{1,2})\b/g)];
+  if (allDiaMatches.length > 1) {
+    for (const match of allDiaMatches) {
+      const d = Number(match[1]);
+      if (d >= 1 && d <= 31) {
+        const { y, m } = resolveMonthYear(d);
+        foundDates.add(formatIso(y, m, d));
+      }
+    }
+    return Array.from(foundDates).sort();
+  }
+
+  // 6. Lista de dias: "dias 10, 11 e 12", "dias 10 e 11", "dia 15"
+  const mDiasList = norm.match(/(?:dias|dia)\s+([\d\s,e]+)/);
+  if (mDiasList) {
+    const numbersPart = mDiasList[1];
+    const nums = numbersPart
+      .split(/[\s,e]+/)
+      .map((s) => s.trim())
+      .filter((s) => /^\d{1,2}$/.test(s))
+      .map(Number)
+      .filter((n) => n >= 1 && n <= 31);
+
+    if (nums.length > 0) {
+      for (const d of nums) {
+        const { y, m } = resolveMonthYear(d);
+        foundDates.add(formatIso(y, m, d));
+      }
+      return Array.from(foundDates).sort();
+    }
+  }
+
+  // 7. Dias da semana (ex: "segunda e terca", "quarta e quinta", "terca")
+  const diasSemana = [
+    { name: "domingo", idx: 0 },
+    { name: "segunda", idx: 1 },
+    { name: "terca", idx: 2 },
+    { name: "quarta", idx: 3 },
+    { name: "quinta", idx: 4 },
+    { name: "sexta", idx: 5 },
+    { name: "sabado", idx: 6 },
+  ];
+  for (const { name, idx } of diasSemana) {
+    if (norm.includes(name)) {
+      const target = new Date(nowBahia);
+      let diff = (idx - nowBahia.getDay() + 7) % 7;
+      if (diff === 0) diff = 7;
+      target.setDate(curDate + diff);
+      foundDates.add(target.toISOString().slice(0, 10));
+    }
+  }
+  if (foundDates.size > 0) {
+    return Array.from(foundDates).sort();
+  }
+
+  return [];
+}
+
+/**
+ * Extrai data única (YYYY-MM-DD) a partir de termos naturais em português (compatibilidade)
+ */
+export function extractDateFromText(text, now = Date.now()) {
+  const dates = extractDatesFromText(text, now);
+  return dates[0] || null;
 }
 
 /**
@@ -444,8 +577,12 @@ export async function processInboundHouseAI({
     cleanText.includes("conceder folga") ||
     cleanText.includes("aprovar folga") ||
     cleanText.includes("agendar folga") ||
-    (cleanText.includes("folga") && (
+    cleanText.includes("preciso de folga") ||
+    cleanText.includes("preciso folga") ||
+    ((cleanText.includes("folga") || cleanText.includes("folgas")) && (
       cleanText.includes("dia") ||
+      cleanText.includes("dias") ||
+      cleanText.includes("hoje") ||
       cleanText.includes("amanha") ||
       cleanText.includes("amanhã") ||
       cleanText.includes("segunda") ||
@@ -457,25 +594,28 @@ export async function processInboundHouseAI({
       cleanText.includes("sabado") ||
       cleanText.includes("sábado") ||
       cleanText.includes("domingo") ||
+      cleanText.includes("ate") ||
+      cleanText.includes("até") ||
       /\d{1,2}\/\d{1,2}/.test(cleanText)
     ) && !cleanText.includes("quantas") && !cleanText.includes("saldo") && !cleanText.includes("minhas"));
 
   if (isTimeOffAction) {
-    const targetDate = extractDateFromText(text, now);
+    const targetDates = extractDatesFromText(text, now);
 
-    if (!targetDate) {
+    if (!targetDates || targetDates.length === 0) {
       return {
         handled: true,
         authorized: true,
         action: "solicitar_data_folga",
         replyText: stripHouseAIEmojis(
           `Olá, ${firstName}!\n\n` +
-          `Para qual data você gostaria de solicitar a folga?\n\n` +
-          `Por favor, me informe o dia desejado, por exemplo:\n` +
+          `Para qual data ou período você gostaria de solicitar a folga?\n\n` +
+          `Por favor, me informe o dia ou intervalo desejado, por exemplo:\n` +
           `* "Quero folga dia 15/11"\n` +
-          `* "Solicitar folga amanhã"\n` +
-          `* "Folga na próxima terça"\n\n` +
-          `Ou selecione uma data no calendário pelo aplicativo oficial:\n${appUrl}?tab=timeoff`
+          `* "Folga dias 10 e 11 de novembro"\n` +
+          `* "Folga de 10/11 a 12/11"\n` +
+          `* "Solicitar folga amanhã"\n\n` +
+          `Ou selecione as datas no calendário pelo aplicativo oficial:\n${appUrl}?tab=timeoff`
         ),
       };
     }
@@ -520,27 +660,75 @@ export async function processInboundHouseAI({
     const targetEmpLojaId = String(targetEmp.LojaID || targetEmp.lojaId || "");
     const targetEmpNomeLoja = String(targetEmp.NomeLoja || targetEmp.nomeLoja || "House 190");
 
-    // Verifica se já existe folga ativa para o colaborador nessa data
-    const existingFolga = allFolgas.find((f) => {
+    const nowBahia = new Date(now - 3 * 3600000);
+    const mesAtual = nowBahia.toISOString().slice(0, 7);
+
+    // Folgas já aprovadas no mês corrente
+    const aprovadasMesCount = allFolgas.filter((f) => {
       const fEmpId = String(f.FuncionarioID || f.funcionarioId || "");
-      const fDate = String(f.Data || f.data || f.DataInicio || "");
+      const fDate = String(f.Data || f.DataInicio || f.data || "").slice(0, 7);
       const fStatus = String(f.Status || "").toLowerCase();
-      return fEmpId === targetEmpId && fDate === targetDate && fStatus !== "cancelada" && fStatus !== "rejeitada";
-    });
+      return fEmpId === targetEmpId && fDate === mesAtual && fStatus === "aprovada";
+    }).length;
 
-    const [y, m, d] = targetDate.split("-");
-    const dataBR = `${d}/${m}/${y}`;
+    let saldoDisponivel;
+    if (targetEmp.SaldoFolgas !== undefined && targetEmp.SaldoFolgas !== null && !isNaN(Number(targetEmp.SaldoFolgas))) {
+      saldoDisponivel = Number(targetEmp.SaldoFolgas);
+    } else {
+      saldoDisponivel = Math.max(0, 5 - aprovadasMesCount);
+    }
 
-    if (existingFolga) {
-      const st = existingFolga.Status || "Registrada";
+    // Separa datas que já possuem folga ativa daquelas novas a cadastrar
+    const alreadyBookedDates = [];
+    const validDatesToCreate = [];
+
+    for (const dStr of targetDates) {
+      const exists = allFolgas.find((f) => {
+        const fEmpId = String(f.FuncionarioID || f.funcionarioId || "");
+        const fDate = String(f.Data || f.data || f.DataInicio || "");
+        const fStatus = String(f.Status || "").toLowerCase();
+        return fEmpId === targetEmpId && fDate === dStr && fStatus !== "cancelada" && fStatus !== "rejeitada";
+      });
+      if (exists) {
+        alreadyBookedDates.push(dStr);
+      } else {
+        validDatesToCreate.push(dStr);
+      }
+    }
+
+    // Se todas as datas solicitadas já estavam cadastradas
+    if (validDatesToCreate.length === 0) {
+      const datasBookedBR = alreadyBookedDates
+        .map((dt) => {
+          const [y, m, d] = dt.split("-");
+          return `${d}/${m}/${y}`;
+        })
+        .join(", ");
       return {
         handled: true,
         authorized: true,
         action: "folga_existente",
         replyText: stripHouseAIEmojis(
           `Atenção, ${firstName}!\n\n` +
-          `${targetEmpNome === matchedEmp.Nome ? "Você" : targetEmpNome} já possui uma folga com status *${st}* para o dia *${dataBR}* no sistema.\n\n` +
+          `${targetEmpNome === matchedEmp.Nome ? "Você" : targetEmpNome} já possui folga registrada no sistema para a(s) data(s): *${datasBookedBR}*.\n\n` +
           `Consulte a escala completa no aplicativo oficial:\n${appUrl}?tab=timeoff`
+        ),
+      };
+    }
+
+    // Validação estrita de saldo de folgas disponível
+    if (validDatesToCreate.length > saldoDisponivel) {
+      const pluralSol = validDatesToCreate.length > 1;
+      return {
+        handled: true,
+        authorized: true,
+        action: "limite_folgas_excedido",
+        replyText: stripHouseAIEmojis(
+          `Atenção, ${firstName}!\n\n` +
+          `Você solicitou ${validDatesToCreate.length} dia${pluralSol ? "s" : ""} de folga, mas ${targetEmpNome === matchedEmp.Nome ? "seu saldo disponível é" : `o saldo de ${targetEmpNome} é`} de apenas ${saldoDisponivel} folga(s).\n\n` +
+          `* Dias solicitados: ${validDatesToCreate.length}\n` +
+          `* Saldo disponível: ${saldoDisponivel}\n\n` +
+          `Por favor, ajuste o seu pedido para o limite disponível ou procure o gerente da sua loja para avaliar a situação no aplicativo oficial:\n${appUrl}?tab=timeoff`
         ),
       };
     }
@@ -550,96 +738,117 @@ export async function processInboundHouseAI({
       isGestorOrAdmin &&
       (targetEmp !== matchedEmp || cleanText.includes("aprovar") || cleanText.includes("conceder") || cleanText.includes("dar folga"));
     const status = isGrantedDirectly ? "Aprovada" : (isGestorOrAdmin ? "Aprovada" : "Pendente");
-    const folgaId = `folga-wa-${Date.now()}`;
 
-    const folgaRecord = {
-      FolgaID: folgaId,
-      FuncionarioID: targetEmpId,
-      NomeFuncionario: targetEmpNome,
-      EmailFuncionario: targetEmpEmail,
-      LojaID: targetEmpLojaId,
-      NomeLoja: targetEmpNomeLoja,
-      DataInicio: targetDate,
-      DataFim: targetDate,
-      Data: targetDate,
-      Tipo: "Regular",
-      TipoFolga: "Folga",
-      Periodo: "Dia inteiro",
-      Motivo: isGrantedDirectly ? "Concedida via WhatsApp House AI" : "Solicitada via WhatsApp",
-      Status: status,
-      Origem: isGrantedDirectly ? "WhatsApp House AI (Gestor)" : "Pedido do funcionário",
-      Solicitante: matchedEmp.Nome,
-      SolicitadoPor: matchedEmp.Email || matchedEmp.Nome,
-      AprovadoPor: status === "Aprovada" ? (matchedEmp.Email || matchedEmp.Nome) : "",
-      DataAprovacao: status === "Aprovada" ? new Date().toISOString() : "",
-      DataSolicitacao: new Date().toISOString(),
-      SaldoFolgasStatus: status === "Aprovada" ? "Aplicado" : "Pendente",
-      Observacoes: `Registrado via WhatsApp por ${matchedEmp.Nome} em ${new Date().toLocaleTimeString("pt-BR")}`,
-      DataCriacao: new Date().toISOString(),
-      DataAtualizacao: new Date().toISOString(),
-      CriadoEm: new Date().toISOString(),
-    };
+    const createdFolgaIds = [];
+    const datasCriadasBR = [];
 
-    // 1. Grava diretamente no Firebase Realtime Database
-    const folgaUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Folgas/${folgaId}.json`;
-    const folgaPutRes = await fetch(folgaUrl, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-      body: JSON.stringify(folgaRecord),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!folgaPutRes.ok) {
-      throw new Error(`firebase_put_error_${folgaPutRes.status}`);
+    for (let i = 0; i < validDatesToCreate.length; i++) {
+      const dStr = validDatesToCreate[i];
+      const folgaId = `folga-wa-${Date.now()}-${i}`;
+      createdFolgaIds.push(folgaId);
+
+      const [y, m, d] = dStr.split("-");
+      const dBR = `${d}/${m}/${y}`;
+      datasCriadasBR.push(dBR);
+
+      const folgaRecord = {
+        FolgaID: folgaId,
+        FuncionarioID: targetEmpId,
+        NomeFuncionario: targetEmpNome,
+        EmailFuncionario: targetEmpEmail,
+        LojaID: targetEmpLojaId,
+        NomeLoja: targetEmpNomeLoja,
+        DataInicio: dStr,
+        DataFim: dStr,
+        Data: dStr,
+        Tipo: "Regular",
+        TipoFolga: "Folga",
+        Periodo: "Dia inteiro",
+        Motivo: isGrantedDirectly ? "Concedida via WhatsApp House AI" : "Solicitada via WhatsApp",
+        Status: status,
+        Origem: isGrantedDirectly ? "WhatsApp House AI (Gestor)" : "Pedido do funcionário",
+        Solicitante: matchedEmp.Nome,
+        SolicitadoPor: matchedEmp.Email || matchedEmp.Nome,
+        AprovadoPor: status === "Aprovada" ? (matchedEmp.Email || matchedEmp.Nome) : "",
+        DataAprovacao: status === "Aprovada" ? new Date().toISOString() : "",
+        DataSolicitacao: new Date().toISOString(),
+        SaldoFolgasStatus: status === "Aprovada" ? "Aplicado" : "Pendente",
+        Observacoes: `Registrado via WhatsApp por ${matchedEmp.Nome} em ${new Date().toLocaleTimeString("pt-BR")}`,
+        DataCriacao: new Date().toISOString(),
+        DataAtualizacao: new Date().toISOString(),
+        CriadoEm: new Date().toISOString(),
+      };
+
+      // 1. Grava diretamente no Firebase Realtime Database
+      const folgaUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Folgas/${folgaId}.json`;
+      const folgaPutRes = await fetch(folgaUrl, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify(folgaRecord),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!folgaPutRes.ok) {
+        throw new Error(`firebase_put_error_${folgaPutRes.status}`);
+      }
     }
 
-    // Se aprovada diretamente pelo Gestor/Admin, debita saldo e registra movimento
+    // Se aprovada diretamente pelo Gestor/Admin, debita do saldo e registra os movimentos
+    let novoSaldo = saldoDisponivel;
     if (status === "Aprovada" && targetEmpId) {
-      const currentBalance = Number(targetEmp.SaldoFolgas ?? 0);
-      const newBalance = Math.max(0, currentBalance - 1);
-      const movementKey = `folga-${folgaId}`;
+      const currentBalance = Number(targetEmp.SaldoFolgas ?? saldoDisponivel);
+      novoSaldo = Math.max(0, currentBalance - validDatesToCreate.length);
+      const patchPayload = {
+        SaldoFolgas: novoSaldo,
+      };
+
+      for (let i = 0; i < validDatesToCreate.length; i++) {
+        const dStr = validDatesToCreate[i];
+        const folgaId = createdFolgaIds[i];
+        const movementKey = `folga-${folgaId}`;
+        patchPayload[`SaldoFolgasLancamentos/${movementKey}`] = {
+          FolgaID: folgaId,
+          Delta: -1,
+          Quantidade: 1,
+          Tipo: "Débito de folga aprovada",
+          DataInicio: dStr,
+          DataFim: dStr,
+          DataAtualizacao: new Date().toISOString(),
+        };
+
+        const movId = `mov-${folgaId}`;
+        const movUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/MovimentosSaldoFolgas/${movId}.json`;
+        await fetch(movUrl, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            MovimentoID: movId,
+            FolgaID: folgaId,
+            FuncionarioID: targetEmpId,
+            LojaID: targetEmpLojaId,
+            Tipo: "Debito",
+            Quantidade: 1,
+            SaldoAnterior: currentBalance - i,
+            SaldoNovo: currentBalance - i - 1,
+            Motivo: `Folga aprovada via WhatsApp para ${datasCriadasBR[i]}`,
+            DataCriacao: new Date().toISOString(),
+          }),
+          signal: AbortSignal.timeout(6000),
+        }).catch(() => {});
+      }
+
       const empPatchUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Funcionarios/${encodeURIComponent(targetEmpId)}.json`;
       await fetch(empPatchUrl, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          SaldoFolgas: newBalance,
-          [`SaldoFolgasLancamentos/${movementKey}`]: {
-            FolgaID: folgaId,
-            Delta: -1,
-            Quantidade: 1,
-            Tipo: "Débito de folga aprovada",
-            DataInicio: targetDate,
-            DataFim: targetDate,
-            DataAtualizacao: new Date().toISOString(),
-          },
-        }),
+        body: JSON.stringify(patchPayload),
         signal: AbortSignal.timeout(10000),
       }).catch((e) => console.warn("Erro ao debitar SaldoFolgas:", e));
-
-      const movId = `mov-${folgaId}`;
-      const movUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/MovimentosSaldoFolgas/${movId}.json`;
-      await fetch(movUrl, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          MovimentoID: movId,
-          FolgaID: folgaId,
-          FuncionarioID: targetEmpId,
-          LojaID: targetEmpLojaId,
-          Tipo: "Debito",
-          Quantidade: 1,
-          SaldoAnterior: currentBalance,
-          SaldoNovo: newBalance,
-          Motivo: `Folga aprovada via WhatsApp para ${dataBR}`,
-          DataCriacao: new Date().toISOString(),
-        }),
-        signal: AbortSignal.timeout(6000),
-      }).catch(() => {});
     }
 
     // 2. Grava notificação no Firebase RTDB tables/Notificacoes
     const notifId = `notif-wa-${Date.now()}`;
     const notifUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Notificacoes/${notifId}.json`;
+    const datasFormatadasTexto = datasCriadasBR.join(", ");
     await fetch(notifUrl, {
       method: "PUT",
       headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
@@ -650,43 +859,79 @@ export async function processInboundHouseAI({
         Tipo: "Folga",
         Assunto: status === "Aprovada" ? "Folga Aprovada via WhatsApp" : "Nova Solicitação de Folga via WhatsApp",
         Mensagem: status === "Aprovada"
-          ? `Folga confirmada para ${targetEmpNome} na data ${dataBR}.`
-          : `${targetEmpNome} solicitou folga para ${dataBR} via WhatsApp.`,
+          ? `Folga confirmada para ${targetEmpNome} nas datas: ${datasFormatadasTexto}.`
+          : `${targetEmpNome} solicitou folga para ${datasFormatadasTexto} via WhatsApp.`,
         Status: "NaoLida",
         DataCriacao: new Date().toISOString(),
       }),
       signal: AbortSignal.timeout(6000),
     }).catch(() => {});
 
+    const plural = validDatesToCreate.length > 1;
+    const datasTexto = datasCriadasBR.join(", ");
+
     if (status === "Aprovada") {
+      const linhasAprovada = [
+        `Confirmado, ${firstName}!`,
+        ``,
+        `A${plural ? "s" : ""} folga${plural ? "s" : ""} para *${targetEmpNome}* na${plural ? "s" : ""} data${plural ? "s" : ""} *${datasTexto}* (${validDatesToCreate.length} dia${plural ? "s" : ""}) ${plural ? "foram APROVADAS e registradas" : "foi APROVADA e registrada"} diretamente no sistema oficial da House 190 com sucesso.`,
+        ``,
+        `* Colaborador: ${targetEmpNome}`,
+        `* Loja: ${targetEmpNomeLoja}`,
+        `* Data${plural ? "s" : ""}: ${datasTexto}`,
+        `* Total: ${validDatesToCreate.length} dia${plural ? "s" : ""}`,
+        `* Saldo restante: ${novoSaldo} folga(s)`,
+        `* Status: Aprovada`,
+      ];
+      if (alreadyBookedDates.length > 0) {
+        linhasAprovada.push(
+          ``,
+          `Observação: a(s) data(s) ${alreadyBookedDates.map((d) => d.split("-").reverse().join("/")).join(", ")} já estava(m) registrada(s) anteriormente.`
+        );
+      }
+      linhasAprovada.push(
+        ``,
+        `Acesse a escala atualizada no aplicativo:`,
+        `${appUrl}?tab=timeoff`
+      );
+
       return {
         handled: true,
         authorized: true,
         action: "folga_aprovada_whatsapp",
-        replyText: stripHouseAIEmojis(
-          `Confirmado, ${firstName}!\n\n` +
-          `A folga para *${targetEmpNome}* na data *${dataBR}* foi APROVADA e registrada diretamente no sistema oficial da House 190 com sucesso.\n\n` +
-          `* Colaborador: ${targetEmpNome}\n` +
-          `* Loja: ${targetEmpNomeLoja}\n` +
-          `* Data: ${dataBR} (Dia inteiro)\n` +
-          `* Status: Aprovada\n\n` +
-          `Acesse a escala atualizada no aplicativo:\n${appUrl}?tab=timeoff`
-        ),
+        replyText: stripHouseAIEmojis(linhasAprovada.join("\n")),
       };
     }
+
+    const linhasPendente = [
+      `Perfeito, ${firstName}!`,
+      ``,
+      `Seu pedido de folga para ${plural ? "as datas" : "o dia"} *${datasTexto}* (${validDatesToCreate.length} dia${plural ? "s" : ""}) foi registrado no sistema oficial com sucesso!`,
+      ``,
+      `* Protocolo: ${createdFolgaIds[0]}`,
+      `* Total solicitado: ${validDatesToCreate.length} dia${plural ? "s" : ""}`,
+      `* Saldo disponível atual: ${saldoDisponivel} folga(s)`,
+      `* Status: Pendente de aprovação da gerência`,
+    ];
+    if (alreadyBookedDates.length > 0) {
+      linhasPendente.push(
+        ``,
+        `Observação: a(s) data(s) ${alreadyBookedDates.map((d) => d.split("-").reverse().join("/")).join(", ")} já estava(m) registrada(s) anteriormente.`
+      );
+    }
+    linhasPendente.push(
+      ``,
+      `Assim que o gerente da sua loja avaliar a solicitação, você receberá a confirmação aqui pelo WhatsApp.`,
+      ``,
+      `Acompanhe seu pedido no aplicativo:`,
+      `${appUrl}?tab=timeoff`
+    );
 
     return {
       handled: true,
       authorized: true,
       action: "folga_solicitada_whatsapp",
-      replyText: stripHouseAIEmojis(
-        `Perfeito, ${firstName}!\n\n` +
-        `Seu pedido de folga para o dia *${dataBR}* foi registrado no sistema oficial com sucesso!\n\n` +
-        `* Status: Pendente de aprovação da gerência\n` +
-        `* Protocolo: ${folgaId}\n\n` +
-        `Assim que o gerente da sua loja avaliar a solicitação, você receberá a confirmação aqui pelo WhatsApp.\n\n` +
-        `Acompanhe seu pedido no aplicativo:\n${appUrl}?tab=timeoff`
-      ),
+      replyText: stripHouseAIEmojis(linhasPendente.join("\n")),
     };
   }
 

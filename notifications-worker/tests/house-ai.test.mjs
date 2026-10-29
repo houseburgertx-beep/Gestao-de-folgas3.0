@@ -6,6 +6,8 @@ import {
   findEmployeeByPhone,
   formatMinutesBalance,
   generateMotivationalTimeClockMessage,
+  extractDatesFromText,
+  extractDateFromText,
   processInboundHouseAI,
 } from "../src/house-ai.js";
 
@@ -366,6 +368,256 @@ test("House AI: Gestor concede folga diretamente para colaborador via WhatsApp",
     assert.equal(folgaPut.body.FuncionarioID, "emp-2");
     assert.equal(folgaPut.body.Status, "Aprovada");
     assert.ok(folgaPut.body.DataInicio.includes("11-10"));
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("House AI: extractDatesFromText extrai múltiplos dias, listas e intervalos de datas", () => {
+  const fixedNow = new Date("2026-10-29T12:00:00Z").getTime();
+
+  // Lista simples com "e"
+  const d1 = extractDatesFromText("quero folga dias 10 e 11 de novembro", fixedNow);
+  assert.deepEqual(d1, ["2026-11-10", "2026-11-11"]);
+
+  // Intervalo de data por extenso
+  const d2 = extractDatesFromText("folga de 10 a 12 de novembro", fixedNow);
+  assert.deepEqual(d2, ["2026-11-10", "2026-11-11", "2026-11-12"]);
+
+  // Múltiplas datas com barra
+  const d3 = extractDatesFromText("preciso de folga 10/11 e 11/11", fixedNow);
+  assert.deepEqual(d3, ["2026-11-10", "2026-11-11"]);
+
+  // Intervalo com barra
+  const d4 = extractDatesFromText("quero folga de 10/11 a 12/11", fixedNow);
+  assert.deepEqual(d4, ["2026-11-10", "2026-11-11", "2026-11-12"]);
+
+  // Datas relativas
+  const d5 = extractDatesFromText("folga amanhã e depois de amanhã", fixedNow);
+  assert.deepEqual(d5, ["2026-10-30", "2026-10-31"]);
+
+  // Data única preserva compatibilidade
+  const d6 = extractDateFromText("quero folga dia 15/11", fixedNow);
+  assert.equal(d6, "2026-11-15");
+});
+
+test("House AI: Colaborador solicita múltiplos dias de folga com saldo suficiente", async () => {
+  const puts = [];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    puts.push({ url, body: JSON.parse(opts.body) });
+    return { ok: true, json: async () => ({}) };
+  };
+
+  try {
+    const fixedNow = new Date("2026-10-29T12:00:00Z").getTime();
+    const mockEnv = {
+      APP_URL: "https://house190.com/app",
+      FIREBASE_DATABASE_URL: "https://mock-rtdb.firebaseio.com",
+      FIREBASE_ROOT: "gestao-folgas/v2",
+    };
+    const mockDb = async (_env, _tok, table) => {
+      if (table === "tables/Funcionarios") {
+        return {
+          "emp-1": {
+            FuncionarioID: "emp-1",
+            Nome: "Raquel Silva",
+            Telefone: "73998698229",
+            Perfil: "Colaborador",
+            SaldoFolgas: 4,
+          },
+        };
+      }
+      return {};
+    };
+
+    const res = await processInboundHouseAI({
+      from: "5573998698229",
+      text: "quero folga dias 10 e 11 de novembro",
+      env: mockEnv,
+      database: mockDb,
+      tok: "mock-token",
+      now: fixedNow,
+    });
+
+    assert.equal(res.action, "folga_solicitada_whatsapp");
+    assert.ok(res.replyText.includes("10/11/2026, 11/11/2026"));
+    assert.ok(res.replyText.includes("Total solicitado: 2 dias"));
+    assert.ok(res.replyText.includes("Saldo disponível atual: 4 folga(s)"));
+    assert.ok(res.replyText.includes("Pendente de aprovação da gerência"));
+    assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
+
+    // Devem ter sido gravadas 2 folgas distintas no Firebase
+    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    assert.equal(folgaPuts.length, 2);
+    assert.equal(folgaPuts[0].body.DataInicio, "2026-11-10");
+    assert.equal(folgaPuts[1].body.DataInicio, "2026-11-11");
+    assert.equal(folgaPuts[0].body.Status, "Pendente");
+    assert.equal(folgaPuts[1].body.Status, "Pendente");
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("House AI: Bloqueia solicitação quando quantidade de dias excede SaldoFolgas", async () => {
+  const puts = [];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    puts.push({ url, body: JSON.parse(opts.body) });
+    return { ok: true, json: async () => ({}) };
+  };
+
+  try {
+    const fixedNow = new Date("2026-10-29T12:00:00Z").getTime();
+    const mockEnv = {
+      APP_URL: "https://house190.com/app",
+      FIREBASE_DATABASE_URL: "https://mock-rtdb.firebaseio.com",
+      FIREBASE_ROOT: "gestao-folgas/v2",
+    };
+    const mockDb = async (_env, _tok, table) => {
+      if (table === "tables/Funcionarios") {
+        return {
+          "emp-1": {
+            FuncionarioID: "emp-1",
+            Nome: "Raquel Silva",
+            Telefone: "73998698229",
+            Perfil: "Colaborador",
+            SaldoFolgas: 1, // apenas 1 folga disponível
+          },
+        };
+      }
+      return {};
+    };
+
+    const res = await processInboundHouseAI({
+      from: "5573998698229",
+      text: "quero folga de 10 a 12 de novembro", // solicita 3 dias
+      env: mockEnv,
+      database: mockDb,
+      tok: "mock-token",
+      now: fixedNow,
+    });
+
+    assert.equal(res.action, "limite_folgas_excedido");
+    assert.ok(res.replyText.includes("Você solicitou 3 dias de folga"));
+    assert.ok(res.replyText.includes("apenas 1 folga(s)"));
+    assert.ok(res.replyText.includes("Saldo disponível: 1"));
+    assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
+
+    // Não deve gravar nenhuma folga no banco
+    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    assert.equal(folgaPuts.length, 0);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("House AI: Bloqueia solicitação quando colaborador tem SaldoFolgas igual a zero", async () => {
+  const puts = [];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    puts.push({ url, body: JSON.parse(opts.body) });
+    return { ok: true, json: async () => ({}) };
+  };
+
+  try {
+    const fixedNow = new Date("2026-10-29T12:00:00Z").getTime();
+    const mockEnv = {
+      APP_URL: "https://house190.com/app",
+      FIREBASE_DATABASE_URL: "https://mock-rtdb.firebaseio.com",
+      FIREBASE_ROOT: "gestao-folgas/v2",
+    };
+    const mockDb = async (_env, _tok, table) => {
+      if (table === "tables/Funcionarios") {
+        return {
+          "emp-1": {
+            FuncionarioID: "emp-1",
+            Nome: "Raquel Silva",
+            Telefone: "73998698229",
+            Perfil: "Colaborador",
+            SaldoFolgas: 0,
+          },
+        };
+      }
+      return {};
+    };
+
+    const res = await processInboundHouseAI({
+      from: "5573998698229",
+      text: "quero folga dia 15/11",
+      env: mockEnv,
+      database: mockDb,
+      tok: "mock-token",
+      now: fixedNow,
+    });
+
+    assert.equal(res.action, "limite_folgas_excedido");
+    assert.ok(res.replyText.includes("apenas 0 folga(s)"));
+    assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
+
+    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    assert.equal(folgaPuts.length, 0);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("House AI: Gestor concede múltiplos dias e debita SaldoFolgas do colaborador", async () => {
+  const puts = [];
+  const patches = [];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    const parsedBody = JSON.parse(opts.body);
+    if (opts.method === "PATCH") {
+      patches.push({ url, body: parsedBody });
+    } else {
+      puts.push({ url, body: parsedBody });
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+
+  try {
+    const fixedNow = new Date("2026-10-29T12:00:00Z").getTime();
+    const mockEnv = {
+      APP_URL: "https://house190.com/app",
+      FIREBASE_DATABASE_URL: "https://mock-rtdb.firebaseio.com",
+      FIREBASE_ROOT: "gestao-folgas/v2",
+    };
+    const mockDb = async (_env, _tok, table) => {
+      if (table === "tables/Funcionarios") {
+        return {
+          "admin-1": { FuncionarioID: "admin-1", Nome: "Bruno House", Telefone: "5573991740014", Perfil: "Administrador" },
+          "emp-2": { FuncionarioID: "emp-2", Nome: "Raquel Silva", Telefone: "73998698229", Perfil: "Colaborador", SaldoFolgas: 5 },
+        };
+      }
+      return {};
+    };
+
+    const res = await processInboundHouseAI({
+      from: "5573991740014",
+      text: "conceder folga para Raquel dias 10 e 11 de novembro",
+      env: mockEnv,
+      database: mockDb,
+      tok: "mock-token",
+      now: fixedNow,
+    });
+
+    assert.equal(res.action, "folga_aprovada_whatsapp");
+    assert.ok(res.replyText.includes("APROVADAS e registradas"));
+    assert.ok(res.replyText.includes("Raquel Silva"));
+    assert.ok(res.replyText.includes("Total: 2 dias"));
+    assert.ok(res.replyText.includes("Saldo restante: 3 folga(s)"));
+    assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
+
+    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    assert.equal(folgaPuts.length, 2);
+    assert.equal(folgaPuts[0].body.Status, "Aprovada");
+    assert.equal(folgaPuts[1].body.Status, "Aprovada");
+
+    // Verifica que debita 2 dias do saldo do funcionário
+    const empPatch = patches.find((p) => p.url.includes("tables/Funcionarios"));
+    assert.ok(empPatch);
+    assert.equal(empPatch.body.SaldoFolgas, 3);
   } finally {
     globalThis.fetch = origFetch;
   }
