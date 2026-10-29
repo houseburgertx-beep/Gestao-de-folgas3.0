@@ -4,43 +4,66 @@
 
 ---
 
+## ⚡ PROTOCOLO DE AÇÃO CIRÚRGICA RÁPIDA (ZERO VARREDURA)
+
+**REGRA DE VELOCIDADE MÁXIMA:**
+1. **NÃO faça varredura exploratória (grep, find, busca em massa de arquivos) antes de cada comando.**
+2. O mapa completo da arquitetura abaixo é a **sua memória fixa permanente**. Vá **DIRETO** ao arquivo exato que precisa ser modificado e aplique a alteração pontual imediatamente.
+3. Não reinstale pacotes, não recompile módulos intactos e não rode ferramentas de busca quando o arquivo-alvo já for conhecido.
+4. Execute apenas as ações estritamente necessárias e valide de forma ágil (`npm test` direcionado ou de suíte).
+
+---
+
+## 🗺️ MAPA ARQUITETURAL DE MEMÓRIA FIXA (ACESSO DIRETO)
+
+### 1. PWA & Frontend (`/Users/gleuce/Downloads/folgas`)
+- **`index.html`**: Shell principal da aplicação, scripts, metatags de versão e tags de viewport.
+- **`src/main.js`**: Ponto de entrada SPA e orquestração de navegação entre abas (`#timeoff`, `#timeclock`, `#tasks`, `#documents`, `#settings`).
+- **`src/core/api-base.js`**: Lógica de banco, autenticação, RBAC, CRUD de Folgas, Trocas, Lojas e Auditoria.
+- **`src/core/api-clock.js`**: Motor de Ponto Eletrônico (Portaria 671 MTE), cálculo de banco de horas, geofencing, batidas e disparos motivacionais de WhatsApp.
+- **`src/core/api-house-ai.js`**: House AI no navegador, políticas de RH, análise proativa e resolvedor semântico local.
+- **`src/core/api-whatsapp.js`**: Integração de WhatsApp no frontend, pareamento QR code, Magic Links, comunicados em massa e envio de mensagens de ponto.
+- **`src/core/runtime.js`**: Camada de persistência e cache do Firebase Realtime Database.
+- **`src/styles/`**: Arquivos de CSS temático Apple iOS (`folgas-theme.css`, `cozinhaflow.css`, `house-ai.css`, `whatsapp-tab.css`).
+
+### 2. Edge Service / Notificações (`/Users/gleuce/Downloads/folgas/notifications-worker`)
+- **`src/index.js`**: Roteador do Cloudflare Worker (`/wa-inbound`, `/wa-webhook`, `/wa-send`, `/wa-clock-event`, `/wa-status`, `/wa-qr`, `/wa-pair-code`, `/wa-disconnect`).
+- **`src/house-ai.js`**: Cérebro Inbound do WhatsApp (parser de linguagem natural, solicitação e concessão de folgas com gravação no Firebase RTDB, mensagens motivacionais, opções clicáveis e menu 1-7).
+- **`src/whatsapp.js`**: Módulo de envio HTTP via gateway WA-AKG (`sendWhatsAppMessage`, `normalizeWhatsAppPhone`).
+- **`wrangler.jsonc`**: Configuração do Worker, D1 `DB`, bindings e variáveis de ambiente.
+
+### 3. Gateway WhatsApp Baileys (`/Users/gleuce/Downloads/wa-akg`)
+- **`src/modules/whatsapp/chat.service.ts`**: Envio de mensagens Baileys WebSocket.
+- **`src/modules/whatsapp/store/index.ts`**: Recepção de mensagens Baileys (`onMessageReceived` -> dispara webhook).
+- **`launchd`**: Supervisor de processo no macOS via `~/Library/LaunchAgents/com.house190.whatsapp.plist`.
+- **Túnel**: `cloudflared` direcionando tráfego seguro para `http://localhost:3000`.
+
+### 4. Tabelas do Firebase Realtime Database (`gestao-folgas/v2`)
+- **`tables/Funcionarios`**: Cadastro de funcionários e telefones.
+- **`tables/Folgas`**: Folgas e solicitações (pendentes e aprovadas).
+- **`tables/RegistroPonto`**: Batidas de ponto eletrônico auditadas.
+- **`tables/JornadasPonto`**: Escalas de trabalho diárias e turnos.
+- **`tables/Notificacoes`**: Notificações em tempo real do sistema.
+- **`tables/Configuracoes/WhatsAppGateway`**: URL do túnel e chave de API do WA-AKG.
+- **`tables/Configuracoes/WhatsAppConnection`**: Estado da conexão do robô.
+- **`tables/Auditoria`**: Log de auditoria geral.
+
+---
+
 ## 🏛️ Esquadrão Multi-Agente em Toda Ação
 
-Toda e qualquer demanda no projeto **Gestão de Folgas (Grupo House 190)** deve ser executada seguindo a disciplina dos agentes especializados do Mega Brain:
-
-1. **@aiox-master (Orion — Orquestrador Geral)**:
-   - Assume a coordenação imediata do pedido, decompondo a demanda e garantindo que todas as etapas de qualidade sejam cumpridas do início ao fim.
-
-2. **@architect (Aria — Arquiteta de Sistemas)**:
-   - Analisa a causa raiz de qualquer problema reportado.
-   - Avalia impactos no ecossistema (legado, PWA, Service Worker, banco e eventos customizados).
-   - Define a solução técnica ideal antes de modificar arquivos.
-
-3. **@ux (Uma — UX/UI Design Specialist)**:
-   - Aplica os padrões visuais Apple iOS / Design System da House 190:
-     - Cantos arredondados elegantes (`border-radius: 12px` a `20px`).
-     - Alvos de toque generosos para celular de cozinha (`min-height: 44px`).
-     - Tipografia legível com `tabular-nums` para horários.
-     - Zero emojis nas interfaces operacionais do sistema.
-     - Textos longos contidos com `ellipsis` sem estourar containers ou avatares.
-
-4. **@dev (Dex — Senior Full Stack Developer)**:
-   - Escreve código limpo, defensivo, resiliente e tipado/validado.
-   - Preserva todas as rotas e contratos existentes em `src/journey.js`, `src/cozinhaflow.css`, `index.html` e `src/core/`.
-
-5. **@qa (Quinn — Quality Assurance Guardian)**:
-   - Executa rigorosamente a suíte completa de testes (`npm test`).
-   - Garante zero quebras (175+ testes passando).
-   - Adiciona testes de regressão sempre que uma nova lógica for introduzida.
-
-6. **@devops (Gage — DevOps & Release Operator)**:
-   - Executa o ciclo de build e auditoria (`npm run check` com injeção de assets do Vite no Service Worker).
-   - Garante que a versão de produção esteja sincronizada e pronta para publicação no GitHub Pages (`origin/main`).
+1. **@aiox-master (Orion — Orquestrador Geral)**: Coordenação imediata e foco na entrega rápida sem retrabalho.
+2. **@architect (Aria — Arquiteta de Sistemas)**: Localiza o arquivo exato no mapa sem varreduras e aplica a arquitetura correta.
+3. **@ux (Uma — UX/UI Design Specialist)**: Padrão Apple iOS, tabular-nums, mobile-first e estritamente zero emojis.
+4. **@dev (Dex — Senior Full Stack Developer)**: Código cirúrgico, limpo e direto ao ponto.
+5. **@qa (Quinn — Quality Assurance Guardian)**: Validação rápida e garantia de 100% de testes verdes.
+6. **@devops (Gage — DevOps & Release Operator)**: Sincronização e deploy contínuos.
 
 ---
 
 ## 🔒 Princípios Inegociáveis
 
-- **Sem improvisos:** Todo diagnóstico deve identificar a causa raiz real antes de aplicar correções.
-- **Mobile First Real:** O sistema é utilizado em cozinhas e salões através de smartphones; layouts devem ser à prova de telas estreitas (320px a 430px) e toques rápidos.
-- **Qualidade Antes da Entrega:** Nenhuma alteração é finalizada sem que `npm test` execute 100% verde.
+- **Cirúrgico e Imediato:** Nunca faça varredura geral quando souber o arquivo-alvo. Vá direto e altere.
+- **Portaria 671 MTE:** Ponto exclusivamente no app oficial com geolocalização e biometria facial.
+- **LGPD:** Atestados e diagnósticos protegidos com upload seguro via Meus Documentos.
+- **Zero Emojis:** Respostas operacionais sempre limpas e sem emojis.
