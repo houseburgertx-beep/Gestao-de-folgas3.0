@@ -20,7 +20,7 @@ export function createApi() {
     ...createHouseAIHandlers(),
   };
 
-  return {
+  const api = {
     handlers,
 
     async invoke(name, args = []) {
@@ -69,4 +69,7 @@ export function createApi() {
       }
     },
   };
+
+  runtime.invoke = (name, args) => api.invoke(name, args);
+  return api;
 }
