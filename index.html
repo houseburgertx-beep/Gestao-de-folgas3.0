@@ -24325,6 +24325,219 @@ dialog#medicalCertificateDialog {
     height: 19px;
   }
 }
+
+/* ==========================================================================
+   HOUSE AI 2.0 — DASHBOARD GERENCIAL & CARDS DE INSIGHTS PROATIVOS
+   Apple iOS Design System House 190 — Sem Emojis, Toque Min 44px
+   ========================================================================== */
+
+.house-ai-dashboard-section {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.house-ai-dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.house-ai-dash-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.house-ai-pill {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 8px;
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+
+.house-ai-dash-title-group h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.house-ai-dash-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.house-ai-btn-sm {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.house-ai-insights-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.house-ai-empty {
+  padding: 16px;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.house-ai-empty-badge {
+  display: inline-block;
+  background: rgba(32, 160, 107, 0.12);
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.house-ai-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+
+.house-ai-card {
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-left: 4px solid var(--primary, #3b82f6);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.house-ai-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.house-ai-card--critica {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.house-ai-card--alta {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.house-ai-card--media {
+  border-left-color: #6366f1;
+  background: #f5f3ff;
+}
+
+.house-ai-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.house-ai-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.house-ai-tag.house-ai-card--critica {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.house-ai-tag.house-ai-card--alta {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.house-ai-tag.house-ai-card--media {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.house-ai-source {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+}
+
+.house-ai-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  line-height: 1.3;
+}
+
+.house-ai-card-desc {
+  font-size: 12.5px;
+  color: var(--muted, #475569);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.house-ai-card-reason {
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+}
+
+.house-ai-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.house-ai-action-btn {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.house-ai-loading {
+  font-size: 12.5px;
+  color: var(--muted, #64748b);
+  padding: 12px;
+  text-align: center;
+}
+
 </style>
   </head>
   <body>
@@ -24780,6 +24993,22 @@ dialog#medicalCertificateDialog {
               </div>
               <button type="button" class="incomplete-alert-btn" style="background: #4f46e5; color: #fff;" data-view-target="documents">Assinar agora</button>
             </div>
+            <!-- Seção Gerencial Inteligente: HOUSE AI 2.0 -->
+            <section id="houseAiDashboardSection" class="house-ai-dashboard-section permission-manager">
+              <div class="house-ai-dash-header">
+                <div class="house-ai-dash-title-group">
+                  <span class="house-ai-pill">HOUSE AI 2.0</span>
+                  <h3>Resumo Inteligente da Operação</h3>
+                </div>
+                <div class="house-ai-dash-actions">
+                  <button id="houseAiRefreshBtn" type="button" class="btn btn-ghost house-ai-btn-sm" title="Recalcular alertas e anomalias">Atualizar</button>
+                  <button id="houseAiOpenChatBtn" type="button" class="btn btn-secondary house-ai-btn-sm" title="Consultar inteligência">Abrir House AI</button>
+                </div>
+              </div>
+              <div id="houseAiInsightsContainer" class="house-ai-insights-container">
+                <div class="house-ai-loading">Analisando dados operacionais em tempo real…</div>
+              </div>
+            </section>
             <div id="cards" class="metric-grid"></div>
             <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="tasks">CozinhaFlow &amp; Loja</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button><button class="btn btn-secondary" data-view-target="documents">Meus Documentos</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
@@ -26665,14 +26894,14 @@ dialog#medicalCertificateDialog {
       </div>
     </div>
 
-    <!-- Botão Flutuante Mobile Copiloto -->
-    <button id="copilotFab" class="copilot-fab" title="Abrir Copiloto" aria-label="Abrir Copiloto House 190">
+    <!-- Botão Flutuante Mobile House AI 2.0 -->
+    <button id="copilotFab" class="copilot-fab" title="Abrir House AI 2.0" aria-label="Abrir House AI 2.0">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
       </svg>
     </button>
 
-    <!-- Gaveta do Copiloto House 190 -->
+    <!-- Gaveta do Copiloto House 190 (House AI 2.0) -->
     <div id="copilotDrawer" class="copilot-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="copilotTitle">
       <div class="copilot-backdrop" id="copilotBackdrop"></div>
       <aside class="copilot-panel">
@@ -26685,8 +26914,8 @@ dialog#medicalCertificateDialog {
               </svg>
             </div>
             <div class="copilot-title-group">
-              <h2 id="copilotTitle" class="copilot-title">Copiloto House 190</h2>
-              <span class="copilot-badge"><span class="copilot-badge-dot"></span><span id="copilotRoleBadge">Operação Ativa</span></span>
+              <h2 id="copilotTitle" class="copilot-title">House AI 2.0</h2>
+              <span class="copilot-badge"><span class="copilot-badge-dot"></span><span id="copilotRoleBadge">Inteligência Operacional Ativa</span></span>
             </div>
           </div>
           <div class="copilot-header-actions">
@@ -28995,6 +29224,11 @@ dialog#medicalCertificateDialog {
     waSendTest: "sendTestWhatsAppMessage",
     waBroadcastAnnouncement: "broadcastWhatsAppAnnouncement",
     waGetHistory: "getWhatsAppHistory",
+    houseAiCallProxy: "callGeminiProxy",
+    houseAiInsights: "generateProactiveInsights",
+    houseAiAutomations: "getHouseAIAutomations",
+    houseAiSaveAutomation: "saveHouseAIAutomation",
+    houseAiAudit: "auditHouseAIAction",
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
@@ -30191,6 +30425,13 @@ dialog#medicalCertificateDialog {
     $("#absencesNewBtn") && ($("#absencesNewBtn").onclick = () => openNewClockJustification_());
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
+    $("#houseAiRefreshBtn") &&
+      ($("#houseAiRefreshBtn").onclick = () => renderHouseAiDashboard_());
+    $("#houseAiOpenChatBtn") &&
+      ($("#houseAiOpenChatBtn").onclick = () => {
+        const fab = $("#copilotFab") || $("#copilotOpenBtn");
+        if (fab) fab.click();
+      });
     $("#googleLinkBannerActionBtn") &&
       ($("#googleLinkBannerActionBtn").onclick = handleLinkGoogleAccount_);
     $("#googleLinkBannerDismissBtn") &&
@@ -32712,6 +32953,76 @@ dialog#medicalCertificateDialog {
     checkPrivacyPolicyPopup_();
     loadLivePresence_();
     if (isKitchenChief()) renderEmployeeClockDashboard();
+    renderHouseAiDashboard_();
+  }
+
+  async function renderHouseAiDashboard_() {
+    const container = $("#houseAiInsightsContainer");
+    if (!container) return;
+    if (!isAdmin() && !isManager()) {
+      const section = $("#houseAiDashboardSection");
+      if (section) section.style.display = "none";
+      return;
+    }
+
+    try {
+      const res = await gas(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
+      const data = res?.data || res || {};
+      const insights = Array.isArray(data.insights) ? data.insights : [];
+
+      if (insights.length === 0) {
+        container.innerHTML = `
+          <div class="house-ai-empty">
+            <span class="house-ai-empty-badge">Operação Regular</span>
+            <p>Nenhuma inconsistência ou risco operacional detectado no momento. Todas as escalas e batidas estão sob controle.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = insights.slice(0, 6).map((item) => {
+        const severityClass = item.gravidade === "critica" ? "house-ai-card--critica" : item.gravidade === "alta" ? "house-ai-card--alta" : "house-ai-card--media";
+        const actionsHtml = Array.isArray(item.acoesRecomendadas)
+          ? item.acoesRecomendadas.map((act) => `<button type="button" class="btn btn-secondary house-ai-action-btn" data-house-action="${esc(act.acao)}">${esc(act.label)}</button>`).join(" ")
+          : "";
+
+        return `
+          <article class="house-ai-card ${severityClass}">
+            <div class="house-ai-card-head">
+              <span class="house-ai-tag ${severityClass}">${esc(item.gravidade.toUpperCase())}</span>
+              <span class="house-ai-source">${esc(item.origem || "Operação")}</span>
+            </div>
+            <strong class="house-ai-card-title">${esc(item.titulo)}</strong>
+            <p class="house-ai-card-desc">${esc(item.descricao)}</p>
+            <small class="house-ai-card-reason">${esc(item.justificativa || "")}</small>
+            ${actionsHtml ? `<div class="house-ai-card-actions">${actionsHtml}</div>` : ""}
+          </article>
+        `;
+      }).join("");
+
+      // Bind das ações recomendadas
+      container.querySelectorAll(".house-ai-action-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const act = btn.getAttribute("data-house-action");
+          if (act === "navegar_folgas" || act === "navegar_escala") {
+            navigateTo("timeoff");
+          } else if (act === "navegar_tarefas") {
+            navigateTo("tasks");
+          } else if (act === "solicitarAjustePonto") {
+            const openFab = $("#copilotFab") || $("#copilotOpenBtn");
+            if (openFab) openFab.click();
+          } else {
+            navigateTo("dashboard");
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = `
+        <div class="house-ai-empty">
+          <p style="color:var(--muted);font-size:12px;">House AI pronta para análise sob demanda.</p>
+        </div>
+      `;
+    }
   }
   function activity(x) {
     const n = val(x, "NomeFuncionario", "nomeFuncionario"),

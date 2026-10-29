@@ -159,6 +159,11 @@
     waSendTest: "sendTestWhatsAppMessage",
     waBroadcastAnnouncement: "broadcastWhatsAppAnnouncement",
     waGetHistory: "getWhatsAppHistory",
+    houseAiCallProxy: "callGeminiProxy",
+    houseAiInsights: "generateProactiveInsights",
+    houseAiAutomations: "getHouseAIAutomations",
+    houseAiSaveAutomation: "saveHouseAIAutomation",
+    houseAiAudit: "auditHouseAIAction",
   };
   let CLOCK_SELFIE_STREAM_ = null;
   let CLOCK_SELFIE_DATA_ = "";
@@ -1355,6 +1360,13 @@
     $("#absencesNewBtn") && ($("#absencesNewBtn").onclick = () => openNewClockJustification_());
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
+    $("#houseAiRefreshBtn") &&
+      ($("#houseAiRefreshBtn").onclick = () => renderHouseAiDashboard_());
+    $("#houseAiOpenChatBtn") &&
+      ($("#houseAiOpenChatBtn").onclick = () => {
+        const fab = $("#copilotFab") || $("#copilotOpenBtn");
+        if (fab) fab.click();
+      });
     $("#googleLinkBannerActionBtn") &&
       ($("#googleLinkBannerActionBtn").onclick = handleLinkGoogleAccount_);
     $("#googleLinkBannerDismissBtn") &&
@@ -3876,6 +3888,76 @@
     checkPrivacyPolicyPopup_();
     loadLivePresence_();
     if (isKitchenChief()) renderEmployeeClockDashboard();
+    renderHouseAiDashboard_();
+  }
+
+  async function renderHouseAiDashboard_() {
+    const container = $("#houseAiInsightsContainer");
+    if (!container) return;
+    if (!isAdmin() && !isManager()) {
+      const section = $("#houseAiDashboardSection");
+      if (section) section.style.display = "none";
+      return;
+    }
+
+    try {
+      const res = await gas(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
+      const data = res?.data || res || {};
+      const insights = Array.isArray(data.insights) ? data.insights : [];
+
+      if (insights.length === 0) {
+        container.innerHTML = `
+          <div class="house-ai-empty">
+            <span class="house-ai-empty-badge">Operação Regular</span>
+            <p>Nenhuma inconsistência ou risco operacional detectado no momento. Todas as escalas e batidas estão sob controle.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = insights.slice(0, 6).map((item) => {
+        const severityClass = item.gravidade === "critica" ? "house-ai-card--critica" : item.gravidade === "alta" ? "house-ai-card--alta" : "house-ai-card--media";
+        const actionsHtml = Array.isArray(item.acoesRecomendadas)
+          ? item.acoesRecomendadas.map((act) => `<button type="button" class="btn btn-secondary house-ai-action-btn" data-house-action="${esc(act.acao)}">${esc(act.label)}</button>`).join(" ")
+          : "";
+
+        return `
+          <article class="house-ai-card ${severityClass}">
+            <div class="house-ai-card-head">
+              <span class="house-ai-tag ${severityClass}">${esc(item.gravidade.toUpperCase())}</span>
+              <span class="house-ai-source">${esc(item.origem || "Operação")}</span>
+            </div>
+            <strong class="house-ai-card-title">${esc(item.titulo)}</strong>
+            <p class="house-ai-card-desc">${esc(item.descricao)}</p>
+            <small class="house-ai-card-reason">${esc(item.justificativa || "")}</small>
+            ${actionsHtml ? `<div class="house-ai-card-actions">${actionsHtml}</div>` : ""}
+          </article>
+        `;
+      }).join("");
+
+      // Bind das ações recomendadas
+      container.querySelectorAll(".house-ai-action-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const act = btn.getAttribute("data-house-action");
+          if (act === "navegar_folgas" || act === "navegar_escala") {
+            navigateTo("timeoff");
+          } else if (act === "navegar_tarefas") {
+            navigateTo("tasks");
+          } else if (act === "solicitarAjustePonto") {
+            const openFab = $("#copilotFab") || $("#copilotOpenBtn");
+            if (openFab) openFab.click();
+          } else {
+            navigateTo("dashboard");
+          }
+        });
+      });
+    } catch (err) {
+      container.innerHTML = `
+        <div class="house-ai-empty">
+          <p style="color:var(--muted);font-size:12px;">House AI pronta para análise sob demanda.</p>
+        </div>
+      `;
+    }
   }
   function activity(x) {
     const n = val(x, "NomeFuncionario", "nomeFuncionario"),

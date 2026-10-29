@@ -1184,6 +1184,69 @@ export const GEMINI_TOOLS = [
           required: ["colaboradorNome", "decisao"],
         },
       },
+      {
+        name: "consultarPonto",
+        description: "Consulta as marcações de ponto eletrônico registradas para um colaborador em uma data específica",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorNome: { type: "STRING", description: "Nome do colaborador (opcional se for o próprio)" },
+            data: { type: "STRING", description: "Data da consulta no formato AAAA-MM-DD ou termos como hoje, ontem" },
+          },
+        },
+      },
+      {
+        name: "consultarBancoHoras",
+        description: "Consulta o saldo acumulado e status do banco de horas de um colaborador",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorNome: { type: "STRING", description: "Nome do colaborador (opcional se for o próprio)" },
+          },
+        },
+      },
+      {
+        name: "consultarFolgas",
+        description: "Consulta as folgas concedidas, pendentes e saldo de folgas da política (5 folgas) de um colaborador no mês",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorNome: { type: "STRING", description: "Nome do colaborador (opcional se for o próprio)" },
+            mes: { type: "STRING", description: "Mês no formato AAAA-MM (opcional, padrão mês atual)" },
+          },
+        },
+      },
+      {
+        name: "consultarEscala",
+        description: "Consulta os colaboradores escalados para trabalhar e quem está de folga em uma data",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            data: { type: "STRING", description: "Data no formato AAAA-MM-DD (opcional, padrão hoje)" },
+            lojaId: { type: "STRING", description: "Identificador da unidade ou loja" },
+          },
+        },
+      },
+      {
+        name: "listarPendencias",
+        description: "Lista o resumo de todas as pendências operacionais (folgas pendentes, trocas, tarefas atrasadas e documentos)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            lojaId: { type: "STRING", description: "Identificador da unidade (opcional)" },
+          },
+        },
+      },
+      {
+        name: "consultarPresencaAgora",
+        description: "Consulta a presença em tempo real dos colaboradores (quem está trabalhando agora e quem está em intervalo)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            lojaId: { type: "STRING", description: "Identificador da unidade (opcional)" },
+          },
+        },
+      },
     ],
   },
 ];
@@ -2078,6 +2141,65 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
       return {
         type: "error",
         message: `Nenhuma solicitação de folga ou troca pendente foi localizada para "${args.colaboradorNome}".`,
+      };
+    }
+
+    case "consultarPonto": {
+      const targetEmp = args.colaboradorNome ? findEmployeeInText(args.colaboradorNome, employees) : null;
+      const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : userName;
+      const dateInfo = extractDateFromText(args.data) || { isoDate: todayIso(), formattedDate: todayIso() };
+      return {
+        type: "query",
+        reply: `Consultando marcações de ponto para ${targetName} na data ${dateInfo.formattedDate || dateInfo.isoDate}. Você pode conferir os detalhes no módulo de Ponto Eletrônico e Espelho de Ponto.`,
+        details: { targetName, date: dateInfo.isoDate },
+      };
+    }
+
+    case "consultarBancoHoras": {
+      const targetEmp = args.colaboradorNome ? findEmployeeInText(args.colaboradorNome, employees) : null;
+      const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : userName;
+      return {
+        type: "query",
+        reply: `Consultando apuração de banco de horas de ${targetName}. O saldo acumulado e as horas compensatórias estão disponíveis com total rastreabilidade no painel de Banco de Horas.`,
+        details: { targetName },
+      };
+    }
+
+    case "consultarFolgas": {
+      const targetEmp = args.colaboradorNome ? findEmployeeInText(args.colaboradorNome, employees) : null;
+      const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : userName;
+      return {
+        type: "query",
+        reply: `Consultando escala de folgas de ${targetName}. Conforme a política oficial do Grupo House 190, cada colaborador tem direito a 5 folgas mensais na escala 6x1.`,
+        details: { targetName },
+      };
+    }
+
+    case "consultarEscala": {
+      const dateInfo = extractDateFromText(args.data) || { isoDate: todayIso(), formattedDate: todayIso() };
+      return {
+        type: "query",
+        reply: `Consultando escala operacional para ${dateInfo.formattedDate || dateInfo.isoDate}. A cobertura da equipe e colaboradores escalados por turno estão disponíveis na aba Escala de Folgas.`,
+        details: { date: dateInfo.isoDate },
+      };
+    }
+
+    case "listarPendencias": {
+      const pendingLeaves = timeOff.filter((f) => String(f.Status || f.status || "").toLowerCase() === "pendente").length;
+      const pendingSwapsCount = swaps.filter((s) => String(s.Status || s.status || "").toLowerCase().includes("pend")).length;
+      return {
+        type: "query",
+        reply: `Identificadas ${pendingLeaves} solicitação(ões) de folga e ${pendingSwapsCount} troca(s) pendente(s) aguardando aprovação da gestão.`,
+        details: { pendingLeaves, pendingSwaps: pendingSwapsCount },
+      };
+    }
+
+    case "consultarPresencaAgora": {
+      const totals = getLivePresenceTotals(context.livePresenceData);
+      return {
+        type: "query",
+        reply: `Presença em tempo real: ${totals.trabalhando || 0} colaborador(es) em operação, ${totals.intervalo || 0} em intervalo de refeição/descanso e ${totals.ausente || 0} ausente(s).`,
+        details: totals,
       };
     }
 

@@ -1078,3 +1078,216 @@
     height: 19px;
   }
 }
+
+/* ==========================================================================
+   HOUSE AI 2.0 — DASHBOARD GERENCIAL & CARDS DE INSIGHTS PROATIVOS
+   Apple iOS Design System House 190 — Sem Emojis, Toque Min 44px
+   ========================================================================== */
+
+.house-ai-dashboard-section {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.house-ai-dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.house-ai-dash-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.house-ai-pill {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 8px;
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+
+.house-ai-dash-title-group h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.house-ai-dash-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.house-ai-btn-sm {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.house-ai-insights-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.house-ai-empty {
+  padding: 16px;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.house-ai-empty-badge {
+  display: inline-block;
+  background: rgba(32, 160, 107, 0.12);
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.house-ai-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+
+.house-ai-card {
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-left: 4px solid var(--primary, #3b82f6);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.house-ai-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.house-ai-card--critica {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.house-ai-card--alta {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.house-ai-card--media {
+  border-left-color: #6366f1;
+  background: #f5f3ff;
+}
+
+.house-ai-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.house-ai-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.house-ai-tag.house-ai-card--critica {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.house-ai-tag.house-ai-card--alta {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.house-ai-tag.house-ai-card--media {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.house-ai-source {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+}
+
+.house-ai-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  line-height: 1.3;
+}
+
+.house-ai-card-desc {
+  font-size: 12.5px;
+  color: var(--muted, #475569);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.house-ai-card-reason {
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+}
+
+.house-ai-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.house-ai-action-btn {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.house-ai-loading {
+  font-size: 12.5px;
+  color: var(--muted, #64748b);
+  padding: 12px;
+  text-align: center;
+}
+

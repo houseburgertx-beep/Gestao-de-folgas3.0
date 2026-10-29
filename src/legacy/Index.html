@@ -493,6 +493,22 @@
               </div>
               <button type="button" class="incomplete-alert-btn" style="background: #4f46e5; color: #fff;" data-view-target="documents">Assinar agora</button>
             </div>
+            <!-- Seção Gerencial Inteligente: HOUSE AI 2.0 -->
+            <section id="houseAiDashboardSection" class="house-ai-dashboard-section permission-manager">
+              <div class="house-ai-dash-header">
+                <div class="house-ai-dash-title-group">
+                  <span class="house-ai-pill">HOUSE AI 2.0</span>
+                  <h3>Resumo Inteligente da Operação</h3>
+                </div>
+                <div class="house-ai-dash-actions">
+                  <button id="houseAiRefreshBtn" type="button" class="btn btn-ghost house-ai-btn-sm" title="Recalcular alertas e anomalias">Atualizar</button>
+                  <button id="houseAiOpenChatBtn" type="button" class="btn btn-secondary house-ai-btn-sm" title="Consultar inteligência">Abrir House AI</button>
+                </div>
+              </div>
+              <div id="houseAiInsightsContainer" class="house-ai-insights-container">
+                <div class="house-ai-loading">Analisando dados operacionais em tempo real…</div>
+              </div>
+            </section>
             <div id="cards" class="metric-grid"></div>
             <div class="home-shortcuts home-primary-actions"><button class="btn btn-primary" data-view-target="timeclock">◉ Bater ponto</button><button class="btn btn-secondary" data-view-target="tasks">CozinhaFlow &amp; Loja</button><button class="btn btn-secondary" data-view-target="pending-center">Resolver pendências</button><button class="btn btn-secondary" data-view-target="documents">Meus Documentos</button></div><div id="proxima-folga"></div>
             <article id="liveStorePresencePanel" class="panel live-presence-panel permission-manager" style="margin-bottom: 16px;">
@@ -2378,14 +2394,14 @@
       </div>
     </div>
 
-    <!-- Botão Flutuante Mobile Copiloto -->
-    <button id="copilotFab" class="copilot-fab" title="Abrir Copiloto" aria-label="Abrir Copiloto House 190">
+    <!-- Botão Flutuante Mobile House AI 2.0 -->
+    <button id="copilotFab" class="copilot-fab" title="Abrir House AI 2.0" aria-label="Abrir House AI 2.0">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
       </svg>
     </button>
 
-    <!-- Gaveta do Copiloto House 190 -->
+    <!-- Gaveta do Copiloto House 190 (House AI 2.0) -->
     <div id="copilotDrawer" class="copilot-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="copilotTitle">
       <div class="copilot-backdrop" id="copilotBackdrop"></div>
       <aside class="copilot-panel">
@@ -2398,8 +2414,8 @@
               </svg>
             </div>
             <div class="copilot-title-group">
-              <h2 id="copilotTitle" class="copilot-title">Copiloto House 190</h2>
-              <span class="copilot-badge"><span class="copilot-badge-dot"></span><span id="copilotRoleBadge">Operação Ativa</span></span>
+              <h2 id="copilotTitle" class="copilot-title">House AI 2.0</h2>
+              <span class="copilot-badge"><span class="copilot-badge-dot"></span><span id="copilotRoleBadge">Inteligência Operacional Ativa</span></span>
             </div>
           </div>
           <div class="copilot-header-actions">

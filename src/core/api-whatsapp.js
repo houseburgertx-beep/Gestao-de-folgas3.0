@@ -10,6 +10,7 @@ import {
   isManager,
   requireAdmin,
 } from "./api-base.js";
+import { createHouseAIHandlers } from "./api-house-ai.js";
 
 const DEFAULT_MAGIC_LINK_TTL_HOURS = 48;
 
@@ -412,7 +413,11 @@ export function createWhatsAppHandlers() {
 
       const firstName = String(matchedEmp.Nome || "").split(" ")[0];
 
-      if (incomingText.includes("1") || incomingText.includes("espelho") || incomingText.includes("ponto") || incomingText.includes("assinar")) {
+      if (
+        incomingText.includes("1") ||
+        incomingText.includes("espelho") ||
+        (incomingText.includes("assinar") && (incomingText.includes("ponto") || incomingText.includes("espelho")))
+      ) {
         const magic = await this.generateWhatsAppMagicLink([{
           funcionarioId: matchedEmp.FuncionarioID,
           destino: "documents",
@@ -420,14 +425,14 @@ export function createWhatsAppHandlers() {
           tipo: "ESPELHO_PONTO",
         }]);
         replyText = `Olá, ${firstName}! Aqui está o seu link seguro para conferir e assinar seu espelho de ponto:\n${magic.magicUrl}\n\nO link é válido por 48 horas.`;
-      } else if (incomingText.includes("2") || incomingText.includes("escala") || incomingText.includes("turno")) {
+      } else if (incomingText === "2" || incomingText.includes("escala") || incomingText.includes("turno")) {
         const magic = await this.generateWhatsAppMagicLink([{
           funcionarioId: matchedEmp.FuncionarioID,
           destino: "timeclock",
           tipo: "ESCALA_PUBLICADA",
         }]);
         replyText = `Olá, ${firstName}! Acesse sua escala de trabalho pelo link:\n${magic.magicUrl}`;
-      } else if (incomingText.includes("3") || incomingText.includes("atestado")) {
+      } else if (incomingText === "3" || incomingText.includes("atestado")) {
         const magic = await this.generateWhatsAppMagicLink([{
           funcionarioId: matchedEmp.FuncionarioID,
           destino: "documents",
@@ -436,14 +441,23 @@ export function createWhatsAppHandlers() {
         }]);
         replyText = `Olá, ${firstName}! Para enviar seu atestado médico com registro seguro e protocolo de abono, acesse:\n${magic.magicUrl}`;
       } else {
-        replyText = [
-          `Olá, ${firstName}! Bem-vindo ao autoatendimento do Grupo House 190.`,
-          `Responda com o número da opção desejada:`,
-          ``,
-          `*1* — Assinar espelho de ponto mensal`,
-          `*2* — Ver minha escala de trabalho`,
-          `*3* — Enviar atestado médico`,
-        ].join("\n");
+        // Roteamento inteligente pela House AI
+        const houseAI = createHouseAIHandlers();
+        const aiResult = await houseAI.processWhatsAppWithHouseAI([
+          { from: fromNumber, text: incomingText },
+        ]);
+        if (aiResult?.handled && aiResult?.replyText) {
+          replyText = aiResult.replyText;
+        } else {
+          replyText = [
+            `Olá, ${firstName}! Bem-vindo ao autoatendimento inteligente do Grupo House 190.`,
+            `Você pode me fazer perguntas livres sobre suas folgas, banco de horas e escala, ou escolher uma das opções abaixo:`,
+            ``,
+            `*1* — Assinar espelho de ponto mensal`,
+            `*2* — Ver minha escala de trabalho`,
+            `*3* — Enviar atestado médico`,
+          ].join("\n");
+        }
       }
 
       await audit({
