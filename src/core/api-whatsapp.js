@@ -817,12 +817,12 @@ export function createWhatsAppHandlers() {
         deliveredViaGateway: Boolean(messageId),
         phone,
         message: text,
-        messageId: messageId || `wa_${Date.now()}`,
+        messageId: messageId || "",
         timestamp: nowIso(),
         waUrl,
         offlineFallback: !messageId,
         warning: !messageId
-          ? (deliveryError ? `Gateway offline: ${deliveryError}` : "Gateway em pareamento")
+          ? (deliveryError ? `Gateway offline: ${deliveryError}` : "Aparelho WhatsApp não conectado ao robô")
           : null,
       };
 
@@ -949,16 +949,21 @@ export function createWhatsAppHandlers() {
         }
 
         const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(formattedText)}`;
-        const isSuccess = Boolean(messageId) || (!isBrowser && !deliveryError) || true;
-        sentCount++;
+        const isGatewaySent = Boolean(messageId);
+        const isSuccess = isGatewaySent || (!isBrowser && !deliveryError);
+        if (isSuccess) {
+          sentCount++;
+        } else {
+          failedCount++;
+        }
 
         results.push({
           funcionarioId: emp.FuncionarioID,
           nome: emp.Nome,
           phone,
-          status: messageId ? "sent" : "ready_to_send",
-          deliveredViaGateway: Boolean(messageId),
-          messageId: messageId || (messageId ? "sent" : `wa_ann_${Date.now()}`),
+          status: isGatewaySent ? "sent" : (isSuccess ? "queued" : "ready_to_send"),
+          deliveredViaGateway: isGatewaySent,
+          messageId: messageId || (isSuccess ? "wa_batch" : ""),
           waUrl,
           error: deliveryError,
         });

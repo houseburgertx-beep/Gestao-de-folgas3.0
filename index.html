@@ -39053,15 +39053,32 @@ dialog#medicalCertificateDialog {
             const testRes = rawRes?.data || rawRes || {};
             const resPhone = testRes?.phone || phone;
             const resWaUrl = testRes?.waUrl || `https://wa.me/${resPhone}?text=${encodeURIComponent(message)}`;
+            const isDeliveredByBot = Boolean(testRes.deliveredViaGateway && testRes.messageId);
 
             const box = $("#waTestFeedbackBox");
             if (box) {
               box.className = "";
-              box.style.cssText = "margin-top:12px; padding:10px 14px; border-radius:10px; font-size:12.5px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;";
-              const msgIdText = testRes.messageId ? `<br><small style="color:#047857; font-family:monospace;">ID da Mensagem: ${testRes.messageId}</small>` : '';
-              box.innerHTML = `<strong>Mensagem enviada com sucesso:</strong> Disparo realizado para ${resPhone}.${msgIdText} <a href="${resWaUrl}" target="_blank" rel="noopener noreferrer" style="color:#047857; font-weight:700; text-decoration:underline; display:block; margin-top:4px;">Ver conversa no WhatsApp Web</a>`;
+              if (isDeliveredByBot) {
+                box.style.cssText = "margin-top:12px; padding:12px 16px; border-radius:12px; font-size:13px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;";
+                const msgIdText = `<br><small style="color:#047857; font-family:monospace;">ID da Mensagem: ${testRes.messageId}</small>`;
+                box.innerHTML = `<strong>Mensagem entregue pelo robô oficial:</strong> Disparo confirmado para ${resPhone}.${msgIdText}<br><a href="${resWaUrl}" target="_blank" rel="noopener noreferrer" style="color:#047857; font-weight:700; text-decoration:underline; display:inline-block; margin-top:6px;">Ver conversa no WhatsApp Web</a>`;
+                toast("Mensagem entregue com sucesso pelo robô oficial!");
+              } else {
+                box.style.cssText = "margin-top:12px; padding:14px 16px; border-radius:12px; font-size:13px; background:#fffbeb; color:#92400e; border:1px solid #fde68a;";
+                box.innerHTML = `
+                  <div style="font-weight:700; margin-bottom:4px; color:#b45309;">Aparelho WhatsApp Não Conectado ao Robô</div>
+                  <div style="margin-bottom:10px; line-height:1.4;">O robô de envio automático em segundo plano está desconectado. Para que o disparo saia 100% automático pelo servidor, escaneie o QR Code na aba <em>Pareamento & Gateway</em>.</div>
+                  <div style="margin-bottom:8px;">Para enviar a mensagem agora através do seu próprio WhatsApp:</div>
+                  <a href="${resWaUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:6px; background:#25d366; color:#ffffff; font-weight:700; padding:9px 16px; border-radius:8px; text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                    Abrir conversa no WhatsApp e Enviar
+                  </a>
+                `;
+                toast("Robô desconectado. Abrindo WhatsApp para envio direto...", true);
+                try {
+                  window.open(resWaUrl, "_blank", "noopener,noreferrer");
+                } catch (_) {}
+              }
             }
-            toast("Mensagem enviada com sucesso pelo WhatsApp!");
           } catch (e) {
             const box = $("#waTestFeedbackBox");
             if (box) {
