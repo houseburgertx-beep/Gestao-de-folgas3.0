@@ -92,14 +92,15 @@ async function startSessionIfStopped() {
       const data = await check.json();
       const sess = data?.data || data || {};
       const isOk = sess.status === "CONNECTED" || sess.status === "WORKING" || Boolean(sess.me);
-      if (!isOk && sess.status === "STOPPED") {
+      if (!isOk && sess.status !== "SCAN_QR") {
         lastStartAttempt = now;
-        log("Sessão em STOPPED. Disparando auto-wake com debounce...");
-        await fetch(`http://127.0.0.1:3000/api/sessions/${INSTANCE}/start`, {
+        log(`Sessão com status '${sess.status}'. Disparando auto-wake/restart com debounce...`);
+        const endpoint = sess.status === "STOPPED" ? "start" : "restart";
+        await fetch(`http://127.0.0.1:3000/api/sessions/${INSTANCE}/${endpoint}`, {
           method: "POST",
           headers: { "X-API-Key": API_KEY, "Content-Type": "application/json" },
           body: JSON.stringify({}),
-          signal: AbortSignal.timeout(4000),
+          signal: AbortSignal.timeout(6000),
         }).catch(() => {});
       }
     }
