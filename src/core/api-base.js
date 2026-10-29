@@ -2112,8 +2112,12 @@ export function createBaseHandlers() {
       );
     },
 
-    async getTimeOffRecords() {
-      return success(await runtime.list("Folgas"));
+    async getTimeOffRecords(args) {
+      const options = args && typeof args[0] === "object" ? args[0] : {};
+      if (options.forceRefresh) {
+        runtime.invalidateTableCache("Folgas");
+      }
+      return success(await runtime.list("Folgas", options));
     },
 
     async validateTimeOffRequest(args) {

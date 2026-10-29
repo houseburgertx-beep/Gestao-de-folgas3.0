@@ -6,7 +6,7 @@ import {
   remindersFor,
   scheduleForDay,
 } from "../../src/core/reminder-policy.js";
-import { normalizeWhatsAppPhone, sendWhatsAppMessage } from "./whatsapp.js";
+import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppPoll } from "./whatsapp.js";
 import { processInboundHouseAI, generateMotivationalTimeClockMessage } from "./house-ai.js";
 const encoder = new TextEncoder();
 const b64 = (value) =>
@@ -313,6 +313,16 @@ async function handle(request, env) {
           text: aiResult.replyText,
           gwConfig: gw,
         });
+
+        if (aiResult?.poll && Array.isArray(aiResult.poll.options) && aiResult.poll.options.length >= 2) {
+          await sendWhatsAppPoll(env, {
+            phone: rawFrom,
+            question: aiResult.poll.question || "Selecione uma opção:",
+            options: aiResult.poll.options,
+            selectableCount: aiResult.poll.selectableCount || 1,
+            gwConfig: gw,
+          }).catch((pollErr) => console.warn("Erro ao enviar enquete WhatsApp:", pollErr?.message || pollErr));
+        }
 
         // Grava auditoria no Firebase RTDB
         const auditUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Auditoria.json`;

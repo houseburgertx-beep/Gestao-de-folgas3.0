@@ -128,3 +128,86 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000,
     };
   }
 }
+
+/**
+ * Envia caixa de seleção interativa nativa do WhatsApp (Poll) via WA-AKG.
+ *
+ * @param {object} env
+ * @param {object} options
+ * @param {string} options.phone - Destinatário
+ * @param {string} options.question - Título/pergunta da enquete
+ * @param {string[]} options.options - Lista de opções (2 a 12 itens)
+ * @param {number} [options.selectableCount=1] - 1 para escolha única (radio button)
+ * @param {number} [options.timeoutMs=10000]
+ * @param {object} [options.gwConfig]
+ */
+export async function sendWhatsAppPoll(
+  env,
+  { phone, question, options = [], selectableCount = 1, timeoutMs = 10000, gwConfig = null },
+) {
+  const isEnabled =
+    env.WA_ENABLED === true ||
+    env.WA_ENABLED === 1 ||
+    ["true", "1", "sim", "yes"].includes(String(env.WA_ENABLED || "").toLowerCase());
+
+  if (!isEnabled) {
+    return { success: false, skipped: true, error: "wa_disabled" };
+  }
+
+  const baseUrl = (gwConfig?.url || env.WA_API_URL || "").trim().replace(/\/+$/, "");
+  const sessionId = gwConfig?.instance || env.WA_SESSION_ID;
+  const apiKey = gwConfig?.apiKey || env.WA_API_KEY;
+
+  if (!baseUrl || !sessionId || !apiKey) {
+    return { success: false, skipped: true, error: "wa_config_missing" };
+  }
+
+  const target = normalizeWhatsAppPhone(phone);
+  if (!target) {
+    return { success: false, error: "invalid_phone" };
+  }
+
+  const validOptions = Array.isArray(options)
+    ? options.filter((o) => typeof o === "string" && o.trim()).slice(0, 12)
+    : [];
+
+  if (validOptions.length < 2) {
+    return { success: false, error: "poll_requires_at_least_2_options" };
+  }
+
+  const apiEndpoint = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+  const endpoint = `${apiEndpoint}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(target.jid)}/poll`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+        "bypass-tunnel-reminder": "true",
+      },
+      body: JSON.stringify({
+        question: String(question || "Selecione uma opção").slice(0, 255),
+        options: validOptions,
+        selectableCount: Math.min(validOptions.length, Math.max(1, selectableCount || 1)),
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return {
+        success: false,
+        status: res.status,
+        error: `upstream_error_${res.status}: ${errText.slice(0, 100)}`,
+      };
+    }
+
+    return { success: true, status: res.status };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.name === "TimeoutError" ? "timeout" : err.message,
+    };
+  }
+}

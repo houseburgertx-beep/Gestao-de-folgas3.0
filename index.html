@@ -25140,6 +25140,9 @@ dialog#medicalCertificateDialog {
                   <option>Aprovada</option>
                   <option>Rejeitada</option>
                   <option>Cancelada</option></select
+                ><button id="timeOffRefreshBtn" class="btn btn-secondary" type="button" title="Atualizar dados agora" aria-label="Atualizar folgas">
+                  ↻ Atualizar
+                </button
                 ><button id="timeOffSwapBtn" class="btn btn-secondary" type="button" title="Trocar folga com colega">
                   ⇄ Trocar folga
                 </button
@@ -30569,6 +30572,24 @@ dialog#medicalCertificateDialog {
     });
     if ($("#timeOffSearch")) $("#timeOffSearch").oninput = renderTimeOff;
     if ($("#timeOffStatusFilter")) $("#timeOffStatusFilter").onchange = renderTimeOff;
+    if ($("#timeOffRefreshBtn")) {
+      $("#timeOffRefreshBtn").onclick = async () => {
+        const btn = $("#timeOffRefreshBtn");
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Atualizando…";
+        }
+        try {
+          await refreshTimeOffQuick_(true);
+          toast("Lista de folgas atualizada.");
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "↻ Atualizar";
+          }
+        }
+      };
+    }
     if ($("#employeeSearch")) $("#employeeSearch").oninput = renderEmployees;
     if ($("#employeeStoreFilter")) $("#employeeStoreFilter").onchange = renderEmployees;
     if ($("#newOperationalRuleBtn")) $("#newOperationalRuleBtn").onclick = openOperationalRuleDialog;
@@ -32626,9 +32647,18 @@ dialog#medicalCertificateDialog {
       if (isStoreManager()) renderWorkingToday();
     } else if (view === "live-team") { loadLivePresence_(); publishJourney_(); }
     else if (view === "shift-plan") { loadClockSettings().then(publishJourney_).catch(error => toast(error.message, true)); publishJourney_(); }
-    else if (view === "calendar") renderCalendar();
-    else if (view === "timeoff") renderTimeOff();
-    else if (view === "pending-center") loadPendingCenter_();
+    else if (view === "calendar") {
+      renderCalendar();
+      refreshTimeOffQuick_(true);
+    }
+    else if (view === "timeoff") {
+      renderTimeOff();
+      refreshTimeOffQuick_(true);
+    }
+    else if (view === "pending-center") {
+      loadPendingCenter_();
+      refreshTimeOffQuick_(true);
+    }
     else if (view === "scheduler") renderSimulation();
     else if (view === "employees") renderEmployees();
     else if (view === "stores") renderStores();
@@ -33229,6 +33259,37 @@ dialog#medicalCertificateDialog {
       '<p style="color:var(--muted);font-size:12px">Sem dados.</p>';
   }
 
+  let TIME_OFF_REFRESH_PROMISE_ = null;
+  async function refreshTimeOffQuick_(force = false) {
+    if (!state.user && !sessionToken()) return state.timeOff;
+    if (TIME_OFF_REFRESH_PROMISE_) return TIME_OFF_REFRESH_PROMISE_;
+    TIME_OFF_REFRESH_PROMISE_ = (async () => {
+      try {
+        const records = await call("getTimeOffRecords", { forceRefresh: Boolean(force) });
+        if (Array.isArray(records)) {
+          state.timeOff = records;
+          saveTurboShellCache_();
+          if (state.currentView === "timeoff") renderTimeOff();
+          else if (state.currentView === "calendar") renderCalendar();
+          else if (state.currentView === "pending-center") renderRequests();
+          else if (state.currentView === "dashboard") {
+            renderDashboard();
+            if (isEmployee()) renderEmployeeDashboardCards();
+            if (isStoreManager()) renderWorkingToday();
+          }
+          if (typeof publishJourney_ === "function") publishJourney_();
+        }
+        return state.timeOff;
+      } catch (err) {
+        console.warn("Atualização em segundo plano das folgas:", err?.message || err);
+        return state.timeOff;
+      } finally {
+        TIME_OFF_REFRESH_PROMISE_ = null;
+      }
+    })();
+    return TIME_OFF_REFRESH_PROMISE_;
+  }
+
   function renderTimeOff() {
     const q = $("#timeOffSearch").value.toLowerCase(),
       s = $("#timeOffStatusFilter").value;
@@ -33394,6 +33455,7 @@ dialog#medicalCertificateDialog {
     }
     try {
       await Promise.allSettled([
+        refreshTimeOffQuick_(true),
         loadTimeClock(false, !!force),
         loadSwaps(),
         loadVacations_(),
@@ -40105,13 +40167,25 @@ dialog#medicalCertificateDialog {
   function initNotificationMonitor_() {
     if (notificationMonitorStarted_) return;
     notificationMonitorStarted_ = true;
-    setTimeout(checkRealtimeNotifications_, 3500);
-    setInterval(checkRealtimeNotifications_, 25000);
+    setTimeout(() => {
+      checkRealtimeNotifications_();
+      refreshTimeOffQuick_(true);
+    }, 3500);
+    setInterval(() => {
+      checkRealtimeNotifications_();
+      refreshTimeOffQuick_(true);
+    }, 25000);
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", function() {
         if (document.visibilityState === "visible") {
           checkRealtimeNotifications_();
+          refreshTimeOffQuick_(true);
         }
+      });
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", function() {
+        refreshTimeOffQuick_(true);
       });
     }
   }

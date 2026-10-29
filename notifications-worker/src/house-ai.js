@@ -356,10 +356,20 @@ export async function processInboundHouseAI({
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}!\n\n` +
         `Por exigência legal da Portaria 671/MTE e garantia de segurança jurídica, o registro de ponto não pode ser realizado por mensagens de WhatsApp.\n\n` +
-        `Por favor, acesse o aplicativo oficial para registrar seu ponto com geolocalização e foto biométrica:\n` +
-        `${appUrl}\n\n` +
-        `[ 1 ] Abrir Ponto no Aplicativo: ${appUrl}?tab=timeclock`
+        `Acesse o aplicativo oficial para registrar seu ponto com geolocalização e foto biométrica:\n` +
+        `${appUrl}?tab=timeclock`
       ),
+      poll: {
+        question: "Como posso te ajudar hoje?",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Políticas da Casa",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -382,10 +392,21 @@ export async function processInboundHouseAI({
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}!\n\n` +
         `Para proteger sua privacidade e em estrito cumprimento da LGPD, atestados médicos, diagnósticos e receitas não devem ser compartilhados pelo chat aberto do WhatsApp.\n\n` +
-        `Envie seu documento de forma segura e criptografada pela aba Meus Documentos no aplicativo oficial:\n\n` +
-        `[ 1 ] Enviar Atestado com Segurança: ${appUrl}?tab=documents\n` +
-        `[ 2 ] Prazo Regulamentar: até 48h com CRM e carimbo legível.`
+        `Envie seu documento de forma segura e criptografada pela aba Meus Documentos no aplicativo oficial:\n` +
+        `${appUrl}?tab=documents\n\n` +
+        `* Prazo regulamentar: até 48h com CRM e carimbo legível.`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -430,9 +451,19 @@ export async function processInboundHouseAI({
           `* "Quero folga dia 15/11"\n` +
           `* "Solicitar folga amanhã"\n` +
           `* "Folga na próxima terça"\n\n` +
-          `[ 1 ] Abrir Calendário no Aplicativo: ${appUrl}?tab=timeoff\n` +
-          `[ 0 ] Voltar ao Menu Principal`
+          `Ou selecione uma data no calendário pelo aplicativo oficial:\n${appUrl}?tab=timeoff`
         ),
+        poll: {
+          question: "Ações rápidas:",
+          options: [
+            "Folga Amanhã",
+            "Minhas Folgas",
+            "Banco de Horas",
+            "Minha Escala",
+            "Menu Principal",
+          ],
+          selectableCount: 1,
+        },
       };
     }
 
@@ -444,11 +475,25 @@ export async function processInboundHouseAI({
     // Se o remetente for Gestor/Admin, verifica se mencionou o nome de outro colaborador
     let targetEmp = matchedEmp;
     if (isGestorOrAdmin) {
-      const foundOther = employees.find((e) => {
+      const sortedEmployees = [...employees].sort(
+        (a, b) => String(b.Nome || "").length - String(a.Nome || "").length
+      );
+      // 1. Tenta correspondência do nome completo (maior primeiro para nomes compostos)
+      let foundOther = sortedEmployees.find((e) => {
         const pName = String(e.Nome || "").toLowerCase().trim();
-        const fName = pName.split(/\s+/)[0];
-        return fName.length > 2 && cleanText.includes(fName);
+        const normPName = pName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return normPName.length > 2 && cleanText.includes(normPName);
       });
+
+      // 2. Se não encontrou pelo nome completo, busca pelo primeiro nome
+      if (!foundOther) {
+        foundOther = sortedEmployees.find((e) => {
+          const pName = String(e.Nome || "").toLowerCase().trim();
+          const normPName = pName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const parts = normPName.split(/\s+/).filter((p) => p.length > 2);
+          return parts.length >= 1 && cleanText.includes(parts[0]);
+        });
+      }
       if (foundOther) {
         targetEmp = foundOther;
       }
@@ -456,7 +501,11 @@ export async function processInboundHouseAI({
 
     const folgasData = await database(env, tok, "tables/Folgas").catch(() => ({}));
     const allFolgas = Object.values(folgasData || {});
-    const targetEmpId = String(targetEmp.FuncionarioID || targetEmp.id || "");
+    const targetEmpId = String(targetEmp.FuncionarioID || targetEmp.funcionarioId || targetEmp.id || "");
+    const targetEmpNome = String(targetEmp.Nome || targetEmp.nome || "Colaborador");
+    const targetEmpEmail = String(targetEmp.Email || targetEmp.email || "");
+    const targetEmpLojaId = String(targetEmp.LojaID || targetEmp.lojaId || "");
+    const targetEmpNomeLoja = String(targetEmp.NomeLoja || targetEmp.nomeLoja || "House 190");
 
     // Verifica se já existe folga ativa para o colaborador nessa data
     const existingFolga = allFolgas.find((f) => {
@@ -477,10 +526,20 @@ export async function processInboundHouseAI({
         action: "folga_existente",
         replyText: stripHouseAIEmojis(
           `Atenção, ${firstName}!\n\n` +
-          `${targetEmp === matchedEmp ? "Você" : targetEmp.Nome} já possui uma folga com status *${st}* para o dia *${dataBR}* no sistema.\n\n` +
-          `[ 1 ] Ver Escala Completa no App: ${appUrl}?tab=timeoff\n` +
-          `[ 0 ] Voltar ao Menu Principal`
+          `${targetEmpNome === matchedEmp.Nome ? "Você" : targetEmpNome} já possui uma folga com status *${st}* para o dia *${dataBR}* no sistema.\n\n` +
+          `Consulte a escala completa no aplicativo oficial:\n${appUrl}?tab=timeoff`
         ),
+        poll: {
+          question: "Como deseja prosseguir?",
+          options: [
+            "Minhas Folgas",
+            "Banco de Horas",
+            "Minha Escala",
+            "Pedir Nova Folga",
+            "Menu Principal",
+          ],
+          selectableCount: 1,
+        },
       };
     }
 
@@ -494,31 +553,87 @@ export async function processInboundHouseAI({
     const folgaRecord = {
       FolgaID: folgaId,
       FuncionarioID: targetEmpId,
-      NomeFuncionario: targetEmp.Nome,
-      LojaID: targetEmp.LojaID || "",
-      NomeLoja: targetEmp.NomeLoja || "House 190",
+      NomeFuncionario: targetEmpNome,
+      EmailFuncionario: targetEmpEmail,
+      LojaID: targetEmpLojaId,
+      NomeLoja: targetEmpNomeLoja,
       DataInicio: targetDate,
       DataFim: targetDate,
       Data: targetDate,
       Tipo: "Regular",
       TipoFolga: "Folga",
       Periodo: "Dia inteiro",
+      Motivo: isGrantedDirectly ? "Concedida via WhatsApp House AI" : "Solicitada via WhatsApp",
       Status: status,
-      Origem: "WhatsApp House AI",
+      Origem: isGrantedDirectly ? "WhatsApp House AI (Gestor)" : "Pedido do funcionário",
       Solicitante: matchedEmp.Nome,
+      SolicitadoPor: matchedEmp.Email || matchedEmp.Nome,
+      AprovadoPor: status === "Aprovada" ? (matchedEmp.Email || matchedEmp.Nome) : "",
+      DataAprovacao: status === "Aprovada" ? new Date().toISOString() : "",
+      DataSolicitacao: new Date().toISOString(),
+      SaldoFolgasStatus: status === "Aprovada" ? "Aplicado" : "Pendente",
       Observacoes: `Registrado via WhatsApp por ${matchedEmp.Nome} em ${new Date().toLocaleTimeString("pt-BR")}`,
       DataCriacao: new Date().toISOString(),
+      DataAtualizacao: new Date().toISOString(),
       CriadoEm: new Date().toISOString(),
     };
 
     // 1. Grava diretamente no Firebase Realtime Database
     const folgaUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Folgas/${folgaId}.json`;
-    await fetch(folgaUrl, {
+    const folgaPutRes = await fetch(folgaUrl, {
       method: "PUT",
       headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
       body: JSON.stringify(folgaRecord),
       signal: AbortSignal.timeout(10000),
     });
+    if (!folgaPutRes.ok) {
+      throw new Error(`firebase_put_error_${folgaPutRes.status}`);
+    }
+
+    // Se aprovada diretamente pelo Gestor/Admin, debita saldo e registra movimento
+    if (status === "Aprovada" && targetEmpId) {
+      const currentBalance = Number(targetEmp.SaldoFolgas ?? 0);
+      const newBalance = Math.max(0, currentBalance - 1);
+      const movementKey = `folga-${folgaId}`;
+      const empPatchUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Funcionarios/${encodeURIComponent(targetEmpId)}.json`;
+      await fetch(empPatchUrl, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          SaldoFolgas: newBalance,
+          [`SaldoFolgasLancamentos/${movementKey}`]: {
+            FolgaID: folgaId,
+            Delta: -1,
+            Quantidade: 1,
+            Tipo: "Débito de folga aprovada",
+            DataInicio: targetDate,
+            DataFim: targetDate,
+            DataAtualizacao: new Date().toISOString(),
+          },
+        }),
+        signal: AbortSignal.timeout(10000),
+      }).catch((e) => console.warn("Erro ao debitar SaldoFolgas:", e));
+
+      const movId = `mov-${folgaId}`;
+      const movUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/MovimentosSaldoFolgas/${movId}.json`;
+      await fetch(movUrl, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          MovimentoID: movId,
+          FolgaID: folgaId,
+          FuncionarioID: targetEmpId,
+          LojaID: targetEmpLojaId,
+          Tipo: "Debito",
+          Quantidade: 1,
+          SaldoAnterior: currentBalance,
+          SaldoNovo: newBalance,
+          Motivo: `Folga aprovada via WhatsApp para ${dataBR}`,
+          DataCriacao: new Date().toISOString(),
+        }),
+        signal: AbortSignal.timeout(6000),
+      }).catch(() => {});
+    }
 
     // 2. Grava notificação no Firebase RTDB tables/Notificacoes
     const notifId = `notif-wa-${Date.now()}`;
@@ -528,13 +643,13 @@ export async function processInboundHouseAI({
       headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         NotificacaoID: notifId,
-        LojaID: targetEmp.LojaID || "",
+        LojaID: targetEmpLojaId,
         DestinatarioID: status === "Aprovada" ? targetEmpId : "",
         Tipo: "Folga",
         Assunto: status === "Aprovada" ? "Folga Aprovada via WhatsApp" : "Nova Solicitação de Folga via WhatsApp",
         Mensagem: status === "Aprovada"
-          ? `Folga confirmada para ${targetEmp.Nome} na data ${dataBR}.`
-          : `${targetEmp.Nome} solicitou folga para ${dataBR} via WhatsApp.`,
+          ? `Folga confirmada para ${targetEmpNome} na data ${dataBR}.`
+          : `${targetEmpNome} solicitou folga para ${dataBR} via WhatsApp.`,
         Status: "NaoLida",
         DataCriacao: new Date().toISOString(),
       }),
@@ -548,10 +663,24 @@ export async function processInboundHouseAI({
         action: "folga_aprovada_whatsapp",
         replyText: stripHouseAIEmojis(
           `Confirmado, ${firstName}!\n\n` +
-          `A folga para *${targetEmp.Nome}* na data *${dataBR}* foi APROVADA e registrada diretamente no Firebase e no sistema oficial da House 190 com sucesso!\n\n` +
-          `[ 1 ] Ver Escala Atualizada: ${appUrl}?tab=timeoff\n` +
-          `[ 0 ] Voltar ao Menu Principal`
+          `A folga para *${targetEmpNome}* na data *${dataBR}* foi APROVADA e registrada diretamente no sistema oficial da House 190 com sucesso.\n\n` +
+          `* Colaborador: ${targetEmpNome}\n` +
+          `* Loja: ${targetEmpNomeLoja}\n` +
+          `* Data: ${dataBR} (Dia inteiro)\n` +
+          `* Status: Aprovada\n\n` +
+          `Acesse a escala atualizada no aplicativo:\n${appUrl}?tab=timeoff`
         ),
+        poll: {
+          question: "Selecione o próximo serviço:",
+          options: [
+            "Minhas Folgas",
+            "Banco de Horas",
+            "Minha Escala",
+            "Pedir Nova Folga",
+            "Políticas da Casa",
+          ],
+          selectableCount: 1,
+        },
       };
     }
 
@@ -565,9 +694,19 @@ export async function processInboundHouseAI({
         `* Status: Pendente de aprovação da gerência\n` +
         `* Protocolo: ${folgaId}\n\n` +
         `Assim que o gerente da sua loja avaliar a solicitação, você receberá a confirmação aqui pelo WhatsApp.\n\n` +
-        `[ 1 ] Acompanhar Pedido no Aplicativo: ${appUrl}?tab=timeoff\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `Acompanhe seu pedido no aplicativo:\n${appUrl}?tab=timeoff`
       ),
+      poll: {
+        question: "Outros serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Políticas da Casa",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -647,11 +786,8 @@ export async function processInboundHouseAI({
 
     linhas.push(
       ``,
-      `Opções rápidas:`,
-      `[ 1 ] Solicitar Nova Folga ou Troca: ${appUrl}?tab=timeoff`,
-      `[ 2 ] Ver Meu Banco de Horas`,
-      `[ 3 ] Ver Minha Escala de Trabalho`,
-      `[ 0 ] Voltar ao Menu Principal`
+      `Consulte a escala completa no aplicativo oficial:`,
+      `${appUrl}?tab=timeoff`
     );
 
     return {
@@ -659,6 +795,17 @@ export async function processInboundHouseAI({
       authorized: true,
       action: "consulta_folgas",
       replyText: stripHouseAIEmojis(linhas.join("\n")),
+      poll: {
+        question: "Ações de Folgas:",
+        options: [
+          "Pedir Folga Amanhã",
+          "Banco de Horas",
+          "Minha Escala",
+          "Políticas da Casa",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -726,11 +873,19 @@ export async function processInboundHouseAI({
         `* Total de dias apurados: ${diasTrabalhados}\n` +
         `* Horas trabalhadas: ${Math.floor(totalTrabalhadoMinutos / 60)}h${totalTrabalhadoMinutos % 60}m\n\n` +
         `Compensações e saídas antecipadas devem ser alinhadas previamente com a gerência da sua loja.\n\n` +
-        `Opções rápidas:\n` +
-        `[ 1 ] Ver Espelho Detalhado de Batidas: ${appUrl}?tab=timeclock\n` +
-        `[ 2 ] Consultar Minhas Folgas\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `Consulte o espelho detalhado no aplicativo:\n${appUrl}?tab=timeclock`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Espelho de Ponto",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -777,11 +932,19 @@ export async function processInboundHouseAI({
         `* Intervalo: ${intervalo}\n` +
         `* Saída: ${saida}\n` +
         `* Turno cadastrado: ${matchedEmp.Turno || "Geral"}\n\n` +
-        `Opções rápidas:\n` +
-        `[ 1 ] Acessar Ponto e Escala no App: ${appUrl}?tab=timeclock\n` +
-        `[ 2 ] Ver Quem Está Trabalhando Hoje\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `Consulte a escala completa no aplicativo:\n${appUrl}?tab=timeclock`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Pedir Folga",
+          "Quem Trabalha Hoje",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -801,10 +964,21 @@ export async function processInboundHouseAI({
       action: "espelho_assinatura",
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}!\n\n` +
-        `Para conferir e assinar digitalmente o seu espelho de ponto ou documentos com validade jurídica, utilize o link seguro:\n\n` +
-        `[ 1 ] Assinar Espelho no Aplicativo: ${appUrl}?tab=documents\n\n` +
-        `A assinatura é feita na tela do celular com total segurança jurídica (Portaria 671/MTE).`
+        `Para conferir e assinar digitalmente seu espelho de ponto ou documentos com validade jurídica pela Portaria 671/MTE, utilize o link seguro:\n\n` +
+        `* Assinar no aplicativo: ${appUrl}?tab=documents\n\n` +
+        `A assinatura é realizada diretamente na tela do seu dispositivo com autenticação criptografada.`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -821,13 +995,22 @@ export async function processInboundHouseAI({
       action: "orientacao_atestados",
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}! Aqui estão as orientações oficiais para Atestados Médicos na House 190:\n\n` +
-        `1. Prazo: Envio em até 48 horas a partir da emissão médica.\n` +
-        `2. Requisitos: O documento deve conter carimbo, CRM legível, data e assinatura do médico.\n` +
-        `3. Envio seguro: Por exigência da LGPD, não envie a foto pelo WhatsApp.\n\n` +
-        `Opções rápidas:\n` +
-        `[ 1 ] Enviar Atestado na Aba Documentos: ${appUrl}?tab=documents\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `* Prazo: Envio em até 48 horas a partir da emissão médica.\n` +
+        `* Requisitos: O documento deve conter carimbo, CRM legível, data e assinatura do médico.\n` +
+        `* Envio seguro: Por exigência da LGPD, envie diretamente pelo aplicativo oficial:\n` +
+        `${appUrl}?tab=documents`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -887,8 +1070,8 @@ export async function processInboundHouseAI({
 
     linhas.push(
       ``,
-      `[ 1 ] Ver Escala Completa no Aplicativo: ${appUrl}?tab=timeclock`,
-      `[ 0 ] Voltar ao Menu Principal`
+      `Consulte a escala completa no aplicativo:`,
+      `${appUrl}?tab=timeclock`
     );
 
     return {
@@ -896,6 +1079,17 @@ export async function processInboundHouseAI({
       authorized: true,
       action: "equipe_hoje",
       replyText: stripHouseAIEmojis(linhas.join("\n")),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -913,14 +1107,24 @@ export async function processInboundHouseAI({
       action: "politicas_rh",
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}! Aqui está o resumo das políticas de RH do Grupo House 190:\n\n` +
-        `1. Escala: 6x1 com 44h semanais (7h20 diárias).\n` +
-        `2. Folgas: 5 folgas mensais (4 de segunda a quinta + 1 gerenciada).\n` +
-        `3. Trocas: Entre colegas da mesma loja e função via app até 24h antes.\n` +
-        `4. Ponto: Obrigatório registrar no app oficial com GPS e foto biométrica (Portaria 671/MTE).\n` +
-        `5. Atestados: Entrega em até 48h pelo app na aba Meus Documentos.\n\n` +
-        `[ 1 ] Acessar Sistema Oficial: ${appUrl}\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `* Escala: 6x1 com 44h semanais (7h20 diárias).\n` +
+        `* Folgas: 5 folgas mensais (4 de segunda a quinta + 1 gerenciada).\n` +
+        `* Trocas: Entre colegas da mesma loja e função via app até 24h antes.\n` +
+        `* Ponto: Registro obrigatório pelo app com GPS e foto biométrica (Portaria 671/MTE).\n` +
+        `* Atestados: Entrega em até 48h pelo app na aba Meus Documentos.\n\n` +
+        `Acesse o sistema oficial: ${appUrl}`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -937,13 +1141,23 @@ export async function processInboundHouseAI({
       action: "ajuste_ponto",
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}!\n\n` +
-        `Caso tenha esquecido de registrar alguma batida de ponto, você pode solicitar a regularização:\n\n` +
-        `1. Abra o aplicativo e acesse a aba Ponto Eletrônico.\n` +
+        `Caso tenha esquecido de registrar alguma batida de ponto, solicite a regularização no app:\n\n` +
+        `1. Acesse a aba Ponto Eletrônico.\n` +
         `2. Clique em "Solicitar Ajuste de Ponto".\n` +
-        `3. Informe o dia, o horário real e a justificativa para aprovação do gerente.\n\n` +
-        `[ 1 ] Abrir Ajuste de Ponto no App: ${appUrl}?tab=timeclock\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `3. Informe o dia, o horário real e a justificativa para avaliação do gerente.\n\n` +
+        `Acesse o aplicativo: ${appUrl}?tab=timeclock`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -963,9 +1177,19 @@ export async function processInboundHouseAI({
         `Olá, ${firstName}!\n\n` +
         `A House Burger é especialista em hambúrgueres artesanais e smash burgers com padrão rigoroso de qualidade e sabor.\n\n` +
         `Nossas operações contam com praças integradas pelo CozinhaFlow (Chapa, Fritadeira, Montagem e Expedição).\n\n` +
-        `[ 1 ] Acessar Fichas e Tarefas no CozinhaFlow: ${appUrl}?tab=tasks\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `Acesse fichas e tarefas no CozinhaFlow: ${appUrl}?tab=tasks`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -983,13 +1207,23 @@ export async function processInboundHouseAI({
       action: "regras_cozinha",
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}! Normas de Boas Práticas e Higiene da House 190:\n\n` +
-        `1. Touca descartável obrigatória cobrindo todo o cabelo.\n` +
-        `2. Lavagem rigorosa das mãos a cada 30 minutos e ao mudar de praça.\n` +
-        `3. Uniforme limpo e calçado de segurança antiderrapante fechado.\n` +
-        `4. Unhas curtas, sem esmalte, e proibição de anéis/brincos em manipulação.\n\n` +
-        `[ 1 ] Acessar Tarefas CozinhaFlow: ${appUrl}?tab=tasks\n` +
-        `[ 0 ] Voltar ao Menu Principal`
+        `* Touca descartável obrigatória cobrindo todo o cabelo.\n` +
+        `* Lavagem rigorosa das mãos a cada 30 minutos e ao mudar de praça.\n` +
+        `* Uniforme limpo e calçado de segurança antiderrapante fechado.\n` +
+        `* Unhas curtas, sem esmalte, e proibição de anéis/brincos em manipulação.\n\n` +
+        `Acesse as tarefas no CozinhaFlow: ${appUrl}?tab=tasks`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -1009,6 +1243,17 @@ export async function processInboundHouseAI({
         `* Hora reduzida: Cada hora noturna é computada em 52 minutos e 30 segundos.\n\n` +
         `O cálculo é apurado automaticamente no seu espelho de ponto no final do ciclo mensal.`
       ),
+      poll: {
+        question: "Serviços House 190:",
+        options: [
+          "Minhas Folgas",
+          "Banco de Horas",
+          "Minha Escala",
+          "Pedir Folga",
+          "Menu Principal",
+        ],
+        selectableCount: 1,
+      },
     };
   }
 
@@ -1042,12 +1287,23 @@ Responda de forma precisa e útil:`;
         const gData = await gRes.json();
         const candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
         if (candidateText) {
-          const finalReply = stripHouseAIEmojis(candidateText) + `\n\n[ 1 ] Acessar Aplicativo Oficial: ${appUrl}\n[ 0 ] Ver Menu de Opções`;
+          const finalReply = stripHouseAIEmojis(candidateText) + `\n\nAcesse o aplicativo oficial: ${appUrl}`;
           return {
             handled: true,
             authorized: true,
             action: "gemini_response",
             replyText: finalReply,
+            poll: {
+              question: "Serviços House 190:",
+              options: [
+                "Minhas Folgas",
+                "Banco de Horas",
+                "Minha Escala",
+                "Pedir Folga",
+                "Menu Principal",
+              ],
+              selectableCount: 1,
+            },
           };
         }
       }
@@ -1060,18 +1316,22 @@ Responda de forma precisa e útil:`;
     authorized: true,
     action: "menu_geral",
     replyText: stripHouseAIEmojis(
-      `Olá, ${firstName}! Sou a House AI, sua assistente inteligente e operacional do Grupo House 190.\n\n` +
-      `Digite o número da opção desejada ou faça qualquer pergunta com suas próprias palavras:\n\n` +
-      `[ 1 ] Minhas Folgas (saldo do mês e próximas datas)\n` +
-      `[ 2 ] Meu Banco de Horas (saldo de horas trabalhadas)\n` +
-      `[ 3 ] Minha Escala (horário previsto para hoje)\n` +
-      `[ 4 ] Espelho de Ponto (link para conferir e assinar)\n` +
-      `[ 5 ] Atestados Médicos (orientações e envio seguro)\n` +
-      `[ 6 ] Equipe de Hoje (quem está escalado na loja)\n` +
-      `[ 7 ] Políticas da Casa (regras de escala, trocas e RH)\n\n` +
-      `Acesso direto ao portal oficial:\n` +
-      `${appUrl}\n\n` +
-      `Como posso te ajudar agora?`
+      `Olá, ${firstName}!\n` +
+      `Sou a House AI, assistente inteligente e operacional do Grupo House 190.\n\n` +
+      `Selecione o serviço desejado na caixa de seleção abaixo ou envie sua dúvida diretamente por mensagem:\n\n` +
+      `Acesso direto ao portal oficial: ${appUrl}`
     ),
+    poll: {
+      question: "Selecione o serviço desejado:",
+      options: [
+        "Minhas Folgas",
+        "Banco de Horas",
+        "Minha Escala",
+        "Pedir Folga",
+        "Espelho de Ponto",
+        "Políticas da Casa",
+      ],
+      selectableCount: 1,
+    },
   };
 }
