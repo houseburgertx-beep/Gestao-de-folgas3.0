@@ -208,7 +208,7 @@ export function generateMotivationalTimeClockMessage({ type, employeeName, timeS
       `Olá, ${firstName}! Ponto de ENTRADA confirmado às ${time}.\n\n` +
       `Comece este turno com entusiasmo e compromisso com a excelência. Nosso time é forte porque cada colaborador faz a diferença. Desejamos uma jornada brilhante e cheia de realizações na House 190!`,
 
-      `Olá, ${firstName}! Entrada registrada às ${time} com sucesso.\n\n` +
+      `Olá, ${firstName}! Ponto de ENTRADA registrado às ${time} com sucesso.\n\n` +
       `Que seu turno na House 190 seja marcado pela agilidade, cooperação e pelo melhor atendimento aos nossos clientes. Bom trabalho e estamos juntos nesta missão!`,
     ];
     return stripHouseAIEmojis(mensagens[Math.floor(Math.random() * mensagens.length)]);
@@ -332,6 +332,52 @@ export async function processInboundHouseAI({
   const firstName = String(matchedEmp.Nome || pushName || "Colaborador").trim().split(/\s+/)[0];
   const empId = String(matchedEmp.FuncionarioID || matchedEmp.id || "");
 
+  // 1.5 CONFIRMAÇÕES E AGRADECIMENTOS ("sim", "ok", "obrigado", "valeu", etc.)
+  if (
+    cleanText === "sim" ||
+    cleanText === "ok" ||
+    cleanText === "certo" ||
+    cleanText === "beleza" ||
+    cleanText === "entendido" ||
+    cleanText === "perfeito" ||
+    cleanText === "combinado"
+  ) {
+    return {
+      handled: true,
+      authorized: true,
+      action: "confirmacao_geral",
+      replyText: stripHouseAIEmojis(
+        `Combinado, ${firstName}!\n\n` +
+        `Estou à disposição sempre que precisar. Para consultar qualquer informação, basta digitar uma das opções:\n\n` +
+        `• Folgas (consultar folgas do mês e saldo)\n` +
+        `• Banco de horas (horas trabalhadas e saldo)\n` +
+        `• Escala (horário e turno de hoje)\n` +
+        `• Pedir folga (solicitar folga para uma data)\n` +
+        `• Meus documentos (espelho de ponto e assinatura)\n` +
+        `• Regras (normas e políticas da casa)\n\n` +
+        `Aplicativo oficial: ${appUrl}`
+      ),
+    };
+  }
+
+  if (
+    cleanText.includes("obrigad") ||
+    cleanText.includes("valeu") ||
+    cleanText.includes("agradeco") ||
+    cleanText.includes("agradeço")
+  ) {
+    return {
+      handled: true,
+      authorized: true,
+      action: "agradecimento",
+      replyText: stripHouseAIEmojis(
+        `Por nada, ${firstName}!\n\n` +
+        `Sempre à disposição para apoiar você e a equipe da House 190.\n\n` +
+        `Se precisar de mais alguma coisa, é só me chamar por aqui!`
+      ),
+    };
+  }
+
   // 2. BLOQUEIO INEGOCIÁVEL: REGISTRO DE PONTO POR WHATSAPP (Portaria 671 MTE)
   if (
     cleanText.includes("bater ponto") ||
@@ -359,7 +405,6 @@ export async function processInboundHouseAI({
         `Acesse o aplicativo oficial para registrar seu ponto com geolocalização e foto biométrica:\n` +
         `${appUrl}?tab=timeclock`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -386,7 +431,6 @@ export async function processInboundHouseAI({
         `${appUrl}?tab=documents\n\n` +
         `* Prazo regulamentar: até 48h com CRM e carimbo legível.`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -433,7 +477,6 @@ export async function processInboundHouseAI({
           `* "Folga na próxima terça"\n\n` +
           `Ou selecione uma data no calendário pelo aplicativo oficial:\n${appUrl}?tab=timeoff`
         ),
-        buttons: ["Folga Amanhã", "Minhas Folgas", "Minha Escala"],
       };
     }
 
@@ -499,7 +542,6 @@ export async function processInboundHouseAI({
           `${targetEmpNome === matchedEmp.Nome ? "Você" : targetEmpNome} já possui uma folga com status *${st}* para o dia *${dataBR}* no sistema.\n\n` +
           `Consulte a escala completa no aplicativo oficial:\n${appUrl}?tab=timeoff`
         ),
-        buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
       };
     }
 
@@ -630,7 +672,6 @@ export async function processInboundHouseAI({
           `* Status: Aprovada\n\n` +
           `Acesse a escala atualizada no aplicativo:\n${appUrl}?tab=timeoff`
         ),
-        buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
       };
     }
 
@@ -646,7 +687,6 @@ export async function processInboundHouseAI({
         `Assim que o gerente da sua loja avaliar a solicitação, você receberá a confirmação aqui pelo WhatsApp.\n\n` +
         `Acompanhe seu pedido no aplicativo:\n${appUrl}?tab=timeoff`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -735,7 +775,6 @@ export async function processInboundHouseAI({
       authorized: true,
       action: "consulta_folgas",
       replyText: stripHouseAIEmojis(linhas.join("\n")),
-      buttons: ["Pedir Folga", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -805,7 +844,6 @@ export async function processInboundHouseAI({
         `Compensações e saídas antecipadas devem ser alinhadas previamente com a gerência da sua loja.\n\n` +
         `Consulte o espelho detalhado no aplicativo:\n${appUrl}?tab=timeclock`
       ),
-      buttons: ["Minhas Folgas", "Minha Escala", "Pedir Folga"],
     };
   }
 
@@ -854,7 +892,6 @@ export async function processInboundHouseAI({
         `* Turno cadastrado: ${matchedEmp.Turno || "Geral"}\n\n` +
         `Consulte a escala completa no aplicativo:\n${appUrl}?tab=timeclock`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Pedir Folga"],
     };
   }
 
@@ -878,7 +915,6 @@ export async function processInboundHouseAI({
         `* Assinar no aplicativo: ${appUrl}?tab=documents\n\n` +
         `A assinatura é realizada diretamente na tela do seu dispositivo com autenticação criptografada.`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -900,7 +936,6 @@ export async function processInboundHouseAI({
         `* Envio seguro: Por exigência da LGPD, envie diretamente pelo aplicativo oficial:\n` +
         `${appUrl}?tab=documents`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -969,7 +1004,6 @@ export async function processInboundHouseAI({
       authorized: true,
       action: "equipe_hoje",
       replyText: stripHouseAIEmojis(linhas.join("\n")),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -994,7 +1028,6 @@ export async function processInboundHouseAI({
         `* Atestados: Entrega em até 48h pelo app na aba Meus Documentos.\n\n` +
         `Acesse o sistema oficial: ${appUrl}`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -1017,7 +1050,6 @@ export async function processInboundHouseAI({
         `3. Informe o dia, o horário real e a justificativa para avaliação do gerente.\n\n` +
         `Acesse o aplicativo: ${appUrl}?tab=timeclock`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -1039,7 +1071,6 @@ export async function processInboundHouseAI({
         `Nossas operações contam com praças integradas pelo CozinhaFlow (Chapa, Fritadeira, Montagem e Expedição).\n\n` +
         `Acesse fichas e tarefas no CozinhaFlow: ${appUrl}?tab=tasks`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -1063,7 +1094,6 @@ export async function processInboundHouseAI({
         `* Unhas curtas, sem esmalte, e proibição de anéis/brincos em manipulação.\n\n` +
         `Acesse as tarefas no CozinhaFlow: ${appUrl}?tab=tasks`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -1083,7 +1113,6 @@ export async function processInboundHouseAI({
         `* Hora reduzida: Cada hora noturna é computada em 52 minutos e 30 segundos.\n\n` +
         `O cálculo é apurado automaticamente no seu espelho de ponto no final do ciclo mensal.`
       ),
-      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
     };
   }
 
@@ -1123,14 +1152,13 @@ Responda de forma precisa e útil:`;
             authorized: true,
             action: "gemini_response",
             replyText: finalReply,
-            buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
           };
         }
       }
     } catch (_) {}
   }
 
-  // 16. CANAL DE ATENDIMENTO / MENU GERAL INTERATIVO (0, olá, oi, etc.)
+  // 16. CANAL DE ATENDIMENTO / MENU GERAL (oi, olá, menu, ajuda, etc.)
   return {
     handled: true,
     authorized: true,
@@ -1138,9 +1166,14 @@ Responda de forma precisa e útil:`;
     replyText: stripHouseAIEmojis(
       `Olá, ${firstName}!\n` +
       `Sou a House AI, assistente inteligente e operacional do Grupo House 190.\n\n` +
-      `Selecione o serviço desejado nos botões abaixo ou envie sua dúvida diretamente por mensagem:\n\n` +
-      `Acesso direto ao portal oficial: ${appUrl}`
+      `Como posso ajudar você hoje? Envie uma das opções abaixo ou digite sua dúvida:\n\n` +
+      `• Folgas (consultar folgas do mês e saldo)\n` +
+      `• Banco de horas (horas trabalhadas e saldo)\n` +
+      `• Minha escala (horário e turno de hoje)\n` +
+      `• Pedir folga (solicitar folga para uma data)\n` +
+      `• Meus documentos (espelho de ponto e assinatura)\n` +
+      `• Políticas da casa (regras de RH e escala)\n\n` +
+      `Acesso direto ao portal oficial:\n${appUrl}`
     ),
-    buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
   };
 }

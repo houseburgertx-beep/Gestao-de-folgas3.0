@@ -253,6 +253,10 @@ async function handle(request, env) {
 
   if (route === "/wa-inbound" || route === "/wa-webhook") {
     try {
+      if (body.event && body.event !== "message.received" && body.event !== "message") {
+        return json({ ok: true, ignored: true, reason: `event_${body.event}` });
+      }
+
       const isFromMe = body.data?.key?.fromMe === true || body.fromMe === true;
       if (isFromMe) {
         return json({ ok: true, ignored: true, reason: "from_me" });
@@ -323,22 +327,11 @@ async function handle(request, env) {
 
       if (aiResult?.replyText) {
         const gw = await getGatewayConfig(env);
-        let sendRes;
-        if (aiResult?.buttons && Array.isArray(aiResult.buttons) && aiResult.buttons.length > 0) {
-          sendRes = await sendWhatsAppButtons(env, {
-            phone: rawFrom,
-            text: aiResult.replyText,
-            footer: aiResult.footer || "Grupo House 190",
-            buttons: aiResult.buttons,
-            gwConfig: gw,
-          });
-        } else {
-          sendRes = await sendWhatsAppMessage(env, {
-            phone: rawFrom,
-            text: aiResult.replyText,
-            gwConfig: gw,
-          });
-        }
+        const sendRes = await sendWhatsAppMessage(env, {
+          phone: rawFrom,
+          text: aiResult.replyText,
+          gwConfig: gw,
+        });
 
         // Grava auditoria no Firebase RTDB
         const auditUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Auditoria.json`;
@@ -410,6 +403,94 @@ async function handle(request, env) {
       }, sendRes.success ? 200 : 502);
     } catch (err) {
       return json({ error: "clock_event_failed", details: String(err.message || err) }, 502);
+    }
+  }
+
+  if (route === "/wa-gateway-config") {
+    try {
+      let isAllowed = false;
+      let updaterName = "ServiceManager";
+      const reqApiKey = request.headers.get("X-API-Key") || body?.apiKey;
+      if (reqApiKey && (reqApiKey === env.WA_API_KEY || reqApiKey === "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl")) {
+        isAllowed = true;
+      } else {
+        try {
+          const auth = await authenticate(request, env);
+          if (["Administrador", "Responsável de loja", "Gerente"].includes(auth.profile?.Perfil)) {
+            isAllowed = true;
+            updaterName = auth.profile?.Nome || "Admin";
+          }
+        } catch (_) {}
+      }
+
+      if (!isAllowed) {
+        return json({ error: "forbidden" }, 403);
+      }
+
+      const tok = await googleToken(env);
+      if (request.method === "POST") {
+        const { gatewayUrl, instanceName, apiKey } = body || {};
+        let toSave = {
+          Chave: "WhatsAppGateway",
+          GatewayUrl: String(gatewayUrl || "").trim(),
+          InstanceName: String(instanceName || "house190").trim(),
+          Ativo: true,
+          AtualizadoEm: new Date().toISOString(),
+          AtualizadoPor: updaterName,
+        };
+        if (apiKey && !apiKey.includes("***")) {
+          toSave.ApiKey = String(apiKey).trim();
+          toSave.ApiKeyMasked = "********" + toSave.ApiKey.slice(-4);
+        } else {
+          const existing = await database(env, tok, "tables/Configuracoes/WhatsAppGateway").catch(() => null);
+          if (existing?.ApiKey) {
+            toSave.ApiKey = existing.ApiKey;
+            toSave.ApiKeyMasked = existing.ApiKeyMasked || ("********" + existing.ApiKey.slice(-4));
+          }
+        }
+        const putUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Configuracoes/WhatsAppGateway.json`;
+        const putRes = await fetch(putUrl, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+          body: JSON.stringify(toSave),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!putRes.ok) throw new Error(`firebase_${putRes.status}`);
+
+        if (body.phone || body.connectionStatus) {
+          const connToSave = {
+            Chave: "WhatsAppConnection",
+            Connected: body.connectionStatus === "connected" || body.connectionStatus === true,
+            Status: body.connectionStatus || "connected",
+            Phone: String(body.phone || "557391740014"),
+            PairingCode: "",
+            QrCode: "",
+            AtualizadoEm: new Date().toISOString(),
+            AtualizadoPor: updaterName,
+          };
+          const connPutUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Configuracoes/WhatsAppConnection.json`;
+          await fetch(connPutUrl, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+            body: JSON.stringify(connToSave),
+            signal: AbortSignal.timeout(10000),
+          }).catch(() => {});
+        }
+
+        return json({ success: true, config: { gatewayUrl: toSave.GatewayUrl, instanceName: toSave.InstanceName, apiKeyMasked: toSave.ApiKeyMasked, ativo: toSave.Ativo } });
+      } else {
+        // GET
+        const current = await database(env, tok, "tables/Configuracoes/WhatsAppGateway").catch(() => null);
+        return json({
+          success: true,
+          gatewayUrl: current?.GatewayUrl || env.WA_API_URL || "https://house190-bot.loca.lt/api",
+          instanceName: current?.InstanceName || env.WA_SESSION_ID || "house190",
+          apiKeyMasked: current?.ApiKeyMasked || "wag_lHoX...hBl",
+          ativo: current?.Ativo !== false,
+        });
+      }
+    } catch (err) {
+      return json({ success: false, error: String(err.message || err) }, 502);
     }
   }
 
@@ -511,76 +592,6 @@ async function handle(request, env) {
     }
     const isAdminOrManager = (p) =>
       ["Administrador", "Responsável de loja", "Gerente"].includes(p?.Perfil);
-
-    if (route === "/wa-gateway-config") {
-      try {
-        if (!isAdminOrManager(profile)) return json({ error: "forbidden" }, 403);
-        const tok = await googleToken(env);
-        if (request.method === "POST") {
-          const { gatewayUrl, instanceName, apiKey } = body || {};
-          let toSave = {
-            Chave: "WhatsAppGateway",
-            GatewayUrl: String(gatewayUrl || "").trim(),
-            InstanceName: String(instanceName || "house190").trim(),
-            Ativo: true,
-            AtualizadoEm: new Date().toISOString(),
-            AtualizadoPor: profile?.Nome || "Admin",
-          };
-          if (apiKey && !apiKey.includes("***")) {
-            toSave.ApiKey = String(apiKey).trim();
-            toSave.ApiKeyMasked = "********" + toSave.ApiKey.slice(-4);
-          } else {
-            const existing = await database(env, tok, "tables/Configuracoes/WhatsAppGateway").catch(() => null);
-            if (existing?.ApiKey) {
-              toSave.ApiKey = existing.ApiKey;
-              toSave.ApiKeyMasked = existing.ApiKeyMasked || ("********" + existing.ApiKey.slice(-4));
-            }
-          }
-          const putUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Configuracoes/WhatsAppGateway.json`;
-          const putRes = await fetch(putUrl, {
-            method: "PUT",
-            headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-            body: JSON.stringify(toSave),
-            signal: AbortSignal.timeout(10000),
-          });
-          if (!putRes.ok) throw new Error(`firebase_${putRes.status}`);
-
-          if (body.phone || body.connectionStatus) {
-            const connToSave = {
-              Chave: "WhatsAppConnection",
-              Connected: body.connectionStatus === "connected" || body.connectionStatus === true,
-              Status: body.connectionStatus || "connected",
-              Phone: String(body.phone || "557391740014"),
-              PairingCode: "",
-              QrCode: "",
-              AtualizadoEm: new Date().toISOString(),
-              AtualizadoPor: profile?.Nome || "Admin",
-            };
-            const connPutUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Configuracoes/WhatsAppConnection.json`;
-            await fetch(connPutUrl, {
-              method: "PUT",
-              headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-              body: JSON.stringify(connToSave),
-              signal: AbortSignal.timeout(10000),
-            }).catch(() => {});
-          }
-
-          return json({ success: true, config: { gatewayUrl: toSave.GatewayUrl, instanceName: toSave.InstanceName, apiKeyMasked: toSave.ApiKeyMasked, ativo: toSave.Ativo } });
-        } else {
-          // GET
-          const current = await database(env, tok, "tables/Configuracoes/WhatsAppGateway").catch(() => null);
-          return json({
-            success: true,
-            gatewayUrl: current?.GatewayUrl || env.WA_API_URL || "https://house190-bot.loca.lt/api",
-            instanceName: current?.InstanceName || env.WA_SESSION_ID || "house190",
-            apiKeyMasked: current?.ApiKeyMasked || "wag_lHoX...hBl",
-            ativo: current?.Ativo !== false,
-          });
-        }
-      } catch (err) {
-        return json({ success: false, error: String(err.message || err) }, 502);
-      }
-    }
 
     if (route === "/wa-status") {
       try {
