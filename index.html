@@ -24765,6 +24765,7 @@ dialog#medicalCertificateDialog {
           <details class="nav-group" open>
             <summary><span>●</span>Operação</summary>
             <button class="nav-item active" data-view="dashboard"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b>Início</b></button>
+            <button class="nav-item house-ai-nav-item" id="sidebarHouseAiBtn" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span><b>House AI 2.0</b><em class="nav-badge" style="background:#4f46e5;color:#fff;">IA</em></button>
             <button class="nav-item" data-view="timeclock"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b>Ponto</b></button>
             <button class="nav-item permission-manager" data-view="live-team"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5v2"/></svg></span><b>Equipe agora</b></button>
             <button class="nav-item" data-view="tasks" type="button"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V7a5 5 0 0 1 5-5Z"/><path d="M9 10h6"/></svg></span><b>CozinhaFlow &amp; Loja</b></button>
@@ -24828,13 +24829,13 @@ dialog#medicalCertificateDialog {
             <button
               id="copilotOpenBtn"
               class="copilot-topbar-btn"
-              title="Copiloto House 190"
-              aria-label="Abrir Copiloto House 190"
+              title="House AI 2.0"
+              aria-label="Abrir House AI 2.0"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
               </svg>
-              <span class="copilot-btn-label">Copiloto</span>
+              <span class="copilot-btn-label">House AI 2.0</span>
             </button>
             <button
               id="notificationTopBtn"
@@ -24993,8 +24994,8 @@ dialog#medicalCertificateDialog {
               </div>
               <button type="button" class="incomplete-alert-btn" style="background: #4f46e5; color: #fff;" data-view-target="documents">Assinar agora</button>
             </div>
-            <!-- Seção Gerencial Inteligente: HOUSE AI 2.0 -->
-            <section id="houseAiDashboardSection" class="house-ai-dashboard-section permission-manager">
+            <!-- Seção Inteligente: HOUSE AI 2.0 -->
+            <section id="houseAiDashboardSection" class="house-ai-dashboard-section">
               <div class="house-ai-dash-header">
                 <div class="house-ai-dash-title-group">
                   <span class="house-ai-pill">HOUSE AI 2.0</span>
@@ -30299,6 +30300,14 @@ dialog#medicalCertificateDialog {
       window.innerWidth <= 900
         ? document.body.classList.remove("menu-open")
         : document.body.classList.toggle("sidebar-collapsed");
+    $("#sidebarHouseAiBtn") &&
+      ($("#sidebarHouseAiBtn").onclick = () => {
+        const fab = $("#copilotFab") || $("#copilotOpenBtn");
+        if (fab) fab.click();
+        if (document.body.classList.contains("menu-open")) {
+          document.body.classList.remove("menu-open");
+        }
+      });
     $("#mobileMenu").onclick = (e) => {
       e.stopPropagation();
       document.body.classList.toggle("menu-open");
@@ -32959,46 +32968,60 @@ dialog#medicalCertificateDialog {
   async function renderHouseAiDashboard_() {
     const container = $("#houseAiInsightsContainer");
     if (!container) return;
-    if (!isAdmin() && !isManager()) {
-      const section = $("#houseAiDashboardSection");
-      if (section) section.style.display = "none";
-      return;
-    }
+    const isManagerOrAdmin = isAdmin() || isManager();
 
     try {
-      const res = await gas(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
-      const data = res?.data || res || {};
-      const insights = Array.isArray(data.insights) ? data.insights : [];
+      if (isManagerOrAdmin) {
+        const res = await gas(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
+        const data = res?.data || res || {};
+        const insights = Array.isArray(data.insights) ? data.insights : [];
 
-      if (insights.length === 0) {
+        if (insights.length === 0) {
+          container.innerHTML = `
+            <div class="house-ai-empty">
+              <span class="house-ai-empty-badge">Operação Regular</span>
+              <p>Nenhuma inconsistência ou risco operacional detectado no momento. Todas as escalas e batidas estão sob controle.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = insights.slice(0, 6).map((item) => {
+          const severityClass = item.gravidade === "critica" ? "house-ai-card--critica" : item.gravidade === "alta" ? "house-ai-card--alta" : "house-ai-card--media";
+          const actionsHtml = Array.isArray(item.acoesRecomendadas)
+            ? item.acoesRecomendadas.map((act) => `<button type="button" class="btn btn-secondary house-ai-action-btn" data-house-action="${esc(act.acao)}">${esc(act.label)}</button>`).join(" ")
+            : "";
+
+          return `
+            <article class="house-ai-card ${severityClass}">
+              <div class="house-ai-card-head">
+                <span class="house-ai-tag ${severityClass}">${esc(item.gravidade.toUpperCase())}</span>
+                <span class="house-ai-source">${esc(item.origem || "Operação")}</span>
+              </div>
+              <strong class="house-ai-card-title">${esc(item.titulo)}</strong>
+              <p class="house-ai-card-desc">${esc(item.descricao)}</p>
+              <small class="house-ai-card-reason">${esc(item.justificativa || "")}</small>
+              ${actionsHtml ? `<div class="house-ai-card-actions">${actionsHtml}</div>` : ""}
+            </article>
+          `;
+        }).join("");
+      } else {
+        const user = state.currentUser || {};
+        const userName = user.Nome || "Colaborador";
+        const folgas = Array.isArray(state.timeOff) ? state.timeOff : [];
+        const minhasFolgas = folgas.filter((f) => String(val(f, "Status", "status") || "").toLowerCase() === "aprovada");
+
         container.innerHTML = `
-          <div class="house-ai-empty">
-            <span class="house-ai-empty-badge">Operação Regular</span>
-            <p>Nenhuma inconsistência ou risco operacional detectado no momento. Todas as escalas e batidas estão sob controle.</p>
+          <div class="house-ai-empty" style="text-align: left; background: var(--surface, #ffffff); border-left: 4px solid #4f46e5;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+              <span class="house-ai-pill">Assistente Ativa</span>
+              <button type="button" class="btn btn-primary" style="min-height: 38px; padding: 0 12px; font-size: 12px;" onclick="const fab=$('#copilotFab')||$('#copilotOpenBtn'); if(fab) fab.click();">Conversar com House AI</button>
+            </div>
+            <strong style="font-size: 14px; color: var(--text);">Olá, ${esc(userName.split(" ")[0])}! Suas informações estão sincronizadas.</strong>
+            <p style="margin-top: 4px; font-size: 12.5px; color: var(--muted);">Você possui ${minhasFolgas.length} de 5 folgas regulamentares aprovadas neste mês. Você pode me consultar sobre seu banco de horas, solicitar folgas ou tirar dúvidas das regras da empresa.</p>
           </div>
         `;
-        return;
       }
-
-      container.innerHTML = insights.slice(0, 6).map((item) => {
-        const severityClass = item.gravidade === "critica" ? "house-ai-card--critica" : item.gravidade === "alta" ? "house-ai-card--alta" : "house-ai-card--media";
-        const actionsHtml = Array.isArray(item.acoesRecomendadas)
-          ? item.acoesRecomendadas.map((act) => `<button type="button" class="btn btn-secondary house-ai-action-btn" data-house-action="${esc(act.acao)}">${esc(act.label)}</button>`).join(" ")
-          : "";
-
-        return `
-          <article class="house-ai-card ${severityClass}">
-            <div class="house-ai-card-head">
-              <span class="house-ai-tag ${severityClass}">${esc(item.gravidade.toUpperCase())}</span>
-              <span class="house-ai-source">${esc(item.origem || "Operação")}</span>
-            </div>
-            <strong class="house-ai-card-title">${esc(item.titulo)}</strong>
-            <p class="house-ai-card-desc">${esc(item.descricao)}</p>
-            <small class="house-ai-card-reason">${esc(item.justificativa || "")}</small>
-            ${actionsHtml ? `<div class="house-ai-card-actions">${actionsHtml}</div>` : ""}
-          </article>
-        `;
-      }).join("");
 
       // Bind das ações recomendadas
       container.querySelectorAll(".house-ai-action-btn").forEach((btn) => {

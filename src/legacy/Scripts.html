@@ -1234,6 +1234,14 @@
       window.innerWidth <= 900
         ? document.body.classList.remove("menu-open")
         : document.body.classList.toggle("sidebar-collapsed");
+    $("#sidebarHouseAiBtn") &&
+      ($("#sidebarHouseAiBtn").onclick = () => {
+        const fab = $("#copilotFab") || $("#copilotOpenBtn");
+        if (fab) fab.click();
+        if (document.body.classList.contains("menu-open")) {
+          document.body.classList.remove("menu-open");
+        }
+      });
     $("#mobileMenu").onclick = (e) => {
       e.stopPropagation();
       document.body.classList.toggle("menu-open");
@@ -3894,46 +3902,60 @@
   async function renderHouseAiDashboard_() {
     const container = $("#houseAiInsightsContainer");
     if (!container) return;
-    if (!isAdmin() && !isManager()) {
-      const section = $("#houseAiDashboardSection");
-      if (section) section.style.display = "none";
-      return;
-    }
+    const isManagerOrAdmin = isAdmin() || isManager();
 
     try {
-      const res = await gas(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
-      const data = res?.data || res || {};
-      const insights = Array.isArray(data.insights) ? data.insights : [];
+      if (isManagerOrAdmin) {
+        const res = await gas(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
+        const data = res?.data || res || {};
+        const insights = Array.isArray(data.insights) ? data.insights : [];
 
-      if (insights.length === 0) {
+        if (insights.length === 0) {
+          container.innerHTML = `
+            <div class="house-ai-empty">
+              <span class="house-ai-empty-badge">Operação Regular</span>
+              <p>Nenhuma inconsistência ou risco operacional detectado no momento. Todas as escalas e batidas estão sob controle.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = insights.slice(0, 6).map((item) => {
+          const severityClass = item.gravidade === "critica" ? "house-ai-card--critica" : item.gravidade === "alta" ? "house-ai-card--alta" : "house-ai-card--media";
+          const actionsHtml = Array.isArray(item.acoesRecomendadas)
+            ? item.acoesRecomendadas.map((act) => `<button type="button" class="btn btn-secondary house-ai-action-btn" data-house-action="${esc(act.acao)}">${esc(act.label)}</button>`).join(" ")
+            : "";
+
+          return `
+            <article class="house-ai-card ${severityClass}">
+              <div class="house-ai-card-head">
+                <span class="house-ai-tag ${severityClass}">${esc(item.gravidade.toUpperCase())}</span>
+                <span class="house-ai-source">${esc(item.origem || "Operação")}</span>
+              </div>
+              <strong class="house-ai-card-title">${esc(item.titulo)}</strong>
+              <p class="house-ai-card-desc">${esc(item.descricao)}</p>
+              <small class="house-ai-card-reason">${esc(item.justificativa || "")}</small>
+              ${actionsHtml ? `<div class="house-ai-card-actions">${actionsHtml}</div>` : ""}
+            </article>
+          `;
+        }).join("");
+      } else {
+        const user = state.currentUser || {};
+        const userName = user.Nome || "Colaborador";
+        const folgas = Array.isArray(state.timeOff) ? state.timeOff : [];
+        const minhasFolgas = folgas.filter((f) => String(val(f, "Status", "status") || "").toLowerCase() === "aprovada");
+
         container.innerHTML = `
-          <div class="house-ai-empty">
-            <span class="house-ai-empty-badge">Operação Regular</span>
-            <p>Nenhuma inconsistência ou risco operacional detectado no momento. Todas as escalas e batidas estão sob controle.</p>
+          <div class="house-ai-empty" style="text-align: left; background: var(--surface, #ffffff); border-left: 4px solid #4f46e5;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+              <span class="house-ai-pill">Assistente Ativa</span>
+              <button type="button" class="btn btn-primary" style="min-height: 38px; padding: 0 12px; font-size: 12px;" onclick="const fab=$('#copilotFab')||$('#copilotOpenBtn'); if(fab) fab.click();">Conversar com House AI</button>
+            </div>
+            <strong style="font-size: 14px; color: var(--text);">Olá, ${esc(userName.split(" ")[0])}! Suas informações estão sincronizadas.</strong>
+            <p style="margin-top: 4px; font-size: 12.5px; color: var(--muted);">Você possui ${minhasFolgas.length} de 5 folgas regulamentares aprovadas neste mês. Você pode me consultar sobre seu banco de horas, solicitar folgas ou tirar dúvidas das regras da empresa.</p>
           </div>
         `;
-        return;
       }
-
-      container.innerHTML = insights.slice(0, 6).map((item) => {
-        const severityClass = item.gravidade === "critica" ? "house-ai-card--critica" : item.gravidade === "alta" ? "house-ai-card--alta" : "house-ai-card--media";
-        const actionsHtml = Array.isArray(item.acoesRecomendadas)
-          ? item.acoesRecomendadas.map((act) => `<button type="button" class="btn btn-secondary house-ai-action-btn" data-house-action="${esc(act.acao)}">${esc(act.label)}</button>`).join(" ")
-          : "";
-
-        return `
-          <article class="house-ai-card ${severityClass}">
-            <div class="house-ai-card-head">
-              <span class="house-ai-tag ${severityClass}">${esc(item.gravidade.toUpperCase())}</span>
-              <span class="house-ai-source">${esc(item.origem || "Operação")}</span>
-            </div>
-            <strong class="house-ai-card-title">${esc(item.titulo)}</strong>
-            <p class="house-ai-card-desc">${esc(item.descricao)}</p>
-            <small class="house-ai-card-reason">${esc(item.justificativa || "")}</small>
-            ${actionsHtml ? `<div class="house-ai-card-actions">${actionsHtml}</div>` : ""}
-          </article>
-        `;
-      }).join("");
 
       // Bind das ações recomendadas
       container.querySelectorAll(".house-ai-action-btn").forEach((btn) => {
