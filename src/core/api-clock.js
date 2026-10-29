@@ -1696,6 +1696,19 @@ export function createClockHandlers() {
       }).catch((error) =>
         console.warn("Auditoria do ponto:", error?.message || error),
       );
+
+      // Disparo automático motivacional de Boas-Vindas ou Despedida no WhatsApp
+      void (async () => {
+        try {
+          if (["ENTRADA", "SAIDA", "SAIDA_INTERVALO", "RETORNO_INTERVALO"].includes(type)) {
+            await runtime.invoke?.("sendTimeClockMotivationWhatsApp", [{
+              employee,
+              punch: saved,
+              type,
+            }]).catch(() => {});
+          }
+        } catch (_) {}
+      })();
       return success(
         {
           ...saved,

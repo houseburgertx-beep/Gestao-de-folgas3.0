@@ -835,6 +835,66 @@ export function createWhatsAppHandlers() {
     },
 
     /**
+     * Envia mensagem motivacional automática de Ponto (Entrada, Saída, Intervalo) via WhatsApp
+     */
+    async sendTimeClockMotivationWhatsApp(args) {
+      const [payload = {}] = args || [];
+      const { employee, punch, type } = payload;
+      if (!employee) return { handled: false, error: "Colaborador ausente." };
+
+      const phone = normalizeWhatsAppNumber(
+        employee.Telefone || employee.WhatsApp || employee.Celular || ""
+      );
+      if (!phone) return { handled: false, reason: "Sem telefone cadastrado." };
+
+      const firstName = String(employee.Nome || "Colaborador").trim().split(/\s+/)[0];
+      const punchTime = punch?.DataHora
+        ? new Date(punch.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+        : new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+      let text = "";
+      if (type === "ENTRADA") {
+        text = `Olá, ${firstName}! Bom início de turno na House 190!\n\n` +
+          `Seu ponto de ENTRADA foi registrado às ${punchTime} com sucesso.\n\n` +
+          `Desejamos uma jornada produtiva, cheia de foco, energia e excelente trabalho em equipe. O sucesso do nosso salão e da nossa cozinha depende da dedicação de cada um de nós. Tenha um excelente trabalho hoje!`;
+      } else if (type === "SAIDA") {
+        text = `Excelente descanso, ${firstName}!\n\n` +
+          `Sua jornada de hoje foi finalizada e registrada às ${punchTime} com sucesso.\n\n` +
+          `Agradecemos imensamente por todo o seu empenho, dedicação e energia dedicados ao Grupo House 190 hoje. Descanse bastante e recarregue as energias para o próximo turno!`;
+      } else if (type === "SAIDA_INTERVALO") {
+        text = `Bom intervalo, ${firstName}!\n\n` +
+          `Sua saída para descanso foi registrada às ${punchTime}.\n\n` +
+          `Aproveite sua pausa para se alimentar com calma e recuperar o fôlego regulamentar.`;
+      } else if (type === "RETORNO_INTERVALO") {
+        text = `Bem-vindo(a) de volta do intervalo, ${firstName}!\n\n` +
+          `Seu retorno foi registrado às ${punchTime}.\n\n` +
+          `Desejamos uma ótima continuidade de turno e um excelente fechamento de dia!`;
+      }
+
+      if (!text) return { handled: false, reason: "Tipo sem mensagem definida." };
+
+      const cleanText = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu, "").trim();
+
+      try {
+        const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+        const apiKey = "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
+        const res = await fetch(`${defaultWorkerUrl}/wa-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+          body: JSON.stringify({ phone, text: cleanText }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return { handled: true, success: data.success, messageId: data.messageId };
+        }
+      } catch (err) {
+        console.warn("[ponto-whatsapp] Falha no disparo motivacional:", err?.message || err);
+      }
+      return { handled: false };
+    },
+
+    /**
      * Dispara um comunicado em massa para todos os colaboradores (ou filtrado por loja) via WhatsApp.
      */
     async broadcastWhatsAppAnnouncement(args) {

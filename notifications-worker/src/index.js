@@ -7,6 +7,7 @@ import {
   scheduleForDay,
 } from "../../src/core/reminder-policy.js";
 import { normalizeWhatsAppPhone, sendWhatsAppMessage } from "./whatsapp.js";
+import { processInboundHouseAI, generateMotivationalTimeClockMessage } from "./house-ai.js";
 const encoder = new TextEncoder();
 const b64 = (value) =>
   btoa(String.fromCharCode(...value))
@@ -238,18 +239,156 @@ async function handle(request, env) {
   if (request.method !== "POST" && request.method !== "GET")
     return json({ error: "method_not_allowed" }, 405);
   if (!ready(env)) return json({ error: "not_configured" }, 503);
+
+  let body = {};
+  if (request.method === "POST" && request.body) {
+    try {
+      body = await boundedJson(new Response(request.body), 65536);
+    } catch (_) {
+      body = {};
+    }
+  }
+  const route = new URL(request.url).pathname,
+    now = Date.now();
+
+  if (route === "/wa-inbound" || route === "/wa-webhook") {
+    try {
+      const isFromMe = body.data?.key?.fromMe === true || body.fromMe === true;
+      if (isFromMe) {
+        return json({ ok: true, ignored: true, reason: "from_me" });
+      }
+
+      const rawFrom =
+        body.data?.from ||
+        body.data?.key?.remoteJid ||
+        body.from ||
+        body.phone ||
+        "";
+      const rawText =
+        body.data?.content ||
+        body.data?.caption ||
+        body.data?.message?.conversation ||
+        body.data?.message?.extendedTextMessage?.text ||
+        body.text ||
+        body.body ||
+        "";
+      const pushName = body.data?.pushName || body.pushName || "";
+      const messageId = body.data?.key?.id || body.messageId || "";
+
+      if (!rawFrom || !rawText) {
+        return json({ error: "missing_from_or_text" }, 400);
+      }
+
+      // Deduplicação pelo ID da mensagem no D1
+      if (messageId && env.DB) {
+        try {
+          const eventKey = `wa_inbound:${messageId}`;
+          const lock = await env.DB.prepare(
+            "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,'sending',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state='sending',lease_until=excluded.lease_until WHERE deliveries.state!='sent' AND deliveries.lease_until<?"
+          )
+            .bind(eventKey, rawFrom, now + 60000, now + 86400000, now)
+            .run();
+
+          if (!lock.meta.changes) {
+            return json({ ok: true, deduplicated: true });
+          }
+        } catch (_) {}
+      }
+
+      const tok = await googleToken(env);
+      const aiResult = await processInboundHouseAI({
+        from: rawFrom,
+        text: rawText,
+        pushName,
+        env,
+        database,
+        tok,
+        now,
+      });
+
+      if (aiResult?.replyText) {
+        const gw = await getGatewayConfig(env);
+        const sendRes = await sendWhatsAppMessage(env, {
+          phone: rawFrom,
+          text: aiResult.replyText,
+          gwConfig: gw,
+        });
+
+        // Grava auditoria no Firebase RTDB
+        const auditUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Auditoria.json`;
+        await fetch(auditUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            Acao: "WhatsApp Inbound House AI",
+            Modulo: "HouseAI",
+            Telefone: rawFrom,
+            MensagemRecebida: rawText,
+            RespostaGerada: aiResult.replyText,
+            DisparoStatus: sendRes.success ? "enviado" : "erro",
+            DataHora: new Date(now).toISOString(),
+          }),
+          signal: AbortSignal.timeout(6000),
+        }).catch(() => {});
+
+        // Marca entrega como enviada no D1
+        if (messageId && env.DB) {
+          await env.DB.prepare(
+            "UPDATE deliveries SET state='sent' WHERE event_key=? AND endpoint=?"
+          )
+            .bind(`wa_inbound:${messageId}`, rawFrom)
+            .run()
+            .catch(() => {});
+        }
+
+        return json({
+          ok: true,
+          action: aiResult.action,
+          replyText: aiResult.replyText,
+          sent: sendRes.success,
+        });
+      }
+
+      return json({ ok: true, handled: false });
+    } catch (err) {
+      return json({ error: "inbound_failed", details: String(err.message || err) }, 502);
+    }
+  }
+
+  if (route === "/wa-clock-event") {
+    try {
+      const { employeeName, phone, type, timeStr } = body || {};
+      if (!phone || !type) return json({ error: "missing_phone_or_type" }, 400);
+
+      const motivationalText = generateMotivationalTimeClockMessage({
+        type,
+        employeeName,
+        timeStr,
+      });
+
+      if (!motivationalText) {
+        return json({ error: "invalid_clock_type" }, 400);
+      }
+
+      const gw = await getGatewayConfig(env);
+      const sendRes = await sendWhatsAppMessage(env, {
+        phone,
+        text: motivationalText,
+        gwConfig: gw,
+      });
+
+      return json({
+        success: sendRes.success,
+        messageId: sendRes.messageId,
+        text: motivationalText,
+      }, sendRes.success ? 200 : 502);
+    } catch (err) {
+      return json({ error: "clock_event_failed", details: String(err.message || err) }, 502);
+    }
+  }
+
   try {
     const { uid, profile } = await authenticate(request, env);
-    let body = {};
-    if (request.method === "POST" && request.body) {
-      try {
-        body = await boundedJson(new Response(request.body), 8192);
-      } catch (_) {
-        body = {};
-      }
-    }
-    const route = new URL(request.url).pathname,
-      now = Date.now();
     if (route === "/subscribe") {
       if (!validSubscription(body.subscription))
         return json({ error: "invalid_subscription" }, 400);
