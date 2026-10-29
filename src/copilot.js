@@ -2217,7 +2217,10 @@ export async function callGeminiCopilot(prompt, context = {}) {
   if (!apiKey) {
     return parseCopilotIntent(prompt, context);
   }
-  const model = getGeminiModel();
+  let model = getGeminiModel();
+  if (model === "gemini-4-argon") {
+    model = "gemini-2.5-pro";
+  }
 
   const user = context.user || {};
   const role = getUserRole(user);
@@ -3497,7 +3500,10 @@ function _parseCopilotIntentRaw(text, context = {}) {
     )
   ) {
     const hasKey = Boolean(getGeminiApiKey());
-    const model = getGeminiModel();
+    let model = getGeminiModel();
+  if (model === "gemini-4-argon") {
+    model = "gemini-2.5-pro";
+  }
     const modelName = model === "gemini-4-argon" ? "Google Gemini 4 Argon" : "Google Gemini 2.0 Flash";
     const currentEngine = hasKey
       ? `${modelName} (Ativo via chave API)`
@@ -4585,7 +4591,10 @@ export function initCopilot() {
 
   function updateEngineStatus() {
     const key = getGeminiApiKey();
-    const model = getGeminiModel();
+    let model = getGeminiModel();
+  if (model === "gemini-4-argon") {
+    model = "gemini-2.5-pro";
+  }
     if (apiKeyInput) {
       apiKeyInput.value = key ? "••••••••••••••••" : "";
     }
@@ -4761,7 +4770,10 @@ export function initCopilot() {
 
     const userName = getUserName(user);
     const hasKey = Boolean(getGeminiApiKey());
-    const model = getGeminiModel();
+    let model = getGeminiModel();
+  if (model === "gemini-4-argon") {
+    model = "gemini-2.5-pro";
+  }
     const modelName = model === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
     const engineNote = hasKey ? `Motor ${modelName} ativado.` : "Motor local autônomo ativado.";
 
@@ -4863,7 +4875,13 @@ export function initCopilot() {
         incompletePunches,
         documents: state.documents || window.state?.documents || [],
         hourBalance: state.timeClockBalance || state.hourBalance || window.state?.timeClockBalance,
-        pendingCounts: typeof pendingCenterCounts_ === "function" ? pendingCenterCounts_() : (state.pendingCounts || null),
+        pendingCounts: (() => {
+          try {
+            if (typeof pendingCenterCounts_ === "function") return pendingCenterCounts_();
+            if (typeof window !== "undefined" && typeof window.pendingCenterCounts_ === "function") return window.pendingCenterCounts_();
+          } catch (_) {}
+          return state.pendingCounts || null;
+        })(),
         currentView: getCurrentView(),
       };
 
@@ -4872,7 +4890,7 @@ export function initCopilot() {
 
       if (apiKey) {
         const currentModel = getGeminiModel();
-        const modelLabel = currentModel === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
+        const modelLabel = currentModel === "gemini-4-argon" ? "Gemini 2.5 Pro" : "Gemini Flash";
         const waitMsg = appendAssistantMessage(`Pensando com ${modelLabel}…`);
         try {
           intent = await callGeminiCopilot(text, context);
@@ -4883,10 +4901,30 @@ export function initCopilot() {
           waitMsg?.remove();
         }
       } else {
-        intent = parseCopilotIntent(text, context);
+        // Tenta consultar House AI Proxy da arquitetura central
+        try {
+          const api = window.__GESTAO_FIREBASE__?.api;
+          if (api && typeof api.invoke === "function") {
+            const houseAiRes = await api.invoke("callGeminiProxy", [{ prompt: text, context }]);
+            const resData = houseAiRes?.data || houseAiRes;
+            if (resData?.reply) {
+              intent = {
+                type: "query",
+                reply: resData.reply,
+              };
+            }
+          }
+        } catch (_) {}
+
+        if (!intent) {
+          intent = parseCopilotIntent(text, context);
+        }
       }
 
-      if (!intent || intent.type === "empty") return;
+      if (!intent || intent.type === "empty") {
+        appendAssistantMessage("Não compreendi este comando com precisão. Você pode digitar **ajuda** para ver os comandos operacionais disponíveis para o seu perfil.");
+        return;
+      }
 
       if (intent.type === "error") {
         appendAssistantMessage(intent.message);

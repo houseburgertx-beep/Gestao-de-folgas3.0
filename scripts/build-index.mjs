@@ -28,7 +28,7 @@ const [redesign, cozinhaflow, documentsCss, copilotCss] = await Promise.all([
 let html = template
   .replace(
     /<meta\s+name="app-version"\s+content="[\s\S]*?"\s*\/>/,
-    '<meta name="app-version" content="6.17.0-firebase-github" />',
+    '<meta name="app-version" content="6.17.1-firebase-github" />',
   )
   .replace(
     /<title>[\s\S]*?<\/title>/,
@@ -59,7 +59,7 @@ let html = template
   }, true);
 </script>
 <script src="./vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="./src/main.js?v=6.17.0"></script>
+<script type="module" src="./src/main.js?v=6.17.1"></script>
 ` + scripts,
   )
   .replace(/<base\s+target="_top"\s*\/>/, '<base target="_self" />');
