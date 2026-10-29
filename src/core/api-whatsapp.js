@@ -738,7 +738,36 @@ export function createWhatsAppHandlers() {
       const isBrowser = typeof window !== "undefined";
       const shouldSendGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
 
-      if (shouldSendGateway && gwUrl && apiKey) {
+      // 1. Tenta envio pelo Cloudflare Worker oficial (alta disponibilidade na borda e túnel ativo)
+      if (isBrowser) {
+        try {
+          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
+          const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+            },
+            body: JSON.stringify({ phone, text }),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (workerRes.ok) {
+            const workerData = await workerRes.json().catch(() => ({}));
+            if (workerData.success && workerData.messageId) {
+              messageId = workerData.messageId;
+              deliveryError = null;
+            } else if (workerData.error) {
+              deliveryError = workerData.error;
+            }
+          }
+        } catch (err) {
+          console.warn("Disparo via Worker falhou:", err?.message || err);
+          if (!deliveryError) deliveryError = err?.message;
+        }
+      }
+
+      // 2. Se não enviou via Worker e temos gateway direto configurado (não localtunnel legado), tenta direto
+      if (!messageId && shouldSendGateway && gwUrl && apiKey && !gwUrl.includes("loca.lt")) {
         try {
           const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
           const jid = `${phone}@s.whatsapp.net`;
@@ -759,40 +788,13 @@ export function createWhatsAppHandlers() {
           const resData = await res.json().catch(() => ({}));
           if (res.ok && resData.status) {
             messageId = resData.data?.key?.id || resData.data?.id || "sent";
+            deliveryError = null;
           } else {
             deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
           }
         } catch (err) {
           console.warn("Disparo direto ao gateway falhou:", err?.message || err);
-          deliveryError = err?.message || "Falha de conexão";
-        }
-      }
-
-      // Se não enviou pelo gateway direto, tenta via Cloudflare Worker
-      if (!messageId && isBrowser) {
-        try {
-          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
-          const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-API-Key": apiKey,
-            },
-            body: JSON.stringify({ phone, text }),
-            signal: AbortSignal.timeout(10000),
-          });
-          if (workerRes.ok) {
-            const workerData = await workerRes.json().catch(() => ({}));
-            if (workerData.success) {
-              messageId = workerData.messageId || "sent_worker";
-              deliveryError = null;
-            } else if (workerData.error) {
-              deliveryError = workerData.error;
-            }
-          }
-        } catch (err) {
-          console.warn("Disparo via Worker falhou:", err?.message || err);
-          if (!deliveryError) deliveryError = err?.message;
+          if (!deliveryError) deliveryError = err?.message || "Falha de conexão";
         }
       }
 
@@ -895,8 +897,34 @@ export function createWhatsAppHandlers() {
         let messageId = "";
         let deliveryError = null;
 
-        // 1. Tenta envio direto pelo Gateway Baileys se disponível
-        if (shouldSendGateway && gwUrl && apiKey) {
+        // 1. Tenta envio pelo Cloudflare Worker oficial (alta disponibilidade na borda e túnel ativo)
+        if (isBrowser) {
+          try {
+            const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-API-Key": apiKey,
+              },
+              body: JSON.stringify({ phone, text: formattedText }),
+              signal: AbortSignal.timeout(10000),
+            });
+            if (workerRes.ok) {
+              const workerData = await workerRes.json().catch(() => ({}));
+              if (workerData.success && workerData.messageId) {
+                messageId = workerData.messageId;
+                deliveryError = null;
+              } else if (workerData.error) {
+                deliveryError = workerData.error;
+              }
+            }
+          } catch (err) {
+            if (!deliveryError) deliveryError = err?.message;
+          }
+        }
+
+        // 2. Se não enviou via Worker e temos gateway direto configurado (não localtunnel legado), tenta direto
+        if (!messageId && shouldSendGateway && gwUrl && apiKey && !gwUrl.includes("loca.lt")) {
           try {
             const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
             const jid = `${phone}@s.whatsapp.net`;
@@ -914,37 +942,12 @@ export function createWhatsAppHandlers() {
             const resData = await res.json().catch(() => ({}));
             if (res.ok && resData.status) {
               messageId = resData.data?.key?.id || resData.data?.id || "sent";
+              deliveryError = null;
             } else {
               deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
             }
           } catch (err) {
-            deliveryError = err?.message || "Falha de conexão";
-          }
-        }
-
-        // 2. Fallback via Worker Relay
-        if (!messageId && isBrowser) {
-          try {
-            const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": apiKey,
-              },
-              body: JSON.stringify({ phone, text: formattedText }),
-              signal: AbortSignal.timeout(10000),
-            });
-            if (workerRes.ok) {
-              const workerData = await workerRes.json().catch(() => ({}));
-              if (workerData.success) {
-                messageId = workerData.messageId || "sent_worker";
-                deliveryError = null;
-              } else if (workerData.error) {
-                deliveryError = workerData.error;
-              }
-            }
-          } catch (err) {
-            if (!deliveryError) deliveryError = err?.message;
+            if (!deliveryError) deliveryError = err?.message || "Falha de conexão";
           }
         }
 
