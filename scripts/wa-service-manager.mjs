@@ -58,7 +58,7 @@ async function ensureWaAkg() {
   log("Iniciando WA-AKG em MODO PRODUÇÃO compilado na porta 3000...");
   akgProcess = spawn("npm", ["start"], {
     cwd: WA_AKG_DIR,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: "ignore",
     env: {
       ...process.env,
       NODE_ENV: "production",
@@ -154,6 +154,42 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
 let tunnelChild = null;
 
 function runTunnel() {
+  const hasCloudflared = (() => {
+    try {
+      execSync("which cloudflared", { stdio: "pipe" });
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  if (hasCloudflared) {
+    log("Iniciando túnel seguro Cloudflare Edge (cloudflared)...");
+    tunnelChild = spawn("cloudflared", ["tunnel", "--url", "http://localhost:3000"], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    const onData = (chunk) => {
+      const text = chunk.toString();
+      const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
+      if (match) {
+        const liveUrl = match[0].trim();
+        log(`Túnel Cloudflare ativo: ${liveUrl}`);
+        syncConfig(liveUrl).catch(() => {});
+      }
+    };
+
+    tunnelChild.stdout.on("data", onData);
+    tunnelChild.stderr.on("data", onData);
+
+    tunnelChild.on("close", (code) => {
+      log(`Túnel Cloudflare encerrou (código ${code}). Reiniciando em 3s...`);
+      tunnelChild = null;
+      setTimeout(runTunnel, 3000);
+    });
+    return;
+  }
+
   log(`Iniciando túnel seguro (${SUBDOMAIN}.loca.lt)...`);
 
   tunnelChild = spawn("npx", ["localtunnel", "--port", "3000", "--subdomain", SUBDOMAIN], {
@@ -169,6 +205,7 @@ function runTunnel() {
       syncConfig(liveUrl).catch(() => {});
     }
   });
+  tunnelChild.stderr.resume();
 
   tunnelChild.on("close", (code) => {
     log(`Túnel encerrou (código ${code}). Reiniciando em 3s...`);
