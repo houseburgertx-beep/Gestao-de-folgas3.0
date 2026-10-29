@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * wa-service-manager.mjs
- * Gerenciador de alta performance e resiliência do WhatsApp House 190.
- * Roda em modo de produção compilado com auto-wake protegido, caffeinate e túnel persistente.
+ * Gerenciador de alta performance, auto-recuperação e resiliência do WhatsApp House 190.
+ * Monitora continuamente MySQL, WA-AKG e o Túnel Cloudflare Edge com health-checks ativos.
  */
 
 import { spawn, execSync } from "node:child_process";
@@ -79,7 +79,7 @@ let lastStartAttempt = 0;
 
 async function startSessionIfStopped() {
   const now = Date.now();
-  if (now - lastStartAttempt < 120000) {
+  if (now - lastStartAttempt < 60000) {
     return;
   }
 
@@ -106,17 +106,22 @@ async function startSessionIfStopped() {
   } catch (_) {}
 }
 
+let activeTunnelUrl = null;
+let tunnelFailures = 0;
+
 export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
   const cleanUrl = url.replace(/\/+$/, "");
   const gatewayUrl = cleanUrl.endsWith("/api") ? cleanUrl : `${cleanUrl}/api`;
+  activeTunnelUrl = gatewayUrl;
+  tunnelFailures = 0;
 
   let phone = "557197069291";
   let isConnected = true;
 
   try {
-    const sRes = await fetch(`${gatewayUrl}/sessions/${encodeURIComponent(INSTANCE)}`, {
-      headers: { "X-API-Key": API_KEY, "bypass-tunnel-reminder": "true" },
-      signal: AbortSignal.timeout(5000),
+    const sRes = await fetch(`http://127.0.0.1:3000/api/sessions/${encodeURIComponent(INSTANCE)}`, {
+      headers: { "X-API-Key": API_KEY },
+      signal: AbortSignal.timeout(3000),
     });
     if (sRes.ok) {
       const data = await sRes.json();
@@ -142,7 +147,7 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
       signal: AbortSignal.timeout(8000),
     });
     if (res.ok) {
-      log(`Sincronização OK: ${isConnected ? "Conectado" : "Desconectado"} (${phone})`);
+      log(`Sincronização OK: ${isConnected ? "Conectado" : "Desconectado"} (${phone}) -> ${gatewayUrl}`);
       return true;
     }
   } catch (err) {
@@ -154,6 +159,13 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
 let tunnelChild = null;
 
 function runTunnel() {
+  if (tunnelChild) {
+    try {
+      tunnelChild.kill("SIGKILL");
+    } catch (_) {}
+    tunnelChild = null;
+  }
+
   const hasCloudflared = (() => {
     try {
       execSync("which cloudflared", { stdio: "pipe" });
@@ -164,7 +176,7 @@ function runTunnel() {
   })();
 
   if (hasCloudflared) {
-    log("Iniciando túnel seguro Cloudflare Edge (cloudflared)...");
+    log("Iniciando túnel Cloudflare Edge (cloudflared)...");
     tunnelChild = spawn("cloudflared", ["tunnel", "--url", "http://localhost:3000"], {
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -183,15 +195,14 @@ function runTunnel() {
     tunnelChild.stderr.on("data", onData);
 
     tunnelChild.on("close", (code) => {
-      log(`Túnel Cloudflare encerrou (código ${code}). Reiniciando em 3s...`);
+      log(`Túnel Cloudflare encerrou (código ${code}). Reiniciando em 2s...`);
       tunnelChild = null;
-      setTimeout(runTunnel, 3000);
+      setTimeout(runTunnel, 2000);
     });
     return;
   }
 
-  log(`Iniciando túnel seguro (${SUBDOMAIN}.loca.lt)...`);
-
+  log(`Iniciando túnel alternativo (${SUBDOMAIN}.loca.lt)...`);
   tunnelChild = spawn("npx", ["localtunnel", "--port", "3000", "--subdomain", SUBDOMAIN], {
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -208,28 +219,70 @@ function runTunnel() {
   tunnelChild.stderr.resume();
 
   tunnelChild.on("close", (code) => {
-    log(`Túnel encerrou (código ${code}). Reiniciando em 3s...`);
+    log(`Túnel encerrou (código ${code}). Reiniciando em 2s...`);
     tunnelChild = null;
-    setTimeout(runTunnel, 3000);
+    setTimeout(runTunnel, 2000);
   });
 }
 
+// Health check ativo do túnel público a cada 15 segundos
+async function checkTunnelHealth() {
+  if (!activeTunnelUrl) {
+    return;
+  }
+  try {
+    const res = await fetch(`${activeTunnelUrl}/sessions/${encodeURIComponent(INSTANCE)}`, {
+      headers: { "X-API-Key": API_KEY, "bypass-tunnel-reminder": "true" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      tunnelFailures = 0;
+      return;
+    }
+    tunnelFailures++;
+    log(`Alerta: túnel respondeu com status ${res.status} (falhas consecutivas: ${tunnelFailures})`);
+  } catch (err) {
+    tunnelFailures++;
+    log(`Alerta: falha na conectividade externa do túnel (${err.message}) [falhas: ${tunnelFailures}]`);
+  }
+
+  // Se falhou 2 vezes consecutivas (30s), força reinicialização imediata do túnel
+  if (tunnelFailures >= 2) {
+    log("Túnel externo inacessível. Reiniciando túnel automaticamente...");
+    tunnelFailures = 0;
+    activeTunnelUrl = null;
+    runTunnel();
+  }
+}
+
 export async function startSupervisor() {
-  log("Iniciando supervisão de alta performance da House 190...");
+  log("Iniciando supervisão resiliente da House 190...");
   await ensureMysql();
   await ensureWaAkg();
   await startSessionIfStopped();
   runTunnel();
 
-  // Monitoramento a cada 30 segundos
+  // Loop de monitoramento a cada 15 segundos
   setInterval(async () => {
     try {
       await ensureMysql();
       await ensureWaAkg();
       await startSessionIfStopped();
+      await checkTunnelHealth();
     } catch (_) {}
-  }, 30000);
+  }, 15000);
 }
+
+// Tratamento de sinais de encerramento
+function cleanup() {
+  log("Encerrando serviços supervisionados...");
+  if (tunnelChild) {
+    try { tunnelChild.kill("SIGKILL"); } catch (_) {}
+  }
+  process.exit(0);
+}
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);
 
 if (process.argv[1]?.endsWith("wa-service-manager.mjs")) {
   startSupervisor();
