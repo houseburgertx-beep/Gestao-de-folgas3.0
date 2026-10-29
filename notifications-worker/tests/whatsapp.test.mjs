@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeWhatsAppPhone, sendWhatsAppMessage } from "../src/whatsapp.js";
+import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppButtons } from "../src/whatsapp.js";
 
 test("normalizeWhatsAppPhone normaliza telefones brasileiros em diversos formatos", () => {
   // Com DDD e 9 dígitos (Bahia 71)
@@ -94,6 +94,50 @@ test("sendWhatsAppMessage envia requisição correta para a API do WA-AKG", asyn
     assert.equal(capturedHeaders["X-API-Key"], "wag_teste123");
     assert.equal(capturedHeaders["Content-Type"], "application/json");
     assert.equal(capturedBody.message.text, "Lembrete: Entrada em 5 minutos");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("sendWhatsAppButtons envia requisição correta para a API de buttons do WA-AKG", async () => {
+  let capturedUrl = "";
+  let capturedHeaders = {};
+  let capturedBody = null;
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    capturedUrl = url;
+    capturedHeaders = options.headers;
+    capturedBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({ status: true, message: "Buttons sent successfully" }), { status: 200 });
+  };
+
+  try {
+    const env = {
+      WA_ENABLED: "true",
+      WA_API_URL: "http://localhost:3000/api",
+      WA_SESSION_ID: "house190",
+      WA_API_KEY: "wag_teste123",
+    };
+
+    const result = await sendWhatsAppButtons(env, {
+      phone: "(71) 98888-7777",
+      text: "Escolha uma opção:",
+      footer: "Grupo House 190",
+      buttons: ["Minhas Folgas", "Banco de Horas", "Minha Escala"],
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(result.status, 200);
+    assert.equal(
+      capturedUrl,
+      "http://localhost:3000/api/messages/house190/5571988887777%40s.whatsapp.net/buttons",
+    );
+    assert.equal(capturedHeaders["X-API-Key"], "wag_teste123");
+    assert.equal(capturedBody.text, "Escolha uma opção:");
+    assert.equal(capturedBody.footer, "Grupo House 190");
+    assert.equal(capturedBody.buttons.length, 3);
+    assert.equal(capturedBody.buttons[0].text, "Minhas Folgas");
   } finally {
     globalThis.fetch = originalFetch;
   }

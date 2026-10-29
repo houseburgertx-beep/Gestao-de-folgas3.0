@@ -130,6 +130,108 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000,
 }
 
 /**
+ * Envia mensagem com botões interativos de resposta rápida do WhatsApp (Quick Reply Buttons).
+ * Exatamente como na imagem (botões acoplados à bolha com ícone de resposta).
+ *
+ * @param {object} env
+ * @param {object} options
+ * @param {string} options.phone - Destinatário
+ * @param {string} options.text - Texto principal da mensagem
+ * @param {string} [options.footer="Grupo House 190"] - Rodapé da mensagem
+ * @param {Array<{ id: string, text: string }|string>} options.buttons - Lista de 1 a 3 botões
+ * @param {number} [options.timeoutMs=10000]
+ * @param {object} [options.gwConfig]
+ */
+export async function sendWhatsAppButtons(
+  env,
+  { phone, text, footer = "Grupo House 190", buttons = [], timeoutMs = 10000, gwConfig = null },
+) {
+  const isEnabled =
+    env.WA_ENABLED === true ||
+    env.WA_ENABLED === 1 ||
+    ["true", "1", "sim", "yes"].includes(String(env.WA_ENABLED || "").toLowerCase());
+
+  if (!isEnabled) {
+    return { success: false, skipped: true, error: "wa_disabled" };
+  }
+
+  const baseUrl = (gwConfig?.url || env.WA_API_URL || "").trim().replace(/\/+$/, "");
+  const sessionId = gwConfig?.instance || env.WA_SESSION_ID;
+  const apiKey = gwConfig?.apiKey || env.WA_API_KEY;
+
+  if (!baseUrl || !sessionId || !apiKey) {
+    return { success: false, skipped: true, error: "wa_config_missing" };
+  }
+
+  const target = normalizeWhatsAppPhone(phone);
+  if (!target) {
+    return { success: false, error: "invalid_phone" };
+  }
+
+  const validButtons = Array.isArray(buttons)
+    ? buttons.slice(0, 3).map((b, i) => {
+        const title = typeof b === "string" ? b : (b.text || b.displayText || b.title || `Opção ${i + 1}`);
+        const id = typeof b === "string" ? b : (b.id || `btn_${i + 1}`);
+        return { id, text: title };
+      })
+    : [];
+
+  if (validButtons.length === 0) {
+    return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig });
+  }
+
+  const apiEndpoint = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+  const endpoint = `${apiEndpoint}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(target.jid)}/buttons`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+        "bypass-tunnel-reminder": "true",
+      },
+      body: JSON.stringify({
+        text,
+        footer,
+        buttons: validButtons,
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      // Fallback para envio padrão via /send com objeto de botões
+      const fallbackEndpoint = `${apiEndpoint}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(target.jid)}/send`;
+      const fallbackRes = await fetch(fallbackEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": apiKey,
+          "bypass-tunnel-reminder": "true",
+        },
+        body: JSON.stringify({
+          message: {
+            text,
+            footer,
+            buttons: validButtons,
+          },
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      if (!fallbackRes.ok) {
+        return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig });
+      }
+      return { success: true, status: fallbackRes.status };
+    }
+
+    return { success: true, status: res.status };
+  } catch (err) {
+    return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig });
+  }
+}
+
+/**
  * Envia caixa de seleção interativa nativa do WhatsApp (Poll) via WA-AKG.
  *
  * @param {object} env

@@ -6,7 +6,7 @@ import {
   remindersFor,
   scheduleForDay,
 } from "../../src/core/reminder-policy.js";
-import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppPoll } from "./whatsapp.js";
+import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppPoll } from "./whatsapp.js";
 import { processInboundHouseAI, generateMotivationalTimeClockMessage } from "./house-ai.js";
 const encoder = new TextEncoder();
 const b64 = (value) =>
@@ -264,11 +264,26 @@ async function handle(request, env) {
         body.from ||
         body.phone ||
         "";
+      let interactiveText = "";
+      try {
+        const rawParams = body.data?.message?.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+        if (rawParams) {
+          const parsed = JSON.parse(rawParams);
+          interactiveText = parsed?.display_text || parsed?.id || "";
+        }
+      } catch (_) {}
+
       const rawText =
         body.data?.content ||
         body.data?.caption ||
         body.data?.message?.conversation ||
         body.data?.message?.extendedTextMessage?.text ||
+        body.data?.message?.buttonsResponseMessage?.selectedDisplayText ||
+        body.data?.message?.buttonsResponseMessage?.selectedButtonId ||
+        body.data?.message?.templateButtonReplyMessage?.selectedDisplayText ||
+        body.data?.message?.templateButtonReplyMessage?.selectedId ||
+        interactiveText ||
+        body.data?.message?.interactiveResponseMessage?.body?.text ||
         body.text ||
         body.body ||
         "";
@@ -308,20 +323,21 @@ async function handle(request, env) {
 
       if (aiResult?.replyText) {
         const gw = await getGatewayConfig(env);
-        const sendRes = await sendWhatsAppMessage(env, {
-          phone: rawFrom,
-          text: aiResult.replyText,
-          gwConfig: gw,
-        });
-
-        if (aiResult?.poll && Array.isArray(aiResult.poll.options) && aiResult.poll.options.length >= 2) {
-          await sendWhatsAppPoll(env, {
+        let sendRes;
+        if (aiResult?.buttons && Array.isArray(aiResult.buttons) && aiResult.buttons.length > 0) {
+          sendRes = await sendWhatsAppButtons(env, {
             phone: rawFrom,
-            question: aiResult.poll.question || "Selecione uma opção:",
-            options: aiResult.poll.options,
-            selectableCount: aiResult.poll.selectableCount || 1,
+            text: aiResult.replyText,
+            footer: aiResult.footer || "Grupo House 190",
+            buttons: aiResult.buttons,
             gwConfig: gw,
-          }).catch((pollErr) => console.warn("Erro ao enviar enquete WhatsApp:", pollErr?.message || pollErr));
+          });
+        } else {
+          sendRes = await sendWhatsAppMessage(env, {
+            phone: rawFrom,
+            text: aiResult.replyText,
+            gwConfig: gw,
+          });
         }
 
         // Grava auditoria no Firebase RTDB
