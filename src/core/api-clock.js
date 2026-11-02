@@ -2884,6 +2884,133 @@ export function createClockHandlers() {
         ),
       );
     },
+
+    /**
+     * Geração Automática Mensal de Espelhos de Ponto (Portaria 671 MTE)
+     * Varre todos os colaboradores que tiveram atividade no mês e gera os espelhos pendentes em lote.
+     */
+    async generateMonthlyTimeClockBatchDocuments(args) {
+      const values = dropClientToken(args);
+      const filters = values[0] || {};
+      const profile = await runtime.requireProfile();
+
+      // Mês padrão: mês anterior (se hoje for novembro/2026 -> gera para outubro/2026)
+      const d = new Date();
+      d.setDate(0);
+      const defaultPrevMonth = todayIso(d).slice(0, 7);
+      const targetMonth = String(filters.month || filters.mes || defaultPrevMonth).slice(0, 7);
+      assert(/^\d{4}-\d{2}$/.test(targetMonth), "Competência inválida.");
+
+      const [employees, allRecords, allDocs] = await Promise.all([
+        runtime.list("Funcionarios", { profile }).catch(() => []),
+        runtime.listPeriods("RegistrosPonto", [targetMonth], { profile }).catch(() => []),
+        runtime.list("Documentos", { profile }).catch(() => []),
+      ]);
+
+      const [y, mNum] = targetMonth.split("-");
+      const mNames = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+      ];
+      const mLabel = `${mNames[Number(mNum) - 1] || mNum} de ${y}`;
+
+      const activeEmployees = employees.filter((e) =>
+        isAdmin(profile) ? true : String(e.LojaID || "") === String(profile.LojaID || "")
+      );
+
+      // Mapear quem teve batidas no mês
+      const workedEmpIds = new Set();
+      allRecords.forEach((r) => {
+        if (r.FuncionarioID && r.Status !== "Substituído") {
+          workedEmpIds.add(String(r.FuncionarioID));
+        }
+      });
+
+      // Mapear documentos de espelho já existentes
+      const existingDocIds = new Set(
+        allDocs
+          .filter((d) => d.OrigemTipo === "ESPELHO_PONTO" || String(d.DocID || d.DocumentoID || "").startsWith(`ESPELHO_${targetMonth}_`))
+          .map((d) => String(d.DocID || d.DocumentoID))
+      );
+
+      const created = [];
+      const skipped = [];
+
+      for (const emp of activeEmployees) {
+        const empId = String(emp.FuncionarioID || emp.id || "").trim();
+        if (!empId) continue;
+
+        const docId = `ESPELHO_${targetMonth}_${empId}`;
+        if (existingDocIds.has(docId)) {
+          skipped.push({ empId, nome: emp.Nome, motivo: "Espelho já existe" });
+          continue;
+        }
+
+        // Se o colaborador trabalhou no mês ou é funcionário ativo
+        const hasWorked = workedEmpIds.has(empId);
+        if (!hasWorked && !asBoolean(emp.Ativo)) {
+          continue;
+        }
+
+        const newDoc = {
+          DocID: docId,
+          DocumentoID: docId,
+          Titulo: `Espelho de Ponto — ${mLabel}`,
+          Tipo: "Espelho de Ponto",
+          Descricao: `Espelho de ponto mensal referente a ${mLabel} disponível para conferência e assinatura eletrônica (Portaria 671 MTE).`,
+          FuncionarioID: empId,
+          NomeFuncionario: emp.Nome || "Colaborador",
+          CPFFuncionario: emp.CPF || "",
+          CargoFuncionario: emp.Cargo || "Colaborador",
+          LojaID: emp.LojaID || profile.LojaID || "",
+          NomeLoja: emp.NomeLoja || profile.NomeLoja || "Grupo House 190",
+          MesReferencia: targetMonth,
+          Status: "Pendente",
+          OrigemTipo: "ESPELHO_PONTO",
+          DataEnvio: nowIso(),
+          CriadoPor: "Fechamento Mensal Automático",
+        };
+
+        try {
+          const savedDoc = await runtime.upsert("Documentos", newDoc);
+          created.push(savedDoc);
+
+          // Cria notificação interna para o colaborador
+          void createNotification({
+            DestinatarioID: empId,
+            Destinatario: emp.Email || emp.Nome,
+            Assunto: `Espelho de Ponto Disponível — ${mLabel}`,
+            Mensagem: `Olá, ${emp.Nome}! Seu espelho de ponto oficial referente a ${mLabel} já está fechado e aguarda sua conferência e assinatura eletrônica obrigatória.`,
+            Tipo: "Documento",
+            Status: "Não lida",
+            DataCriacao: nowIso(),
+            CriadoPor: "Fechamento Mensal Automático",
+          }).catch(() => {});
+
+          // Disparo proativo no WhatsApp se o colaborador tiver telefone
+          const phone = emp.Telefone || emp.WhatsApp || emp.Celular;
+          if (phone) {
+            void runtime.invoke?.("generateWhatsAppNotificationMessage", [{
+              funcionarioId: empId,
+              tipo: "ESPELHO_PONTO",
+              docId,
+              mesReferencia: targetMonth,
+            }]).catch(() => {});
+          }
+        } catch (err) {
+          console.warn(`[espelho-mensal] Falha ao criar espelho para ${empId}:`, err?.message || err);
+        }
+      }
+
+      return success({
+        mesReferencia: targetMonth,
+        mesRotulo: mLabel,
+        totalElegiveis: activeEmployees.length,
+        gerados: created.length,
+        jaExistentes: skipped.length,
+        detalhesCriados: created.map((d) => ({ id: d.DocumentoID, nome: d.NomeFuncionario })),
+      }, `${created.length} espelho(s) de ponto de ${mLabel} gerado(s) com sucesso para assinatura.`);
+    },
   };
 }
 

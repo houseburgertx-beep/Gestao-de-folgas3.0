@@ -270,6 +270,9 @@ export async function startSupervisor() {
       await ensureWaAkg();
       await startSessionIfStopped();
       await checkTunnelHealth();
+      if (activeTunnelUrl) {
+        await syncConfig(activeTunnelUrl);
+      }
     } catch (_) {}
   }, 15000);
 }

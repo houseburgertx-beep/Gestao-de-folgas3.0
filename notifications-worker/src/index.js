@@ -981,6 +981,33 @@ async function handle(request, env) {
       }
     }
 
+    if (route === "/trigger-monthly-mirrors") {
+      try {
+        let isAllowed = false;
+        const reqApiKey = request.headers.get("X-API-Key") || body?.apiKey;
+        if (reqApiKey && (reqApiKey === env.WA_API_KEY || reqApiKey === "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl")) {
+          isAllowed = true;
+        } else {
+          try {
+            const auth = await authenticate(request, env);
+            if (["Administrador", "Responsável de loja", "Gerente"].includes(auth.profile?.Perfil)) {
+              isAllowed = true;
+            }
+          } catch (_) {}
+        }
+
+        if (!isAllowed) {
+          return json({ error: "forbidden" }, 403);
+        }
+
+        const token = await googleToken(env);
+        await checkAndGenerateMonthlyTimeCards(env, token, Date.now());
+        return json({ ok: true, message: "Espelhos mensais processados com sucesso." });
+      } catch (err) {
+        return json({ error: "monthly_mirrors_failed", details: String(err.message || err) }, 500);
+      }
+    }
+
     if (route === "/wa-automations") {
       try {
         if (!isAdminOrManager(profile) || profile.Perfil !== "Administrador")
@@ -1207,7 +1234,159 @@ export async function tick(env, now = Date.now()) {
       now - 90 * 86400000,
     ),
   ]);
+
+  // Rotina Automática de Virada de Mês (Portaria 671 MTE): Gerar espelhos de ponto para todos
+  try {
+    await checkAndGenerateMonthlyTimeCards(env, token, now);
+  } catch (err) {
+    console.warn("Fechamento mensal automático falhou:", err?.message || err);
+  }
+
   console.log(JSON.stringify({ event: "reminders_tick", attempted: sent }));
+}
+
+/**
+ * Verifica e gera automaticamente os documentos de Espelho de Ponto do mês anterior
+ */
+async function checkAndGenerateMonthlyTimeCards(env, token, now) {
+  // Executa uma checagem diária (ou se ainda não foi gerado para o mês anterior)
+  const d = new Date(now - 3 * 3600000); // Horário de Brasília
+  const curDay = d.getDate();
+  const curMonth = d.toISOString().slice(0, 7);
+
+  // Calcula o mês anterior
+  const prevDate = new Date(d);
+  prevDate.setDate(0); // Último dia do mês anterior
+  const targetMonth = prevDate.toISOString().slice(0, 7);
+
+  const lockKey = `auto_monthly_mirror_${targetMonth}`;
+  if (env.DB) {
+    const lock = await env.DB.prepare(
+      "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,'worker_cron','sent',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET lease_until=excluded.lease_until WHERE 1=0"
+    )
+      .bind(lockKey, now + 30 * 86400000, now + 35 * 86400000)
+      .run()
+      .catch(() => null);
+
+    // Se já foi processado neste ciclo mensal, encerra
+    if (lock && !lock.meta.changes) {
+      return;
+    }
+  }
+
+  // Busca Funcionários, Registros de Ponto e Documentos existentes do Firebase RTDB
+  const [employeesData, recordsData, docsData] = await Promise.all([
+    database(env, token, "tables/Funcionarios").catch(() => ({})),
+    database(env, token, `tables/RegistrosPonto/${targetMonth}`).catch(() => ({})),
+    database(env, token, "tables/Documentos").catch(() => ({})),
+  ]);
+
+  const employees = Object.values(employeesData || {});
+  const records = Object.values(recordsData || {});
+  const docs = Object.values(docsData || {});
+
+  const [y, mNum] = targetMonth.split("-");
+  const mNames = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+  const mLabel = `${mNames[Number(mNum) - 1] || mNum} de ${y}`;
+
+  const workedEmpIds = new Set();
+  records.forEach((r) => {
+    if (r.FuncionarioID && r.Status !== "Substituído") {
+      workedEmpIds.add(String(r.FuncionarioID));
+    }
+  });
+
+  const existingDocIds = new Set(
+    docs
+      .filter((doc) => doc.OrigemTipo === "ESPELHO_PONTO" || String(doc.DocID || doc.DocumentoID || "").startsWith(`ESPELHO_${targetMonth}_`))
+      .map((doc) => String(doc.DocID || doc.DocumentoID))
+  );
+
+  for (const emp of employees) {
+    const empId = String(emp.FuncionarioID || emp.id || "").trim();
+    if (!empId) continue;
+
+    const docId = `ESPELHO_${targetMonth}_${empId}`;
+    if (existingDocIds.has(docId)) continue;
+
+    // Apenas quem trabalhou ou está ativo
+    const hasWorked = workedEmpIds.has(empId);
+    if (!hasWorked && !active(emp.Ativo)) continue;
+
+    const newDoc = {
+      DocID: docId,
+      DocumentoID: docId,
+      Titulo: `Espelho de Ponto — ${mLabel}`,
+      Tipo: "Espelho de Ponto",
+      Descricao: `Espelho de ponto mensal referente a ${mLabel} disponível para conferência e assinatura eletrônica (Portaria 671 MTE).`,
+      FuncionarioID: empId,
+      NomeFuncionario: emp.Nome || "Colaborador",
+      CPFFuncionario: emp.CPF || "",
+      CargoFuncionario: emp.Cargo || "Colaborador",
+      LojaID: emp.LojaID || "",
+      NomeLoja: emp.NomeLoja || "Grupo House 190",
+      MesReferencia: targetMonth,
+      Status: "Pendente",
+      OrigemTipo: "ESPELHO_PONTO",
+      DataEnvio: new Date(now).toISOString(),
+      CriadoPor: "Fechamento Mensal Automático",
+    };
+
+    const docUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Documentos/${docId}.json`;
+    await fetch(docUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(newDoc),
+      signal: AbortSignal.timeout(8000),
+    }).catch(() => {});
+
+    // Notificação RTDB
+    const notifId = `notif_espelho_${targetMonth}_${empId}`;
+    const notifUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Notificacoes/${notifId}.json`;
+    await fetch(notifUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        NotificacaoID: notifId,
+        DestinatarioID: empId,
+        Destinatario: emp.Email || emp.Nome,
+        Assunto: `Espelho de Ponto Disponível — ${mLabel}`,
+        Mensagem: `Olá, ${emp.Nome}! Seu espelho de ponto oficial referente a ${mLabel} já está fechado e aguarda sua conferência e assinatura eletrônica obrigatória.`,
+        Tipo: "Documento",
+        Status: "Não lida",
+        DataCriacao: new Date(now).toISOString(),
+        CriadoPor: "Fechamento Mensal Automático",
+      }),
+      signal: AbortSignal.timeout(8000),
+    }).catch(() => {});
+
+    // Disparo no WhatsApp
+    const phone = emp.Telefone || emp.WhatsApp || emp.Celular;
+    const waTarget = phone ? normalizeWhatsAppPhone(phone) : null;
+    if (waTarget) {
+      const gw = await getGatewayConfig(env);
+      const firstName = String(emp.Nome || "Colaborador").trim().split(/\s+/)[0];
+      const appUrl = (env.APP_URL || "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0/").replace(/\/+$/, "") + "/";
+      const waText = [
+        `Olá, ${firstName}!`,
+        `Seu espelho de ponto referente a *${mLabel}* já está disponível para conferência e assinatura eletrônica (Portaria 671 MTE).`,
+        ``,
+        `Acesse o aplicativo oficial para conferir e assinar direto pelo celular:`,
+        `${appUrl}?tab=documents`,
+        ``,
+        `_Grupo House 190 • Departamento Pessoal_`,
+      ].join("\n");
+
+      await sendWhatsAppMessage(env, {
+        phone: waTarget.digits,
+        text: waText,
+        gwConfig: gw,
+      }).catch(() => {});
+    }
+  }
 }
 export default {
   fetch: handle,
