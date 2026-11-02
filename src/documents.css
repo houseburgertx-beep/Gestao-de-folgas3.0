@@ -1574,6 +1574,241 @@ dialog#medicalCertificateDialog {
   flex-wrap: wrap;
 }
 
+.doc-action-btn {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  padding: 8px 14px !important;
+  min-height: 40px !important;
+  font-size: 13px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+  transition: all 0.15s ease !important;
+}
+
+.doc-action-btn:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.doc-primary-cta {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  padding: 8px 18px !important;
+  min-height: 40px !important;
+  font-size: 13px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: #6340d8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(99, 64, 216, 0.3) !important;
+  transition: all 0.15s ease !important;
+}
+
+.doc-primary-cta:hover {
+  background: #5333be !important;
+  transform: translateY(-1px);
+}
+
+.doc-refresh-btn {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.doc-refresh-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* 3. Barra Integrada de Filtros & Busca Rápida (Design Apple iOS) */
+.doc-filters-integrated-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 0.65rem 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  flex-wrap: wrap;
+}
+
+.doc-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.doc-search-icon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.doc-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 32px 0 36px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.doc-search-input:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: #6340d8;
+  box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.12);
+}
+
+.doc-search-clear {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.doc-search-clear:hover {
+  color: #0f172a;
+}
+
+.doc-store-dropdown-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 280px;
+  min-width: 180px;
+}
+
+.doc-store-dropdown-icon {
+  position: absolute;
+  left: 12px;
+  color: #6340d8;
+  pointer-events: none;
+}
+
+.doc-store-dropdown {
+  width: 100%;
+  height: 38px;
+  padding: 0 30px 0 34px !important;
+  border-radius: 12px !important;
+  border: 1.5px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+  color: #1e293b !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  box-sizing: border-box !important;
+}
+
+.doc-store-dropdown:focus {
+  outline: none;
+  background-color: #ffffff !important;
+  border-color: #6340d8 !important;
+  box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.12) !important;
+}
+
+.doc-empty-state-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.doc-empty-state-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.doc-empty-state-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 15.5px;
+}
+
+.doc-empty-state-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Botões de Ação na Linha do Documento */
+.doc-cert-btn {
+  color: #2563eb !important;
+  background: #eff6ff !important;
+  border: 1px solid #dbeafe !important;
+}
+.doc-cert-btn:hover {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.doc-wa-btn {
+  color: #16a34a !important;
+  background: #f0fdf4 !important;
+  border: 1px solid #dcfce7 !important;
+}
+.doc-wa-btn:hover {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+}
+
+.doc-del-btn {
+  color: #ef4444 !important;
+  background: #fef2f2 !important;
+  border: 1px solid #fee2e2 !important;
+}
+.doc-del-btn:hover {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+}
+
 /* Barra de Filtro de Lojas e Status */
 .doc-filters-subbar {
   display: flex;

@@ -42,6 +42,7 @@ let state = {
   typeFilter: "all", // "all" | "atestado" | "holerite" | "termo"
   statusFilter: "all",
   storeFilter: "all",
+  searchTerm: "",
   monthFilter: "all",
   loading: false,
   currentSigningDoc: null,
@@ -383,14 +384,65 @@ function getDocCategory(doc) {
 }
 
 /**
- * Normaliza o nome da loja para agrupamento limpo
+ * Formata rótulo legível e elegante para a tag do documento (zero códigos técnicos)
  */
-function canonicalStoreName(rawStore) {
-  const s = String(rawStore || "Central").trim();
-  if (/central/i.test(s)) return "Central";
-  if (/teixeira/i.test(s)) return "House 190 Teixeira";
-  if (/food\s*park/i.test(s)) return "House Food Park";
-  return s;
+function formatDocTagLabel(doc) {
+  const cat = getDocCategory(doc);
+  if (cat === "atestado") return "Atestado Médico";
+  if (cat === "holerite") return "Holerite";
+  const tipo = String(doc.Tipo || "").trim();
+  const titulo = String(doc.Titulo || "").trim();
+  if (/advert[eê]ncia/i.test(titulo) || /advert[eê]ncia/i.test(tipo)) return "Advertência";
+  if (/suspens[aã]o/i.test(titulo) || /suspens[aã]o/i.test(tipo)) return "Suspensão";
+  if (/termo/i.test(titulo) || /termo/i.test(tipo)) return "Termo RH";
+  if (/contrato/i.test(titulo) || /contrato/i.test(tipo)) return "Contrato";
+  if (/espelho/i.test(titulo) || /espelho/i.test(tipo)) return "Espelho de Ponto";
+  if (/documento_rh/i.test(tipo)) return "Documento RH";
+  return tipo || "Documento";
+}
+
+/**
+ * Normaliza e resolve o nome amigável da loja para agrupamento limpo e filtros.
+ * Elimina UUIDs brutos e simplifica razões sociais longas.
+ */
+function canonicalStoreName(rawStore, storeIdHint) {
+  const s = String(rawStore || storeIdHint || "").trim();
+  if (!s || s === "undefined" || s === "null") return "Central";
+
+  const stores = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+  const found = stores.find((st) => {
+    const id = storeId(st).toLowerCase();
+    const name = storeName(st).toLowerCase();
+    const query = s.toLowerCase();
+    const hint = String(storeIdHint || "").toLowerCase();
+    return (id && (id === query || id === hint)) || (name && (name === query || (hint && id === hint)));
+  });
+
+  let displayName = found ? (found.NomeFantasia || found.NomeLoja || storeName(found)) : s;
+
+  // Se ainda for UUID (não encontrado no cadastro de lojas)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(displayName)) {
+    return "Central (Administrativo)";
+  }
+
+  // Normalização de nomes conhecidos do Grupo House 190
+  if (/central/i.test(displayName)) return "Central";
+  if (/tios\s*rockets/i.test(displayName)) return "Tios Rockets Pizzaria";
+  if (/a\.?m\.?\s*gourmet/i.test(displayName)) return "A.M. Gourmet";
+  if (/food\s*park/i.test(displayName)) return "House Food Park";
+  if (/teixeira/i.test(displayName)) return "House 190 Teixeira";
+  if (/hamburgueria|burguer/i.test(displayName)) return "House Burguer 190";
+
+  // Remove sufixos jurídicos empresariais feios
+  displayName = displayName
+    .replace(/\s+LTDA\b/gi, "")
+    .replace(/\s+EIRELI\b/gi, "")
+    .replace(/\s+S\/?A\b/gi, "")
+    .replace(/\s+ME\b/gi, "")
+    .replace(/\s+EPP\b/gi, "")
+    .trim();
+
+  return displayName || "Central";
 }
 
 /**
@@ -406,7 +458,7 @@ function renderCleanDocRow(doc) {
   const initials = getInitials(doc.NomeFuncionario);
   const avatarClass = isMed ? "medical" : isHol ? "payroll" : "contract";
   const tagClass = avatarClass;
-  const tagLabel = isMed ? "Atestado Médico" : isHol ? "Holerite" : (doc.Tipo || "Documento");
+  const tagLabel = formatDocTagLabel(doc);
 
   let descText = "";
   if (isMed) {
@@ -484,20 +536,20 @@ function renderCleanDocRow(doc) {
             <button class="btn btn-secondary btn-sm" data-action="download" data-id="${esc(doc.DocumentoID)}" style="border-radius:10px; font-weight:600; padding:6px 12px; font-size:12.5px;">
               Baixar PDF
             </button>
-            <button class="med-clean-icon-btn" data-action="audit" data-id="${esc(doc.DocumentoID)}" title="Ver Certificado e Hash">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <button class="med-clean-icon-btn doc-cert-btn" data-action="audit" data-id="${esc(doc.DocumentoID)}" title="Ver Certificado de Autenticidade e Hash">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </button>
           `
               : `
             <button class="btn btn-secondary btn-sm" data-action="preview" data-id="${esc(doc.DocumentoID)}" style="border-radius:10px; font-weight:600; padding:6px 12px; font-size:12.5px;">
               Visualizar
             </button>
-            <button class="med-clean-icon-btn" data-action="notify-whatsapp" data-id="${esc(doc.DocumentoID)}" title="Cobrar assinatura via WhatsApp" style="color:#16a34a;">
+            <button class="med-clean-icon-btn doc-wa-btn" data-action="notify-whatsapp" data-id="${esc(doc.DocumentoID)}" title="Cobrar assinatura via WhatsApp">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
               </svg>
             </button>
-            <button class="med-clean-icon-btn" data-action="delete" data-id="${esc(doc.DocumentoID)}" title="Excluir documento" style="color:#ef4444;">
+            <button class="med-clean-icon-btn doc-del-btn" data-action="delete" data-id="${esc(doc.DocumentoID)}" title="Excluir documento">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           `
@@ -525,10 +577,10 @@ function renderManagerView() {
   const holeritesPendentes = holerites.filter((d) => d.Status === "Pendente").length;
   const termos = allDocs.filter((d) => getDocCategory(d) === "termo");
 
-  // Contadores por Loja
+  // Contadores por Loja (usando nomes canônicos limpos, zero UUIDs)
   const storeCounts = new Map();
   allDocs.forEach((d) => {
-    const sName = canonicalStoreName(d.NomeLoja || d.LojaID);
+    const sName = canonicalStoreName(d.NomeLoja, d.LojaID);
     storeCounts.set(sName, (storeCounts.get(sName) || 0) + 1);
   });
   const uniqueStoreNames = [...storeCounts.keys()].sort();
@@ -543,8 +595,8 @@ function renderManagerView() {
 
     // 2. Loja
     if (state.storeFilter && state.storeFilter !== "all") {
-      const docStore = canonicalStoreName(doc.NomeLoja || doc.LojaID).toLowerCase();
-      const target = canonicalStoreName(state.storeFilter).toLowerCase();
+      const docStore = canonicalStoreName(doc.NomeLoja, doc.LojaID).toLowerCase();
+      const target = canonicalStoreName(state.storeFilter, state.storeFilter).toLowerCase();
       if (!docStore.includes(target) && docStore !== target && String(doc.LojaID || "").toLowerCase() !== target) {
         return false;
       }
@@ -556,13 +608,25 @@ function renderManagerView() {
       if (state.statusFilter === "Assinado" && doc.Status !== "Assinado" && doc.Status !== "Aprovado") return false;
     }
 
+    // 4. Busca em Tempo Real (Colaborador, CPF, Loja ou Título)
+    if (state.searchTerm) {
+      const q = state.searchTerm.toLowerCase();
+      const name = String(doc.NomeFuncionario || "").toLowerCase();
+      const cpf = String(doc.CPFFuncionario || "").toLowerCase();
+      const title = String(doc.Titulo || "").toLowerCase();
+      const sName = canonicalStoreName(doc.NomeLoja, doc.LojaID).toLowerCase();
+      if (!name.includes(q) && !cpf.includes(q) && !title.includes(q) && !sName.includes(q)) {
+        return false;
+      }
+    }
+
     return true;
   });
 
   // Agrupamento por Loja
   const groupsByStore = new Map();
   filteredDocs.forEach((doc) => {
-    const sName = canonicalStoreName(doc.NomeLoja || doc.LojaID);
+    const sName = canonicalStoreName(doc.NomeLoja, doc.LojaID);
     if (!groupsByStore.has(sName)) {
       groupsByStore.set(sName, []);
     }
@@ -573,12 +637,12 @@ function renderManagerView() {
   let storeGroupsHtml = "";
   if (filteredDocs.length === 0) {
     storeGroupsHtml = `
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:20px; padding:3rem 1.5rem; text-align:center;">
-        <div style="width:48px; height:48px; border-radius:14px; background:#f1f5f9; color:#94a3b8; display:inline-flex; align-items:center; justify-content:center; margin-bottom:12px;">
+      <div class="doc-empty-state-box">
+        <div class="doc-empty-state-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
-        <p style="margin:0 0 4px; font-weight:700; color:#0f172a; font-size:15px;">Nenhum documento encontrado</p>
-        <p style="margin:0; font-size:13px; color:#64748b;">Ajuste os filtros de tipo de documento ou de loja para visualizar os registros.</p>
+        <p class="doc-empty-state-title">Nenhum documento encontrado</p>
+        <p class="doc-empty-state-desc">Tente ajustar a busca, a unidade ou o status selecionado acima.</p>
       </div>
     `;
   } else {
@@ -612,14 +676,13 @@ function renderManagerView() {
       .join("");
   }
 
-  // Opções para o select legado invisível
-  const storesList = (state.stores && state.stores.length) ? state.stores : (window.state?.stores || []);
+  // Opções para o Seletor Elegante de Lojas
   const storeOptions = [
-    `<option value="all">Todas as Lojas</option>`,
-    ...storesList.map((s) => {
-      const id = storeId(s);
-      const name = storeName(s) || id || "Unidade";
-      return `<option value="${esc(id)}" ${state.storeFilter === id ? "selected" : ""}>${esc(name)}</option>`;
+    `<option value="all" ${state.storeFilter === "all" ? "selected" : ""}>Todas as Unidades (${total})</option>`,
+    ...uniqueStoreNames.map((sName) => {
+      const count = storeCounts.get(sName) || 0;
+      const isSelected = state.storeFilter === sName;
+      return `<option value="${esc(sName)}" ${isSelected ? "selected" : ""}>${esc(sName)} (${count})</option>`;
     }),
   ].join("");
 
@@ -645,20 +708,20 @@ function renderManagerView() {
         </div>
       </div>
 
-      <!-- 2. Barra de Controle Superior (Segmented Control de Tipo & Ações) -->
+      <!-- 2. Barra Superior Unificada (Categorias & Ações Principais) -->
       <div class="doc-mgmt-header">
         <div class="doc-segmented-control" role="tablist" aria-label="Tipos de Documentos">
           <button type="button" class="doc-segment-btn ${state.typeFilter === "all" ? "active" : ""}" data-type-filter="all">
             Todos
             <span class="doc-badge-pill">${total}</span>
           </button>
-          <button type="button" class="doc-segment-btn ${state.typeFilter === "atestado" ? "active" : ""}" data-type-filter="atestado">
-            Atestados Médicos
-            ${atestadosPendentes > 0 ? `<span class="doc-badge-pill doc-badge-pill-amber">${atestadosPendentes}</span>` : `<span class="doc-badge-pill">${atestados.length}</span>`}
-          </button>
           <button type="button" class="doc-segment-btn ${state.typeFilter === "holerite" ? "active" : ""}" data-type-filter="holerite">
             Holerites
             <span class="doc-badge-pill">${holerites.length}</span>
+          </button>
+          <button type="button" class="doc-segment-btn ${state.typeFilter === "atestado" ? "active" : ""}" data-type-filter="atestado">
+            Atestados
+            ${atestadosPendentes > 0 ? `<span class="doc-badge-pill doc-badge-pill-amber">${atestadosPendentes}</span>` : `<span class="doc-badge-pill">${atestados.length}</span>`}
           </button>
           <button type="button" class="doc-segment-btn ${state.typeFilter === "termo" ? "active" : ""}" data-type-filter="termo">
             Contratos & Termos
@@ -668,49 +731,60 @@ function renderManagerView() {
 
         <div class="doc-mgmt-actions">
           <input type="file" id="docBatchFileInput" accept="application/pdf" style="display: none;" />
-          <button type="button" id="docBatchUploadBtn" class="btn btn-secondary btn-sm" style="border-radius:12px; font-weight:600; padding:8px 14px; min-height:38px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Importar Lote (Holerites)
+          <button type="button" id="docBatchUploadBtn" class="btn btn-secondary btn-sm doc-action-btn" title="Importar múltiplos holerites em lote">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Importar Lote (Holerites)</span>
           </button>
-          <button type="button" id="docNewTemplateBtn" class="btn btn-secondary btn-sm" style="border-radius:12px; font-weight:600; padding:8px 14px; min-height:38px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            Emitir por Modelo
+          <button type="button" id="docNewTemplateBtn" class="btn btn-secondary btn-sm doc-action-btn" title="Emitir advertência, suspensão ou termo por modelo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>Emitir Modelo</span>
           </button>
-          <button type="button" id="docVerifyBtn" class="btn btn-secondary btn-sm" title="Validação de autenticidade jurídica" style="border-radius:12px; font-weight:600; padding:8px 12px; min-height:38px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-            Verificar Autenticidade
+          <button type="button" id="docVerifyBtn" class="btn btn-secondary btn-sm doc-action-btn" title="Validação jurídica e hash ICP-Brasil">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            <span>Verificar</span>
           </button>
-          <button type="button" id="docNewDocumentBtn" class="btn btn-primary btn-sm" style="border-radius:12px; font-weight:600; padding:8px 16px; min-height:38px; box-shadow:0 2px 8px rgba(99,64,216,0.25);">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Novo Documento / Holerite
+          <button type="button" id="docNewDocumentBtn" class="btn btn-primary btn-sm doc-primary-cta">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Novo Documento</span>
           </button>
-          <button type="button" id="docRefreshBtn" class="med-clean-icon-btn" title="Atualizar dados" style="width:38px; height:38px; border-radius:12px;">
+          <button type="button" id="docRefreshBtn" class="med-clean-icon-btn doc-refresh-btn" title="Atualizar lista">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           </button>
         </div>
       </div>
 
-      <!-- 3. Sub-barra de Filtro de Lojas e Status -->
-      <div class="doc-filters-subbar">
-        <div class="doc-pills-scroll" role="tablist" aria-label="Filtro por Loja">
-          <button type="button" class="doc-store-pill ${state.storeFilter === "all" ? "active" : ""}" data-store-filter="all">
-            Todas as Unidades
-            <span class="doc-badge-pill">${total}</span>
-          </button>
-          ${uniqueStoreNames
-            .map((sName) => {
-              const count = storeCounts.get(sName) || 0;
-              const isActive = state.storeFilter === sName;
-              return `
-                <button type="button" class="doc-store-pill ${isActive ? "active" : ""}" data-store-filter="${esc(sName)}">
-                  ${esc(sName)}
-                  <span class="doc-badge-pill">${count}</span>
-                </button>
-              `;
-            })
-            .join("")}
+      <!-- 3. Barra Integrada de Filtros & Busca Rápida (Estilo Apple iOS) -->
+      <div class="doc-filters-integrated-bar">
+        <!-- Busca em Tempo Real -->
+        <div class="doc-search-box">
+          <svg class="doc-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="search"
+            id="docSearchInput"
+            class="doc-search-input"
+            placeholder="Buscar colaborador, CPF ou documento..."
+            value="${esc(state.searchTerm || "")}"
+          />
+          ${state.searchTerm ? `
+            <button type="button" id="docClearSearchBtn" class="doc-search-clear" title="Limpar busca">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          ` : ""}
         </div>
 
+        <!-- Seletor Elegante de Unidade / Loja -->
+        <div class="doc-store-dropdown-wrap">
+          <svg class="doc-store-dropdown-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18M3 7v14M21 7v14M6 21V11M18 21V11M6 7l6-4 6 4M10 21v-4a2 2 0 0 1 4 0v4"/>
+          </svg>
+          <select id="docStoreFilter" class="doc-store-dropdown">
+            ${storeOptions}
+          </select>
+        </div>
+
+        <!-- Segmented Control de Status -->
         <div class="doc-status-pills" role="tablist" aria-label="Filtro por Status">
           <button type="button" class="doc-status-pill-btn ${state.statusFilter === "all" ? "active" : ""}" data-status-filter="all">
             Todos
@@ -722,16 +796,6 @@ function renderManagerView() {
             Assinados (${assinados})
           </button>
         </div>
-
-        <!-- Elementos ocultos para sincronização retrocompatível -->
-        <select id="docStoreFilter" style="display:none;">
-          ${storeOptions}
-        </select>
-        <select id="docStatusFilter" style="display:none;">
-          <option value="all" ${state.statusFilter === "all" ? "selected" : ""}>Todos os Status</option>
-          <option value="Pendente" ${state.statusFilter === "Pendente" ? "selected" : ""}>Pendentes</option>
-          <option value="Assinado" ${state.statusFilter === "Assinado" ? "selected" : ""}>Assinados</option>
-        </select>
       </div>
 
       <!-- 4. Lista Agrupada por Loja e por Tipo (Sem Poluição) -->
@@ -1056,11 +1120,35 @@ function setupEventListeners() {
 }
 
 function bindViewEvents() {
+  const searchInput = $("#docSearchInput");
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      state.searchTerm = e.target.value;
+      const cursor = searchInput.selectionStart;
+      renderDocumentsView();
+      const el = $("#docSearchInput");
+      if (el) {
+        el.focus();
+        el.setSelectionRange(cursor, cursor);
+      }
+    };
+  }
+
+  const clearSearchBtn = $("#docClearSearchBtn");
+  if (clearSearchBtn) {
+    clearSearchBtn.onclick = () => {
+      state.searchTerm = "";
+      renderDocumentsView();
+      const el = $("#docSearchInput");
+      if (el) el.focus();
+    };
+  }
+
   const storeFilter = $("#docStoreFilter");
   if (storeFilter) {
     storeFilter.onchange = (e) => {
       state.storeFilter = e.target.value;
-      loadDocuments();
+      renderDocumentsView();
     };
   }
 
@@ -1068,7 +1156,7 @@ function bindViewEvents() {
   if (statusFilter) {
     statusFilter.onchange = (e) => {
       state.statusFilter = e.target.value;
-      loadDocuments();
+      renderDocumentsView();
     };
   }
 
