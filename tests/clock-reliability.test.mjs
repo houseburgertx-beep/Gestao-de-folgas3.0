@@ -199,3 +199,11 @@ test("preview Drive recusa outra conta/loja e permite dono ou gestor da loja", a
   assert.equal(service.readPrivateImage_("owner", {}, "file123456789").dataUrl, "data:image/jpeg;base64,AQID");
   assert.equal(service.readPrivateImage_("manager", { Perfil: "Gerente", LojaID: "store-a" }, "file123456789").ok, true);
 });
+
+
+test("manifesto mantém endpoint HTTP com autorização Firebase em vez de exigir sessão Google", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../google-apps-script/appsscript.json", import.meta.url), "utf8"));
+  assert.equal(manifest.timeZone, "America/Bahia");
+  assert.equal(manifest.webapp.executeAs, "USER_DEPLOYING");
+  assert.equal(manifest.webapp.access, "ANYONE_ANONYMOUS");
+});
