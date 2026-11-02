@@ -10,3 +10,6 @@ ui-debug.log
 .wrangler/
 .dev.vars
 worker-configuration.d.ts
+
+# Rebuilt from versioned source by predev/prebuild
+public/generated/

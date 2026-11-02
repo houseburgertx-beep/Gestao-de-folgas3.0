@@ -59,9 +59,9 @@ test("House AI: formatMinutesBalance formata saldos positivos e negativos", () =
 
 test("House AI: Bloqueio estrito de marcação de ponto via WhatsApp (Portaria 671 MTE)", async () => {
   const mockEnv = { APP_URL: "https://house190.com/app" };
-  const mockDb = async () => ({
+  const mockDb = async (_env, _tok, path) => path === "tables/Funcionarios" ? {
     "emp-1": { FuncionarioID: "emp-1", Nome: "Bruno House", Telefone: "5573991740014" },
-  });
+  } : {};
 
   const res = await processInboundHouseAI({
     from: "5573991740014",
@@ -81,9 +81,9 @@ test("House AI: Bloqueio estrito de marcação de ponto via WhatsApp (Portaria 6
 
 test("House AI: Bloqueio LGPD e direcionamento seguro para atestados médicos", async () => {
   const mockEnv = { APP_URL: "https://house190.com/app" };
-  const mockDb = async () => ({
+  const mockDb = async (_env, _tok, path) => path === "tables/Funcionarios" ? {
     "emp-1": { FuncionarioID: "emp-1", Nome: "Bruno House", Telefone: "5573991740014" },
-  });
+  } : {};
 
   const res = await processInboundHouseAI({
     from: "5573991740014",
@@ -207,9 +207,9 @@ test("House AI: Consulta de escala de trabalho", async () => {
 
 test("House AI: Número não cadastrado é educadamente informado", async () => {
   const mockEnv = { APP_URL: "https://house190.com/app" };
-  const mockDb = async () => ({
+  const mockDb = async (_env, _tok, path) => path === "tables/Funcionarios" ? {
     "emp-1": { FuncionarioID: "emp-1", Nome: "Bruno House", Telefone: "5573991740014" },
-  });
+  } : {};
 
   const res = await processInboundHouseAI({
     from: "5571999999999",
@@ -316,7 +316,8 @@ test("House AI: Colaborador solicita folga pelo WhatsApp e grava no Firebase RTD
     assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
 
     // Verifica se gravou no Firebase RTDB tables/Folgas
-    const folgaPut = puts.find((p) => p.url.includes("tables/Folgas"));
+    const update = puts.find((p) => p.url.endsWith("tables.json"));
+    const folgaPut = update && { body: Object.entries(update.body).find(([key]) => key.startsWith("Folgas/"))?.[1] };
     assert.ok(folgaPut);
     assert.equal(folgaPut.body.FuncionarioID, "emp-1");
     assert.equal(folgaPut.body.Status, "Pendente");
@@ -363,7 +364,8 @@ test("House AI: Gestor concede folga diretamente para colaborador via WhatsApp",
     assert.ok(res.replyText.includes("Raquel Silva"));
     assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
 
-    const folgaPut = puts.find((p) => p.url.includes("tables/Folgas"));
+    const update = puts.find((p) => p.url.endsWith("tables.json"));
+    const folgaPut = update && { body: Object.entries(update.body).find(([key]) => key.startsWith("Folgas/"))?.[1] };
     assert.ok(folgaPut);
     assert.equal(folgaPut.body.FuncionarioID, "emp-2");
     assert.equal(folgaPut.body.Status, "Aprovada");
@@ -448,7 +450,7 @@ test("House AI: Colaborador solicita múltiplos dias de folga com saldo suficien
     assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
 
     // Devem ter sido gravadas 2 folgas distintas no Firebase
-    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    const folgaPuts = puts.flatMap((p) => Object.entries(p.body).filter(([key]) => key.startsWith("Folgas/")).map(([, body]) => ({body})));
     assert.equal(folgaPuts.length, 2);
     assert.equal(folgaPuts[0].body.DataInicio, "2026-11-10");
     assert.equal(folgaPuts[1].body.DataInicio, "2026-11-11");
@@ -505,7 +507,7 @@ test("House AI: Bloqueia solicitação quando quantidade de dias excede SaldoFol
     assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
 
     // Não deve gravar nenhuma folga no banco
-    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    const folgaPuts = puts.flatMap((p) => Object.entries(p.body).filter(([key]) => key.startsWith("Folgas/")).map(([, body]) => ({body})));
     assert.equal(folgaPuts.length, 0);
   } finally {
     globalThis.fetch = origFetch;
@@ -555,7 +557,7 @@ test("House AI: Bloqueia solicitação quando colaborador tem SaldoFolgas igual 
     assert.ok(res.replyText.includes("apenas 0 folga(s)"));
     assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
 
-    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    const folgaPuts = puts.flatMap((p) => Object.entries(p.body).filter(([key]) => key.startsWith("Folgas/")).map(([, body]) => ({body})));
     assert.equal(folgaPuts.length, 0);
   } finally {
     globalThis.fetch = origFetch;
@@ -609,15 +611,17 @@ test("House AI: Gestor concede múltiplos dias e debita SaldoFolgas do colaborad
     assert.ok(res.replyText.includes("Saldo restante: 3 folga(s)"));
     assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
 
-    const folgaPuts = puts.filter((p) => p.url.includes("tables/Folgas"));
+    const folgaPuts = patches.flatMap((p) => Object.entries(p.body).filter(([key]) => key.startsWith("Folgas/")).map(([, body]) => ({body})));
     assert.equal(folgaPuts.length, 2);
     assert.equal(folgaPuts[0].body.Status, "Aprovada");
     assert.equal(folgaPuts[1].body.Status, "Aprovada");
 
     // Verifica que debita 2 dias do saldo do funcionário
-    const empPatch = patches.find((p) => p.url.includes("tables/Funcionarios"));
+    const empPatch = patches.find((p) => p.url.endsWith("tables.json"));
     assert.ok(empPatch);
-    assert.equal(empPatch.body.SaldoFolgas, 3);
+    assert.deepEqual(empPatch.body["Funcionarios/emp-2/SaldoFolgas"], { ".sv": { increment: -2 } });
+    assert.equal(patches.length, 1);
+    assert.equal(puts.length, 0);
   } finally {
     globalThis.fetch = origFetch;
   }

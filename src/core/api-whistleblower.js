@@ -1,16 +1,7 @@
-import { createNotification, isAdmin, isManager, success } from "./api-base.js";
+import { isAdmin, isManager, success } from "./api-base.js";
 import { runtime } from "./runtime.js";
+import { requestWorker } from "./worker-client.js";
 import { assert, nowIso, uuid } from "./utils.js";
-
-const CATEGORIAS_VALIDAS = [
-  "Assédio moral",
-  "Assédio sexual",
-  "Discriminação",
-  "Desvio ou Fraude",
-  "Conduta inadequada",
-  "Segurança no trabalho",
-  "Outro",
-];
 
 const STATUS_VALIDOS = [
   "Recebida",
@@ -29,171 +20,15 @@ export function createWhistleblowerHandlers() {
      * Registro de novo relato (Anônimo ou Confidencial)
      */
     async denunciaCriar(args) {
-      const [payload] = args || [];
-      assert(payload && typeof payload === "object", "Dados da denúncia são obrigatórios.");
-
-      const categoria = String(payload.categoria || payload.Categoria || "").trim();
-      assert(categoria, "Selecione a categoria do relato.");
-      assert(
-        CATEGORIAS_VALIDAS.includes(categoria),
-        `Categoria inválida. Opções: ${CATEGORIAS_VALIDAS.join(", ")}`,
-      );
-
-      const descricao = String(payload.descricao || payload.Descricao || "").trim();
-      assert(descricao.length >= 10, "A descrição dos fatos deve conter no mínimo 10 caracteres.");
-
-      const lojaId = String(payload.lojaId || payload.LojaID || "GERAL").trim();
-      const envolvidos = String(payload.envolvidos || payload.Envolvidos || "Não informado").trim();
-      const anonimo = payload.anonimo === true || payload.Anonimo === true;
-      const nomeContato = anonimo ? "Anônimo" : String(payload.nomeContato || payload.NomeContato || "Não informado").trim();
-      const telefoneContato = anonimo ? "" : String(payload.telefoneContato || payload.TelefoneContato || "").trim();
-
-      // Geração de protocolo único DEN-XXXXXX e PIN de 4 dígitos
-      const protocolo = `DEN-${String(Date.now()).slice(-6)}`;
-      const pin = String(Math.floor(1000 + Math.random() * 9000));
-      const dataCriacao = nowIso();
-
-      const registro = {
-        DenunciaID: protocolo,
-        PIN: pin,
-        Categoria: categoria,
-        LojaID: lojaId,
-        Descricao: descricao,
-        Envolvidos: envolvidos,
-        Anonimo: anonimo,
-        NomeContato: nomeContato,
-        TelefoneContato: telefoneContato,
-        Status: "Recebida",
-        DataCriacao: dataCriacao,
-        UltimaAtualizacao: dataCriacao,
-        ParecerComite: "",
-      };
-
-      await runtime.create("Denuncias", registro);
-
-      // Grava mensagem inicial na trilha da denúncia
-      const mensagemInicialId = `MSG_${Date.now()}_${uuid().slice(0, 4)}`;
-      await runtime.create("DenunciasMensagens", {
-        MensagemID: mensagemInicialId,
-        DenunciaID: protocolo,
-        AutorTipo: "Denunciante",
-        AutorNome: anonimo ? "Denunciante Anônimo" : nomeContato,
-        Texto: descricao,
-        DataHora: dataCriacao,
-      });
-
-      // Notifica liderança de conformidade
-      try {
-        await createNotification({
-          storeId: lojaId !== "GERAL" ? lojaId : "",
-          type: "Governança",
-          subject: "Novo Relato no Canal de Integridade",
-          message: `Relato sob protocolo ${protocolo} (${categoria}) recebido para triagem.`,
-          relatedId: protocolo,
-        });
-      } catch (err) {
-        console.warn("[whistleblower] Falha ao criar notificação de governança:", err);
-      }
-
-      return success({
-        protocolo,
-        pin,
-        categoria,
-        status: "Recebida",
-        dataCriacao,
-        mensagem: "Relato registrado com sucesso. Guarde o protocolo e o PIN com segurança.",
-      });
+      return requestWorker("/integrity/create", args?.[0] || {}, { public: true });
     },
 
-    /**
-     * Consulta pública/segura por Protocolo + PIN
-     */
     async denunciaConsultar(args) {
-      const [payload] = args || [];
-      assert(payload && typeof payload === "object", "Parâmetros de consulta obrigatórios.");
-
-      const protocolo = String(payload.protocolo || payload.Protocolo || "").trim().toUpperCase();
-      assert(protocolo, "Número de protocolo é obrigatório.");
-
-      const pin = String(payload.pin || payload.PIN || "").trim();
-      assert(pin, "PIN de segurança é obrigatório.");
-
-      const denuncia = await runtime.getById("Denuncias", protocolo);
-      assert(denuncia, "Nenhum relato encontrado com este protocolo.");
-      assert(
-        String(denuncia.PIN || "").trim() === pin,
-        "PIN incorreto para este protocolo de denúncia.",
-      );
-
-      // Mensagens da denúncia
-      const todasMensagens = await runtime.list("DenunciasMensagens");
-      const mensagens = (todasMensagens || [])
-        .filter((m) => String(m.DenunciaID || "").trim() === protocolo)
-        .sort((a, b) => new Date(a.DataHora || 0) - new Date(b.DataHora || 0))
-        .map((m) => ({
-          mensagemId: m.MensagemID,
-          autorTipo: m.AutorTipo,
-          autorNome: m.AutorTipo === "Denunciante" ? "Você" : "Comitê de Ética / RH",
-          texto: m.Texto,
-          dataHora: m.DataHora,
-        }));
-
-      return success({
-        protocolo: denuncia.DenunciaID,
-        categoria: denuncia.Categoria,
-        lojaId: denuncia.LojaID,
-        status: denuncia.Status,
-        dataCriacao: denuncia.DataCriacao,
-        parecerComite: denuncia.ParecerComite || "",
-        ultimaAtualizacao: denuncia.UltimaAtualizacao || denuncia.DataCriacao,
-        mensagens,
-      });
+      return requestWorker("/integrity/consult", args?.[0] || {}, { public: true });
     },
 
-    /**
-     * Envio de mensagem ou esclarecimento pelo denunciante
-     */
     async denunciaEnviarMensagem(args) {
-      const [payload] = args || [];
-      assert(payload && typeof payload === "object", "Dados da mensagem são obrigatórios.");
-
-      const protocolo = String(payload.protocolo || payload.Protocolo || "").trim().toUpperCase();
-      assert(protocolo, "Número de protocolo é obrigatório.");
-
-      const pin = String(payload.pin || payload.PIN || "").trim();
-      assert(pin, "PIN de segurança é obrigatório.");
-
-      const texto = String(payload.texto || payload.Texto || "").trim();
-      assert(texto.length >= 2, "Mensagem vazia.");
-
-      const denuncia = await runtime.getById("Denuncias", protocolo);
-      assert(denuncia, "Relato não encontrado.");
-      assert(
-        String(denuncia.PIN || "").trim() === pin,
-        "PIN incorreto.",
-      );
-
-      const dataHora = nowIso();
-      const mensagemId = `MSG_${Date.now()}_${uuid().slice(0, 4)}`;
-
-      await runtime.create("DenunciasMensagens", {
-        MensagemID: mensagemId,
-        DenunciaID: protocolo,
-        AutorTipo: "Denunciante",
-        AutorNome: denuncia.Anonimo ? "Denunciante Anônimo" : (denuncia.NomeContato || "Denunciante"),
-        Texto: texto,
-        DataHora: dataHora,
-      });
-
-      await runtime.patch("Denuncias", protocolo, {
-        UltimaAtualizacao: dataHora,
-      });
-
-      return success({
-        enviada: true,
-        mensagemId,
-        dataHora,
-      });
+      return requestWorker("/integrity/message", args?.[0] || {}, { public: true });
     },
 
     /**
@@ -250,8 +85,9 @@ export function createWhistleblowerHandlers() {
 
       const denuncia = await runtime.getById("Denuncias", protocolo);
       assert(denuncia, "Relato não encontrado.");
+      assert(isAdmin(profile) || denuncia.LojaID === profile.LojaID || denuncia.LojaID === "GERAL", "Relato fora da sua unidade.");
 
-      const todasMensagens = await runtime.list("DenunciasMensagens");
+      const todasMensagens = await runtime.listWhere("DenunciasMensagens", "DenunciaID", protocolo);
       const mensagens = (todasMensagens || [])
         .filter((m) => String(m.DenunciaID || "").trim() === protocolo)
         .sort((a, b) => new Date(a.DataHora || 0) - new Date(b.DataHora || 0));
@@ -280,6 +116,7 @@ export function createWhistleblowerHandlers() {
 
       const denuncia = await runtime.getById("Denuncias", protocolo);
       assert(denuncia, "Relato não encontrado.");
+      assert(isAdmin(profile) || denuncia.LojaID === profile.LojaID || denuncia.LojaID === "GERAL", "Relato fora da sua unidade.");
 
       const novoStatus = String(payload.status || payload.Status || "").trim();
       assert(

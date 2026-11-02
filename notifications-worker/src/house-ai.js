@@ -1,3 +1,4 @@
+import { active } from "../../src/core/reminder-policy.js";
 /**
  * HOUSE AI 2.0 — Cérebro Operacional Central do Grupo House 190 para WhatsApp
  * Extensão conversacional oficial do sistema Gestão de Folgas & CozinhaFlow
@@ -36,7 +37,7 @@ export function getPhoneVariants(phone) {
   const variants = new Set([digits]);
 
   // Se tem 13 dígitos no Brasil (55 + DDD 2 dígitos + 9 + 8 dígitos)
-  if (digits.startsWith("55") && digits.length === 13) {
+  if (digits.startsWith("55") && digits.length === 13 && digits[4] === "9") {
     variants.add(digits.slice(0, 4) + digits.slice(5)); // sem 9
   } else if (digits.startsWith("55") && digits.length === 12) {
     variants.add(digits.slice(0, 4) + "9" + digits.slice(4)); // com 9
@@ -62,7 +63,6 @@ export function findEmployeeByPhone(employees, phone) {
   const searchVariants = getPhoneVariants(phone);
   if (searchVariants.length === 0) return null;
 
-  const last8 = String(phone).replace(/\D/g, "").slice(-8);
 
   for (const emp of employees) {
     if (!emp) continue;
@@ -81,11 +81,7 @@ export function findEmployeeByPhone(employees, phone) {
           return emp;
         }
       }
-      // Fallback: se os últimos 8 dígitos coincidirem e DDD coincidir
-      const rawDigits = String(raw).replace(/\D/g, "");
-      if (last8.length === 8 && rawDigits.endsWith(last8)) {
-        return emp;
-      }
+
     }
   }
 
@@ -401,10 +397,9 @@ export async function processInboundHouseAI({
   const appUrl = (env.APP_URL || "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0/").replace(/\/+$/, "") + "/";
 
   // 1. Busca Colaboradores e Perfis do Firebase RTDB
-  const [employeesData, accessData, connData] = await Promise.all([
-    database(env, tok, "tables/Funcionarios").catch(() => ({})),
-    database(env, tok, "access").catch(() => ({})),
-    database(env, tok, "tables/Configuracoes/WhatsAppConnection").catch(() => ({})),
+  const [employeesData, accessData] = await Promise.all([
+    database(env, tok, "tables/Funcionarios"),
+    database(env, tok, "access"),
   ]);
   const employees = Object.values(employeesData || {});
   let matchedEmp = findEmployeeByPhone(employees, cleanPhone);
@@ -424,33 +419,10 @@ export async function processInboundHouseAI({
     }
   }
 
-  // Se o número corresponder ao Administrador ou telefone configurado de gestão/administração da House 190
-  const searchVariants = getPhoneVariants(cleanPhone);
-  const knownAdminPhones = ["5573991740014", "557391740014", "73991740014", "7391740014"];
-  if (!matchedEmp && (knownAdminPhones.some((ap) => searchVariants.includes(ap) || cleanPhone.endsWith(ap.slice(-8))))) {
-    matchedEmp = {
-      FuncionarioID: "func_gleuce_demo",
-      Nome: "Gleuce Dias (Administrador)",
-      Perfil: "Administrador",
-      Turno: "Geral",
-      Telefone: "73991740014",
-    };
-  }
-
-  if (!matchedEmp && connData?.Phone) {
-    const adminVariants = getPhoneVariants(connData.Phone);
-    if (adminVariants.some((v) => searchVariants.includes(v))) {
-      matchedEmp = {
-        FuncionarioID: "admin-gestor",
-        Nome: connData.AtualizadoPor || "Administrador",
-        Perfil: "Administrador",
-        Turno: "Administrativo",
-        Telefone: connData.Phone,
-      };
-    }
-  }
-
-  if (!matchedEmp) {
+  const associatedProfiles = matchedEmp ? Object.values(accessData || {}).filter((p) =>
+    (p.FuncionarioID && String(p.FuncionarioID) === String(matchedEmp.FuncionarioID || matchedEmp.id)) || findEmployeeByPhone([p], cleanPhone)
+  ) : [];
+  if (!matchedEmp || (matchedEmp.Ativo !== undefined && !active(matchedEmp.Ativo)) || (associatedProfiles.length && !associatedProfiles.some((p) => active(p.Ativo)))) {
     return {
       handled: true,
       authorized: false,
@@ -462,6 +434,10 @@ export async function processInboundHouseAI({
     };
   }
 
+  const accessProfile = associatedProfiles.find((p) => active(p.Ativo));
+  if (accessProfile && (!accessProfile.FuncionarioID || String(accessProfile.FuncionarioID) === String(matchedEmp.FuncionarioID || matchedEmp.id))) {
+    matchedEmp = { ...matchedEmp, Perfil: accessProfile.Perfil || matchedEmp.Perfil, LojaID: accessProfile.LojaID || matchedEmp.LojaID };
+  }
   const firstName = String(matchedEmp.Nome || pushName || "Colaborador").trim().split(/\s+/)[0];
   const empId = String(matchedEmp.FuncionarioID || matchedEmp.id || "");
 
@@ -621,9 +597,7 @@ export async function processInboundHouseAI({
     }
 
     const isGestorOrAdmin =
-      ["Administrador", "Gerente", "Responsável de loja"].includes(matchedEmp.Perfil) ||
-      matchedEmp.FuncionarioID === "admin-gestor" ||
-      matchedEmp.FuncionarioID === "func_gleuce_demo";
+      ["Administrador", "Gerente", "Responsável de loja"].includes(matchedEmp.Perfil);
 
     // Se o remetente for Gestor/Admin, verifica se mencionou o nome de outro colaborador
     let targetEmp = matchedEmp;
@@ -652,7 +626,11 @@ export async function processInboundHouseAI({
       }
     }
 
-    const folgasData = await database(env, tok, "tables/Folgas").catch(() => ({}));
+    if (isGestorOrAdmin && matchedEmp.Perfil !== "Administrador" &&
+        (!matchedEmp.LojaID || String(targetEmp.LojaID || "") !== String(matchedEmp.LojaID))) {
+      return { handled: true, authorized: false, action: "loja_nao_autorizada", replyText: "Você pode conceder folgas somente para colaboradores da sua loja. Use o aplicativo para conferir o cadastro." };
+    }
+    const folgasData = await database(env, tok, "tables/Folgas");
     const allFolgas = Object.values(folgasData || {});
     const targetEmpId = String(targetEmp.FuncionarioID || targetEmp.funcionarioId || targetEmp.id || "");
     const targetEmpNome = String(targetEmp.Nome || targetEmp.nome || "Colaborador");
@@ -739,12 +717,13 @@ export async function processInboundHouseAI({
       (targetEmp !== matchedEmp || cleanText.includes("aprovar") || cleanText.includes("conceder") || cleanText.includes("dar folga"));
     const status = isGrantedDirectly ? "Aprovada" : (isGestorOrAdmin ? "Aprovada" : "Pendente");
 
+    const atomicUpdate = {};
     const createdFolgaIds = [];
     const datasCriadasBR = [];
 
     for (let i = 0; i < validDatesToCreate.length; i++) {
       const dStr = validDatesToCreate[i];
-      const folgaId = `folga-wa-${Date.now()}-${i}`;
+      const folgaId = `folga-wa-${crypto.randomUUID()}-${i}`;
       createdFolgaIds.push(folgaId);
 
       const [y, m, d] = dStr.split("-");
@@ -779,17 +758,7 @@ export async function processInboundHouseAI({
         CriadoEm: new Date().toISOString(),
       };
 
-      // 1. Grava diretamente no Firebase Realtime Database
-      const folgaUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Folgas/${folgaId}.json`;
-      const folgaPutRes = await fetch(folgaUrl, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-        body: JSON.stringify(folgaRecord),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!folgaPutRes.ok) {
-        throw new Error(`firebase_put_error_${folgaPutRes.status}`);
-      }
+      atomicUpdate[`Folgas/${folgaId}`] = folgaRecord;
     }
 
     // Se aprovada diretamente pelo Gestor/Admin, debita do saldo e registra os movimentos
@@ -816,11 +785,7 @@ export async function processInboundHouseAI({
         };
 
         const movId = `mov-${folgaId}`;
-        const movUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/MovimentosSaldoFolgas/${movId}.json`;
-        await fetch(movUrl, {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
+        atomicUpdate[`MovimentosSaldoFolgas/${movId}`] = {
             MovimentoID: movId,
             FolgaID: folgaId,
             FuncionarioID: targetEmpId,
@@ -831,28 +796,23 @@ export async function processInboundHouseAI({
             SaldoNovo: currentBalance - i - 1,
             Motivo: `Folga aprovada via WhatsApp para ${datasCriadasBR[i]}`,
             DataCriacao: new Date().toISOString(),
-          }),
-          signal: AbortSignal.timeout(6000),
-        }).catch(() => {});
+          };
       }
 
-      const empPatchUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Funcionarios/${encodeURIComponent(targetEmpId)}.json`;
-      await fetch(empPatchUrl, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-        body: JSON.stringify(patchPayload),
-        signal: AbortSignal.timeout(10000),
-      }).catch((e) => console.warn("Erro ao debitar SaldoFolgas:", e));
+      // A single atomic multipath PATCH prevents partially applied approvals.
+      // Server increment preserves concurrent decrements; overdraft prevention still
+      // requires a dedicated financial transaction service (see SECURITY-MIGRATION.md).
+      atomicUpdate[`Funcionarios/${targetEmpId}/SaldoFolgas`] =
+        targetEmp.SaldoFolgas === undefined || targetEmp.SaldoFolgas === null
+          ? novoSaldo : { ".sv": { increment: -validDatesToCreate.length } };
+      for (const [key, value] of Object.entries(patchPayload)) {
+        if (key !== "SaldoFolgas") atomicUpdate[`Funcionarios/${targetEmpId}/${key}`] = value;
+      }
     }
 
-    // 2. Grava notificação no Firebase RTDB tables/Notificacoes
-    const notifId = `notif-wa-${Date.now()}`;
-    const notifUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Notificacoes/${notifId}.json`;
+    const notifId = `notif-wa-${crypto.randomUUID()}`;
     const datasFormatadasTexto = datasCriadasBR.join(", ");
-    await fetch(notifUrl, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
+    atomicUpdate[`Notificacoes/${notifId}`] = {
         NotificacaoID: notifId,
         LojaID: targetEmpLojaId,
         DestinatarioID: status === "Aprovada" ? targetEmpId : "",
@@ -863,9 +823,13 @@ export async function processInboundHouseAI({
           : `${targetEmpNome} solicitou folga para ${datasFormatadasTexto} via WhatsApp.`,
         Status: "NaoLida",
         DataCriacao: new Date().toISOString(),
-      }),
-      signal: AbortSignal.timeout(6000),
-    }).catch(() => {});
+      };
+    const write = await fetch(`${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables.json`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+      body: JSON.stringify(atomicUpdate), signal: AbortSignal.timeout(15000),
+    });
+    if (!write.ok) throw new Error(`firebase_atomic_write_${write.status}`);
 
     const plural = validDatesToCreate.length > 1;
     const datasTexto = datasCriadasBR.join(", ");
@@ -995,7 +959,8 @@ export async function processInboundHouseAI({
       proximaTexto = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : pDate;
     }
 
-    const saldoRestante = Math.max(0, 5 - aprovadas.length);
+    const explicitBalance = Number(matchedEmp.SaldoFolgas);
+    const saldoRestante = matchedEmp.SaldoFolgas !== undefined && matchedEmp.SaldoFolgas !== null && Number.isFinite(explicitBalance) ? explicitBalance : Math.max(0, 5 - aprovadas.length);
 
     const linhas = [
       `Olá, ${firstName}! Aqui está o resumo das suas folgas para este mês:`,
@@ -1207,7 +1172,7 @@ export async function processInboundHouseAI({
 
     const lojaId = matchedEmp.LojaID || "";
     const colegasLoja = employees.filter((e) => {
-      if (!lojaId) return true;
+      if (!lojaId) return matchedEmp.Perfil === "Administrador";
       return String(e.LojaID || "") === String(lojaId);
     });
 

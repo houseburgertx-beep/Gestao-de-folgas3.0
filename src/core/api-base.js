@@ -1,3 +1,4 @@
+import { requestWorker } from "./worker-client.js";
 import { APP, PERMISSIONS } from "./constants.js";
 import { isPermissionDenied, runtime } from "./runtime.js";
 import {
@@ -7,6 +8,7 @@ import {
   dateRange,
   normalizeEmail,
   nowIso,
+  sha256Hex,
   todayIso,
   uuid,
 } from "./utils.js";
@@ -674,256 +676,13 @@ export async function audit(action, module, recordId, details = {}) {
   });
 }
 
-// Chaves de tipo de automação mapeadas por categoria de evento
-const WA_AUTOMATION_KEYS = Object.freeze({
-  "Folga":        "aut_folga_nova",
-  "FolgaAprovada": "aut_folga_aprovada",
-  "FolgaRecusada": "aut_folga_recusada",
-  "Atestado":     "aut_folga_nova",
-  "Troca":        "aut_troca_folga",
-  "Ponto":        "aut_ponto",
-  "Tarefa":       "aut_tarefas",
-  "Tarefas":      "aut_tarefas",
-  "Documentos":   "aut_documentos",
-  "Documento":   "aut_documentos",
-  "Comunicado":   "aut_comunicados",
-  "Comunicados":  "aut_comunicados",
-  "Aviso":        "aut_comunicados",
-  "Avisos":       "aut_comunicados",
-  "EspelhoPonto": "aut_espelho_ponto",
-  "Sistema":      null, // sem toggle específico — sempre envia
-});
-
-/**
- * Retorna as configurações de automação WhatsApp salvas no Firestore/RTDB.
- * Cache de 2 minutos para não sobrecarregar leituras.
- */
-let _waAutomationsCache = null;
-let _waAutomationsCacheAt = 0;
-async function getWaAutomations() {
-  const now = Date.now();
-  if (_waAutomationsCache && now - _waAutomationsCacheAt < 120000) return _waAutomationsCache;
+// Delivery is authorized and deduplicated by the Worker against the saved notice.
+export async function dispatchWhatsAppNotification({ notificationId = "" }) {
+  if (!notificationId || !runtime.auth?.currentUser) return;
   try {
-    const cfg = await runtime.getById("Configuracoes", "WhatsAppAutomations").catch(() => null);
-    _waAutomationsCache = cfg || {};
-    _waAutomationsCacheAt = now;
-  } catch (_) {
-    _waAutomationsCache = {};
-  }
-  return _waAutomationsCache;
-}
-
-// Cache de deduplicação e idempotência para disparos do WhatsApp
-const _waSentDedupe = new Map();
-
-function isWaDeduplicated(dedupeKey, cooldownMs) {
-  const now = Date.now();
-  const memTime = _waSentDedupe.get(dedupeKey) || 0;
-  if (now - memTime < cooldownMs) return true;
-
-  if (typeof localStorage !== "undefined") {
-    try {
-      const stored = Number(localStorage.getItem(`wa_dedupe_${dedupeKey}`) || 0);
-      if (now - stored < cooldownMs) return true;
-    } catch (_) {}
-  }
-  return false;
-}
-
-function markWaDeduplicated(dedupeKey) {
-  const now = Date.now();
-  _waSentDedupe.set(dedupeKey, now);
-  if (typeof localStorage !== "undefined") {
-    try {
-      localStorage.setItem(`wa_dedupe_${dedupeKey}`, String(now));
-    } catch (_) {}
-  }
-}
-
-/**
- * Constrói texto da mensagem WhatsApp conforme tipo do evento,
- * com templates humanizados por categoria.
- */
-function buildWaText({ firstName, subject, message, type }) {
-  const greeting = firstName ? `Olá, *${firstName}*!\n\n` : "Olá!\n\n";
-  const isTask = type === "Tarefa" || String(type || "").startsWith("TAREFA");
-  const isCozinha = isTask;
-  const footer = isCozinha ? "\n\n_House 190 · CozinhaFlow_" : "\n\n_House 190_";
-  return `${greeting}*${subject}*\n${message}${footer}`;
-}
-
-/**
- * Dispara notificação WhatsApp ao colaborador ou liderança da loja.
- * Usa o Cloudflare Worker (/wa-send) como relay seguro quando disponível;
- * faz fallback para chamada direta ao gateway WA-AKG em último caso.
- * Respeita as configurações de automação salvas em Configuracoes/WhatsAppAutomations
- * e aplica deduplicação estrita para evitar disparos repetidos.
- */
-export async function dispatchWhatsAppNotification({ employeeId = "", storeId = "", email = "", subject = "", message = "", type = "", relatedId = "" }) {
-  if (typeof fetch === "undefined") return;
-  try {
-    // 1. Verifica se a automação para este tipo está explicitamente desabilitada
-    const automations = await getWaAutomations();
-    const automationKey = WA_AUTOMATION_KEYS[type];
-    if (automationKey && automations[automationKey] === false) return;
-
-    // Janela de cooldown por categoria:
-    // - Folga: 20 horas (evita reenviar lembrete no mesmo dia)
-    // - Ponto (intervalo): 15 minutos
-    // - Tarefas / Demais: 30 minutos
-    const isFolga = type === "Folga" || String(relatedId).includes("folga") || String(subject).toLowerCase().includes("folga");
-    const cooldownMs = isFolga ? 20 * 3600 * 1000 : (type === "Ponto" ? 15 * 60 * 1000 : 30 * 60 * 1000);
-
-    // 2. Localiza destinatários (colaborador individual ou gerência da loja)
-    const employees = await runtime.list("Funcionarios", { profile: null }).catch(() => []);
-    const targets = [];
-    if (employeeId) {
-      const targetId = String(employeeId).trim().toLowerCase();
-      const emp = employees.find((e) => {
-        const fId = String(e.FuncionarioID || e.funcionarioId || e.id || "").trim().toLowerCase();
-        const fName = String(e.Nome || e.nome || "").trim().toLowerCase();
-        const fEmail = String(e.Email || e.email || "").trim().toLowerCase();
-        return fId === targetId || fName === targetId || (fEmail && fEmail === targetId);
-      });
-      if (emp) targets.push(emp);
-    } else if (storeId) {
-      const managers = employees.filter(
-        (e) => (isManager(e) || isAdmin(e)) && (String(e.LojaID || "") === String(storeId) || isAdmin(e)) && e.Ativo !== false
-      );
-      targets.push(...managers.slice(0, 3));
-    }
-
-    if (!targets.length) return;
-
-    // 3. Obtém credenciais de relay do Worker ou Gateway direto
-    const defaultGatewayUrl = "https://house190-bot.loca.lt/api";
-    const defaultApiKey = "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-    const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
-
-    const workerUrl = (() => {
-      try {
-        if (typeof window !== "undefined" && window.__PUSH_ENDPOINT__) return window.__PUSH_ENDPOINT__;
-      } catch (_) {}
-      return defaultWorkerUrl;
-    })();
-
-    const idToken = typeof window !== "undefined"
-      ? (await runtime.auth?.currentUser?.getIdToken?.().catch(() => "") || window.__SESSION_TOKEN__ || "")
-      : "";
-
-    const gwConfig = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-    const rawGwUrl = gwConfig?.GatewayUrl || defaultGatewayUrl;
-    const gwUrl = rawGwUrl.endsWith("/api") ? rawGwUrl : `${rawGwUrl.replace(/\/+$/, "")}/api`;
-    const gwKey = gwConfig?.ApiKey || defaultApiKey;
-    const sessionId = gwConfig?.InstanceName || "house190";
-
-    const isBrowser = typeof window !== "undefined";
-    const shouldSendGateway = gwConfig?.Ativo === true || (isBrowser && gwConfig?.Ativo !== false);
-
-    for (const emp of targets) {
-      const rawPhone = emp?.WhatsApp || emp?.Telefone || emp?.Celular || emp?.whatsapp || emp?.telefone || emp?.celular || "";
-      if (!rawPhone) continue;
-
-      let digits = String(rawPhone).replace(/\D/g, "");
-      if (digits.startsWith("0")) digits = digits.slice(1);
-      if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
-      if (digits.length < 10 || digits.length > 15) continue;
-
-      // Chave única de deduplicação por destinatário e evento
-      const dedupeKey = relatedId
-        ? `${digits}_${type}_${relatedId}`
-        : `${digits}_${type}_${subject}`;
-
-      if (isWaDeduplicated(dedupeKey, cooldownMs)) {
-        console.log(`[WA] Disparo deduplicado ignorado para ${digits} (${dedupeKey})`);
-        continue;
-      }
-
-      // Registra a chave antes do envio assíncrono para prevenir condições de corrida
-      markWaDeduplicated(dedupeKey);
-
-      const rawName = (emp.Nome || emp.nome || "").trim();
-      const firstName = rawName ? rawName.split(/\s+/)[0] : "";
-      const text = buildWaText({ firstName, subject, message, type });
-
-      let sent = false;
-      let messageId = "";
-
-      // 1. Tenta envio direto pelo Gateway Baileys (WA-AKG) se em navegador ou se gateway ativo
-      if (shouldSendGateway && gwUrl && gwKey) {
-        try {
-          const endpoint = `${gwUrl}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(digits + "@s.whatsapp.net")}/send`;
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-API-Key": gwKey,
-              "bypass-tunnel-reminder": "true",
-            },
-            body: JSON.stringify({ message: { text } }),
-            signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined,
-          });
-          if (res.ok) {
-            const data = await res.json().catch(() => ({}));
-            if (data.status) {
-              sent = true;
-              messageId = data.data?.key?.id || data.data?.id || "sent";
-              console.log(`[WA] Notificação enviada via Gateway para ${digits} (${type}), ID: ${messageId}`);
-            }
-          }
-        } catch (err) {
-          console.warn(`[WA] Disparo direto ao gateway falhou para ${digits}:`, err?.message || err);
-        }
-      }
-
-      // 2. Se não enviou pelo gateway direto, tenta via Cloudflare Worker
-      if (!sent && workerUrl) {
-        try {
-          const headers = {
-            "Content-Type": "application/json",
-            "X-API-Key": gwKey,
-          };
-          if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
-          const workerRes = await fetch(`${workerUrl}/wa-send`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ phone: digits, text }),
-            signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined,
-          });
-          if (workerRes.ok) {
-            const workerData = await workerRes.json().catch(() => ({}));
-            if (workerData.success) {
-              sent = true;
-              messageId = workerData.messageId || "sent_worker";
-              console.log(`[WA] Notificação enviada via Worker para ${digits} (${type}), ID: ${messageId}`);
-            }
-          }
-        } catch (_) {}
-      }
-
-      // Registro de histórico de envio em Auditoria
-      try {
-        await runtime.upsert("Auditoria", {
-          AuditoriaID: uuid(),
-          Acao: "Disparo Automático WhatsApp",
-          Tabela: "WhatsAppDisparos",
-          RegistroID: digits,
-          Detalhes: {
-            Tipo: type,
-            Assunto: subject,
-            Destinatario: rawName,
-            Telefone: digits,
-            Status: sent ? "Enviado" : "Falha/GatewayOffline",
-            MessageID: messageId,
-            DataHora: nowIso(),
-          },
-          DataHora: nowIso(),
-          Usuario: "Sistema/WhatsApp",
-        });
-      } catch (_) {}
-    }
-  } catch (err) {
-    console.warn("[WA] dispatchWhatsAppNotification falhou:", err?.message || err);
+    return await requestWorker("/wa-notify", { notificationId });
+  } catch (error) {
+    console.warn("[WA] Notificação salva; envio não confirmado:", error.message);
   }
 }
 
@@ -937,13 +696,12 @@ export async function createNotification({
   relatedId = "",
   severity = "info",
 }) {
-  dispatchWhatsAppNotification({ employeeId, storeId, email, subject, message, type, relatedId }).catch(() => {});
-
+  assert(String(subject || "").trim() && String(message || "").trim(), "A notificação precisa de assunto e mensagem.");
   const notifId = relatedId
-    ? `notif_${String(relatedId).replace(/[^a-zA-Z0-9_-]/g, "_")}`
+    ? `notif_${(await sha256Hex(JSON.stringify([type, relatedId, employeeId, normalizeEmail(email), storeId]))).slice(0, 40)}`
     : uuid();
 
-  return runtime.upsert("Notificacoes", {
+  const saved = await runtime.upsert("Notificacoes", {
     NotificacaoID: notifId,
     Destinatario: normalizeEmail(email),
     DestinatarioID: employeeId,
@@ -962,7 +720,11 @@ export async function createNotification({
     LinkAcao: "",
     Erro: "",
     RegistoRelacionadoID: relatedId,
+    CriadoPorUID: runtime.auth?.currentUser?.uid || "",
+    CriadoPor: runtime.profile?.Email || "",
   });
+  void dispatchWhatsAppNotification({ notificationId: saved.NotificacaoID });
+  return saved;
 }
 
 export async function createNotificationOnce({

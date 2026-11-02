@@ -14,6 +14,15 @@ import {
 } from "./core/runtime.js";
 import * as takeatCredit from "./core/takeat-credit.js";
 
+import { acquireClockCamera } from "./core/clock-camera.js";
+import * as clockRecovery from "./core/clock-punch-recovery.js";
+import { createClockLocationReader } from "./core/clock-location.js";
+import { PUSH_CONFIG } from "./push-config.js";
+
+window.__GESTAO_CLOCK_CAMERA__ = acquireClockCamera;
+window.__GESTAO_CLOCK_RECOVERY__ = clockRecovery;
+window.__GESTAO_CLOCK_LOCATION__ = createClockLocationReader(navigator.geolocation);
+window.__GESTAO_WORKER_URL__ = PUSH_CONFIG.endpoint;
 const api = createApi();
 window.__GESTAO_FIREBASE__ = { runtime, api };
 window.__GESTAO_TAKEAT_CREDIT__ = takeatCredit;

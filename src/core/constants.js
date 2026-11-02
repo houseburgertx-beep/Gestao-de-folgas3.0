@@ -121,9 +121,6 @@ export const PUBLIC_AUTH_TABLES = new Set([
   "PontosCatalogo",
   "Reconhecimentos",
   "Tarefas",
-  "WhatsAppMagicTokens",
-  "Denuncias",
-  "DenunciasMensagens",
 ]);
 
 export const STORE_SCOPED_FIELDS = Object.freeze({

@@ -115,6 +115,9 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000,
 
     const resJson = await res.json().catch(() => ({}));
     const messageId = resJson?.data?.key?.id || resJson?.data?.id || "";
+    if (resJson.status === false || (!messageId && resJson.status !== true && resJson.status !== "success")) {
+      return { success: false, status: res.status, error: "gateway_did_not_confirm_send" };
+    }
 
     return {
       success: true,

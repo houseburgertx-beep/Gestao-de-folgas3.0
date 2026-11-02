@@ -20,6 +20,9 @@ try {
     )
     .map((file) => `  "./assets/${file}",`);
 
+  const generatedFiles = await readdir(path.join(distDir, "generated"));
+  relevantAssets.push(...generatedFiles.filter((file) => /\.(js|css)$/.test(file)).map((file) => `  "./generated/${file}",`));
+
   if (!relevantAssets.length) {
     console.log("[postbuild-sw] Nenhum ativo encontrado em dist/assets.");
     process.exit(0);

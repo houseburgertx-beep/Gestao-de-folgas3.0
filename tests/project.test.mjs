@@ -739,9 +739,11 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
         "utf8",
       ),
     ]);
-  assert.match(client, /enableHighAccuracy:\s*true/);
-  assert.match(client, /timeout:\s*12000/);
-  assert.match(client, /maximumAge:\s*10000/);
+  const location = await readFile(new URL("../src/core/clock-location.js", import.meta.url), "utf8");
+  assert.match(location, /enableHighAccuracy:\s*true/);
+  assert.match(location, /options\.timeout \?\? 12000/);
+  assert.match(location, /maximumAge:\s*0/);
+  assert.match(client, /__GESTAO_CLOCK_LOCATION__/);
   assert.match(client, /latitude:\s*pos\.coords\.latitude/);
   assert.match(client, /longitude:\s*pos\.coords\.longitude/);
   assert.match(client, /getUserMedia/);
@@ -777,7 +779,8 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(driveService, /destination\.createFile/);
   assert.match(driveService, /CacheService\.getScriptCache\(\)/);
   assert.doesNotMatch(driveService, /waitLock\(20000\)/);
-  assert.doesNotMatch(driveService, /\.setDescription\(/);
+  assert.match(driveService, /getFilesByName\(fileName\)/, "Retentativas devem localizar arquivo pelo identificador estável");
+  assert.match(driveService, /setSharing\(DriveApp\.Access\.PRIVATE/, "Fotos devem permanecer privadas");
   assert.doesNotMatch(driveService, /firebaseio\.com[\s\S]*method:\s*"put"/i);
   assert.match(driveConfig, /SELFIE_DRIVE_UPLOAD_ENDPOINT/);
   assert.match(client, /applySavedClockPunch_\(saved\)/);
@@ -2910,7 +2913,7 @@ test("Acessibilidade de Documentos para colaboradores no menu, início, jornada 
 });
 
 test("botão minimalista de saída rápida automática preenche saída esquecida com horário estabelecido", async () => {
-  const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const indexHtml = (await readFile(new URL("../index.html", import.meta.url), "utf8")) + (await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"));
   const redesignCss = await readFile(new URL("../src/redesign.css", import.meta.url), "utf8");
   const apiClockJs = await readFile(new URL("../src/core/api-clock.js", import.meta.url), "utf8");
 
@@ -2930,7 +2933,7 @@ test("botão minimalista de saída rápida automática preenche saída esquecida
 });
 
 test("botão minimalista para exclusão definitiva de funcionário na listagem e no modal", async () => {
-  const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const indexHtml = (await readFile(new URL("../index.html", import.meta.url), "utf8")) + (await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"));
   const redesignCss = await readFile(new URL("../src/redesign.css", import.meta.url), "utf8");
   const apiBaseJs = await readFile(new URL("../src/core/api-base.js", import.meta.url), "utf8");
 
@@ -3053,7 +3056,7 @@ test("PDF.js nativo para visualização mobile e carimbo vertical no canhoto sem
   assert.match(swCode, /vendor\/pdfjs\/pdf\.worker\.min\.js/, "Service worker deve armazenar em cache pdf.worker.min.js");
 
   const buildIndexCode = await fs.readFile(path.resolve("scripts/build-index.mjs"), "utf8");
-  assert.match(buildIndexCode, /vendor\/pdfjs\/pdf\.min\.js/, "build-index.mjs deve incluir tag script para pdf.min.js");
+  assert.doesNotMatch(buildIndexCode, /<script src="\.\/vendor\/pdfjs\/pdf\.min\.js"/, "PDF.js deve carregar sob demanda, sem bloquear login e ponto");
 
   // 3. documents.js expõe renderPdfToContainer e loadPdfJs
   const docModule = await import("../src/documents.js");
@@ -3188,13 +3191,17 @@ test("Portaria 671: Comprovante unitário de ponto com SHA-256 e visualização 
   assert.match(scriptsHtml, />Comprovante<\/button>/, "Linha do tempo diária deve disponibilizar botão de comprovante");
 });
 
-test("Resiliência de ponto: Fila de contingência offline no dispositivo", async () => {
-  const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
-  assert.match(scriptsHtml, /gf_offline_clock_queue/, "Scripts.html deve gerenciar chave da fila offline");
-  assert.match(scriptsHtml, /queueOfflineClockPunch_/, "Scripts.html deve implementar enfileiramento de marcações offline");
-  assert.match(scriptsHtml, /syncOfflinePunches_/, "Scripts.html deve implementar sincronização de marcações offline");
-  assert.match(scriptsHtml, /Pendente de sincronização/, "Marcação offline temporária deve ser sinalizada");
-  assert.match(scriptsHtml, /window\.addEventListener\("online"/, "Scripts.html deve monitorar retorno da conexão");
+test("Resiliência de ponto: rascunho recuperável com foto preservada e dono da sessão", async () => {
+  const [scriptsHtml, recovery] = await Promise.all([
+    readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/core/clock-punch-recovery.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(scriptsHtml, /saveClockDraft\(uid,/, "Confirmação deve preservar foto e payload antes de enviar");
+  assert.match(scriptsHtml, /listClockDrafts\(uid\)/, "Sincronização deve recuperar apenas rascunhos do usuário");
+  assert.match(scriptsHtml, /removeClockDraft\(uid,/, "Confirmação remota deve remover o rascunho local");
+  assert.match(scriptsHtml, /window\.addEventListener\("online"/);
+  assert.match(recovery, /indexedDB\.open\(DATABASE_NAME/, "Fotos devem usar IndexedDB");
+  assert.match(recovery, /row\.uid === uid/, "Recuperação deve filtrar dono da tentativa");
 });
 
 test("Banco de Horas: Alerta de horas prestes a prescrever (Art. 59 § 5º da CLT - 6 meses)", () => {
@@ -3433,7 +3440,7 @@ test("LGPD: Otimização compacta do modal e blindagem de persistência multi-id
   assert.match(apiBase, /ownEmployee\?\.PoliticaPrivacidadeCiente/, "bootstrap deve mesclar ciência do funcionário e do perfil");
 });
 
-test("Resiliência do Ponto: triplo fallback de câmera, captura nativa e contingência Portaria 671", async () => {
+test("Resiliência do Ponto: câmera nativa e upload confirmado sem alegar homologação", async () => {
   const dialogsHtml = await readFile(new URL("../src/legacy/Dialogs.html", import.meta.url), "utf8");
   const scriptsHtml = await readFile(new URL("../src/legacy/Scripts.html", import.meta.url), "utf8");
   const cozinhaflowCss = await readFile(new URL("../src/cozinhaflow.css", import.meta.url), "utf8");
@@ -3454,9 +3461,10 @@ test("Resiliência do Ponto: triplo fallback de câmera, captura nativa e contin
   assert.match(cozinhaflowCss, /#clockSelfieContingency/, "cozinhaflow.css deve conter estilos para o botão de contingência");
   assert.match(cozinhaflowCss, /#clockSelfieStageFallbackBtn/, "cozinhaflow.css deve conter estilos para o botão do placeholder");
 
-  // 4. api-clock.js: Backend aceita e trata contingência de selfie sem abortar registro do ponto
-  assert.match(apiClockJs, /contingencia_/, "api-clock.js deve aplicar contingência se upload ao Drive falhar");
-  assert.match(apiClockJs, /Portaria671Valido:\s*true/, "Marcação deve ser registrada como válida perante a Portaria 671");
+  // Falha de upload deve permanecer recuperável; não pode fabricar recibo remoto.
+  assert.doesNotMatch(apiClockJs, /fileId:\s*`?contingencia_/);
+  assert.match(apiClockJs, /completeClockAttempt/, "Upload e gravação devem usar recuperação persistida");
+  assert.match(apiClockJs, /Portaria671Valido:\s*false/, "Aplicação não deve afirmar homologação apenas por capturar foto e GPS");
 });
 
 test("UX Mobile: botões de confirmação 100% visíveis em todos os modais e selfie compacta", async () => {
@@ -3930,12 +3938,12 @@ test("Blindagem do Ponto Eletrônico (Portaria 671 MTE / Mobile PWA): anti-bounc
     "api-clock.js NUNCA deve promover automaticamente para a próxima fase se a tela enviou ação divergente",
   );
 
-  // 3. Front-end: GPS híbrido resiliente com fallback rápido para ambientes fechados (cozinhas)
-  assert.match(
-    scriptsHtml,
-    /fastFallbackTimer = setTimeout\(/,
-    "Scripts.html deve disparar triangulação de rede rapidamente para não travar em cozinhas",
-  );
+  // 3. Leitor compartilhado coordena GPS e rede sem multiplicar requisições por tela.
+  const location = await readFile(new URL("../src/core/clock-location.js", import.meta.url), "utf8");
+  assert.match(location, /const fallbackTimer = setTimeout\(/);
+  assert.match(location, /enableHighAccuracy:\s*false/);
+  assert.match(location, /if \(pending\) return pending/);
+  assert.match(scriptsHtml, /__GESTAO_CLOCK_LOCATION__/);
   assert.match(
     scriptsHtml,
     /warmClockLocation_/,

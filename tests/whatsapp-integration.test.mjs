@@ -23,7 +23,10 @@ test("WhatsApp Integration: geração, expiração e consumo de Magic Links segu
     list: runtime.list,
     upsert: runtime.upsert,
     update: runtime.update,
+    patch: runtime.patch,
+    requireProfile: runtime.requireProfile,
   };
+  runtime.requireProfile = async () => ({ Perfil: "Administrador", FuncionarioID: "EMP_TEST_WPP_01", LojaID: "CENTRO", Ativo: true });
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
   runtime.list = async (table) => [...getTable(table).values()];
   runtime.upsert = async (table, record) => {
@@ -39,6 +42,8 @@ test("WhatsApp Integration: geração, expiração e consumo de Magic Links segu
     getTable(table).set(String(id), updated);
     return updated;
   };
+
+  runtime.patch = runtime.update;
 
   try {
     const handlers = createWhatsAppHandlers();
@@ -98,7 +103,10 @@ test("WhatsApp Integration: formatação de mensagens de cobrança e link de aç
     list: runtime.list,
     upsert: runtime.upsert,
     update: runtime.update,
+    patch: runtime.patch,
+    requireProfile: runtime.requireProfile,
   };
+  runtime.requireProfile = async () => ({ Perfil: "Administrador", FuncionarioID: "EMP_TEST_WPP_01", LojaID: "CENTRO", Ativo: true });
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
   runtime.list = async (table) => [...getTable(table).values()];
   runtime.upsert = async (table, record) => {
@@ -114,6 +122,8 @@ test("WhatsApp Integration: formatação de mensagens de cobrança e link de aç
     getTable(table).set(String(id), updated);
     return updated;
   };
+
+  runtime.patch = runtime.update;
 
   try {
     const handlers = createWhatsAppHandlers();
@@ -156,7 +166,10 @@ test("WhatsApp Integration: Webhook receptivo e autoatendimento com menu estrutu
     list: runtime.list,
     upsert: runtime.upsert,
     update: runtime.update,
+    patch: runtime.patch,
+    requireProfile: runtime.requireProfile,
   };
+  runtime.requireProfile = async () => ({ Perfil: "Administrador", FuncionarioID: "EMP_TEST_WPP_01", LojaID: "CENTRO", Ativo: true });
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
   runtime.list = async (table) => [...getTable(table).values()];
   runtime.upsert = async (table, record) => {
@@ -172,6 +185,8 @@ test("WhatsApp Integration: Webhook receptivo e autoatendimento com menu estrutu
     getTable(table).set(String(id), updated);
     return updated;
   };
+
+  runtime.patch = runtime.update;
 
   try {
     const handlers = createWhatsAppHandlers();
@@ -225,79 +240,36 @@ test("WhatsApp UI: ação de cobrança no painel de documentos e tratamento no b
   assert.match(scriptsHtml, /function checkWhatsAppMagicTokenArrival_\(\)/, "Scripts.html deve detectar chegada de magic_token");
 });
 
-test("WhatsApp Connection Tab: ciclo de pareamento com QR Code, código de 8 dígitos e teste de envio", async () => {
-  const tables = new Map();
-  const getTable = (name) => {
-    if (!tables.has(name)) tables.set(name, new Map());
-    return tables.get(name);
+test("WhatsApp Connection Tab: QR, conexão e desconexão refletem respostas reais autenticadas", async () => {
+  const originals = { auth: runtime.auth, requireProfile: runtime.requireProfile, fetch: globalThis.fetch };
+  runtime.auth = { currentUser: { getIdToken: async () => "firebase-test-token" } };
+  runtime.requireProfile = async () => ({ Perfil: "Administrador", Ativo: true });
+  const seen = [];
+  let connected = false;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(options.headers.Authorization, "Bearer firebase-test-token");
+    assert.equal(options.headers["X-API-Key"], undefined);
+    const path = new URL(url).pathname;
+    seen.push(path);
+    if (path === "/wa-status") return Response.json({ connected, status: connected ? "connected" : "disconnected", phone: connected ? "5573988776655" : "" });
+    if (path === "/wa-qr") return Response.json({ success: true, status: "qrcode", qrcode: "data:image/png;base64,dGVzdA==", pairingCode: "" });
+    if (path === "/wa-disconnect") { connected = false; return Response.json({ success: true, status: "disconnected" }); }
+    throw new Error(`unexpected URL ${url}`);
   };
-  const originalMethods = {
-    getById: runtime.getById,
-    list: runtime.list,
-    upsert: runtime.upsert,
-    update: runtime.update,
-    requireProfile: runtime.requireProfile,
-  };
-  runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
-  runtime.list = async (table) => [...getTable(table).values()];
-  runtime.upsert = async (table, record) => {
-    const idKey = table === "Configuracoes" ? "Chave" : "id";
-    const id = String(record[idKey] || record.id || `rec_${Date.now()}`);
-    const saved = { ...record, [idKey]: id };
-    getTable(table).set(id, saved);
-    return saved;
-  };
-  runtime.update = async (table, id, data) => {
-    const existing = getTable(table).get(String(id)) || {};
-    const updated = { ...existing, ...data };
-    getTable(table).set(String(id), updated);
-    return updated;
-  };
-  runtime.requireProfile = async () => ({
-    Nome: "Administrador Geral",
-    Perfil: "Administrador",
-    LojaID: "CENTRO",
-  });
-
   try {
     const handlers = createWhatsAppHandlers();
-
-    // 1. Status inicial desconectado
-    const initialStatus = await handlers.getWhatsAppConnectionStatus();
-    assert.equal(initialStatus.connected, false);
-
-    // 2. Geração de QR Code e código de 8 dígitos
-    const qrResult = await handlers.generateWhatsAppQrCode();
-    assert.equal(qrResult.success, true);
-    assert.equal(qrResult.status, "qrcode");
-    assert.ok(qrResult.pairingCode.startsWith("H190-"), "Código deve ter prefixo H190-");
-    assert.ok(qrResult.qrcode.includes("house190-bot"), "QR payload deve conter nome da instância");
-
-    // 3. Confirmação do pareamento
-    const confirmResult = await handlers.confirmWhatsAppConnection([{ phone: "5573988776655" }]);
-    assert.equal(confirmResult.success, true);
-    assert.equal(confirmResult.status, "connected");
-
-    // 4. Verificação de status conectado
-    const activeStatus = await handlers.getWhatsAppConnectionStatus();
-    assert.equal(activeStatus.connected, true);
-    assert.equal(activeStatus.phone, "5573988776655");
-
-    // 5. Disparo de teste
-    const testResult = await handlers.sendTestWhatsAppMessage([{
-      phone: "73999887766",
-      message: "Mensagem de teste de conexão",
-    }]);
-    assert.equal(testResult.success, true);
-    assert.equal(testResult.phone, "5573999887766");
-    assert.ok(testResult.waUrl.includes("wa.me"), "Deve gerar link de contingência wa.me");
-
-    // 6. Desconexão
-    const discResult = await handlers.disconnectWhatsApp();
-    assert.equal(discResult.success, true);
-    assert.equal(discResult.status, "disconnected");
+    assert.equal((await handlers.getWhatsAppConnectionStatus()).connected, false);
+    const qr = await handlers.generateWhatsAppQrCode();
+    assert.ok(qr.qrcode.startsWith("data:image/png"));
+    assert.equal(qr.pairingCode, "");
+    await assert.rejects(handlers.confirmWhatsAppConnection(), /ainda não confirmou/);
+    connected = true;
+    assert.equal((await handlers.confirmWhatsAppConnection()).phone, "5573988776655");
+    await handlers.disconnectWhatsApp();
+    assert.equal((await handlers.getWhatsAppConnectionStatus()).connected, false);
+    assert.ok(seen.includes("/wa-disconnect"));
   } finally {
-    Object.assign(runtime, originalMethods);
+    runtime.auth = originals.auth; runtime.requireProfile = originals.requireProfile; globalThis.fetch = originals.fetch;
   }
 });
 
@@ -321,7 +293,8 @@ test("WhatsApp Connection Tab: marcação visual em Index.html e Scripts.html", 
   // 3. Controle e roteamento em Scripts.html
   assert.match(scriptsHtml, /"whatsapp"/, "Scripts.html deve incluir whatsapp nas views restritas");
   assert.match(scriptsHtml, /loadWhatsAppConnectionView/, "Scripts.html deve implementar loadWhatsAppConnectionView");
-  assert.match(scriptsHtml, /renderSvgQrCode/, "Scripts.html deve conter gerador visual de QR Code em SVG");
+  assert.doesNotMatch(scriptsHtml, /renderSvgQrCode/, "Nunca exibir QR ilustrativo como pareamento real");
+  assert.match(scriptsHtml, /activeQr/, "Pareamento deve usar QR recebido do gateway");
 
   // 4. Central de Automações (Documentos, Tarefas, Avisos, Ponto, Folgas)
   assert.match(indexHtml, /id="waAutomationsForm"/, "Index.html deve conter formulário de automações");
@@ -342,6 +315,16 @@ test("WhatsApp Connection Tab: marcação visual em Index.html e Scripts.html", 
 });
 
 test("WhatsApp Broadcast: disparo em massa de comunicado para colaboradores", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalWindow = globalThis.window;
+  const originalAuth = runtime.auth;
+  globalThis.window = {};
+  runtime.auth = { currentUser: { getIdToken: async () => "broadcast-test" } };
+  globalThis.fetch = async (url, options) => {
+    assert.equal(new URL(url).pathname, "/wa-send");
+    assert.equal(options.headers.Authorization, "Bearer broadcast-test");
+    return Response.json({ success: true, messageId: "mock-confirmed-message" });
+  };
   const tables = new Map();
   const getTable = (name) => {
     if (!tables.has(name)) tables.set(name, new Map());
@@ -353,8 +336,11 @@ test("WhatsApp Broadcast: disparo em massa de comunicado para colaboradores", as
     upsert: runtime.upsert,
     create: runtime.create,
     update: runtime.update,
+    patch: runtime.patch,
+    requireProfile: runtime.requireProfile,
     requireProfile: runtime.requireProfile,
   };
+  runtime.requireProfile = async () => ({ Perfil: "Administrador", FuncionarioID: "EMP_TEST_WPP_01", LojaID: "CENTRO", Ativo: true });
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
   runtime.list = async (table) => [...getTable(table).values()];
   runtime.create = async (table, record) => {
@@ -382,6 +368,8 @@ test("WhatsApp Broadcast: disparo em massa de comunicado para colaboradores", as
     Perfil: "Administrador",
     LojaID: "CENTRO",
   });
+
+  runtime.patch = runtime.update;
 
   try {
     const handlers = createWhatsAppHandlers();
@@ -452,6 +440,9 @@ test("WhatsApp Broadcast: disparo em massa de comunicado para colaboradores", as
     assert.ok(history.some((h) => h.Acao?.includes("WhatsApp")), "Deve conter ações de WhatsApp");
   } finally {
     Object.assign(runtime, originalMethods);
+    globalThis.fetch = originalFetch;
+    globalThis.window = originalWindow;
+    runtime.auth = originalAuth;
   }
 });
 
@@ -473,4 +464,62 @@ test("WhatsApp Broadcast: elementos visuais e handlers em Index.html e Scripts.h
   assert.match(scriptsHtml, /broadcastWhatsAppAnnouncement/, "Scripts.html deve registrar a action de broadcast");
   assert.match(scriptsHtml, /broadcastExistingAnnouncement_/, "Scripts.html deve implementar broadcastExistingAnnouncement_");
   assert.match(scriptsHtml, /Disparar WhatsApp/, "Scripts.html deve renderizar o botão Disparar WhatsApp nos comunicados");
+});
+
+test("WhatsApp Magic: geração exige proprietário ou gestão da loja e usa identidade canônica", async () => {
+  const original = { requireProfile: runtime.requireProfile, getById: runtime.getById, list: runtime.list, upsert: runtime.upsert, resolveStorageKey: runtime.resolveStorageKey };
+  const employee = { FuncionarioID: "employee-real", Nome: "Ana", LojaID: "A", Telefone: "71988887777" };
+  let profile = { Perfil: "Gerente", LojaID: "A" };
+  let saved;
+  runtime.requireProfile = async () => profile;
+  runtime.getById = async () => employee;
+  runtime.list = async () => [employee];
+  runtime.resolveStorageKey = async () => "legacy-storage-key";
+  runtime.upsert = async (_table, record) => { saved = record; return record; };
+  try {
+    const handlers = createWhatsAppHandlers();
+    await handlers.generateWhatsAppMagicLink([{ funcionarioId: "alias-name", validadeHoras: Infinity }]);
+    assert.equal(saved.FuncionarioID, "employee-real");
+    assert.equal(saved.FuncionarioStorageKey, "legacy-storage-key");
+    assert.ok(new Date(saved.ExpiraEm).getTime() - Date.now() <= 48 * 3600000);
+    profile = { Perfil: "Gerente", LojaID: "B" };
+    await assert.rejects(handlers.generateWhatsAppMagicLink([{ funcionarioId: "employee-real" }]), /sua loja/);
+    profile = { Perfil: "Funcionário", FuncionarioID: "other", LojaID: "A" };
+    await assert.rejects(handlers.generateWhatsAppMagicLink([{ funcionarioId: "employee-real" }]), /sua loja/);
+    profile.FuncionarioID = "employee-real";
+    assert.equal((await handlers.generateWhatsAppMagicLink([{ funcionarioId: "employee-real" }])).success, true);
+  } finally { Object.assign(runtime, original); }
+});
+
+test("WhatsApp Magic: consumo exige conta destinatária, preserva repetição e propaga falha de gravação", async () => {
+  const original = { requireProfile: runtime.requireProfile, getById: runtime.getById, patch: runtime.patch, auth: runtime.auth };
+  const record = { TokenID: "wpp_test", Token: "wpp_test", FuncionarioID: "owner", ExpiraEm: new Date(Date.now() + 3600000).toISOString(), Acessos: 0 };
+  let profile = { Perfil: "Administrador", FuncionarioID: "foreign" };
+  let writes = 0;
+  runtime.auth = { currentUser: { uid: "uid-owner" } };
+  runtime.requireProfile = async () => profile;
+  runtime.getById = async (table) => table === "WhatsAppMagicTokens" ? record : { FuncionarioID: "owner", Nome: "Ana" };
+  runtime.patch = async (_table, _id, delta) => { writes++; Object.assign(record, delta); };
+  try {
+    const handlers = createWhatsAppHandlers();
+    await assert.rejects(handlers.consumeWhatsAppMagicLink([record.Token]), /outro colaborador/);
+    assert.equal(writes, 0);
+    profile = { Perfil: "Funcionário", FuncionarioID: "owner" };
+    assert.equal((await handlers.consumeWhatsAppMagicLink([record.Token])).success, true);
+    assert.equal((await handlers.consumeWhatsAppMagicLink([record.Token])).success, true);
+    assert.equal(record.Acessos, 2);
+    runtime.patch = async () => { throw new Error("permission-denied-test"); };
+    await assert.rejects(handlers.consumeWhatsAppMagicLink([record.Token]), /permission-denied-test/);
+    runtime.getById = async () => { runtime.auth.currentUser = { uid: "different-account" }; return record; };
+    await assert.rejects(handlers.consumeWhatsAppMagicLink([record.Token]), /conta conectada mudou/);
+  } finally { Object.assign(runtime, original); }
+});
+
+test("WhatsApp numbers: rejeita números arbitrários e preserva fixo/DDD e país explícito", () => {
+  assert.equal(normalizeWhatsAppNumber("123"), "");
+  assert.equal(normalizeWhatsAppNumber("55123"), "");
+  assert.equal(normalizeWhatsAppNumber("00000000000"), "");
+  assert.equal(normalizeWhatsAppNumber("(71) 3333-4444"), "557133334444");
+  assert.equal(normalizeWhatsAppNumber("+55 71 98888-7777"), "5571988887777");
+  assert.equal(normalizeWhatsAppNumber("+1 202 555 0123"), "12025550123");
 });

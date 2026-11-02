@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { createApi } from "../src/core/api.js";
 import { runtime } from "../src/core/runtime.js";
+import { handleIntegrity } from "../notifications-worker/src/whistleblower-service.js";
 
 test("Canal de Denúncias (Whistleblowing): envio anônimo, protocolo, PIN, consulta e réplica", async () => {
   const tables = new Map();
@@ -11,9 +12,38 @@ test("Canal de Denúncias (Whistleblowing): envio anônimo, protocolo, PIN, cons
     return tables.get(name);
   };
 
+  const originalFetch = globalThis.fetch;
+  const env = { INTEGRITY_PIN_SECRET: "test-only-secret-at-least-32-characters", FIREBASE_DATABASE_URL: "https://database.test", FIREBASE_ROOT: "test",
+    DB: { prepare: () => ({ bind: () => ({ first: async () => ({ attempts: 1 }), run: async () => ({ success: true }) }) }) } };
+  const database = async (_env, _token, path) => {
+    const [, table, id] = path.split("/");
+    return id ? getTable(table).get(id) || null : Object.fromEntries(getTable(table));
+  };
+  globalThis.fetch = async (url, options) => {
+    if (String(url).startsWith("https://database.test/")) {
+      assert.equal(options.method, "PATCH");
+      for (const [path, value] of Object.entries(JSON.parse(options.body))) {
+        const [table, id, field] = path.split("/");
+        if (!field) getTable(table).set(id, value);
+        else {
+          const record = getTable(table).get(id) || {};
+          if (value === null) delete record[field]; else record[field] = value;
+          getTable(table).set(id, record);
+        }
+      }
+      return Response.json({});
+    }
+    assert.ok(new URL(url).pathname.startsWith("/integrity/"), "nenhuma chamada real é permitida");
+    assert.equal(options.headers.Authorization, undefined, "canal público não envia identidade de login");
+    try {
+      const result = await handleIntegrity({ route: new URL(url).pathname, request: new Request(url), payload: JSON.parse(options.body), env, database, token: async () => "test-only" });
+      return Response.json(result);
+    } catch (error) { return Response.json({ error: error.message }, { status: error.status || 500 }); }
+  };
   const originalMethods = {
     getById: runtime.getById,
     list: runtime.list,
+    listWhere: runtime.listWhere,
     create: runtime.create,
     upsert: runtime.upsert,
     patch: runtime.patch,
@@ -22,6 +52,7 @@ test("Canal de Denúncias (Whistleblowing): envio anônimo, protocolo, PIN, cons
 
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
   runtime.list = async (table) => [...getTable(table).values()];
+  runtime.listWhere = async (table, field, value) => [...getTable(table).values()].filter((row) => row[field] === value);
   runtime.create = async (table, record) => {
     const key =
       table === "Denuncias"
@@ -69,7 +100,8 @@ test("Canal de Denúncias (Whistleblowing): envio anônimo, protocolo, PIN, cons
     const dataCriar = resCriar.data;
     assert.equal(dataCriar.status, "Recebida");
     assert.ok(dataCriar.protocolo.startsWith("DEN-"), "Protocolo deve iniciar com DEN-");
-    assert.equal(dataCriar.pin.length, 4, "PIN deve conter 4 dígitos numéricos");
+    assert.equal(dataCriar.pin.length, 6, "PIN novo contém 6 dígitos numéricos");
+    assert.equal(getTable("Denuncias").get(dataCriar.protocolo).PIN, undefined);
     assert.equal(dataCriar.categoria, "Assédio moral");
 
     // 2. Consulta pelo denunciante com PIN correto
@@ -97,7 +129,7 @@ test("Canal de Denúncias (Whistleblowing): envio anônimo, protocolo, PIN, cons
           },
         ]);
       },
-      /PIN incorreto/,
+      /Protocolo ou PIN inválido/,
     );
 
     // 4. Denunciante envia réplica/mensagem complementar
@@ -147,6 +179,7 @@ test("Canal de Denúncias (Whistleblowing): envio anônimo, protocolo, PIN, cons
     assert.equal(dataConsultaFinal.mensagens.length, 3); // Inicial + Réplica + Resposta do RH
   } finally {
     Object.assign(runtime, originalMethods);
+    globalThis.fetch = originalFetch;
   }
 });
 

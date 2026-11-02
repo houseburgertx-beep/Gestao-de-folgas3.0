@@ -421,7 +421,7 @@ function renderConsulta() {
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       </div>
       <h3>Acompanhar Andamento do Caso</h3>
-      <p>Insira abaixo o número de protocolo e o PIN de 4 dígitos gerados no momento do registro para acompanhar o status com sigilo total.</p>
+      <p>Insira abaixo o número de protocolo e o PIN de acesso gerados no momento do registro para acompanhar o status com sigilo total.</p>
 
       <form id="wbSearchForm" class="wb-search-form">
         <label>
@@ -429,8 +429,8 @@ function renderConsulta() {
           <input type="text" id="wbSearchProtocolo" placeholder="Ex: DEN-123456" required autocomplete="off" />
         </label>
         <label>
-          PIN de 4 Dígitos
-          <input type="password" id="wbSearchPin" maxlength="4" placeholder="••••" required autocomplete="off" />
+          PIN de Acesso
+          <input type="password" id="wbSearchPin" maxlength="6" inputmode="numeric" pattern="[0-9]{4,6}" placeholder="••••••" required autocomplete="off" />
         </label>
         <button type="submit" class="btn btn-primary" id="wbSearchSubmitBtn">
           Consultar Relato

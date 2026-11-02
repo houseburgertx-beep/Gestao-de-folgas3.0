@@ -7254,7 +7254,7 @@
     );
   }
   async function startClockPunch_(expectedAction) {
-    if (window.__IS_STARTING_CLOCK_PUNCH__) return;
+    if (window.__IS_STARTING_CLOCK_PUNCH_) return;
     window.__IS_STARTING_CLOCK_PUNCH_ = true;
     const punchBtn = $("#clockPunchBtn");
     const dashPunchBtn = $("#dashboardClockPunch");
@@ -7280,6 +7280,17 @@
       }
       if (!expectedAction)
         return toast("Atualize o ponto antes de fazer uma nova marcação.", true);
+      const recovery = window.__GESTAO_CLOCK_RECOVERY__;
+      const uid = clockOwnerUid_();
+      if (recovery && uid && (await recovery.listClockDrafts(uid)).length) {
+        await syncOfflinePunches_();
+        if ((await recovery.listClockDrafts(uid)).length) {
+          return toast("Existe uma marcação pendente neste aparelho. Reconecte para sincronizá-la antes da próxima marcação.", true);
+        }
+        await loadTimeClockQuick_();
+        expectedAction = String((state.timeClock || {}).nextAction || "");
+        if (!expectedAction) return;
+      }
       CLOCK_EXPECTED_ACTION_ = expectedAction;
       if (!CLOCK_PUNCH_REQUEST_ID_) {
         CLOCK_PUNCH_REQUEST_ID_ =
@@ -7363,15 +7374,10 @@
       return;
     }
 
-    const tryGetUserMedia = async (constraints, timeoutMs = 12000) => {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("CAMERA_TIMEOUT")), timeoutMs),
-      );
-      return await Promise.race([
-        navigator.mediaDevices.getUserMedia(constraints),
-        timeoutPromise,
-      ]);
-    };
+    const cameraSession = CLOCK_SELFIE_ENCODING_ID_;
+    const isCurrentCamera = () => cameraSession === CLOCK_SELFIE_ENCODING_ID_ && $("#clockSelfieDialog")?.open;
+    const tryGetUserMedia = (constraints, timeoutMs = 12000) =>
+      window.__GESTAO_CLOCK_CAMERA__(navigator.mediaDevices, constraints, { timeout: timeoutMs, isCurrent: isCurrentCamera });
 
     try {
       let stream = null;
@@ -7386,7 +7392,7 @@
           audio: false,
         }, 12000);
       } catch (err1) {
-        if (/NotAllowedError|PermissionDeniedError/i.test(String(err1?.name || ""))) {
+        if (/AbortError|NotAllowedError|PermissionDeniedError/i.test(String(err1?.name || ""))) {
           throw err1;
         }
         console.warn("[ponto] Tentativa 1 falhou, tentando frontal simples:", err1?.message);
@@ -7397,7 +7403,7 @@
             audio: false,
           }, 8000);
         } catch (err2) {
-          if (/NotAllowedError|PermissionDeniedError/i.test(String(err2?.name || ""))) {
+          if (/AbortError|NotAllowedError|PermissionDeniedError/i.test(String(err2?.name || ""))) {
             throw err2;
           }
           console.warn("[ponto] Tentativa 2 falhou, tentando qualquer câmera disponível:", err2?.message);
@@ -7440,6 +7446,7 @@
           setTimeout(onFrame, 1200);
         });
       }
+      if (!isCurrentCamera()) { stream.getTracks().forEach((track) => track.stop()); return; }
       placeholder?.classList.add("hidden");
       if (capture) {
         capture.disabled = false;
@@ -7449,6 +7456,7 @@
       contingency?.classList.add("hidden");
       if (status) status.textContent = "Câmera pronta. Centralize o rosto e capture a selfie.";
     } catch (err) {
+      if (!isCurrentCamera()) return;
       stopClockSelfieStream_();
       const isDenied = /notallowed|denied|permission/i.test(String(err?.name || err?.message || ""));
       const msg = isDenied
@@ -7472,76 +7480,8 @@
     if (status) status.textContent = message;
   }
   function activateClockSelfieContingency_() {
-    const canvas = $("#clockSelfieCanvas"),
-      video = $("#clockSelfieVideo"),
-      placeholder = $("#clockSelfiePlaceholder"),
-      status = $("#clockSelfieStatus"),
-      capture = $("#clockSelfieCapture"),
-      nativeCapture = $("#clockSelfieNative"),
-      contingency = $("#clockSelfieContingency"),
-      retake = $("#clockSelfieRetake"),
-      confirm = $("#clockSelfieConfirm");
-
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    canvas.width = 360;
-    canvas.height = 480;
-
-    // Fundo elegante de contingência
-    ctx.fillStyle = "#0f172a";
-    ctx.fillRect(0, 0, 360, 480);
-
-    ctx.strokeStyle = "#334155";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(14, 14, 332, 452);
-
-    ctx.fillStyle = "#f59e0b";
-    ctx.font = "bold 15px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("REGISTRO DE CONTINGÊNCIA", 180, 75);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 19px sans-serif";
-    ctx.fillText("Câmera Indisponível", 180, 110);
-
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "12px sans-serif";
-    ctx.fillText("Validação por Localização e Horário", 180, 135);
-    ctx.fillText("Portaria 671 MTE / CLT", 180, 155);
-
-    const empName = state.profile?.Nome || state.user?.Nome || "Colaborador";
-    const store = state.profile?.NomeLoja || state.profile?.LojaID || "House 190";
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const dateStr = now.toLocaleDateString("pt-BR");
-
-    ctx.fillStyle = "#f8fafc";
-    ctx.font = "bold 15px sans-serif";
-    ctx.fillText(empName.slice(0, 30), 180, 230);
-
-    ctx.fillStyle = "#cbd5e1";
-    ctx.font = "13px sans-serif";
-    ctx.fillText(`Unidade: ${store}`, 180, 258);
-    ctx.fillText(`Horário: ${timeStr} • ${dateStr}`, 180, 282);
-
-    ctx.fillStyle = "#10b981";
-    ctx.font = "bold 12px sans-serif";
-    ctx.fillText("Localização GPS Confirmada", 180, 360);
-
-    stopClockSelfieStream_();
-    CLOCK_SELFIE_DATA_ = canvas.toDataURL("image/jpeg", 0.6);
-
-    placeholder?.classList.add("hidden");
-    video?.classList.add("hidden");
-    canvas?.classList.remove("hidden");
-    capture?.classList.add("hidden");
-    nativeCapture?.classList.add("hidden");
-    contingency?.classList.add("hidden");
-    retake?.classList.remove("hidden");
-    $("#clockSelfieConfirmRow")?.classList.remove("hidden");
-    if (confirm) confirm.disabled = false;
-    if (status) status.textContent = "Contingência ativada. Confirme para registrar o ponto.";
-    toast("Contingência de câmera ativada. Confirme para registrar seu ponto.");
+    showNativeClockCamera_("Use a câmera do celular para tirar uma selfie real antes de confirmar.");
+    $("#clockSelfieFile")?.click();
   }
   function openNativeClockCamera_() {
     const input = $("#clockSelfieFile");
@@ -7675,111 +7615,18 @@
     }
   }
   function warmClockLocation_() {
-    if (!navigator.geolocation) return;
-    call(FN.clockSelfieWarm).catch(() => {});
-    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 180000) return;
-    try {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          CLOCK_CACHED_POSITION_ = pos;
-          CLOCK_CACHED_AT_ = Date.now();
-          updateClockLocationStatus_(pos);
-        },
-        () => {},
-        { enableHighAccuracy: false, timeout: 6000, maximumAge: 180000 },
-      );
-    } catch (_) {}
+    if (!navigator.geolocation || document.visibilityState === "hidden") return;
+    getClockPosition_().catch(() => {});
   }
   window.warmClockLocation_ = warmClockLocation_;
-  function getClockPosition_() {
-    if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 180000) {
-      return Promise.resolve(CLOCK_CACHED_POSITION_);
-    }
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        return reject(new Error("Este aparelho não disponibiliza localização."));
-      }
-      let resolved = false;
-      const onDone = (pos) => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(fastFallbackTimer);
-        clearTimeout(hardTimeoutTimer);
-        CLOCK_CACHED_POSITION_ = pos;
-        CLOCK_CACHED_AT_ = Date.now();
-        updateClockLocationStatus_(pos);
-        resolve(pos);
-      };
-
-      // Trava de segurança anti-congelamento WebKit / iOS Safari (máximo 10s com tolerância a ambientes fechados)
-      const hardTimeoutTimer = setTimeout(() => {
-        if (resolved) return;
-        if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 600000) {
-          console.warn("[ponto] GPS demorou, utilizando posição recente em cache.");
-          return onDone(CLOCK_CACHED_POSITION_);
-        }
-        resolved = true;
-        reject(new Error("A leitura de GPS demorou além do esperado. Verifique se o Wi-Fi e a localização estão ativos no celular."));
-      }, 10000);
-
-      // Dispara fallback de rede rapidamente (após 1.8s) para nunca travar em ambientes fechados (cozinhas / shoppings)
-      const fastFallbackTimer = setTimeout(() => {
-        if (!resolved) {
-          navigator.geolocation.getCurrentPosition(
-            onDone,
-            () => {},
-            { enableHighAccuracy: false, timeout: 6000, maximumAge: 120000 },
-          );
-        }
-      }, 1800);
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          onDone(pos);
-        },
-        (err) => {
-          if (resolved) return;
-          if (err && (err.code === 2 || err.code === 3)) {
-            console.warn(
-              "[ponto] Falha de alta precisão GPS indoors, alternando para triangulação de rede:",
-              err,
-            );
-            navigator.geolocation.getCurrentPosition(
-              onDone,
-              (finalErr) => {
-                if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 300000) {
-                  return onDone(CLOCK_CACHED_POSITION_);
-                }
-                if (!resolved) {
-                  resolved = true;
-                  clearTimeout(hardTimeoutTimer);
-                  reject(finalErr || err);
-                }
-              },
-              {
-                enableHighAccuracy: false,
-                timeout: 6000,
-                maximumAge: 120000,
-              },
-            );
-          } else {
-            if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 300000) {
-              return onDone(CLOCK_CACHED_POSITION_);
-            }
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(hardTimeoutTimer);
-              reject(err);
-            }
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 10000,
-        },
-      );
-    });
+  async function getClockPosition_() {
+    const read = window.__GESTAO_CLOCK_LOCATION__;
+    if (!read) throw new Error("O ponto está carregando. Tente novamente em instantes.");
+    const position = await read();
+    CLOCK_CACHED_POSITION_ = position;
+    CLOCK_CACHED_AT_ = position.timestamp;
+    updateClockLocationStatus_(position);
+    return position;
   }
   function clockLocationError_(error) {
     if (error?.code === 1)
@@ -7828,84 +7675,60 @@
   }
 
   const OFFLINE_PUNCH_KEY_ = "gf_offline_clock_queue";
-
-  function getOfflineClockQueue_() {
-    try {
-      const raw = localStorage.getItem(OFFLINE_PUNCH_KEY_);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function saveOfflineClockQueue_(queue) {
-    try {
-      localStorage.setItem(OFFLINE_PUNCH_KEY_, JSON.stringify(queue));
-    } catch (e) {
-      console.warn("Falha ao salvar fila offline de ponto:", e);
-    }
-  }
-
-  function queueOfflineClockPunch_(data) {
-    const queue = getOfflineClockQueue_();
-    queue.push(data);
-    saveOfflineClockQueue_(queue);
-
-    const record = {
-      RegistroPontoID: data.requestId,
-      FuncionarioID: data.funcionarioId,
-      NomeFuncionario: data.nomeFuncionario,
-      LojaID: data.lojaId,
-      NomeLoja: data.nomeLoja,
-      Data: data.timestamp.slice(0, 10),
-      TipoMarcacao: data.expectedAction,
-      DataHora: data.timestamp,
-      Status: "Pendente de sincronização",
-      AguardandoSincronizacao: true,
-      ComprovanteHashSHA256: "Registro em contingência offline no dispositivo",
-      RequestID: data.requestId,
-    };
-    return record;
-  }
-
+  const clockOwnerUid_ = () => window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "";
   let isSyncingOfflinePunches_ = false;
   async function syncOfflinePunches_() {
-    if (isSyncingOfflinePunches_ || !navigator.onLine || !sessionToken()) return;
-    const queue = getOfflineClockQueue_();
-    if (!queue.length) return;
+    const recovery = window.__GESTAO_CLOCK_RECOVERY__;
+    const uid = clockOwnerUid_();
+    if (!recovery || !uid || isSyncingOfflinePunches_ || !navigator.onLine || !sessionToken()) return;
     isSyncingOfflinePunches_ = true;
     try {
-      const remaining = [];
-      let syncedCount = 0;
-      for (const item of queue) {
-        try {
-          const saved = await call(FN.clockPunch, sessionToken(), {
-            latitude: item.latitude,
-            longitude: item.longitude,
-            accuracy: item.accuracy,
-            selfieDataUrl: item.selfieDataUrl,
-            expectedAction: item.expectedAction,
-            requestId: item.requestId,
+      // Migra a fila antiga somente quando o funcionário confere. Nunca envia
+      // uma selfie de outra conta que utilizou o mesmo aparelho.
+      const raw = localStorage.getItem(OFFLINE_PUNCH_KEY_);
+      if (raw) {
+        const oldQueue = JSON.parse(raw);
+        const remaining = [];
+        for (const item of Array.isArray(oldQueue) ? oldQueue : []) {
+          if (String(item.funcionarioId || "") !== String(val(state.user, "FuncionarioID", "funcionarioId", "id") || "")) {
+            remaining.push(item);
+            continue;
+          }
+          await recovery.saveClockDraft(uid, {
+            requestId: item.requestId, capturedAt: item.timestamp,
+            payload: { ...item, capturedAt: item.timestamp },
           });
-          applySavedClockPunch_(saved);
-          syncedCount++;
-        } catch (err) {
-          console.warn("Falha ao sincronizar marcação offline:", item.requestId, err);
-          remaining.push(item);
+        }
+        if (remaining.length) localStorage.setItem(OFFLINE_PUNCH_KEY_, JSON.stringify(remaining));
+        else localStorage.removeItem(OFFLINE_PUNCH_KEY_);
+      }
+      let count = 0;
+      for (const draft of await recovery.listClockDrafts(uid)) {
+        if (clockOwnerUid_() !== uid) break;
+        try {
+          const saved = await call(FN.clockPunch, sessionToken(), draft.payload);
+          await recovery.removeClockDraft(uid, draft.requestId);
+          if (clockOwnerUid_() === uid) applySavedClockPunch_(saved);
+          count++;
+        } catch (error) {
+          console.warn("[ponto] Marcação preservada para nova tentativa:", error.message);
+          break;
         }
       }
-      saveOfflineClockQueue_(remaining);
-      if (syncedCount > 0) {
-        toast(`${syncedCount} marcação(ões) offline sincronizada(s) com sucesso.`);
-        refreshClockAfterPunch_();
+      if (clockOwnerUid_() === uid && !(await recovery.listClockDrafts(uid)).length) {
+        const resumed = await call("retryPendingTimeClockPunches");
+        for (const item of arr(resumed)) {
+          if (item.saved && clockOwnerUid_() === uid) { applySavedClockPunch_(item.saved); count++; }
+        }
       }
-    } finally {
-      isSyncingOfflinePunches_ = false;
-    }
+      if (count) { toast(`${count} marcação(ões) sincronizada(s).`); refreshClockAfterPunch_(); }
+    } catch (error) {
+      console.warn("[ponto] Recuperação local:", error.message);
+    } finally { isSyncingOfflinePunches_ = false; }
   }
-
-  window.addEventListener("online", () => {
-    syncOfflinePunches_();
+  window.addEventListener("online", syncOfflinePunches_);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") syncOfflinePunches_();
   });
 
   function showTimeClockReceipt_(recordId) {
@@ -8488,43 +8311,28 @@
     setClockButtonsBusy(true);
     let confirmed = false;
     const punchStartedAt = performance.now();
-    let pos = null;
+    let localDraft = null;
+    const uid = clockOwnerUid_();
+    let networkAttempted = false;
     try {
-      try {
-        pos = await Promise.race([
-          (CLOCK_POSITION_PROMISE_ || getClockPosition_()),
-          new Promise((_, rej) => setTimeout(() => rej(new Error("GPS_TIMEOUT")), 8500)),
-        ]);
-      } catch (posErr) {
-        console.warn("[ponto] Tentando leitura de localização com tolerância:", posErr);
-        if (CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 600000) {
-          pos = CLOCK_CACHED_POSITION_;
-        } else {
-          pos = await Promise.race([
-            getClockPosition_(),
-            new Promise((_, rej) => setTimeout(() => rej(new Error("GPS_TIMEOUT")), 6000)),
-          ]);
-        }
+      localDraft = (await window.__GESTAO_CLOCK_RECOVERY__.listClockDrafts(uid))
+        .find((draft) => draft.requestId === CLOCK_PUNCH_REQUEST_ID_);
+      if (!localDraft) {
+        const pos = await getClockPosition_();
+        const payload = {
+          latitude: pos.coords.latitude, longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy, locationTimestamp: pos.timestamp,
+          selfieDataUrl: CLOCK_SELFIE_DATA_, expectedAction: CLOCK_EXPECTED_ACTION_,
+          requestId: CLOCK_PUNCH_REQUEST_ID_, capturedAt: new Date().toISOString(),
+        };
+        localDraft = await window.__GESTAO_CLOCK_RECOVERY__.saveClockDraft(uid, {
+          requestId: CLOCK_PUNCH_REQUEST_ID_, payload,
+        });
       }
-      if (!pos || !pos.coords) {
-        throw new Error("Não foi possível confirmar sua localização. Ative o GPS/Wi-Fi do aparelho e tente novamente.");
-      }
-
-      const punchCall = call(FN.clockPunch, sessionToken(), {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        selfieDataUrl: CLOCK_SELFIE_DATA_,
-        expectedAction: CLOCK_EXPECTED_ACTION_,
-        requestId: CLOCK_PUNCH_REQUEST_ID_,
-      });
-
-      // Timeout limite da rede móvel (18s). Se a rede ou Google Drive demorar, salva em contingência offline com segurança!
-      const timeoutCall = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("NETWORK_TIMEOUT")), 18000),
-      );
-
-      const saved = await Promise.race([punchCall, timeoutCall]);
+      networkAttempted = true;
+      const saved = await call(FN.clockPunch, sessionToken(), localDraft.payload);
+      await window.__GESTAO_CLOCK_RECOVERY__.removeClockDraft(uid, localDraft.originalRequestId || localDraft.requestId.replace(/^draft:/, "")).catch(() => {});
+      if (clockOwnerUid_() !== uid) return;
       applySavedClockPunch_(saved);
       confirmed = true;
       closeDialog("clockSelfieDialog");
@@ -8547,37 +8355,11 @@
       });
       refreshClockAfterPunch_();
     } catch (error) {
-      const isNetworkFail = !navigator.onLine ||
-        /network|failed to fetch|offline|timeout|unavailable|gps_timeout/i.test(String(error?.message || ""));
-      if (isNetworkFail && CLOCK_PUNCH_REQUEST_ID_ && CLOCK_SELFIE_DATA_) {
-        const offlineRecord = queueOfflineClockPunch_({
-          requestId: CLOCK_PUNCH_REQUEST_ID_,
-          expectedAction: CLOCK_EXPECTED_ACTION_,
-          selfieDataUrl: CLOCK_SELFIE_DATA_,
-          latitude: pos?.coords?.latitude || 0,
-          longitude: pos?.coords?.longitude || 0,
-          accuracy: pos?.coords?.accuracy || 0,
-          timestamp: new Date().toISOString(),
-          funcionarioId: state.profile?.FuncionarioID || state.user?.FuncionarioID || "",
-          nomeFuncionario: state.profile?.Nome || state.user?.Nome || "",
-          lojaId: state.profile?.LojaID || state.user?.LojaID || "",
-          nomeLoja: state.profile?.NomeLoja || state.user?.NomeLoja || "",
-        });
-        applySavedClockPunch_(offlineRecord);
-        confirmed = true;
-        closeDialog("clockSelfieDialog");
-        try {
-          localStorage.setItem("house_employee_punched", "true");
-          window.dispatchEvent(new CustomEvent("house-employee-punched"));
-          const banner = document.getElementById("notificationPromptBanner");
-          if (banner) banner.classList.add("hidden");
-        } catch (e) {}
-        toast("Sinal de rede lento ou instável. Marcação salva com segurança no aparelho (contingência offline) e será sincronizada automaticamente.");
-        refreshClockAfterPunch_();
+      if (networkAttempted && localDraft) {
+        status.textContent = "Marcação pendente. A foto foi preservada neste aparelho para reenvio.";
+        toast("O envio não foi confirmado. Foto e horário preservados neste aparelho; a sincronização será tentada ao reconectar.", true);
       } else {
-        const message = error?.code
-          ? clockLocationError_(error)
-          : error?.message || "Não foi possível registrar o ponto.";
+        const message = error?.code ? clockLocationError_(error) : error?.message || "Não foi possível registrar o ponto.";
         status.textContent = message;
         toast(message, true);
       }
@@ -9584,7 +9366,7 @@
     try {
       const rawRes = await call(FN.waNotifyMessage, {
         docId,
-        origin: window.location.origin,
+        origin: window.location.href.split("?")[0].split("#")[0],
       });
       const res = rawRes?.data || rawRes || {};
       if (res && res.messageId) {
@@ -9605,59 +9387,15 @@
   }
   window.notifyDocumentViaWhatsApp = notifyDocumentViaWhatsApp;
 
-  function renderSvgQrCode(content, size = 180) {
-    return `
-      <svg width="${size}" height="${size}" viewBox="0 0 100 100" style="background:#ffffff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.06); padding:8px;">
-        <rect x="5" y="5" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
-        <rect x="11" y="11" width="14" height="14" fill="#0f172a" rx="2" />
-        <rect x="69" y="5" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
-        <rect x="75" y="11" width="14" height="14" fill="#0f172a" rx="2" />
-        <rect x="5" y="69" width="26" height="26" fill="none" stroke="#0f172a" stroke-width="4" rx="3" />
-        <rect x="11" y="75" width="14" height="14" fill="#0f172a" rx="2" />
-        <rect x="36" y="8" width="6" height="6" fill="#0f172a" />
-        <rect x="46" y="8" width="6" height="6" fill="#0f172a" />
-        <rect x="56" y="8" width="6" height="6" fill="#0f172a" />
-        <rect x="36" y="18" width="6" height="6" fill="#0f172a" />
-        <rect x="46" y="24" width="6" height="6" fill="#0f172a" />
-        <rect x="8" y="36" width="6" height="6" fill="#0f172a" />
-        <rect x="18" y="36" width="6" height="6" fill="#0f172a" />
-        <rect x="28" y="36" width="6" height="6" fill="#0f172a" />
-        <rect x="38" y="36" width="8" height="8" fill="#16a34a" rx="2" />
-        <rect x="50" y="36" width="6" height="6" fill="#0f172a" />
-        <rect x="60" y="36" width="6" height="6" fill="#0f172a" />
-        <rect x="70" y="36" width="6" height="6" fill="#0f172a" />
-        <rect x="80" y="36" width="6" height="6" fill="#0f172a" />
-        <rect x="36" y="48" width="6" height="6" fill="#0f172a" />
-        <rect x="46" y="48" width="6" height="6" fill="#0f172a" />
-        <rect x="56" y="48" width="6" height="6" fill="#0f172a" />
-        <rect x="68" y="48" width="6" height="6" fill="#0f172a" />
-        <rect x="78" y="48" width="6" height="6" fill="#0f172a" />
-        <rect x="8" y="48" width="6" height="6" fill="#0f172a" />
-        <rect x="18" y="48" width="6" height="6" fill="#0f172a" />
-        <rect x="36" y="60" width="6" height="6" fill="#0f172a" />
-        <rect x="46" y="60" width="6" height="6" fill="#0f172a" />
-        <rect x="58" y="60" width="6" height="6" fill="#0f172a" />
-        <rect x="70" y="60" width="6" height="6" fill="#0f172a" />
-        <rect x="82" y="60" width="6" height="6" fill="#0f172a" />
-        <rect x="36" y="72" width="6" height="6" fill="#0f172a" />
-        <rect x="48" y="72" width="6" height="6" fill="#0f172a" />
-        <rect x="60" y="72" width="6" height="6" fill="#0f172a" />
-        <rect x="74" y="72" width="6" height="6" fill="#0f172a" />
-        <rect x="86" y="72" width="6" height="6" fill="#0f172a" />
-        <rect x="36" y="84" width="6" height="6" fill="#0f172a" />
-        <rect x="48" y="84" width="6" height="6" fill="#0f172a" />
-        <rect x="60" y="84" width="6" height="6" fill="#0f172a" />
-        <rect x="72" y="84" width="6" height="6" fill="#0f172a" />
-        <rect x="84" y="84" width="6" height="6" fill="#0f172a" />
-      </svg>
-    `;
+  function fetchWhatsAppWorker_(url, options = {}) {
+    return fetch(url, { ...options, signal: AbortSignal.timeout(url.includes("/wa-qr") ? 55000 : 20000) });
   }
 
   async function getWhatsAppAuthHeaders_() {
     let tok = "";
     try {
-      if (typeof firebaseRuntime !== "undefined" && firebaseRuntime?.auth?.currentUser) {
-        tok = await firebaseRuntime.auth.currentUser.getIdToken(false).catch(() => "");
+      if (window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser) {
+        tok = await window.__GESTAO_FIREBASE__.runtime.auth.currentUser.getIdToken().catch(() => "");
       }
     } catch (_) {}
     if (!tok && typeof sessionToken === "function") {
@@ -9665,7 +9403,7 @@
     }
     const headers = {
       "Content-Type": "application/json",
-      "X-API-Key": "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl",
+
       "bypass-tunnel-reminder": "true",
     };
     if (tok) {
@@ -9695,18 +9433,22 @@
   function startWhatsAppPairingPolling_() {
     if (window._waPairPollTimer) clearInterval(window._waPairPollTimer);
     let polls = 0;
+    let polling = false;
     window._waPairPollTimer = setInterval(async () => {
+      if (polling || document.visibilityState === "hidden" || !navigator.onLine) return;
+      polling = true;
       polls++;
       if (polls > 40) {
         clearInterval(window._waPairPollTimer);
         window._waPairPollTimer = null;
+        polling = false;
         return;
       }
       try {
         const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
         const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
         const headers = await getWhatsAppAuthHeaders_();
-        const res = await fetch(workerUrl + "/wa-status", {
+        const res = await fetchWhatsAppWorker_(workerUrl + "/wa-status", {
           method: "POST",
           headers,
           body: JSON.stringify({}),
@@ -9721,7 +9463,7 @@
             await loadWhatsAppConnectionView();
           }
         }
-      } catch (_) {}
+      } catch (_) {} finally { polling = false; }
     }, 3000);
   }
 
@@ -9735,7 +9477,7 @@
 
       if (workerUrl) {
         try {
-          const workerStatusRes = await fetch(workerUrl + "/wa-status", {
+          const workerStatusRes = await fetchWhatsAppWorker_(workerUrl + "/wa-status", {
             method: "POST",
             headers,
             body: JSON.stringify({}),
@@ -9837,7 +9579,7 @@
             const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=4&data=${encoded}`;
             qrHtml = `<img src="${qrImgUrl}" alt="QR Code WhatsApp" style="width:200px; height:200px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.08); padding:8px; background:#fff; display:block;" />`;
           } else {
-            qrHtml = renderSvgQrCode(activeQr);
+            qrHtml = `<p style="text-align:center">A imagem do QR Code ainda não está disponível. Gere novamente ou use o código de pareamento.</p>`;
           }
           qrBox.innerHTML = `
             <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
@@ -9855,7 +9597,7 @@
       if ($("#waGatewayInstanceInput")) $("#waGatewayInstanceInput").value = res?.instanceName || "house190";
       if ($("#waGatewayApiKeyInput")) {
         if (!$("#waGatewayApiKeyInput").value) {
-          $("#waGatewayApiKeyInput").placeholder = res?.apiKeyMasked || "wag_lHoX...hBl";
+          $("#waGatewayApiKeyInput").placeholder = res?.apiKeyMasked || "Credencial armazenada no servidor";
         }
       }
 
@@ -9876,7 +9618,7 @@
             const headers2 = await getWhatsAppAuthHeaders_();
             let generatedQr = "";
             if (workerUrl2) {
-              const qrRes = await fetch(workerUrl2 + "/wa-qr", {
+              const qrRes = await fetchWhatsAppWorker_(workerUrl2 + "/wa-qr", {
                 method: "POST",
                 headers: headers2,
                 body: JSON.stringify({ force }),
@@ -9936,7 +9678,7 @@
             const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
             const headers = await getWhatsAppAuthHeaders_();
             if (workerUrl) {
-              const pairRes = await fetch(workerUrl + "/wa-pair-code", {
+              const pairRes = await fetchWhatsAppWorker_(workerUrl + "/wa-pair-code", {
                 method: "POST",
                 headers,
                 body: JSON.stringify({ phone: cleanPhone, force }),
@@ -9996,7 +9738,7 @@
             const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
             const headers = await getWhatsAppAuthHeaders_();
             if (workerUrl) {
-              await fetch(workerUrl + "/wa-disconnect", {
+              await fetchWhatsAppWorker_(workerUrl + "/wa-disconnect", {
                 method: "POST",
                 headers,
                 body: JSON.stringify({}),
@@ -10096,17 +9838,6 @@
           setLoading(true);
           try {
             await call(FN.waConfigureGateway, { gatewayUrl, instanceName, apiKey, ativo: true });
-
-            const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
-            const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
-            const headers = await getWhatsAppAuthHeaders_();
-            if (workerUrl) {
-              await fetch(workerUrl + "/wa-gateway-config", {
-                method: "POST",
-                headers,
-                body: JSON.stringify({ gatewayUrl, instanceName, apiKey }),
-              }).catch(() => null);
-            }
 
             toast("Parâmetros do Gateway salvos e sincronizados com sucesso.");
             await loadWhatsAppConnectionView();
@@ -10233,7 +9964,7 @@
           const workerUrl = (typeof state !== "undefined" && state.notificationsWorkerUrl) || defaultWorkerUrl;
           if (!workerUrl) return;
           const headers = await getWhatsAppAuthHeaders_();
-          const r = await fetch(workerUrl + "/wa-automations-get", {
+          const r = await fetchWhatsAppWorker_(workerUrl + "/wa-automations-get", {
             method: "POST",
             headers,
             body: JSON.stringify({}),
@@ -10263,7 +9994,7 @@
           setLoading(true);
           try {
             const headers = await getWhatsAppAuthHeaders_();
-            const r = await fetch(workerUrl + "/wa-automations", {
+            const r = await fetchWhatsAppWorker_(workerUrl + "/wa-automations", {
               method: "POST",
               headers,
               body: JSON.stringify({ automations }),
@@ -10426,6 +10157,7 @@
     );
   }
   setInterval(() => {
+    if (document.visibilityState === "hidden") return;
     const e = $("#clockLiveTime");
     if (e)
       e.textContent = new Date().toLocaleTimeString("pt-BR", {
@@ -11061,8 +10793,11 @@
     } catch {}
   }
 
+  let notificationCheckBusy_ = false;
   async function checkRealtimeNotifications_() {
+    if (notificationCheckBusy_ || document.visibilityState === "hidden" || !navigator.onLine) return;
     if (!sessionToken() && !state.user) return;
+    notificationCheckBusy_ = true;
     try {
       var rows = arr(await call(FN.notifications, { limit: 25 }));
       var isFirst = knownNotificationIds_.size === 0;
@@ -11092,7 +10827,7 @@
       if (state.currentView === "notifications") {
         renderNotifications();
       }
-    } catch {}
+    } catch {} finally { notificationCheckBusy_ = false; }
   }
 
   function initNotificationMonitor_() {
@@ -11103,6 +10838,7 @@
       refreshTimeOffQuick_(true);
     }, 3500);
     setInterval(() => {
+      if (document.visibilityState === "hidden" || !navigator.onLine) return;
       checkRealtimeNotifications_();
       refreshTimeOffQuick_(true);
     }, 25000);

@@ -8,7 +8,8 @@
 import { spawn, execSync } from "node:child_process";
 
 const WORKER_URL = "https://house-folgas-notifications.brunohouse.workers.dev";
-const API_KEY = "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
+const API_KEY = process.env.WA_API_KEY || "";
+const SERVICE_TOKEN = process.env.WA_SERVICE_TOKEN || "";
 const INSTANCE = "house190";
 const SUBDOMAIN = "house190-bot";
 const DEFAULT_GATEWAY_URL = `https://${SUBDOMAIN}.loca.lt/api`;
@@ -116,8 +117,8 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
   activeTunnelUrl = gatewayUrl;
   tunnelFailures = 0;
 
-  let phone = "557197069291";
-  let isConnected = true;
+  let phone = "";
+  let isConnected = false;
 
   try {
     const sRes = await fetch(`http://127.0.0.1:3000/api/sessions/${encodeURIComponent(INSTANCE)}`, {
@@ -137,7 +138,7 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
   try {
     const res = await fetch(`${WORKER_URL}/wa-gateway-config`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+      headers: { "Content-Type": "application/json", "X-Service-Token": SERVICE_TOKEN },
       body: JSON.stringify({
         gatewayUrl,
         instanceName: INSTANCE,

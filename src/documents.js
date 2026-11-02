@@ -1238,22 +1238,27 @@ export async function loadPdfJs() {
   if (!pdfJsPromise) {
     pdfJsPromise = new Promise((resolve, reject) => {
       const script = document.createElement("script");
+      const timer = setTimeout(() => {
+        script.remove();
+        reject(new Error("O leitor PDF demorou a carregar. Tente abrir novamente."));
+      }, 12000);
       script.src = "./vendor/pdfjs/pdf.min.js";
       script.onload = () => {
-        if (typeof window !== "undefined" && window.pdfjsLib) {
-          try {
-            const workerUrl = new URL("./vendor/pdfjs/pdf.worker.min.js", window.location.href).href;
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-          } catch (_) {}
+        clearTimeout(timer);
+        if (window.pdfjsLib) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("./vendor/pdfjs/pdf.worker.min.js", window.location.href).href;
           resolve(window.pdfjsLib);
-        } else {
-          reject(new Error("PDF.js não pôde ser inicializado"));
-        }
+        } else { script.remove(); reject(new Error("PDF.js não pôde ser inicializado")); }
       };
-      script.onerror = () => reject(new Error("Falha ao carregar script do PDF.js"));
+      script.onerror = () => {
+        clearTimeout(timer);
+        script.remove();
+        reject(new Error("Falha ao carregar o leitor PDF. Tente novamente."));
+      };
       document.head.appendChild(script);
-    });
+    }).catch((error) => { pdfJsPromise = null; throw error; });
   }
+
   return pdfJsPromise;
 }
 

@@ -142,3 +142,15 @@ test("sendWhatsAppButtons envia requisição correta para a API de buttons do WA
     globalThis.fetch = originalFetch;
   }
 });
+
+test("sendWhatsAppMessage não confunde HTTP200 vazio ou statusfalse com envio confirmado", async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const body of [{}, { status: false }]) {
+      globalThis.fetch = async () => Response.json(body);
+      const result = await sendWhatsAppMessage({ WA_ENABLED: "true", WA_API_URL: "https://gateway.test/api", WA_SESSION_ID: "test", WA_API_KEY: "test-only" }, { phone: "71988887777", text: "test" });
+      assert.equal(result.success, false);
+      assert.equal(result.error, "gateway_did_not_confirm_send");
+    }
+  } finally { globalThis.fetch = original; }
+});

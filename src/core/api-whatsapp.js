@@ -1,4 +1,5 @@
 import { runtime } from "./runtime.js";
+import { requestWorker } from "./worker-client.js";
 import {
   assert,
   nowIso,
@@ -18,15 +19,17 @@ const DEFAULT_MAGIC_LINK_TTL_HOURS = 48;
  * Normaliza número de telefone para formato padrão internacional do WhatsApp (+55...)
  */
 export function normalizeWhatsAppNumber(raw) {
-  const digits = String(raw || "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
-    return digits;
+  const input = String(raw || "").trim();
+  let digits = input.replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  if (digits.startsWith("55") && [12, 13].includes(digits.length)) {
+    const local = digits.slice(2);
+    return /^[1-9]\d(?:9\d{8}|[2-9]\d{7})$/.test(local) ? digits : "";
   }
-  if (digits.length === 10 || digits.length === 11) {
-    return `55${digits}`;
-  }
-  return digits;
+  if ([10, 11].includes(digits.length) && /^[1-9]\d(?:9\d{8}|[2-9]\d{7})$/.test(digits)) return `55${digits}`;
+  // International numbers require an explicit country-code marker.
+  if (input.startsWith("+") && !digits.startsWith("55") && /^[1-9]\d{9,14}$/.test(digits)) return digits;
+  return "";
 }
 
 /**
@@ -61,6 +64,7 @@ export function createWhatsAppHandlers() {
         docId = "",
       } = payload;
 
+      const profile = await runtime.requireProfile();
       assert(funcionarioId, "Identificador do colaborador não informado.");
 
       let emp = await runtime.getById("Funcionarios", funcionarioId).catch(() => null);
@@ -75,15 +79,23 @@ export function createWhatsAppHandlers() {
         });
       }
       assert(emp, "Colaborador não encontrado.");
+      const canonicalEmployeeId = String(emp.FuncionarioID || emp.id || "");
+      assert(canonicalEmployeeId, "Cadastro do colaborador sem identificador válido.");
+      const ownEmployee = String(profile.FuncionarioID || "") === canonicalEmployeeId;
+      const managerOfStore = isManager(profile) && profile.LojaID && String(profile.LojaID) === String(emp.LojaID || "");
+      assert(ownEmployee || isAdmin(profile) || managerOfStore, "Você só pode gerar links para seu cadastro ou para colaboradores da sua loja.");
 
       const token = `wpp_${uuid().replace(/-/g, "")}_${Date.now().toString(36)}`;
-      const expiraMs = Date.now() + Math.max(1, Number(validadeHoras) || DEFAULT_MAGIC_LINK_TTL_HOURS) * 3600 * 1000;
+      const requestedHours = Number(validadeHoras);
+      const lifetime = Number.isFinite(requestedHours) ? Math.min(48, Math.max(1, requestedHours)) : DEFAULT_MAGIC_LINK_TTL_HOURS;
+      const expiraMs = Date.now() + lifetime * 3600 * 1000;
       const expiraEm = new Date(expiraMs).toISOString();
 
       const record = {
         TokenID: token,
         Token: token,
-        FuncionarioID: String(funcionarioId),
+        FuncionarioID: canonicalEmployeeId,
+        FuncionarioStorageKey: await runtime.resolveStorageKey("Funcionarios", canonicalEmployeeId),
         NomeFuncionario: emp.Nome || "Colaborador",
         Telefone: normalizeWhatsAppNumber(emp.Telefone || emp.WhatsApp || emp.Celular || ""),
         LojaID: emp.LojaID || "",
@@ -100,7 +112,7 @@ export function createWhatsAppHandlers() {
 
       await runtime.upsert("WhatsAppMagicTokens", record);
 
-      const baseUrl = String(origin || "").replace(/\/$/, "");
+      const baseUrl = String(origin || (typeof location !== "undefined" ? `${location.origin}${location.pathname}` : "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0")).replace(/\/$/, "");
       const magicUrl = `${baseUrl}/?magic_token=${encodeURIComponent(token)}`;
 
       return {
@@ -117,26 +129,33 @@ export function createWhatsAppHandlers() {
     },
 
     /**
-     * Valida e consome o Magic Link para acesso direto e sem senha
+     * Valida o link de navegação após login do próprio colaborador.
      */
     async consumeWhatsAppMagicLink(args) {
+      const profile = await runtime.requireProfile();
+      const ownerUid = runtime.auth?.currentUser?.uid || "";
       const [tokenRaw] = args;
       const token = String(tokenRaw || "").trim();
       assert(token, "Token de acesso do WhatsApp não fornecido.");
 
       const record = await runtime.getById("WhatsAppMagicTokens", token);
       assert(record, "Link de acesso expirado ou não encontrado.");
+      assert(profile.FuncionarioID && String(profile.FuncionarioID) === String(record.FuncionarioID), "Este link pertence a outro colaborador. Entre com a conta destinatária.");
+      assert(!ownerUid || runtime.auth?.currentUser?.uid === ownerUid, "A conta conectada mudou. Abra o link novamente na conta destinatária.");
 
       const now = Date.now();
       const expiraEmMs = new Date(record.ExpiraEm || 0).getTime();
       assert(expiraEmMs > now, "Este link de acesso expirou. Solicite um novo envio pelo WhatsApp.");
 
-      // Incrementa acessos e data do último uso
-      await runtime.update("WhatsAppMagicTokens", record.TokenID, {
+      // This is an authenticated navigation hint, never an authentication token.
+      // Reopening by the same logged-in recipient is allowed until expiration.
+      // Access metadata must persist; an offline/denied update is not success.
+      await runtime.patch("WhatsAppMagicTokens", record.TokenID, {
         Utilizado: true,
         UltimoAcessoEm: nowIso(),
         Acessos: (Number(record.Acessos) || 0) + 1,
-      }).catch(() => null);
+      });
+      assert(!ownerUid || runtime.auth?.currentUser?.uid === ownerUid, "A conta conectada mudou. Abra o link novamente na conta destinatária.");
 
       const emp = await runtime.getById("Funcionarios", record.FuncionarioID).catch(() => null);
 
@@ -152,6 +171,7 @@ export function createWhatsAppHandlers() {
         },
       }).catch(() => {});
 
+      assert(!ownerUid || runtime.auth?.currentUser?.uid === ownerUid, "A conta conectada mudou. Abra o link novamente na conta destinatária.");
       return {
         success: true,
         token: record.Token,
@@ -282,75 +302,15 @@ export function createWhatsAppHandlers() {
 
       const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}` : "";
 
-      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://house190-bot.loca.lt/api";
-      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
-      const instance = gw?.InstanceName || "house190";
-      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-
-      const isBrowser = typeof window !== "undefined";
-      const shouldSendGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
-
       let messageId = "";
       let deliveryError = null;
-
-      if (phone && shouldSendGateway && gwUrl && apiKey) {
+      if (phone && typeof window !== "undefined") {
         try {
-          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
-          const jid = `${phone}@s.whatsapp.net`;
-          const endpoint = `${apiBase}/messages/${encodeURIComponent(instance)}/${encodeURIComponent(jid)}/send`;
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-API-Key": apiKey,
-              "bypass-tunnel-reminder": "true",
-            },
-            body: JSON.stringify({
-              message: { text: messageText },
-            }),
-            signal: AbortSignal.timeout(8000),
-          });
-
-          const resData = await res.json().catch(() => ({}));
-          if (res.ok && resData.status) {
-            messageId = resData.data?.key?.id || resData.data?.id || "sent";
-          } else {
-            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
-          }
-        } catch (err) {
-          console.warn("[WA] Disparo de documento ao gateway falhou:", err?.message || err);
-          deliveryError = err?.message || "Falha de conexão";
-        }
-      }
-
-      // Se falhou no gateway direto ou se gateway offline, tenta via Cloudflare Worker
-      if (phone && !messageId && isBrowser) {
-        try {
-          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
-          const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-API-Key": apiKey,
-            },
-            body: JSON.stringify({
-              phone,
-              text: messageText,
-            }),
-            signal: AbortSignal.timeout(10000),
-          });
-          if (workerRes.ok) {
-            const workerData = await workerRes.json().catch(() => ({}));
-            if (workerData.success) {
-              messageId = workerData.messageId || "sent_worker";
-              deliveryError = null;
-            } else if (workerData.error) {
-              deliveryError = workerData.error;
-            }
-          }
-        } catch (err) {
-          console.warn("[WA] Disparo de documento via Worker falhou:", err?.message || err);
+          const sent = await requestWorker("/wa-send", { phone, text: messageText });
+          messageId = sent.messageId || "";
+          if (!messageId) deliveryError = "O gateway não confirmou o envio.";
+        } catch (error) {
+          deliveryError = error.message;
         }
       }
 
@@ -486,233 +446,33 @@ export function createWhatsAppHandlers() {
     async configureWhatsAppGateway(args) {
       const [config = {}] = args;
       const profile = await runtime.requireProfile();
-      if (!isAdmin(profile) && !isManager(profile)) {
-        throw new Error("Acesso restrito à liderança e administração.");
-      }
-
-      const toSave = {
-        Chave: "WhatsAppGateway",
-        GatewayUrl: String(config.gatewayUrl || "https://house190-bot.loca.lt/api").trim(),
-        ApiKeyMasked: config.apiKey ? "********" + String(config.apiKey).slice(-4) : "",
-        InstanceName: String(config.instanceName || "house190").trim(),
-        Ativo: Boolean(config.ativo),
-        AtualizadoEm: nowIso(),
-        AtualizadoPor: profile.Nome || "Admin",
-      };
-
-      if (config.apiKey && !config.apiKey.includes("***")) {
-        toSave.ApiKey = String(config.apiKey).trim();
-      } else {
-        const existing = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-        if (existing?.ApiKey) {
-          toSave.ApiKey = existing.ApiKey;
-          toSave.ApiKeyMasked = existing.ApiKeyMasked || ("********" + existing.ApiKey.slice(-4));
-        }
-      }
-
-      await runtime.upsert("Configuracoes", toSave);
-
-      return {
-        success: true,
-        config: {
-          gatewayUrl: toSave.GatewayUrl,
-          instanceName: toSave.InstanceName,
-          ativo: toSave.Ativo,
-          apiKeyMasked: toSave.ApiKeyMasked,
-        },
-      };
+      assert(isAdmin(profile), "Apenas administradores podem alterar a configuração compartilhada do gateway.");
+      return requestWorker("/wa-gateway-config", config);
     },
 
-    /**
-     * Retorna o status de conexão da instância do WhatsApp
-     */
     async getWhatsAppConnectionStatus() {
-      const profile = await runtime.requireProfile().catch(() => null);
-      if (profile && !isAdmin(profile) && !isManager(profile)) {
-        throw new Error("Acesso restrito à liderança e administração.");
-      }
-      const config = await runtime.getById("Configuracoes", "WhatsAppConnection").catch(() => null);
-      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://house190-bot.loca.lt/api";
-      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
-      const instance = gw?.InstanceName || config?.InstanceName || "house190";
-      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-
-      let liveConnected = Boolean(config?.Connected);
-      let livePhone = config?.Phone || "";
-      let liveStatus = config?.Status || (config?.Connected ? "connected" : "disconnected");
-      let liveQr = config?.QrCode || "";
-
-      const isBrowser = typeof window !== "undefined";
-      const shouldCheckGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
-
-      if (shouldCheckGateway && gwUrl && apiKey) {
-        try {
-          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
-          const res = await fetch(`${apiBase}/sessions/${encodeURIComponent(instance)}`, {
-            headers: {
-              "X-API-Key": apiKey,
-              "bypass-tunnel-reminder": "true",
-            },
-            signal: AbortSignal.timeout(4000),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const sess = data.data || data;
-            const isLiveConnected = Boolean(sess.hasInstance && (sess.status === "CONNECTED" || sess.status === "WORKING" || sess.me));
-            if (isLiveConnected) {
-              liveConnected = true;
-              liveStatus = "connected";
-              if (sess.me?.id) {
-                livePhone = sess.me.id.split("@")[0].split(":")[0];
-              }
-            } else if (sess.status === "SCAN_QR" || sess.status === "DISCONNECTED") {
-              liveConnected = false;
-              liveStatus = sess.status === "SCAN_QR" ? "qrcode" : "disconnected";
-              if (sess.qr) liveQr = sess.qr;
-            }
-          }
-        } catch (_) {}
-      }
-
-      return {
-        connected: liveConnected,
-        status: liveStatus,
-        instanceName: instance,
-        phone: livePhone,
-        pairingCode: config?.PairingCode || "",
-        qrcode: liveQr,
-        updatedAt: config?.AtualizadoEm || nowIso(),
-        gatewayUrl: gw?.GatewayUrl || defaultGatewayUrl,
-        gatewayAtivo: gw ? Boolean(gw.Ativo) : false,
-        apiKeyMasked: gw?.ApiKeyMasked || "wag_lHoX...hBl",
-      };
-    },
-
-    /**
-     * Gera sessão de pareamento com QR Code e código de 8 dígitos
-     */
-    async generateWhatsAppQrCode(args) {
-      const [payload = {}] = args || [];
       const profile = await runtime.requireProfile();
-      if (!isAdmin(profile) && !isManager(profile)) {
-        throw new Error("Apenas gestores ou administradores podem parear o WhatsApp.");
-      }
-
-      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const gwUrl = (gw?.GatewayUrl || "https://house190-bot.loca.lt/api").replace(/\/+$/, "");
-      const instance = gw?.InstanceName || "house190-bot";
-      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-
-      let realQr = "";
-
-      if (gwUrl && apiKey) {
-        try {
-          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
-          await fetch(`${apiBase}/sessions/${encodeURIComponent(instance)}/start`, {
-            method: "POST",
-            headers: { "X-API-Key": apiKey, "Content-Type": "application/json", "bypass-tunnel-reminder": "true" },
-            body: JSON.stringify({}),
-          }).catch(() => null);
-
-          const r = await fetch(`${apiBase}/sessions/${encodeURIComponent(instance)}/qr`, {
-            headers: { "X-API-Key": apiKey, "bypass-tunnel-reminder": "true" },
-          });
-          if (r.ok) {
-            const d = await r.json();
-            if (d.base64) realQr = d.base64;
-            else if (d.qr) realQr = d.qr;
-          }
-        } catch (_) {}
-      }
-
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let code = "H190-";
-      for (let i = 0; i < 4; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-
-      const qrPayload = realQr || `2@${uuid().replace(/-/g, "")},${Date.now()},${instance}`;
-
-      const toSave = {
-        Chave: "WhatsAppConnection",
-        Connected: false,
-        Status: "qrcode",
-        PairingCode: code,
-        QrCode: qrPayload,
-        AtualizadoEm: nowIso(),
-        AtualizadoPor: profile.Nome || "Admin",
-      };
-      await runtime.upsert("Configuracoes", toSave);
-
-      await audit({
-        Acao: "Geração de QR Code de Conexão WhatsApp",
-        Tabela: "Configuracoes",
-        RegistroID: "WhatsAppConnection",
-        Detalhes: { PairingCode: code },
-      }).catch(() => {});
-
-      return {
-        success: true,
-        status: "qrcode",
-        pairingCode: code,
-        qrcode: qrPayload,
-        expiresInSeconds: 60,
-      };
+      assert(isAdmin(profile) || isManager(profile), "Acesso restrito à liderança e administração.");
+      return requestWorker("/wa-status", {}, { timeout: 35000 });
     },
 
-    /**
-     * Desconecta a sessão ativa do WhatsApp
-     */
+    async generateWhatsAppQrCode(args) {
+      const profile = await runtime.requireProfile();
+      assert(isAdmin(profile) || isManager(profile), "Apenas gestores ou administradores podem parear o WhatsApp.");
+      return requestWorker("/wa-qr", args?.[0] || {}, { timeout: 55000 });
+    },
+
     async disconnectWhatsApp() {
       const profile = await runtime.requireProfile();
-      if (!isAdmin(profile) && !isManager(profile)) {
-        throw new Error("Apenas gestores ou administradores podem desconectar o WhatsApp.");
-      }
-
-      const toSave = {
-        Chave: "WhatsAppConnection",
-        Connected: false,
-        Status: "disconnected",
-        Phone: "",
-        PairingCode: "",
-        QrCode: "",
-        AtualizadoEm: nowIso(),
-        AtualizadoPor: profile.Nome || "Admin",
-      };
-      await runtime.upsert("Configuracoes", toSave);
-
-      await audit({
-        Acao: "Desconexão de WhatsApp",
-        Tabela: "Configuracoes",
-        RegistroID: "WhatsAppConnection",
-      }).catch(() => {});
-
-      return { success: true, status: "disconnected" };
+      assert(isAdmin(profile) || isManager(profile), "Apenas gestores ou administradores podem desconectar o WhatsApp.");
+      return requestWorker("/wa-disconnect");
     },
 
-    /**
-     * Confirma pareamento manual ou por webhook da instância
-     */
-    async confirmWhatsAppConnection(args) {
-      const [payload = {}] = args || [];
-      const profile = await runtime.requireProfile();
-      if (!isAdmin(profile) && !isManager(profile)) {
-        throw new Error("Apenas gestores ou administradores podem confirmar a conexão.");
-      }
-      const phone = normalizeWhatsAppNumber(payload.phone || "5573999990190");
-      const toSave = {
-        Chave: "WhatsAppConnection",
-        Connected: true,
-        Status: "connected",
-        Phone: phone,
-        PairingCode: "",
-        QrCode: "",
-        AtualizadoEm: nowIso(),
-        AtualizadoPor: profile.Nome || "Admin",
-      };
-      await runtime.upsert("Configuracoes", toSave);
-      return { success: true, status: "connected", phone };
+    // A conexão só é confirmada pelo estado real do gateway.
+    async confirmWhatsAppConnection() {
+      const status = await this.getWhatsAppConnectionStatus();
+      assert(status.connected, "O WhatsApp ainda não confirmou a conexão. Conclua o pareamento no aparelho.");
+      return { ...status, success: true };
     },
 
     /**
@@ -726,76 +486,14 @@ export function createWhatsAppHandlers() {
 
       const text = payload.message || `Teste de conexão oficial do Grupo House 190 via WhatsApp realizado por ${profile.Nome || "Gestão"} em ${new Date().toLocaleTimeString('pt-BR')}.`;
 
-      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://house190-bot.loca.lt/api";
-      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
-      const instance = gw?.InstanceName || "house190";
-      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-
+      assert(isAdmin(profile) || isManager(profile), "Acesso restrito à gestão.");
       let messageId = "";
       let deliveryError = null;
-
-      const isBrowser = typeof window !== "undefined";
-      const shouldSendGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
-
-      // 1. Tenta envio pelo Cloudflare Worker oficial (alta disponibilidade na borda e túnel ativo)
-      if (isBrowser) {
-        try {
-          const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
-          const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-API-Key": apiKey,
-            },
-            body: JSON.stringify({ phone, text }),
-            signal: AbortSignal.timeout(10000),
-          });
-          if (workerRes.ok) {
-            const workerData = await workerRes.json().catch(() => ({}));
-            if (workerData.success && workerData.messageId) {
-              messageId = workerData.messageId;
-              deliveryError = null;
-            } else if (workerData.error) {
-              deliveryError = workerData.error;
-            }
-          }
-        } catch (err) {
-          console.warn("Disparo via Worker falhou:", err?.message || err);
-          if (!deliveryError) deliveryError = err?.message;
-        }
-      }
-
-      // 2. Se não enviou via Worker e temos gateway direto configurado (não localtunnel legado), tenta direto
-      if (!messageId && shouldSendGateway && gwUrl && apiKey && !gwUrl.includes("loca.lt")) {
-        try {
-          const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
-          const jid = `${phone}@s.whatsapp.net`;
-          const endpoint = `${apiBase}/messages/${encodeURIComponent(instance)}/${encodeURIComponent(jid)}/send`;
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-API-Key": apiKey,
-              "bypass-tunnel-reminder": "true",
-            },
-            body: JSON.stringify({
-              message: { text },
-            }),
-            signal: AbortSignal.timeout(8000),
-          });
-
-          const resData = await res.json().catch(() => ({}));
-          if (res.ok && resData.status) {
-            messageId = resData.data?.key?.id || resData.data?.id || "sent";
-            deliveryError = null;
-          } else {
-            deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
-          }
-        } catch (err) {
-          console.warn("Disparo direto ao gateway falhou:", err?.message || err);
-          if (!deliveryError) deliveryError = err?.message || "Falha de conexão";
-        }
+      try {
+        const sent = await requestWorker("/wa-send", { phone, text });
+        messageId = sent.messageId || "";
+      } catch (error) {
+        deliveryError = error.message;
       }
 
       // Resiliência Total: Se o gateway automatizado estiver offline ou em pareamento,
@@ -876,20 +574,13 @@ export function createWhatsAppHandlers() {
       const cleanText = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu, "").trim();
 
       try {
-        const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
-        const apiKey = "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-        const res = await fetch(`${defaultWorkerUrl}/wa-send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
-          body: JSON.stringify({ phone, text: cleanText }),
-          signal: AbortSignal.timeout(8000),
+        const sent = await requestWorker("/wa-clock-event", {
+          phone, employeeName: firstName, type, timeStr: punchTime,
+          requestId: punch?.RequestID || punch?.RegistroPontoID || "",
         });
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          return { handled: true, success: data.success, messageId: data.messageId };
-        }
-      } catch (err) {
-        console.warn("[ponto-whatsapp] Falha no disparo motivacional:", err?.message || err);
+        return { handled: true, success: sent.success, messageId: sent.messageId };
+      } catch (error) {
+        console.warn("[ponto-whatsapp] Envio não confirmado:", error.message);
       }
       return { handled: false };
     },
@@ -924,14 +615,7 @@ export function createWhatsAppHandlers() {
 
       assert(eligibleEmployees.length > 0, "Nenhum colaborador ativo com número de WhatsApp localizado para o filtro selecionado.");
 
-      const gw = await runtime.getById("Configuracoes", "WhatsAppGateway").catch(() => null);
-      const defaultGatewayUrl = "https://house190-bot.loca.lt/api";
-      const gwUrl = (gw?.GatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
-      const instance = gw?.InstanceName || "house190";
-      const apiKey = gw?.ApiKey || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-      const defaultWorkerUrl = "https://house-folgas-notifications.brunohouse.workers.dev";
       const isBrowser = typeof window !== "undefined";
-      const shouldSendGateway = gw?.Ativo === true || (isBrowser && gw?.Ativo !== false);
 
       const results = [];
       let sentCount = 0;
@@ -957,63 +641,19 @@ export function createWhatsAppHandlers() {
         let messageId = "";
         let deliveryError = null;
 
-        // 1. Tenta envio pelo Cloudflare Worker oficial (alta disponibilidade na borda e túnel ativo)
         if (isBrowser) {
           try {
-            const workerRes = await fetch(`${defaultWorkerUrl}/wa-send`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": apiKey,
-              },
-              body: JSON.stringify({ phone, text: formattedText }),
-              signal: AbortSignal.timeout(10000),
-            });
-            if (workerRes.ok) {
-              const workerData = await workerRes.json().catch(() => ({}));
-              if (workerData.success && workerData.messageId) {
-                messageId = workerData.messageId;
-                deliveryError = null;
-              } else if (workerData.error) {
-                deliveryError = workerData.error;
-              }
-            }
-          } catch (err) {
-            if (!deliveryError) deliveryError = err?.message;
-          }
-        }
-
-        // 2. Se não enviou via Worker e temos gateway direto configurado (não localtunnel legado), tenta direto
-        if (!messageId && shouldSendGateway && gwUrl && apiKey && !gwUrl.includes("loca.lt")) {
-          try {
-            const apiBase = gwUrl.endsWith("/api") ? gwUrl : `${gwUrl}/api`;
-            const jid = `${phone}@s.whatsapp.net`;
-            const endpoint = `${apiBase}/messages/${encodeURIComponent(instance)}/${encodeURIComponent(jid)}/send`;
-            const res = await fetch(endpoint, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": apiKey,
-                "bypass-tunnel-reminder": "true",
-              },
-              body: JSON.stringify({ message: { text: formattedText } }),
-              signal: AbortSignal.timeout(8000),
-            });
-            const resData = await res.json().catch(() => ({}));
-            if (res.ok && resData.status) {
-              messageId = resData.data?.key?.id || resData.data?.id || "sent";
-              deliveryError = null;
-            } else {
-              deliveryError = resData.message || resData.error || `Erro HTTP ${res.status}`;
-            }
-          } catch (err) {
-            if (!deliveryError) deliveryError = err?.message || "Falha de conexão";
+            const sent = await requestWorker("/wa-send", { phone, text: formattedText });
+            messageId = sent.messageId || "";
+            if (!messageId) deliveryError = "O gateway não confirmou o envio.";
+          } catch (error) {
+            deliveryError = error.message;
           }
         }
 
         const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(formattedText)}`;
         const isGatewaySent = Boolean(messageId);
-        const isSuccess = isGatewaySent || (!isBrowser && !deliveryError);
+        const isSuccess = isGatewaySent;
         if (isSuccess) {
           sentCount++;
         } else {

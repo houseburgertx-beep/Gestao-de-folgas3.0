@@ -148,70 +148,30 @@ test("createNotificationOnce é idempotente mesmo se a notificação já foi mar
   }
 });
 
-test("dispatchWhatsAppNotification deduplica chamadas consecutivas para o mesmo destinatário e evento", async () => {
-  const mock = createMockRuntime();
-  const originalList = runtime.list;
-  const originalGetById = runtime.getById;
-  runtime.list = mock.list.bind(mock);
-  runtime.getById = mock.getById.bind(mock);
-
-  // Cadastra colaborador com telefone
-  await mock.upsert("Funcionarios", {
-    FuncionarioID: "EMP_DEDUPE_01",
-    Nome: "Ana Claudia",
-    WhatsApp: "73999998888",
-    Email: "ana@house.test",
-    LojaID: "LOJA_1",
-    Ativo: true,
-  });
-
+test("dispatchWhatsAppNotification envia apenas referência autenticada para autorização e deduplicação no Worker", async () => {
+  const originalAuth = runtime.auth;
   const originalFetch = globalThis.fetch;
-  let fetchCount = 0;
-  globalThis.fetch = async () => {
-    fetchCount++;
-    return {
-      ok: true,
-      json: async () => ({ status: true, data: { key: { id: `msg_${fetchCount}` } } }),
-    };
+  const requests = [];
+  runtime.auth = { currentUser: { uid: "EMP_DEDUPE_01", getIdToken: async () => "test-token" } };
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return { ok: true, json: async () => ({ success: true, sent: true }) };
   };
-
   try {
     const { dispatchWhatsAppNotification } = await import("../src/core/api-base.js");
-
-    // Primeiro disparo
-    await dispatchWhatsAppNotification({
-      employeeId: "EMP_DEDUPE_01",
-      subject: "Amanhã é sua folga! 🎉",
-      message: "Lembrete de folga",
-      type: "Folga",
-      relatedId: "folga_amanha_EMP_DEDUPE_01_2026-10-27",
-    });
-
-    assert.equal(fetchCount, 1, "Primeiro envio deve acionar o fetch");
-
-    // Segundo disparo imediato com mesmo relatedId
-    await dispatchWhatsAppNotification({
-      employeeId: "EMP_DEDUPE_01",
-      subject: "Amanhã é sua folga! 🎉",
-      message: "Lembrete de folga",
-      type: "Folga",
-      relatedId: "folga_amanha_EMP_DEDUPE_01_2026-10-27",
-    });
-
-    // Terceiro disparo imediato
-    await dispatchWhatsAppNotification({
-      employeeId: "EMP_DEDUPE_01",
-      subject: "Amanhã é sua folga! 🎉",
-      message: "Lembrete de folga",
-      type: "Folga",
-      relatedId: "folga_amanha_EMP_DEDUPE_01_2026-10-27",
-    });
-
-    assert.equal(fetchCount, 1, "Disparos subsequentes dentro do cooldown devem ser bloqueados pela deduplicação");
+    await dispatchWhatsAppNotification({ notificationId: "notif_saved_1" });
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].url, /\/wa-notify$/);
+    assert.equal(requests[0].options.headers.Authorization, "Bearer test-token");
+    assert.deepEqual(JSON.parse(requests[0].options.body), { notificationId: "notif_saved_1" }, "Worker deve resolver destinatário e texto do registro autorizado");
+    await dispatchWhatsAppNotification({ employeeId: "someone", message: "texto arbitrário" });
+    assert.equal(requests.length, 1, "Payload sem referência a notificação salva não deve disparar envio");
+    runtime.auth = null;
+    await dispatchWhatsAppNotification({ notificationId: "notif_saved_1" });
+    assert.equal(requests.length, 1, "Envio exige sessão autenticada");
   } finally {
+    runtime.auth = originalAuth;
     globalThis.fetch = originalFetch;
-    runtime.list = originalList;
-    runtime.getById = originalGetById;
   }
 });
 
@@ -514,7 +474,9 @@ test("Banner de notificações é compacto, diferencia iPhone/Android, some apó
   assert.match(pushJs, /house-employee-punched/, "push.js deve escutar evento de ponto registrado para ocultar banner");
   assert.match(scriptsHtml, /localStorage\.setItem\("house_employee_punched",\s*"true"\)/, "Ao confirmar ponto com selfie, deve gravar flag de ponto");
 
-  // 4. Auditoria de permissões de geolocalização com fallback indoors
-  assert.match(scriptsHtml, /enableHighAccuracy:\s*false/, "getClockPosition_ deve ter fallback para standard accuracy caso GPS falhe indoors");
+  // 4. O leitor compartilhado também tenta localização por rede em ambientes fechados.
+  const location = await readFile(new URL("../src/core/clock-location.js", import.meta.url), "utf8");
+  assert.match(location, /enableHighAccuracy:\s*false/, "Leitor GPS deve tentar precisão padrão caso GPS falhe em ambiente fechado");
+  assert.match(scriptsHtml, /__GESTAO_CLOCK_LOCATION__/, "Interface deve usar o leitor GPS compartilhado");
   assert.match(scriptsHtml, /showNativeClockCamera_/, "Scripts.html deve conter fallback de câmera nativa do celular se getUserMedia falhar");
 });

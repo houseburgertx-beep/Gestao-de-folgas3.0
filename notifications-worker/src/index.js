@@ -1,3 +1,5 @@
+import { relayNotification, verifyCreatorNotificationEvent } from "./notification-relay.js";
+import { handleIntegrity } from "./whistleblower-service.js";
 import webpush from "web-push";
 import {
   active,
@@ -7,7 +9,7 @@ import {
   scheduleForDay,
 } from "../../src/core/reminder-policy.js";
 import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppPoll } from "./whatsapp.js";
-import { processInboundHouseAI, generateMotivationalTimeClockMessage } from "./house-ai.js";
+import { processInboundHouseAI, generateMotivationalTimeClockMessage, findEmployeeByPhone } from "./house-ai.js";
 const encoder = new TextEncoder();
 const b64 = (value) =>
   btoa(String.fromCharCode(...value))
@@ -39,7 +41,46 @@ export async function boundedJson(response, max = MAX_BYTES) {
   }
   return JSON.parse(new TextDecoder().decode(joined));
 }
+export async function boundedText(stream, max) {
+  const reader = stream.getReader();
+  const parts = []; let size = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) { await reader.cancel(); throw new Error("request_too_large"); }
+    parts.push(value);
+  }
+  const joined = new Uint8Array(size); let offset = 0;
+  for (const part of parts) { joined.set(part, offset); offset += part.byteLength; }
+  return new TextDecoder().decode(joined);
+}
+export async function equalSecret(left, right) {
+  const digest = async (value) => new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
+  const [a, b] = await Promise.all([digest(left), digest(right)]);
+  let difference = 0;
+  for (let i = 0; i < a.length; i++) difference |= a[i] ^ b[i];
+  return difference === 0;
+}
+export async function verifyWebhookSignature(body, signature, secret) {
+  if (!secret || !/^sha256=[a-f0-9]{64}$/i.test(signature || "")) return false;
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  const bytes = Uint8Array.from(signature.slice(7).match(/../g), (v) => parseInt(v, 16));
+  return crypto.subtle.verify("HMAC", key, bytes, encoder.encode(body));
+}
+const googleTokens = new WeakMap();
 async function googleToken(env) {
+  const cached = googleTokens.get(env);
+  if (cached && cached.expiresAt > Date.now() && cached.email === env.FIREBASE_CLIENT_EMAIL && cached.privateKey === env.FIREBASE_PRIVATE_KEY) return cached.promise;
+  const entry = {
+    email: env.FIREBASE_CLIENT_EMAIL, privateKey: env.FIREBASE_PRIVATE_KEY,
+    expiresAt: Date.now() + 50 * 60000, promise: fetchGoogleToken(env),
+  };
+  googleTokens.set(env, entry);
+  try { return await entry.promise; }
+  catch (error) { if (googleTokens.get(env) === entry) googleTokens.delete(env); throw error; }
+}
+async function fetchGoogleToken(env) {
   const seconds = Math.floor(Date.now() / 1000);
   const input = `${claim({ alg: "RS256", typ: "JWT" })}.${claim({ iss: env.FIREBASE_CLIENT_EMAIL, scope: "https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email", aud: "https://oauth2.googleapis.com/token", iat: seconds, exp: seconds + 3600 })}`;
   const pem = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
@@ -64,11 +105,13 @@ async function googleToken(env) {
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion: `${input}.${signed}`,
     }),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(6000),
   });
-  return (await boundedJson(response, 16384)).access_token;
+  const token = (await boundedJson(response, 16384)).access_token;
+  if (!token || typeof token !== "string") throw new Error("invalid_google_token");
+  return token;
 }
-async function database(env, token, path, params = {}) {
+async function database(env, token, path, params = {}, timeoutMs = 15000) {
   const url = new URL(
     `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/${path}.json`,
   );
@@ -78,25 +121,12 @@ async function database(env, token, path, params = {}) {
     (await boundedJson(
       await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(timeoutMs),
       }),
     )) || {}
   );
 }
 async function authenticate(request, env) {
-  const apiKeyHeader = request.headers.get("X-API-Key") || request.headers.get("x-api-key");
-  const configuredApiKey = env.WA_API_KEY || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl";
-  if (apiKeyHeader && apiKeyHeader === configuredApiKey) {
-    return {
-      uid: "system-admin",
-      profile: {
-        Nome: "Sistema Admin",
-        Perfil: "Administrador",
-        Ativo: true,
-      },
-    };
-  }
-
   const idToken = request.headers.get("Authorization")?.replace(/^Bearer /, "");
   if (!idToken || idToken.length > 8192) throw new Error("unauthorized");
   const account = await boundedJson(
@@ -106,7 +136,7 @@ async function authenticate(request, env) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(4000),
       },
     ),
     32768,
@@ -120,7 +150,7 @@ async function authenticate(request, env) {
   );
   url.searchParams.set("auth", idToken);
   const profile = await boundedJson(
-    await fetch(url, { signal: AbortSignal.timeout(10000) }),
+    await fetch(url, { signal: AbortSignal.timeout(4000) }),
     65536,
   );
   if (!profile || !active(profile.Ativo)) throw new Error("unauthorized");
@@ -192,9 +222,13 @@ const ready = (env) =>
   ].every((key) => Boolean(env[key]));
 async function getGatewayConfig(env) {
   let dbConfig = null;
+  let privateConfig = null;
   try {
     const tok = await googleToken(env);
-    dbConfig = await database(env, tok, "tables/Configuracoes/WhatsAppGateway");
+    [dbConfig, privateConfig] = await Promise.all([
+      database(env, tok, "tables/Configuracoes/WhatsAppGateway", {}, 6000),
+      database(env, tok, "workerPrivate/WhatsAppGateway", {}, 6000),
+    ]);
   } catch (err) {
     console.warn("Failed to fetch WhatsAppGateway from RTDB:", err);
   }
@@ -204,7 +238,7 @@ async function getGatewayConfig(env) {
     baseUrl = `${baseUrl}/api`;
   }
   const sessionId = (dbConfig?.InstanceName || env.WA_SESSION_ID || "house190").trim();
-  const apiKey = (dbConfig?.ApiKey || env.WA_API_KEY || "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl").trim();
+  const apiKey = (env.WA_API_KEY || privateConfig?.ApiKey || dbConfig?.ApiKey || "").trim();
 
   return {
     url: baseUrl,
@@ -219,9 +253,7 @@ async function handle(request, env) {
   const isAllowedOrigin =
     !origin ||
     origin === env.APP_ORIGIN ||
-    origin.includes("houseburgertx-beep.github.io") ||
-    origin.includes("localhost") ||
-    origin.includes("127.0.0.1");
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
   if (!isAllowedOrigin)
     return new Response("Forbidden", { status: 403 });
@@ -229,7 +261,7 @@ async function handle(request, env) {
   const headers = {
     "Access-Control-Allow-Origin": origin || env.APP_ORIGIN || "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, bypass-tunnel-reminder",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Service-Token, X-Webhook-Signature, bypass-tunnel-reminder",
     Vary: "Origin",
     "Cache-Control": "no-store",
   };
@@ -241,17 +273,35 @@ async function handle(request, env) {
   if (!ready(env)) return json({ error: "not_configured" }, 503);
 
   let body = {};
+  let rawBody = "";
   if (request.method === "POST" && request.body) {
     try {
-      body = await boundedJson(new Response(request.body), 65536);
+      rawBody = await boundedText(request.body, 65536);
+      body = JSON.parse(rawBody);
     } catch (_) {
-      body = {};
+      return json({ error: "invalid_json" }, 400);
     }
   }
   const route = new URL(request.url).pathname,
     now = Date.now();
 
+  if (["/integrity/create", "/integrity/consult", "/integrity/message"].includes(route)) {
+    if (request.method !== "POST") return json({ success: false, message: "method_not_allowed" }, 405);
+    try {
+      let cachedToken;
+      const token = async () => cachedToken ||= await googleToken(env);
+      return json(await handleIntegrity({ route, request, payload: body, env, database, token, now }));
+    } catch (error) {
+      return json({ success: false, message: error.status ? error.message : "Serviço indisponível. Tente novamente." }, error.status || 502);
+    }
+  }
+
   if (route === "/wa-inbound" || route === "/wa-webhook") {
+    if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+    if (!env.WA_WEBHOOK_SECRET) return json({ error: "webhook_not_configured" }, 503);
+    if (!await verifyWebhookSignature(rawBody, request.headers.get("X-Webhook-Signature"), env.WA_WEBHOOK_SECRET)) return json({ error: "unauthorized" }, 401);
+    const eventTime = Date.parse(body.timestamp);
+    if (!Number.isFinite(eventTime) || Math.abs(now - eventTime) > 300000) return json({ error: "stale_webhook" }, 401);
     try {
       if (body.event && body.event !== "message.received" && body.event !== "message") {
         return json({ ok: true, ignored: true, reason: `event_${body.event}` });
@@ -294,7 +344,8 @@ async function handle(request, env) {
       const pushName = body.data?.pushName || body.pushName || "";
       const messageId = body.data?.key?.id || body.messageId || "";
 
-      if (!rawFrom || !rawText) {
+      if (body.data?.isGroup || String(rawFrom).endsWith("@g.us")) return json({ ok: true, ignored: true, reason: "group" });
+      if (typeof rawFrom !== "string" || typeof rawText !== "string" || !messageId || typeof messageId !== "string" || messageId.length > 200 || !rawFrom || !rawText) {
         return json({ error: "missing_from_or_text" }, 400);
       }
 
@@ -311,7 +362,7 @@ async function handle(request, env) {
           if (!lock.meta.changes) {
             return json({ ok: true, deduplicated: true });
           }
-        } catch (_) {}
+        } catch (_) { return json({ error: "deduplication_unavailable" }, 503); }
       }
 
       const tok = await googleToken(env);
@@ -342,7 +393,7 @@ async function handle(request, env) {
             Acao: "WhatsApp Inbound House AI",
             Modulo: "HouseAI",
             Telefone: rawFrom,
-            MensagemRecebida: rawText,
+            MensagemRecebida: aiResult.action === "bloqueio_lgpd_saude" ? "[conteúdo de saúde omitido]" : rawText,
             RespostaGerada: aiResult.replyText,
             DisparoStatus: sendRes.success ? "enviado" : "erro",
             DataHora: new Date(now).toISOString(),
@@ -351,7 +402,7 @@ async function handle(request, env) {
         }).catch(() => {});
 
         // Marca entrega como enviada no D1
-        if (messageId && env.DB) {
+        if (messageId && env.DB && sendRes.success) {
           await env.DB.prepare(
             "UPDATE deliveries SET state='sent' WHERE event_key=? AND endpoint=?"
           )
@@ -376,7 +427,13 @@ async function handle(request, env) {
 
   if (route === "/wa-clock-event") {
     try {
-      const { employeeName, phone, type, timeStr } = body || {};
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      const { profile } = await authenticate(request, env);
+      const tok = await googleToken(env);
+      const employee = profile.FuncionarioID ? await database(env, tok, `tables/Funcionarios/${encodeURIComponent(profile.FuncionarioID)}`) : null;
+      const phone = employee?.Telefone || employee?.WhatsApp || profile.Telefone;
+      const employeeName = employee?.Nome || profile.Nome;
+      const { type, timeStr } = body || {};
       if (!phone || !type) return json({ error: "missing_phone_or_type" }, 400);
 
       const motivationalText = generateMotivationalTimeClockMessage({
@@ -402,7 +459,7 @@ async function handle(request, env) {
         text: motivationalText,
       }, sendRes.success ? 200 : 502);
     } catch (err) {
-      return json({ error: "clock_event_failed", details: String(err.message || err) }, 502);
+      return json({ error: err.message === "unauthorized" ? "unauthorized" : "clock_event_failed" }, err.message === "unauthorized" ? 401 : 502);
     }
   }
 
@@ -410,13 +467,13 @@ async function handle(request, env) {
     try {
       let isAllowed = false;
       let updaterName = "ServiceManager";
-      const reqApiKey = request.headers.get("X-API-Key") || body?.apiKey;
-      if (reqApiKey && (reqApiKey === env.WA_API_KEY || reqApiKey === "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl")) {
+      const serviceToken = request.headers.get("X-Service-Token");
+      if (env.WA_SERVICE_TOKEN && serviceToken && await equalSecret(serviceToken, env.WA_SERVICE_TOKEN)) {
         isAllowed = true;
       } else {
         try {
           const auth = await authenticate(request, env);
-          if (["Administrador", "Responsável de loja", "Gerente"].includes(auth.profile?.Perfil)) {
+          if (auth.profile?.Perfil === "Administrador") {
             isAllowed = true;
             updaterName = auth.profile?.Nome || "Admin";
           }
@@ -428,7 +485,7 @@ async function handle(request, env) {
       }
 
       const tok = await googleToken(env);
-      if (request.method === "POST") {
+      if (request.method === "POST" && Object.hasOwn(body, "gatewayUrl")) {
         const { gatewayUrl, instanceName, apiKey } = body || {};
         let toSave = {
           Chave: "WhatsAppGateway",
@@ -438,22 +495,24 @@ async function handle(request, env) {
           AtualizadoEm: new Date().toISOString(),
           AtualizadoPor: updaterName,
         };
-        if (apiKey && !apiKey.includes("***")) {
-          toSave.ApiKey = String(apiKey).trim();
-          toSave.ApiKeyMasked = "********" + toSave.ApiKey.slice(-4);
-        } else {
-          const existing = await database(env, tok, "tables/Configuracoes/WhatsAppGateway").catch(() => null);
-          if (existing?.ApiKey) {
-            toSave.ApiKey = existing.ApiKey;
-            toSave.ApiKeyMasked = existing.ApiKeyMasked || ("********" + existing.ApiKey.slice(-4));
-          }
-        }
-        const putUrl = `${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}/tables/Configuracoes/WhatsAppGateway.json`;
-        const putRes = await fetch(putUrl, {
-          method: "PUT",
+        let parsedGateway;
+        try { parsedGateway = new URL(toSave.GatewayUrl); } catch (_) { return json({ error: "invalid_gateway_url" }, 400); }
+        if (parsedGateway.protocol !== "https:" || parsedGateway.username || parsedGateway.password || parsedGateway.hash || parsedGateway.search) return json({ error: "invalid_gateway_url" }, 400);
+        const [existing, privateGateway] = await Promise.all([
+          database(env, tok, "tables/Configuracoes/WhatsAppGateway"),
+          database(env, tok, "workerPrivate/WhatsAppGateway"),
+        ]);
+        const newApiKey = apiKey && !String(apiKey).includes("***") ? String(apiKey).trim() : privateGateway?.ApiKey || existing?.ApiKey || "";
+        const effectiveKey = env.WA_API_KEY || newApiKey;
+        toSave.ApiKeyMasked = effectiveKey ? "********" + effectiveKey.slice(-4) : "";
+        const updates = { "tables/Configuracoes/WhatsAppGateway": toSave };
+        // Keep credentials out of the client-readable configuration tree. This
+        // also removes the legacy public ApiKey on the first successful save.
+        if (newApiKey) updates["workerPrivate/WhatsAppGateway/ApiKey"] = newApiKey;
+        const putRes = await fetch(`${env.FIREBASE_DATABASE_URL}/${env.FIREBASE_ROOT}.json`, {
+          method: "PATCH",
           headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-          body: JSON.stringify(toSave),
-          signal: AbortSignal.timeout(10000),
+          body: JSON.stringify(updates), signal: AbortSignal.timeout(10000),
         });
         if (!putRes.ok) throw new Error(`firebase_${putRes.status}`);
 
@@ -462,7 +521,7 @@ async function handle(request, env) {
             Chave: "WhatsAppConnection",
             Connected: body.connectionStatus === "connected" || body.connectionStatus === true,
             Status: body.connectionStatus || "connected",
-            Phone: String(body.phone || "557391740014"),
+            Phone: String(body.phone || ""),
             PairingCode: "",
             QrCode: "",
             AtualizadoEm: new Date().toISOString(),
@@ -485,7 +544,7 @@ async function handle(request, env) {
           success: true,
           gatewayUrl: current?.GatewayUrl || env.WA_API_URL || "https://house190-bot.loca.lt/api",
           instanceName: current?.InstanceName || env.WA_SESSION_ID || "house190",
-          apiKeyMasked: current?.ApiKeyMasked || "wag_lHoX...hBl",
+          apiKeyMasked: current?.ApiKeyMasked || "",
           ativo: current?.Ativo !== false,
         });
       }
@@ -580,7 +639,7 @@ async function handle(request, env) {
       return json({ok: code >= 200 && code < 300, ...(code >= 200 && code < 300 ? {} : {error:"push_provider_rejected"})}, code >= 200 && code < 300 ? 200 : 502);
     }
     if (route === "/test-whatsapp") {
-      const phone = body.phone || profile.Telefone;
+      const phone = profile.Telefone;
       if (!phone) return json({ error: "phone_missing" }, 400);
       const gw = await getGatewayConfig(env);
       const res = await sendWhatsAppMessage(env, {
@@ -604,7 +663,7 @@ async function handle(request, env) {
               "X-API-Key": gw.apiKey,
               "bypass-tunnel-reminder": "true",
             },
-            signal: AbortSignal.timeout(8000),
+            signal: AbortSignal.timeout(4000),
           },
         );
         if (!res.ok) {
@@ -689,10 +748,10 @@ async function handle(request, env) {
               "bypass-tunnel-reminder": "true",
             },
             body: JSON.stringify({}),
-            signal: AbortSignal.timeout(8000),
+            signal: AbortSignal.timeout(4000),
           }).catch(() => null);
 
-          await new Promise((r) => setTimeout(r, 1200));
+          await new Promise((r) => setTimeout(r, 800));
 
           await fetch(`${gw.url}/sessions/${encodeURIComponent(gw.instance)}/start`, {
             method: "POST",
@@ -702,7 +761,7 @@ async function handle(request, env) {
               "bypass-tunnel-reminder": "true",
             },
             body: JSON.stringify({}),
-            signal: AbortSignal.timeout(8000),
+            signal: AbortSignal.timeout(4000),
           }).catch(() => null);
 
           // Limpa registro de conexão anterior no Firebase RTDB
@@ -722,7 +781,7 @@ async function handle(request, env) {
                 AtualizadoEm: new Date().toISOString(),
                 AtualizadoPor: profile?.Nome || "Admin",
               }),
-              signal: AbortSignal.timeout(6000),
+              signal: AbortSignal.timeout(4000),
             }).catch(() => null);
           }
         } else {
@@ -735,18 +794,18 @@ async function handle(request, env) {
               "bypass-tunnel-reminder": "true",
             },
             body: JSON.stringify({}),
-            signal: AbortSignal.timeout(8000),
+            signal: AbortSignal.timeout(4000),
           }).catch(() => null);
         }
 
-        // Polling de até 8 tentativas para aguardar o Baileys gerar o QR Code
+        // Polling de até 3 tentativas para aguardar o Baileys gerar o QR Code
         let qrData = null;
         let isAlreadyConnected = false;
         let lastErrText = "";
 
-        for (let attempt = 0; attempt < 8; attempt++) {
+        for (let attempt = 0; attempt < 3; attempt++) {
           if (attempt > 0) {
-            await new Promise((r) => setTimeout(r, 1000));
+            await new Promise((r) => setTimeout(r, 800));
           }
 
           const qrRes = await fetch(
@@ -756,7 +815,7 @@ async function handle(request, env) {
                 "X-API-Key": gw.apiKey,
                 "bypass-tunnel-reminder": "true",
               },
-              signal: AbortSignal.timeout(8000),
+              signal: AbortSignal.timeout(4000),
             },
           ).catch((e) => {
             lastErrText = String(e.message || e);
@@ -783,7 +842,7 @@ async function handle(request, env) {
 
         if (isAlreadyConnected && !forceDisconnect) {
           // Busca o telefone conectado
-          let phone = "557391740014";
+          let phone = "";
           try {
             const statusRes = await fetch(`${gw.url}/sessions/${encodeURIComponent(gw.instance)}`, {
               headers: { "X-API-Key": gw.apiKey, "bypass-tunnel-reminder": "true" },
@@ -969,9 +1028,40 @@ async function handle(request, env) {
       }
     }
 
+    if (route === "/wa-notify") {
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      const noticeId = String(body.notificationId || "");
+      if (!noticeId || noticeId.length > 250 || /[.#$\[\]\/]/.test(noticeId)) return json({ error: "invalid_notification" }, 400);
+      const tok = await googleToken(env);
+      const notice = await database(env, tok, `tables/Notificacoes/${encodeURIComponent(noticeId)}`);
+      // Check authorization before fetching recipient/profile data.
+      const sameStore = profile.LojaID && String(notice.LojaID || "") === String(profile.LojaID);
+      if (profile.Perfil !== "Administrador" && !(sameStore && (isAdminOrManager(profile) || notice.CriadoPorUID === uid))) return json({ error: "forbidden" }, 403);
+      let creatorEventVerified = false;
+      if (notice.CriadoPorUID === uid && !isAdminOrManager(profile)) {
+        creatorEventVerified = await verifyCreatorNotificationEvent({ notice, profile,
+          read: (table, id) => database(env, tok, `tables/${table}/${encodeURIComponent(id)}`),
+        });
+      }
+      const [employees, access, automations, gateway] = await Promise.all([
+        database(env, tok, "tables/Funcionarios", notice.LojaID ? { orderBy: "LojaID", equalTo: notice.LojaID } : {}),
+        database(env, tok, "access"),
+        database(env, tok, "tables/Configuracoes/WhatsAppAutomations"),
+        getGatewayConfig(env),
+      ]);
+      const result = await relayNotification({ env, uid, profile, notice, employees: Object.values(employees), access: Object.values(access), automations, gateway, creatorEventVerified, now });
+      return json(result.body, result.status);
+    }
+
     if (route === "/wa-send") {
       try {
+        if (!isAdminOrManager(profile)) return json({ error: "forbidden" }, 403);
         if (!body.phone || !body.text) return json({ error: "phone_or_text_missing" }, 400);
+        if (profile.Perfil !== "Administrador") {
+          if (!profile.LojaID) return json({ error: "forbidden" }, 403);
+          const employees = await database(env, await googleToken(env), "tables/Funcionarios", { orderBy: "LojaID", equalTo: profile.LojaID });
+          if (!findEmployeeByPhone(Object.values(employees), body.phone)) return json({ error: "recipient_outside_store" }, 403);
+        }
         const text = String(body.text).slice(0, 1600);
         const gw = await getGatewayConfig(env);
         const res = await sendWhatsAppMessage(env, { phone: body.phone, text, gwConfig: gw });
@@ -983,22 +1073,7 @@ async function handle(request, env) {
 
     if (route === "/trigger-monthly-mirrors") {
       try {
-        let isAllowed = false;
-        const reqApiKey = request.headers.get("X-API-Key") || body?.apiKey;
-        if (reqApiKey && (reqApiKey === env.WA_API_KEY || reqApiKey === "wag_lHoXJO4s0S0yX1cD1PMLkAu4ghGmrhBl")) {
-          isAllowed = true;
-        } else {
-          try {
-            const auth = await authenticate(request, env);
-            if (["Administrador", "Responsável de loja", "Gerente"].includes(auth.profile?.Perfil)) {
-              isAllowed = true;
-            }
-          } catch (_) {}
-        }
-
-        if (!isAllowed) {
-          return json({ error: "forbidden" }, 403);
-        }
+        if (profile.Perfil !== "Administrador") return json({ error: "forbidden" }, 403);
 
         const token = await googleToken(env);
         await checkAndGenerateMonthlyTimeCards(env, token, Date.now());
@@ -1041,8 +1116,8 @@ async function handle(request, env) {
     }
 
     return json({ error: "not_found" }, 404);
-  } catch {
-    return json({ error: "request_failed" }, 400);
+  } catch (error) {
+    return json({ error: error.message === "unauthorized" ? "unauthorized" : "request_failed" }, error.message === "unauthorized" ? 401 : 400);
   }
 }
 export async function tick(env, now = Date.now()) {

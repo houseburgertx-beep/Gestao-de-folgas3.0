@@ -1,91 +1,53 @@
-# Gestão de Folgas — Firebase + GitHub
+# Gestão de Folgas — Grupo House 190
 
-Conversão completa da interface **Gestão de Folgas 5.6.3** para uma aplicação
-Web estática, publicável no GitHub Pages, com:
+Versão 6.17.4. Aplicação PWA em JavaScript/Vite, Firebase Authentication e Realtime Database, com Cloudflare Worker para notificações e WhatsApp e serviço Google Apps Script para fotos privadas no Drive.
 
-- Firebase Authentication por e-mail e senha;
-- Firebase Realtime Database;
-- regras de segurança por perfil, loja e funcionário;
-- criação guiada do primeiro administrador;
-- publicação automática com GitHub Actions;
-- funcionamento sem Google Apps Script e sem Google Sheets;
-- plano Firebase Spark, sem cartão, dentro das cotas gratuitas.
+Os fluxos ativos incluem funcionários/lojas, folgas e trocas, férias, ponto com selfie e localização, banco de horas, documentos/assinaturas, tarefas, comunicados, relatórios e Canal de Integridade. A interface e seus estilos foram preservados nesta revisão.
 
-A interface original foi preservada: dashboard, calendário, folgas, ponto com
-selfie e geolocalização, pendências, geração automática, funcionários, lojas,
-feriados, acessos, regras operacionais, notificações, documentos, férias,
-comunicados, enquetes, fechamento mensal, relatórios, House Arena e House Link.
+## Executar e validar
 
-## Começo rápido
-
-1. Leia [PASSO_A_PASSO.md](PASSO_A_PASSO.md).
-2. Crie o projeto Firebase e ative **Authentication > E-mail/senha**.
-3. Crie o **Realtime Database**.
-4. Copie os dados do aplicativo Web para `src/firebase-config.js`.
-5. Publique `database.rules.json`.
-6. Execute:
+Requisitos: Node.js 20 ou superior no app; Node.js 24 para os testes do Worker (SQLite embutido). Use as versões dos lockfiles.
 
 ```bash
-npm install
+npm ci
 npm run dev
-```
-
-7. Abra o endereço mostrado no terminal e crie o primeiro administrador.
-
-Para validar tudo antes de publicar:
-
-```bash
+npm run check
+cd notifications-worker
+npm ci
+npm test
 npm run check
 ```
 
-## Publicação
+`npm run check` do Worker faz somente dry-run. O build monta automaticamente `index.html` e `public/generated/` a partir dos fontes; não edite esses arquivos gerados. Scripts e estilos clássicos têm nomes com hash e são armazenados pelo service worker. O código clássico mantém seu escopo global para preservar handlers existentes.
 
-O arquivo `.github/workflows/pages.yml` compila e publica automaticamente no
-GitHub Pages sempre que a branch `main` recebe um `push`.
+## Segurança e publicação
 
-No repositório, abra **Settings > Pages > Source** e escolha **GitHub Actions**.
+A revisão exige publicação coordenada do Worker, regras do banco, serviço Apps Script e frontend. Veja [guia da revisão](docs/OTIMIZACAO-6.17.4.md) e [migração do Worker](notifications-worker/SECURITY-MIGRATION.md). Não publique apenas o frontend: os endpoints novos e as permissões das fotos precisam estar preparados.
 
-## Estrutura
+Credenciais de serviço ficam em secrets de servidor. `src/firebase-config.js`, `src/push-config.js` e `src/selfie-drive-config.js` contêm apenas configuração pública. Contas existentes precisam de perfil ativo previamente provisionado; autocadastro não concede privilégios administrativos. Magic Links direcionam o usuário autenticado aos seus documentos, sem substituir o login.
 
-| Caminho | Finalidade |
-| --- | --- |
-| `src/legacy/` | Interface original preservada |
-| `src/core/` | Firebase, regras de negócio e ponte de compatibilidade |
-| `src/firebase-config.js` | Configuração pública do app Web Firebase |
-| `database.rules.json` | Segurança do Realtime Database |
-| `scripts/build-index.mjs` | Monta o HTML final a partir da interface original |
-| `scripts/convert-legacy-export.mjs` | Converte exportação Firebase v1 para v2 |
-| `.github/workflows/` | Testes e publicação no GitHub Pages |
-| `tests/` | Verificações automatizadas |
+Fotos novas são privadas no Drive e visualizadas pelo serviço autenticado. Fotos antigas com compartilhamento público precisam de revisão/migração própria. Arquivos documentais e contingências de fotos de tarefas ainda podem usar RTDB; acompanhe tamanho, retenção e consumo.
 
-## Plano gratuito
+O ponto preserva a tentativa e a foto em IndexedDB, separadas por UID, antes de enviar. Reenvio usa o mesmo identificador, horário e recibo do upload. A confirmação depende de resposta do servidor; falhas não são exibidas como marcação concluída. Sem câmera, abre a captura nativa; não gera selfie ilustrativa. Selfie não equivale a reconhecimento biométrico facial nem certificação regulatória.
 
-O plano Spark não exige forma de pagamento. Atualmente, o Realtime Database
-oferece 1 GB armazenado, 10 GB de download por mês e 100 conexões simultâneas
-no Spark. Consulte sempre a [página oficial de preços do
-Firebase](https://firebase.google.com/pricing), pois as cotas podem mudar.
+## Testar regras reais
 
-Documentos e selfies são guardados no Realtime Database para evitar uma
-dependência do Cloud Storage. Use arquivos pequenos e acompanhe o consumo no
-console do Firebase.
+Com Java 21 e Firebase Emulator Suite:
 
-## Diferenças técnicas inevitáveis
+```bash
+npx --yes firebase-tools@14.22.0 emulators:exec --only database --project demo-folgas-tests --config firebase.test.json "node --import ./scripts/test-network-guard.mjs --test tests/database-rules.test.mjs"
+```
 
-A aparência e os fluxos foram mantidos, mas uma página pública do GitHub não
-pode guardar com segurança chaves de serviço, senha de conta Google ou chave
-privada de IA. Por isso:
+Ou, com o emulador já iniciado, defina `FIREBASE_DATABASE_EMULATOR_HOST=127.0.0.1:9000` e execute o teste. A suíte de regras usa exclusivamente o emulador e não acessa produção. Sem essa variável, o teste é marcado como não executado. O workflow de CI contém um job dedicado ao emulador.
 
-- redefinição de senha usa o e-mail seguro do Firebase;
-- exportações usam CSV e impressão/PDF do navegador;
-- a simulação “com IA” usa revisão local por regras, sem expor chave de API;
-- Google Drive e Google Calendar não são usados;
-- o ranking da Arena funciona, mas a validação é feita no cliente, pois Cloud
-  Functions exigiria backend e plano com faturamento.
+## Organização
 
-Nenhuma credencial privada deve ser adicionada ao repositório.
+- `src/legacy/`: templates e script clássico usados pela interface atual.
+- `src/core/`: persistência, autorização de cliente, handlers de domínio e recuperação do ponto.
+- `src/tasks.js`, `src/documents.js`, `src/copilot.js`: módulos da interface.
+- `notifications-worker/`: notificações push, WhatsApp, webhooks assinados e Canal de Integridade.
+- `google-apps-script/`: upload e leitura autorizada de fotos privadas.
+- `tests/`: regressões funcionais, recuperação e permissões reais.
+- `kit_ia_folgas/`: exemplos independentes de integração, fora do bundle do aplicativo.
 
-## Migração dos dados antigos
-
-Veja a seção **Migrar os dados do projeto original** em
-[PASSO_A_PASSO.md](PASSO_A_PASSO.md). O conversor incluído entende o formato de
-tabelas do Firebase usado no pacote original.
+Os arquivos desativados de Arena/House Link, sem referências no aplicativo, foram removidos; permanecem recuperáveis no histórico Git. Nenhuma tela ativa foi retirada.

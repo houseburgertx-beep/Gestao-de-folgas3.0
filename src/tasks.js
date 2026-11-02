@@ -3,12 +3,49 @@
 // Tarefas com Foto no Google Drive, Gamificação com Títulos e Loja de Prêmios
 // ==========================================================================
 
+import { runtime } from "./core/runtime.js";
 import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "./selfie-drive-config.js";
+import { loadPrivateDriveImage } from "./core/api-clock.js";
+import { createTaskPhotoCache, taskPhotoReference } from "./core/task-photo.js";
 import { KITCHEN_LEVELS, DEFAULT_REWARDS, getKitchenLevel, taskPointValue } from "./core/api-tasks.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const PHOTO_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+const taskPhotoCache = createTaskPhotoCache({ load: loadPrivateDriveImage, currentUid: () => runtime.auth?.currentUser?.uid });
+let taskPhotoObserver;
+
+function taskPhotoImage(task, attributes = "") {
+  const photo = taskPhotoReference(task);
+  const source = photo.isPrivate ? PHOTO_PLACEHOLDER : photo.publicUrl;
+  return `<img src="${esc(source)}" ${photo.isPrivate ? `data-private-drive-id="${esc(photo.fileId)}"` : ""} ${attributes}>`;
+}
+
+function hydrateTaskPhotos(root, lazy = true) {
+  const images = $$('img[data-private-drive-id]', root);
+  const load = async (img) => {
+    const uid = runtime.auth?.currentUser?.uid;
+    try {
+      const dataUrl = await taskPhotoCache.get(img.dataset.privateDriveId);
+      if (img.isConnected && runtime.auth?.currentUser?.uid === uid) img.src = dataUrl;
+    } catch (error) {
+      if (img.isConnected) { img.alt = error.message || "Foto protegida indisponível"; img.title = img.alt; }
+    }
+  };
+  if (lazy && typeof IntersectionObserver !== "undefined") {
+    taskPhotoObserver?.disconnect();
+    taskPhotoObserver = new IntersectionObserver((entries, observer) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        observer.unobserve(entry.target);
+        void load(entry.target);
+      }
+    }, { rootMargin: "160px" });
+    images.forEach((img) => taskPhotoObserver.observe(img));
+  } else images.forEach((img) => { void load(img); });
+}
 
 const dateKey = (d = new Date()) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -268,6 +305,7 @@ function renderApp() {
   `;
 
   bindEvents();
+  hydrateTaskPhotos(host);
 }
 
 // ==========================================================================
@@ -517,9 +555,9 @@ function renderTaskCard(task, admin) {
       ${task.DESCRICAO ? `<p class="task-card-description">${esc(task.DESCRICAO)}</p>` : ''}
       ${task.ORIENTACAO_FOTO ? `<p class="task-card-description" style="color:#7c3aed;font-weight:600;"><span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle;">info</span> Foto: ${esc(task.ORIENTACAO_FOTO)}</p>` : ''}
 
-      ${task.FOTO_URL ? `
+      ${task.FOTO_URL || task.FOTO_ID ? `
         <div class="task-card-thumb" data-cf-action="view-evidence" data-task-id="${esc(task.ID)}">
-          <img src="${esc(task.FOTO_URL)}" alt="Foto da tarefa" loading="lazy">
+          ${taskPhotoImage(task, 'alt="Foto da tarefa" loading="lazy"')}
         </div>
       ` : ''}
 
@@ -554,7 +592,7 @@ function renderTaskCard(task, admin) {
           </button>
         ` : ''}
 
-        ${task.FOTO_URL ? `
+        ${task.FOTO_URL || task.FOTO_ID ? `
           <button type="button" class="task-action-btn light" data-cf-action="view-evidence" data-task-id="${esc(task.ID)}">
             <span class="material-symbols-rounded" style="font-size:16px;">image</span>Foto
           </button>
@@ -1433,16 +1471,25 @@ function openCompleteModal(taskId) {
       btnLoading(true);
       // Upload para Google Drive (com fallback para base64)
       let photoUrl = currentBase64;
+      let photoId = "";
+      let photoPrivate = false;
+      let pendingDrive = true;
       try {
         const driveRes = await uploadPhotoToDrive(currentBase64, `task_${taskId}.jpg`);
-        if (driveRes?.url) photoUrl = driveRes.url;
+        photoUrl = driveRes.url;
+        photoId = driveRes.fileId;
+        photoPrivate = driveRes.private === true;
+        pendingDrive = false;
       } catch (uploadErr) {
-        console.warn("Drive upload fallback:", uploadErr);
+        console.warn("Foto da tarefa será preservada no banco durante a indisponibilidade do Drive:", uploadErr.message);
       }
 
       await callApi('cozinhaTasksComplete', [{
         taskId,
         fotoUrl: photoUrl,
+        fotoId: photoId,
+        fotoPrivada: photoPrivate,
+        fotoPendenteDrive: pendingDrive,
         observacao: obs,
       }]);
 
@@ -1619,13 +1666,13 @@ function openCancelModal(taskId) {
 
 function openEvidenceModal(taskId) {
   const task = state.tasks.find(t => t.ID === taskId);
-  if (!task || !task.FOTO_URL) return;
+  if (!task || (!task.FOTO_URL && !task.FOTO_ID)) return;
 
   const modal = createModalElement('Comprovante da Tarefa');
   modal.querySelector('.cf-modal-body').innerHTML = `
     <div style="display:grid;gap:10px;">
       <div style="border-radius:14px;overflow:hidden;background:#000;border:1px solid #e2e8f0;text-align:center;">
-        <img src="${esc(task.FOTO_URL)}" style="max-width:100%;max-height:70vh;object-fit:contain;display:block;margin:auto;">
+        ${taskPhotoImage(task, 'alt="Foto comprobatória" style="max-width:100%;max-height:70vh;object-fit:contain;display:block;margin:auto;"')}
       </div>
       <div style="font-size:12px;color:#475569;">
         <strong>${esc(task.TITULO)}</strong>
@@ -1637,6 +1684,7 @@ function openEvidenceModal(taskId) {
   modal.querySelector('.cf-modal-foot').innerHTML = `
     <button type="button" class="task-action-btn primary" data-close-modal>Fechar</button>
   `;
+  hydrateTaskPhotos(modal, false);
 }
 
 function openPenaltyModal() {
@@ -1777,25 +1825,29 @@ async function processPhoto(file, taskTitle) {
 
 async function uploadPhotoToDrive(base64, filename) {
   const endpoint = SELFIE_DRIVE_UPLOAD_ENDPOINT;
-  if (!endpoint) return { url: base64 };
+  if (!endpoint) throw new Error("Serviço de fotos não configurado.");
 
   const payload = {
     action: 'driveUpload',
+    idToken: await runtime.auth?.currentUser?.getIdToken(),
+    requestId: crypto.randomUUID(),
     name: filename,
     mimeType: 'image/jpeg',
     base64: base64,
   };
 
-  const formData = new FormData();
-  Object.entries(payload).forEach(([k, v]) => formData.append(k, v));
-
+  if (!payload.idToken) throw new Error("Sua sessão expirou. Entre novamente.");
   const response = await fetch(endpoint, {
     method: 'POST',
-    body: formData,
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    credentials: "omit",
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(25000),
   });
 
   if (!response.ok) throw new Error("Erro no upload do Google Drive.");
   const data = await response.json().catch(() => ({}));
+  if (!data.ok || !data.fileId || !data.url) throw new Error(data.error || "O Drive não confirmou o salvamento da foto.");
   return data;
 }
 

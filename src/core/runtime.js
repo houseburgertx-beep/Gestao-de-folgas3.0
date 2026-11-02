@@ -201,9 +201,15 @@ export class FirebaseRuntime {
     this.periodIndexMigrationPromise = null;
     this.recordKeys = new Map();
     this.queryCache = new Map();
+    this.pendingQueries = new Map();
+    this.cacheGeneration = 0;
   }
 
   invalidateTableCache(table = "") {
+    this.cacheGeneration += 1;
+    for (const key of this.pendingQueries.keys()) {
+      if (!table || key.startsWith(`${table}:`)) this.pendingQueries.delete(key);
+    }
     if (!table) {
       this.queryCache.clear();
       return;
@@ -238,6 +244,9 @@ export class FirebaseRuntime {
       let resolved = false;
       onAuthStateChanged(this.auth, async (user) => {
         this.authResolved = true;
+        this.profile = null;
+        this.recordKeys.clear();
+        this.invalidateTableCache();
         if (user) {
           let profile = await this.loadOwnProfile().catch(() => null);
           const isGoogleUser = user.providerData?.some(
@@ -948,19 +957,44 @@ export class FirebaseRuntime {
     const role = roleName(profile);
     const storeId = String(profile?.LojaID || "");
     const employeeId = String(profile?.FuncionarioID || "");
-    const cacheKey = `${table}:${role}:${storeId}:${employeeId}`;
+    const cacheKey = `${table}:${this.auth?.currentUser?.uid || ""}:${role}:${storeId}:${employeeId}`;
     const cached = this.queryCache.get(cacheKey);
     const ttl = ["RegistrosPonto", "Notificacoes"].includes(table) ? 15000 : 45000;
     if (!forceRefresh && cached && Date.now() - cached.timestamp < ttl) {
       return clone(cached.data);
     }
-    const rows = await this.fetchScopedRows_(table, profile);
-    this.queryCache.set(cacheKey, { timestamp: Date.now(), data: clone(rows) });
-    return rows;
+    if (this.pendingQueries.has(cacheKey)) return clone(await this.pendingQueries.get(cacheKey));
+    const generation = this.cacheGeneration;
+    const request = this.fetchScopedRows_(table, profile);
+    this.pendingQueries.set(cacheKey, request);
+    try {
+      const rows = await request;
+      if (generation === this.cacheGeneration) {
+        this.queryCache.set(cacheKey, { timestamp: Date.now(), data: clone(rows) });
+      }
+      return clone(rows);
+    } finally {
+      if (this.pendingQueries.get(cacheKey) === request) this.pendingQueries.delete(cacheKey);
+    }
   }
 
   async fetchScopedRows_(table, profile) {
     const tableRef = this.appRef(`tables/${table}`);
+    if (table === "Configuracoes" && !isAdminProfile(profile)) {
+      const keys = [...DEFAULT_CONFIG.map((item) => item.Chave), "WhatsAppAutomations", "AutomacoesHouseAI", "takeat_credit_mappings"];
+      const snapshots = await Promise.all(keys.map((key) => get(this.appRef(`tables/Configuracoes/${pathKey(key)}`))));
+      return snapshots.filter((snapshot) => snapshot.exists()).map((snapshot) => clone(snapshot.val()));
+    }
+    if (table === "Denuncias" && !isAdminProfile(profile)) {
+      if (!isStoreReaderProfile(profile) || !profile.LojaID) return [];
+      const snapshots = await Promise.all([profile.LojaID, "GERAL"].map((scope) =>
+        get(query(tableRef, orderByChild("LojaID"), equalTo(scope))),
+      ));
+      const unique = new Map();
+      snapshots.flatMap((snapshot) => this.recordsFromSnapshot(table, snapshot))
+        .forEach((row) => unique.set(row.DenunciaID, row));
+      return [...unique.values()];
+    }
     if (isAdminProfile(profile) || PUBLIC_AUTH_TABLES.has(table)) {
       return this.recordsFromSnapshot(table, await get(tableRef));
     }
@@ -1337,6 +1371,95 @@ export class FirebaseRuntime {
     }
   }
 
+  // Clock confirmation must come from the server, never from an optimistic SDK
+  // snapshot. Conditional REST writes also keep admins from overwriting a punch
+  // when two retries race. Firebase documents this as its REST transaction API:
+  // https://firebase.google.com/docs/database/rest/save-data#section-conditional-requests
+  async requestServerRecord(table, id, options = {}) {
+    if (!ID_FIELDS[table] || !id) throw new Error("Registro sem identificação válida.");
+    const user = this.auth?.currentUser;
+    if (!user?.uid) throw new Error("Sua sessão expirou. Entre novamente.");
+    const controller = new AbortController();
+    let rejectDeadline;
+    const deadline = new Promise((_, reject) => { rejectDeadline = reject; });
+    const timeout = setTimeout(() => {
+      controller.abort();
+      const failure = new Error("O servidor do ponto demorou para confirmar. A tentativa permanece neste aparelho para recuperação.");
+      failure.code = "database/confirmation-timeout";
+      rejectDeadline(failure);
+    }, 15000);
+    try {
+      const operation = async () => {
+        const token = await user.getIdToken();
+        if (this.auth?.currentUser?.uid !== user.uid) throw new Error("A conta conectada mudou. Entre novamente.");
+        const storageKey = pathKey(id);
+        const root = this.root.split("/").map(encodeURIComponent).join("/");
+        const url = new URL(`${String(this.config.databaseURL || "").replace(/\/+$/, "")}/${root}/tables/${encodeURIComponent(table)}/${encodeURIComponent(storageKey)}.json`);
+        url.searchParams.set("auth", token);
+        const response = await fetch(url.href, {
+          method: options.method || "GET", cache: "no-store", credentials: "omit",
+          headers: { "X-Firebase-ETag": "true", ...options.headers },
+          ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+          signal: controller.signal,
+        });
+        let data;
+        try { data = await response.json(); } catch (_) {
+          const failure = new Error("O servidor do ponto não retornou uma confirmação válida.");
+          failure.code = "database/invalid-confirmation";
+          throw failure;
+        }
+        if (!response.ok && response.status !== 412) {
+          const failure = new Error([401, 403].includes(response.status)
+            ? "O servidor recusou o acesso ao ponto. Entre novamente ou solicite a conferência do seu perfil."
+            : "Não foi possível confirmar o ponto no servidor. A tentativa permanece neste aparelho.");
+          failure.code = [401, 403].includes(response.status) ? "database/permission-denied" : "database/server-unavailable";
+          throw failure;
+        }
+        if (this.auth?.currentUser?.uid !== user.uid) throw new Error("A conta conectada mudou. Entre novamente.");
+        return { data, etag: response.headers.get("etag"), status: response.status };
+      };
+      return await Promise.race([operation(), deadline]);
+    } catch (error) {
+      if (error?.code || /conta conectada mudou/.test(error?.message || "")) throw error;
+      const failure = new Error("Sem confirmação do servidor do ponto. Verifique a conexão; a tentativa permanece neste aparelho.");
+      failure.code = "database/server-unavailable";
+      throw failure;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async getByIdFromServer(table, id) {
+    const { data } = await this.requestServerRecord(table, id);
+    return data === null ? null : clone(data);
+  }
+
+  async createClockRecord(record) {
+    const id = String(record?.RegistroPontoID || "");
+    if (!id || record?.RequestID !== id) throw new Error("Identificação da tentativa de ponto inválida.");
+    const normalized = cleanObject({ ...record, ...periodFieldsFor("RegistrosPonto", record) });
+    const matches = (current) => current?.RequestID === id && current?.RegistroPontoID === id &&
+      String(current.FuncionarioID) === String(record.FuncionarioID) && String(current.LojaID) === String(record.LojaID);
+    const existing = await this.requestServerRecord("RegistrosPonto", id);
+    if (existing.data !== null) {
+      if (!matches(existing.data)) throw new Error("Este identificador de ponto já foi utilizado por outro registro.");
+      return clone(existing.data);
+    }
+    if (!existing.etag) throw new Error("O servidor não confirmou a versão do registro. Tente novamente.");
+    const result = await this.requestServerRecord("RegistrosPonto", id, {
+      method: "PUT", headers: { "Content-Type": "application/json", "If-Match": existing.etag }, body: normalized,
+    });
+    if (!matches(result.data)) throw new Error("O servidor não confirmou esta tentativa de ponto. Tente novamente.");
+    this.recordKeys.set(this.recordCacheKey("RegistrosPonto", id), pathKey(id));
+    this.invalidateTableCache("RegistrosPonto");
+    return clone(result.data);
+  }
+
+  async listWhere(table, field, value) {
+    const snapshot = await get(query(this.appRef(`tables/${table}`), orderByChild(field), equalTo(value)));
+    return this.recordsFromSnapshot(table, snapshot);
+  }
+
   async findOne(table, field, value) {
     const snapshot = await get(
       query(
@@ -1392,11 +1515,12 @@ export class FirebaseRuntime {
   async patch(table, id, changes) {
     const current = await this.getById(table, id);
     if (!current) throw new Error("Registro não encontrado.");
-    return this.upsert(table, {
-      ...current,
-      ...cleanObject(changes),
-      [ID_FIELDS[table]]: id,
-    });
+    const delta = cleanObject({ ...changes, ...periodFieldsFor(table, { ...current, ...changes }) });
+    delete delta[ID_FIELDS[table]];
+    const storageKey = await this.resolveStorageKey(table, id);
+    await update(this.appRef(`tables/${table}/${storageKey}`), delta);
+    this.invalidateTableCache(table);
+    return clone({ ...current, ...delta });
   }
 
   async patchMany(items = []) {

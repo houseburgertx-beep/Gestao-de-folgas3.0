@@ -23,6 +23,7 @@ import {
   success,
 } from "./api-base.js";
 import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "../selfie-drive-config.js";
+import { clockAttemptStore, completeClockAttempt, validateClockSelfie, withClockPunchLock } from "./clock-punch-recovery.js";
 
 const clockTypes = [
   "ENTRADA",
@@ -68,21 +69,36 @@ const warmSelfieDriveService = async () => {
   }
 };
 
-const uploadClockSelfieToDrive = async ({
+export async function loadPrivateDriveImage(fileId) {
+  assert(/^[A-Za-z0-9_-]{10,160}$/.test(String(fileId || "")), "Identificador de foto inválido.");
+  await runtime.requireProfile();
+  const user = runtime.auth?.currentUser;
+  assert(user, "Sua sessão expirou. Entre novamente.");
+  const idToken = await user.getIdToken();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(selfieDriveEndpoint(), {
+      method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      credentials: "omit", redirect: "follow", signal: controller.signal,
+      body: JSON.stringify({ action: "readPrivateImage", fileId, idToken }),
+    });
+    const result = await response.json();
+    assert(response.ok && result.ok && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=\s]+$/.test(result.dataUrl),
+      result.error || "Não foi possível abrir a foto protegida.");
+    return result.dataUrl;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export const uploadClockSelfieToDrive = async ({
   selfieDataUrl,
   requestId,
   day,
   type,
 }) => {
-  const selfie = String(selfieDataUrl || "");
-  assert(
-    /^data:image\/jpeg;base64,[A-Za-z0-9+/=\s]+$/.test(selfie),
-    "Capture a selfie antes de confirmar o ponto.",
-  );
-  assert(
-    selfie.length <= 950000,
-    "A selfie ficou muito grande. Tire outra foto para continuar.",
-  );
+  const selfie = validateClockSelfie(selfieDataUrl);
   const user = runtime.auth?.currentUser;
   assert(user, "Sua sessão expirou. Entre novamente.");
   let idToken = await user.getIdToken();
@@ -91,7 +107,7 @@ const uploadClockSelfieToDrive = async ({
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await fetch(selfieDriveEndpoint(), {
+      const response = await fetch(selfieDriveEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=UTF-8" },
         redirect: "follow",
@@ -106,6 +122,20 @@ const uploadClockSelfieToDrive = async ({
           selfieDataUrl: selfie,
         }),
       });
+      let result;
+      try {
+        result = JSON.parse(await response.text());
+      } catch (_) {
+        const error = new Error("O Google Drive devolveu uma resposta inválida. A foto permanece neste aparelho para nova tentativa.");
+        error.retryable = response.status >= 500 || response.ok;
+        throw error;
+      }
+      if (!response.ok || !result?.ok || !result?.fileId) {
+        const error = new Error(result?.error || "O Google Drive não confirmou o envio da selfie.");
+        error.retryable = [408, 429].includes(response.status) || response.status >= 500 || result?.retryable === true;
+        throw error;
+      }
+      return result;
     } finally {
       clearTimeout(timeout);
     }
@@ -115,6 +145,7 @@ const uploadClockSelfieToDrive = async ({
   try {
     response = await performUpload(20000);
   } catch (firstError) {
+    if (firstError.retryable === false) throw firstError;
     console.warn(
       "[ponto] Primeira tentativa de envio ao Google Drive falhou, tentando novamente:",
       firstError?.message || firstError,
@@ -141,17 +172,7 @@ const uploadClockSelfieToDrive = async ({
       );
     }
   }
-  const text = await response.text();
-  let result;
-  try {
-    result = JSON.parse(text);
-  } catch {
-    throw new Error("O Google Drive devolveu uma resposta inválida.");
-  }
-  assert(
-    response.ok && result?.ok && result?.fileId,
-    result?.error || "O Google Drive não confirmou o envio da selfie.",
-  );
+  const result = response;
   return {
     fileId: String(result.fileId),
     fileUrl: String(result.fileUrl || ""),
@@ -159,6 +180,50 @@ const uploadClockSelfieToDrive = async ({
     uploadedAt: String(result.uploadedAt || nowIso()),
   };
 };
+
+async function persistClockAttempt(ownerUid, attempt) {
+  assert(runtime.auth?.currentUser?.uid === ownerUid, "A conta conectada mudou. Entre novamente antes de recuperar o ponto.");
+  // Resolve an ambiguous prior write before touching Drive or retrying Firebase.
+  const existing = await runtime.getByIdFromServer("RegistrosPonto", attempt.requestId);
+  if (existing?.RequestID === attempt.requestId) {
+    assert(String(existing.FuncionarioID) === attempt.employeeId, "Identificador de ponto já utilizado.");
+    await clockAttemptStore.remove(ownerUid, attempt.requestId).catch(() => {});
+    return existing;
+  }
+  const saved = await completeClockAttempt({
+    uid: ownerUid,
+    attempt,
+    upload: (pending) => uploadClockSelfieToDrive({ ...pending, selfieDataUrl: pending.selfieDataUrl }),
+    save: async (pending) => {
+      const selfie = pending.selfie;
+      const record = {
+        ...pending.record,
+        SelfieDriveFileID: selfie.fileId,
+        SelfieDriveURL: selfie.fileUrl,
+        SelfieDriveFileName: selfie.fileName,
+        SelfieDriveUploadedAt: selfie.uploadedAt,
+        SelfieSincronizada: true,
+      };
+      try {
+        return await runtime.createClockRecord(record);
+      } catch (error) {
+        const confirmed = await runtime.getByIdFromServer("RegistrosPonto", pending.requestId).catch(() => null);
+        if (confirmed?.RequestID !== pending.requestId || String(confirmed.FuncionarioID) !== pending.employeeId) throw error;
+        return confirmed;
+      }
+    },
+  });
+  runtime.invalidateTableCache?.("RegistrosPonto");
+  void audit("Registrar ponto", "Ponto", saved.RegistroPontoID, { after: saved }).catch((error) =>
+    console.warn("Auditoria do ponto:", error?.message || error));
+  // Notifications are secondary; they never hold up the punch confirmation.
+  if (["ENTRADA", "SAIDA_FINAL", "SAIDA_INTERVALO", "RETORNO_INTERVALO"].includes(saved.TipoMarcacao)) {
+    void runtime.getById("Funcionarios", saved.FuncionarioID).then((employee) =>
+      runtime.invoke?.("sendTimeClockMotivationWhatsApp", [{ employee, punch: saved, type: saved.TipoMarcacao }])
+    ).catch(() => {});
+  }
+  return saved;
+}
 
 const timeValue = (dateTime) => {
   const date = new Date(dateTime);
@@ -1449,273 +1514,292 @@ export function createClockHandlers() {
       return success({ ready: true }, "Serviço de selfie preparado.");
     },
 
+    async getPendingTimeClockPunches() {
+      const profile = await runtime.requireProfile();
+      const uid = runtime.auth?.currentUser?.uid || profile.UsuarioID;
+      const rows = (await clockAttemptStore.list(uid)).filter((row) => row.kind !== "draft" && row.employeeId === String(profile.FuncionarioID));
+      return success(rows.map(({ requestId, type, day, createdAt }) => ({ requestId, type, day, createdAt })), "Tentativas pendentes carregadas.");
+    },
+
+    async retryPendingTimeClockPunches() {
+      const profile = await runtime.requireProfile();
+      const uid = runtime.auth?.currentUser?.uid || profile.UsuarioID;
+      return withClockPunchLock(uid, async () => {
+        const attempts = (await clockAttemptStore.list(uid)).filter((row) => row.kind !== "draft" && row.employeeId === String(profile.FuncionarioID));
+        const results = [];
+        for (const attempt of attempts) {
+          assert(String(attempt.record?.LojaID) === String(profile.LojaID), "O vínculo da loja mudou. Solicite a conferência da tentativa ao gestor.");
+          try {
+            const saved = await persistClockAttempt(uid, attempt);
+            results.push({ requestId: attempt.requestId, saved });
+          } catch (error) {
+            results.push({ requestId: attempt.requestId, error: error.message });
+            break; // Preserve order; an exit must not overtake an unconfirmed entry.
+          }
+        }
+        return success(results, "Recuperação do ponto concluída.");
+      });
+    },
+
     async registerTimeClockPunch(args) {
       const profile = await runtime.requireProfile();
-      const values = dropClientToken(args);
-      const payload = values[0] || {};
-      const employeeId = String(profile.FuncionarioID || "");
-      const storeId = String(profile.LojaID || "");
-      assert(employeeId, "Usuário sem funcionário vinculado.");
-      assert(storeId, "Usuário sem loja vinculada.");
-      const [employee, location, schedules, allRecords] = await Promise.all([
-        runtime.getById("Funcionarios", employeeId),
-        runtime.findOne("LocaisPonto", "LojaID", storeId),
-        runtime.list("JornadasPonto", { profile }),
-        runtime.listPeriods(
-          "RegistrosPonto",
-          [monthIso(), previousDateKey(todayIso()).slice(0, 7)],
-          { profile },
-        ),
-      ]);
-      assert(employee && asBoolean(employee.Ativo), "Funcionário inativo.");
-      const targetStoreId = String(employee.LojaID || storeId);
-      let loc = location;
-      if (!loc) {
-        const allLocations = await runtime.list("LocaisPonto", { profile }).catch(() => []);
-        loc = allLocations.find(
-          (item) =>
-            String(item.LojaID || "").trim() === targetStoreId ||
-            Number(item.LojaID) === Number(targetStoreId),
-        );
-      }
-      if (!loc) {
-        const store = await runtime.getById("Lojas", targetStoreId).catch(() => null);
-        if (store?.Latitude && store?.Longitude) {
-          loc = {
-            LocalPontoID: `store-loc-${targetStoreId}`,
-            LojaID: targetStoreId,
-            NomeLoja: store.NomeLoja || store.Nome || "Loja",
-            Latitude: store.Latitude,
-            Longitude: store.Longitude,
-            RaioMetros: store.RaioMetros || 150,
-            Ativo: true,
-          };
+      const ownerUid = runtime.auth?.currentUser?.uid || profile.UsuarioID;
+      assert(ownerUid, "Sua sessão expirou. Entre novamente.");
+      return withClockPunchLock(ownerUid, async () => {
+        assert(runtime.auth?.currentUser?.uid === ownerUid, "A conta conectada mudou. Entre novamente antes de recuperar o ponto.");
+        runtime.invalidateTableCache?.("RegistrosPonto");
+        const values = dropClientToken(args);
+        const payload = values[0] || {};
+        const requestId = String(payload.requestId || "").trim();
+        assert(/^[A-Za-z0-9-]{16,100}$/.test(requestId), "Atualize a tela e tente registrar o ponto novamente.");
+        const previousAttempt = await clockAttemptStore.get(ownerUid, requestId);
+        const capturedAt = previousAttempt?.createdAt || payload.capturedAt || nowIso();
+        const captureDate = new Date(capturedAt);
+        assert(Number.isFinite(captureDate.getTime()) && captureDate.getTime() <= Date.now() + 60000,
+          "Horário da tentativa inválido. Atualize o ponto.");
+        const employeeId = String(profile.FuncionarioID || "");
+        const storeId = String(profile.LojaID || "");
+        assert(employeeId, "Usuário sem funcionário vinculado.");
+        assert(storeId, "Usuário sem loja vinculada.");
+        const [employee, location, schedules, allRecords] = await Promise.all([
+          runtime.getById("Funcionarios", employeeId),
+          runtime.findOne("LocaisPonto", "LojaID", storeId),
+          runtime.list("JornadasPonto", { profile }),
+          runtime.listPeriods(
+            "RegistrosPonto",
+            [...new Set([monthIso(), previousDateKey(todayIso()).slice(0, 7), monthIso(captureDate)])],
+            { profile },
+          ),
+        ]);
+        assert(employee && asBoolean(employee.Ativo), "Funcionário inativo.");
+        const targetStoreId = String(employee.LojaID || storeId);
+        let loc = location;
+        if (!loc) {
+          const allLocations = await runtime.list("LocaisPonto", { profile }).catch(() => []);
+          loc = allLocations.find(
+            (item) =>
+              String(item.LojaID || "").trim() === targetStoreId ||
+              Number(item.LojaID) === Number(targetStoreId),
+          );
         }
-      }
-      assert(loc && asBoolean(loc.Ativo), "Configure o local do ponto.");
-      const empId = String(employee.FuncionarioID ?? "").trim();
-      const day = operationalDayFor(
-        allRecords,
-        schedules,
-        empId,
-      );
-      const foundSchedule = scheduleFor(
-        schedules,
-        empId,
-        day,
-      );
-      const schedule =
-        foundSchedule && asBoolean(foundSchedule.Ativa)
-          ? foundSchedule
-          : defaultScheduleFor(empId, employee.LojaID, employee.Email);
-      const latitude = Number(payload.latitude);
-      const longitude = Number(payload.longitude);
-      const accuracy = Number(payload.accuracy);
-      assert(
-        Number.isFinite(latitude) &&
-          Number.isFinite(longitude) &&
-          Number.isFinite(accuracy),
-        "Autorize a localização precisa para bater o ponto.",
-      );
-      const distance = Math.round(
-        haversineMeters(
-          latitude,
-          longitude,
-          Number(loc.Latitude),
-          Number(loc.Longitude),
-        ),
-      );
-      const configuredRadius = Number(loc.RaioMetros || 150);
-      const radius = Math.max(150, configuredRadius);
-      const safeAccuracy = Math.ceil(Math.max(0, accuracy));
-
-      assert(
-        safeAccuracy <= 350,
-        `Sinal de localização muito impreciso (±${safeAccuracy} m). Ative o Wi-Fi ou aproxime-se de uma área aberta para calibrar o GPS.`,
-      );
-
-      // Validação justa e robusta de geofence:
-      // 1. Se a distância calculada está dentro do raio (distance <= radius), o funcionário está fisicamente no local.
-      // 2. Se a distância estimada estiver ligeiramente fora devido a drift em ambiente fechado,
-      //    concede tolerância segura se o círculo de incerteza alcançar a loja.
-      const withinStore =
-        distance <= radius ||
-        (distance - Math.min(safeAccuracy * 0.6, 90) <= radius && safeAccuracy <= 350);
-
-      assert(
-        withinStore,
-        `Você está a ${distance} m da loja (precisão ±${safeAccuracy} m), fora do raio de ${radius} m.`,
-      );
-      const records = allRecords.filter(
-        (item) =>
-          String(item.FuncionarioID ?? "").trim() === empId &&
-          normalizedDateKey(item.Data) === day &&
-          item.Status !== "Substituído",
-      );
-      const requestId = String(payload.requestId || "").trim();
-      assert(requestId, "Atualize a tela e tente registrar o ponto novamente.");
-      const repeated = requestId
-        ? records.find((item) => item.RequestID === requestId)
-        : null;
-      if (repeated) {
-        return success(
-          {
-            ...repeated,
-            ProximaMarcacao: nextClockAction(records, schedule),
-          },
-          `Ponto já registrado: ${repeated.TipoMarcacao}.`,
+        if (!loc) {
+          const store = await runtime.getById("Lojas", targetStoreId).catch(() => null);
+          if (store?.Latitude && store?.Longitude) {
+            loc = {
+              LocalPontoID: `store-loc-${targetStoreId}`,
+              LojaID: targetStoreId,
+              NomeLoja: store.NomeLoja || store.Nome || "Loja",
+              Latitude: store.Latitude,
+              Longitude: store.Longitude,
+              RaioMetros: store.RaioMetros || 150,
+              Ativo: true,
+            };
+          }
+        }
+        assert(loc && asBoolean(loc.Ativo), "Configure o local do ponto.");
+        const empId = String(employee.FuncionarioID ?? "").trim();
+        if (previousAttempt) {
+          assert(previousAttempt.employeeId === empId && String(previousAttempt.record.LojaID) === String(employee.LojaID),
+            "O vínculo do funcionário mudou. Solicite a conferência da tentativa ao gestor.");
+          const saved = await persistClockAttempt(ownerUid, previousAttempt);
+          const currentDay = operationalDayFor(allRecords, schedules, empId);
+          const currentSchedule = scheduleFor(schedules, empId, currentDay) || defaultScheduleFor(empId);
+          const currentRecords = allRecords.filter((item) => String(item.FuncionarioID) === empId && normalizedDateKey(item.Data) === currentDay);
+          return success({ ...saved, ProximaMarcacao: nextClockAction([...currentRecords.filter((item) => item.RequestID !== saved.RequestID), saved], currentSchedule) },
+            `Ponto recuperado: ${saved.TipoMarcacao}.`);
+        }
+        const day = operationalDayFor(
+          allRecords,
+          schedules,
+          empId,
+          captureDate,
         );
-      }
+        const foundSchedule = scheduleFor(
+          schedules,
+          empId,
+          day,
+        );
+        const schedule =
+          foundSchedule && asBoolean(foundSchedule.Ativa)
+            ? foundSchedule
+            : defaultScheduleFor(empId, employee.LojaID, employee.Email);
+        const latitude = payload.latitude == null || payload.latitude === "" ? NaN : Number(payload.latitude);
+        const longitude = payload.longitude == null || payload.longitude === "" ? NaN : Number(payload.longitude);
+        const accuracy = payload.accuracy == null || payload.accuracy === "" ? NaN : Number(payload.accuracy);
+        assert(
+          Number.isFinite(latitude) &&
+            Number.isFinite(longitude) &&
+            Number.isFinite(accuracy) && accuracy >= 0 &&
+            Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 &&
+            Number.isFinite(Number(loc.Latitude)) && Number.isFinite(Number(loc.Longitude)) &&
+            Math.abs(Number(loc.Latitude)) <= 90 && Math.abs(Number(loc.Longitude)) <= 180,
+          "Autorize a localização precisa para bater o ponto.",
+        );
+        const distance = Math.round(
+          haversineMeters(
+            latitude,
+            longitude,
+            Number(loc.Latitude),
+            Number(loc.Longitude),
+          ),
+        );
+        const configuredRadius = Number(loc.RaioMetros || 150);
+        const radius = Math.max(150, configuredRadius);
+        const safeAccuracy = Math.ceil(Math.max(0, accuracy));
 
-      // 1. Blindagem Anti-Bounce CLT / Portaria 671 MTE:
-      // Duas marcações de ponto com intervalo inferior a 60 segundos são tratadas como duplicidade ou toque acidental.
-      // Retorna a marcação recém-efetuada com idempotência estrita sem gravar nova fase nem avançar indevidamente.
-      const validRecordsToday = records
-        .filter((r) => r.Status !== "Substituído" && r.DataHora)
-        .sort((a, b) => new Date(b.DataHora).getTime() - new Date(a.DataHora).getTime());
-      const lastRecordToday = validRecordsToday[0];
-      if (lastRecordToday) {
-        const lastPunchTime = new Date(lastRecordToday.DataHora).getTime();
-        const nowMs = Date.now();
-        const diffSeconds = Math.round((nowMs - lastPunchTime) / 1000);
-        if (diffSeconds >= 0 && diffSeconds < 60) {
+        assert(
+          safeAccuracy <= 350,
+          `Sinal de localização muito impreciso (±${safeAccuracy} m). Ative o Wi-Fi ou aproxime-se de uma área aberta para calibrar o GPS.`,
+        );
+
+        // Validação justa e robusta de geofence:
+        // 1. Se a distância calculada está dentro do raio (distance <= radius), o funcionário está fisicamente no local.
+        // 2. Se a distância estimada estiver ligeiramente fora devido a drift em ambiente fechado,
+        //    concede tolerância segura se o círculo de incerteza alcançar a loja.
+        const withinStore =
+          distance <= radius ||
+          (distance - Math.min(safeAccuracy * 0.6, 90) <= radius && safeAccuracy <= 350);
+
+        assert(
+          withinStore,
+          `Você está a ${distance} m da loja (precisão ±${safeAccuracy} m), fora do raio de ${radius} m.`,
+        );
+        const records = allRecords.filter(
+          (item) =>
+            String(item.FuncionarioID ?? "").trim() === empId &&
+            normalizedDateKey(item.Data) === day &&
+            item.Status !== "Substituído",
+        );
+        const repeated = requestId
+          ? records.find((item) => item.RequestID === requestId)
+          : null;
+        if (repeated) {
+          const confirmed = await runtime.getByIdFromServer("RegistrosPonto", repeated.RegistroPontoID);
+          assert(confirmed?.RequestID === repeated.RequestID && String(confirmed.FuncionarioID) === empId,
+            "O servidor não confirmou a marcação anterior. Atualize o ponto e tente novamente.");
           return success(
             {
-              ...lastRecordToday,
+              ...confirmed,
               ProximaMarcacao: nextClockAction(records, schedule),
             },
-            `Ponto já registrado há ${diffSeconds}s: ${lastRecordToday.TipoMarcacao}.`,
+            `Ponto já registrado: ${repeated.TipoMarcacao}.`,
           );
         }
-      }
 
-      const next = nextClockAction(records, schedule);
-      const expected = String(payload.expectedAction || next).toUpperCase();
-
-      // Idempotência inteligente: se a ação esperada já foi gravada hoje (ex: duplo toque ou retry após timeout):
-      const alreadyDoneExpected = records.find(
-        (item) => item.TipoMarcacao === expected && item.Status !== "Substituído",
-      );
-
-      let type = next;
-      if (expected === "SEM_DESCANSO" && next === "SAIDA_INTERVALO") {
-        type = "SEM_DESCANSO";
-      } else if (expected === next) {
-        type = next;
-      } else if (!payload.expectedAction && next) {
-        type = next;
-      } else if (alreadyDoneExpected) {
-        const doneTime = new Date(alreadyDoneExpected.DataHora).getTime();
-        const isRecent = Number.isFinite(doneTime) && (Date.now() - doneTime) < 60000;
-        if (isRecent || !next) {
-          return success(
-            {
-              ...alreadyDoneExpected,
-              ProximaMarcacao: next,
-            },
-            `Ponto já registrado: ${alreadyDoneExpected.TipoMarcacao}.`,
-          );
+        // 1. Blindagem Anti-Bounce CLT / Portaria 671 MTE:
+        // Duas marcações de ponto com intervalo inferior a 60 segundos são tratadas como duplicidade ou toque acidental.
+        // Retorna a marcação recém-efetuada com idempotência estrita sem gravar nova fase nem avançar indevidamente.
+        const validRecordsToday = records
+          .filter((r) => r.Status !== "Substituído" && r.DataHora)
+          .sort((a, b) => new Date(b.DataHora).getTime() - new Date(a.DataHora).getTime());
+        const lastRecordToday = validRecordsToday[0];
+        if (lastRecordToday) {
+          const lastPunchTime = new Date(lastRecordToday.DataHora).getTime();
+          const nowMs = captureDate.getTime();
+          const diffSeconds = Math.round((nowMs - lastPunchTime) / 1000);
+          if (diffSeconds >= 0 && diffSeconds < 60) {
+            const confirmed = await runtime.getByIdFromServer("RegistrosPonto", lastRecordToday.RegistroPontoID);
+            assert(confirmed?.RequestID === lastRecordToday.RequestID && String(confirmed.FuncionarioID) === empId,
+              "O servidor não confirmou a marcação anterior. Atualize o ponto e tente novamente.");
+            return success(
+              {
+                ...confirmed,
+                ProximaMarcacao: nextClockAction(records, schedule),
+              },
+              `Ponto já registrado há ${diffSeconds}s: ${lastRecordToday.TipoMarcacao}.`,
+            );
+          }
         }
-        type = next;
-      } else {
-        assert(expected === next, "A tela estava desatualizada. Atualize o ponto.");
-      }
-      assert(type, "A jornada de hoje já foi concluída.");
-      let selfie;
-      try {
-        selfie = await uploadClockSelfieToDrive({
-          selfieDataUrl: payload.selfieDataUrl,
+
+        const next = nextClockAction(records, schedule);
+        const expected = String(payload.expectedAction || next).toUpperCase();
+
+        // Idempotência inteligente: se a ação esperada já foi gravada hoje (ex: duplo toque ou retry após timeout):
+        const alreadyDoneExpected = records.find(
+          (item) => item.TipoMarcacao === expected && item.Status !== "Substituído",
+        );
+
+        let type = next;
+        if (expected === "SEM_DESCANSO" && next === "SAIDA_INTERVALO") {
+          type = "SEM_DESCANSO";
+        } else if (expected === next) {
+          type = next;
+        } else if (!payload.expectedAction && next) {
+          type = next;
+        } else if (alreadyDoneExpected) {
+          const doneTime = new Date(alreadyDoneExpected.DataHora).getTime();
+          const isRecent = Number.isFinite(doneTime) && Math.abs(captureDate.getTime() - doneTime) < 60000;
+          if (isRecent || !next) {
+            const confirmed = await runtime.getByIdFromServer("RegistrosPonto", alreadyDoneExpected.RegistroPontoID);
+            assert(confirmed?.RequestID === alreadyDoneExpected.RequestID && String(confirmed.FuncionarioID) === empId,
+              "O servidor não confirmou a marcação anterior. Atualize o ponto e tente novamente.");
+            return success(
+              {
+                ...confirmed,
+                ProximaMarcacao: next,
+              },
+              `Ponto já registrado: ${alreadyDoneExpected.TipoMarcacao}.`,
+            );
+          }
+          assert(false, "Esta etapa já foi registrada. Atualize o ponto antes de registrar a próxima marcação.");
+        } else {
+          assert(expected === next, "A tela estava desatualizada. Atualize o ponto.");
+        }
+        assert(type, "A jornada de hoje já foi concluída.");
+        const punchTimestamp = captureDate.toISOString();
+        const punchHash = await sha256Hex(
+          `${requestId}|${employee.FuncionarioID}|${employee.LojaID}|${punchTimestamp}|${type}|${latitude.toFixed(6)}|${longitude.toFixed(6)}`,
+        );
+        const record = {
+          RegistroPontoID: requestId,
+          FuncionarioID: employee.FuncionarioID,
+          NomeFuncionario: employee.Nome,
+          EmailFuncionario: employee.Email,
+          LojaID: employee.LojaID,
+          NomeLoja: employee.NomeLoja,
+          Data: day,
+          TipoMarcacao: type,
+          DataHora: punchTimestamp,
+          Latitude: latitude,
+          Longitude: longitude,
+          PrecisaoMetros: accuracy,
+          DistanciaLojaMetros: distance,
+          DentroRaio: true,
+          Origem: "Aplicação web · selfie no Google Drive + localização",
+          SelfieStorage: "Google Drive",
+          ComprovanteHashSHA256: punchHash,
+          NumeroRegistro: requestId,
+          Portaria671Valido: false,
+          Status: "Válido",
+          Observacoes:
+            type === "SEM_DESCANSO"
+              ? "Descanso não realizado; período mantido como trabalhado."
+              : "",
+          Ajustado: false,
+          RegistroOriginalID: "",
+          DataCriacao: punchTimestamp,
+          ForaHorario: false,
+          CriadoPor: profile.Email,
+          RequestID: requestId,
+        };
+        const attempt = {
           requestId,
+          employeeId: empId,
           day,
           type,
-        });
-      } catch (selfieErr) {
-        console.warn(
-          "[ponto] Falha no upload ao Drive; aplicando contingência segura (CLT/Portaria 671):",
-          selfieErr?.message || selfieErr,
-        );
-        selfie = {
-          fileId: "contingencia_" + requestId,
-          fileUrl: "",
-          fileName: `${day}__${requestId}.jpg`,
-          uploadedAt: nowIso(),
-          offlineFallback: true,
+          createdAt: punchTimestamp,
+          selfieDataUrl: validateClockSelfie(payload.selfieDataUrl),
+          record,
         };
-      }
-      const punchTimestamp = nowIso();
-      const punchHash = await sha256Hex(
-        `${requestId}|${employee.FuncionarioID}|${employee.LojaID}|${punchTimestamp}|${type}|${latitude.toFixed(6)}|${longitude.toFixed(6)}`,
-      );
-      const record = {
-        RegistroPontoID: requestId,
-        FuncionarioID: employee.FuncionarioID,
-        NomeFuncionario: employee.Nome,
-        EmailFuncionario: employee.Email,
-        LojaID: employee.LojaID,
-        NomeLoja: employee.NomeLoja,
-        Data: day,
-        TipoMarcacao: type,
-        DataHora: punchTimestamp,
-        Latitude: latitude,
-        Longitude: longitude,
-        PrecisaoMetros: accuracy,
-        DistanciaLojaMetros: distance,
-        DentroRaio: true,
-        Origem: "Aplicação web · selfie no Google Drive + localização",
-        SelfieStorage: "Google Drive",
-        SelfieDriveFileID: selfie.fileId,
-        SelfieDriveURL: selfie.fileUrl,
-        SelfieDriveFileName: selfie.fileName,
-        SelfieDriveUploadedAt: selfie.uploadedAt,
-        ComprovanteHashSHA256: punchHash,
-        NumeroRegistro: requestId,
-        Portaria671Valido: true,
-        Status: "Válido",
-        Observacoes:
-          type === "SEM_DESCANSO"
-            ? "Descanso não realizado; período mantido como trabalhado."
-            : "",
-        Ajustado: false,
-        RegistroOriginalID: "",
-        DataCriacao: punchTimestamp,
-        ForaHorario: false,
-        CriadoPor: profile.Email,
-        RequestID: requestId,
-      };
-      let saved;
-      try {
-        saved = await runtime.create("RegistrosPonto", record);
-        runtime.invalidateTableCache?.("RegistrosPonto");
-      } catch (error) {
-        const existing = await runtime.getById("RegistrosPonto", requestId);
-        if (existing?.RequestID !== requestId) throw error;
-        saved = existing;
-      }
-      void audit("Registrar ponto", "Ponto", saved.RegistroPontoID, {
-        after: saved,
-      }).catch((error) =>
-        console.warn("Auditoria do ponto:", error?.message || error),
-      );
-
-      // Disparo automático motivacional de Boas-Vindas ou Despedida no WhatsApp
-      void (async () => {
-        try {
-          if (["ENTRADA", "SAIDA", "SAIDA_INTERVALO", "RETORNO_INTERVALO"].includes(type)) {
-            await runtime.invoke?.("sendTimeClockMotivationWhatsApp", [{
-              employee,
-              punch: saved,
-              type,
-            }]).catch(() => {});
-          }
-        } catch (_) {}
-      })();
-      return success(
-        {
-          ...saved,
-          ProximaMarcacao: nextClockAction([...records, saved], schedule),
-        },
-        `Ponto registrado: ${type}.`,
-      );
+        const saved = await persistClockAttempt(ownerUid, attempt);
+        return success(
+          {
+            ...saved,
+            ProximaMarcacao: nextClockAction([...records, saved], schedule),
+          },
+          `Ponto registrado: ${type}.`,
+        );
+      });
     },
 
     async registerTimeClockManualPunch(args) {
@@ -2977,14 +3061,13 @@ export function createClockHandlers() {
 
           // Cria notificação interna para o colaborador
           void createNotification({
-            DestinatarioID: empId,
-            Destinatario: emp.Email || emp.Nome,
-            Assunto: `Espelho de Ponto Disponível — ${mLabel}`,
-            Mensagem: `Olá, ${emp.Nome}! Seu espelho de ponto oficial referente a ${mLabel} já está fechado e aguarda sua conferência e assinatura eletrônica obrigatória.`,
-            Tipo: "Documento",
-            Status: "Não lida",
-            DataCriacao: nowIso(),
-            CriadoPor: "Fechamento Mensal Automático",
+            employeeId: empId,
+            email: emp.Email || "",
+            storeId: emp.LojaID || profile.LojaID || "",
+            subject: `Espelho de Ponto Disponível — ${mLabel}`,
+            message: `Olá, ${emp.Nome}! Seu espelho de ponto referente a ${mLabel} aguarda sua conferência e assinatura.`,
+            type: "Documento",
+            relatedId: docId,
           }).catch(() => {});
 
           // Disparo proativo no WhatsApp se o colaborador tiver telefone

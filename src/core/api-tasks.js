@@ -107,7 +107,7 @@ export function createTasksHandlers() {
       if (record.FuncionarioID && (isNewAssignment || isReassigned)) {
         const sev = record.Prioridade === "Urgente" ? "danger" : (record.Prioridade === "Alta" ? "warning" : "info");
         const limiteText = record.HoraLimite ? ` · até às ${record.HoraLimite}` : "";
-        createNotificationOnce({
+        await createNotificationOnce({
           employeeId: record.FuncionarioID,
           storeId: record.LojaID,
           subject: isReassigned ? "Tarefa reatribuída" : "Nova tarefa para você",
@@ -248,7 +248,7 @@ export function createTasksHandlers() {
       const updated = await runtime.patch("Tarefas", taskId, changes);
 
       if (task.FuncionarioID) {
-        createNotification({
+        await createNotification({
           employeeId: task.FuncionarioID,
           storeId: task.LojaID || profile.LojaID || "",
           subject: "Tarefa aprovada! 🎉",
@@ -705,7 +705,9 @@ export function createTasksHandlers() {
           RECORRENCIA_DIAS: String(t.RECORRENCIA_DIAS || '').trim(),
           ORIENTACAO_FOTO: String(t.ORIENTACAO_FOTO || t.OrientacaoFoto || '').trim(),
           TEM_FOTO: Boolean(t.FotoEvidencia || t.FOTO_URL || t.TEM_FOTO || t.FOTO_ID),
-          FOTO_ID: String(t.FOTO_ID || t.FotoEvidencia || '').trim(),
+          FOTO_ID: String(t.FOTO_ID || '').trim(),
+          FOTO_PRIVADA: t.FOTO_PRIVADA === true,
+          FOTO_PENDENTE_DRIVE: t.FOTO_PENDENTE_DRIVE === true,
           FOTO_URL: String(t.FOTO_URL || t.FotoEvidencia || '').trim(),
           FOTO_THUMBNAIL_URL: String(t.FOTO_THUMBNAIL_URL || t.FOTO_URL || t.FotoEvidencia || '').trim(),
           CONFIRMADO: Boolean(t.Confirmado || t.CONFIRMADO),
@@ -823,7 +825,7 @@ export function createTasksHandlers() {
       if (responsavelId && (isNewAssignment || isReassigned)) {
         const sev = prioridade === "Urgente" ? "danger" : (prioridade === "Alta" ? "warning" : "info");
         const prazoText = prazo ? ` · prazo ${String(prazo).replace("T", " ")}` : "";
-        createNotificationOnce({
+        await createNotificationOnce({
           employeeId: responsavelId,
           email: record.EmailFuncionario || "",
           storeId: record.LojaID,
@@ -867,6 +869,11 @@ export function createTasksHandlers() {
       const fotoUrl = String(payload?.fotoUrl || payload?.FOTO_URL || payload?.FotoEvidencia || "").trim();
       const fotoId = String(payload?.fotoId || payload?.FOTO_ID || "").trim();
       const obs = String(payload?.observacao || payload?.OBSERVACAO_CONCLUSAO || "").trim();
+      const fotoPrivada = payload?.fotoPrivada === true;
+      const fotoPendenteDrive = payload?.fotoPendenteDrive === true;
+      assert(fotoUrl && fotoUrl.length <= 2100000 && (/^https:\/\//.test(fotoUrl) || /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=\s]+$/.test(fotoUrl)),
+        "Envie uma foto comprobatória válida antes de concluir.");
+      assert(!fotoPrivada || /^[A-Za-z0-9_-]{10,160}$/.test(fotoId), "Foto privada sem identificação do arquivo.");
 
       const patch = {
         Status: 'Aguardando aprovação',
@@ -876,6 +883,9 @@ export function createTasksHandlers() {
         FotoEvidencia: fotoUrl,
         FOTO_URL: fotoUrl,
         FOTO_ID: fotoId,
+        FOTO_PRIVADA: fotoPrivada,
+        FOTO_PENDENTE_DRIVE: fotoPendenteDrive,
+        FOTO_STORAGE: fotoPendenteDrive ? "Firebase contingência" : "Google Drive",
         FOTO_THUMBNAIL_URL: fotoUrl,
         Confirmado: true,
         CONFIRMADO: true,
@@ -896,7 +906,7 @@ export function createTasksHandlers() {
       const targetManagerId = String(current?.CRIADO_POR_ID || "").trim();
       const taskTitle = current?.Titulo || current?.TITULO || "Tarefa";
       const senderName = profile.Nome || profile.UsuarioID || "Colaborador";
-      createNotificationOnce({
+      await createNotificationOnce({
         employeeId: targetManagerId,
         storeId: current?.LojaID || profile.LojaID || "",
         subject: "Tarefa enviada para conferência",
@@ -982,7 +992,7 @@ export function createTasksHandlers() {
           }
         }
 
-        createNotification({
+        await createNotification({
           employeeId: targetUserId,
           email: task.EmailFuncionario || task.RESPONSAVEL_EMAIL || "",
           storeId: task.LojaID || profile.LojaID || "",
@@ -1023,7 +1033,7 @@ export function createTasksHandlers() {
 
       const targetUserId = String(task?.FuncionarioID || task?.RESPONSAVEL_ID || "").trim();
       if (targetUserId) {
-        createNotification({
+        await createNotification({
           employeeId: targetUserId,
           email: task?.EmailFuncionario || task?.RESPONSAVEL_EMAIL || "",
           storeId: task?.LojaID || profile.LojaID || "",
@@ -1065,7 +1075,7 @@ export function createTasksHandlers() {
 
       const targetUserId = String(task?.FuncionarioID || task?.RESPONSAVEL_ID || "").trim();
       if (targetUserId) {
-        createNotification({
+        await createNotification({
           employeeId: targetUserId,
           email: task?.EmailFuncionario || task?.RESPONSAVEL_EMAIL || "",
           storeId: task?.LojaID || profile.LojaID || "",

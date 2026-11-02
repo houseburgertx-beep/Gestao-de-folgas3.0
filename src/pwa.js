@@ -1,6 +1,20 @@
-const SERVICE_WORKER_VERSION = "6.17.3";
+const SERVICE_WORKER_VERSION = "6.17.4";
 
 let registrationPromise;
+let reloadPending = false;
+const requestSafeReload = () => {
+  if (reloadPending) return;
+  reloadPending = true;
+  const reloadWhenReady = () => {
+    const captureOpen = document.querySelector("#clockSelfieDialog")?.open;
+    if (window.__IS_CONFIRMING_CLOCK_PUNCH__ || window.__IS_STARTING_CLOCK_PUNCH_ || captureOpen) {
+      window.setTimeout(reloadWhenReady, 1500);
+      return;
+    }
+    window.location.reload();
+  };
+  reloadWhenReady();
+};
 const registerServiceWorker = () => registrationPromise ||= registerOnce();
 const registerOnce = async () => {
   if (!("serviceWorker" in navigator)) return null;
@@ -10,12 +24,12 @@ const registerOnce = async () => {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (!hadController || refreshing) return;
       refreshing = true;
-      window.location.reload();
+      requestSafeReload();
     });
     navigator.serviceWorker.addEventListener("message", (event) => {
       if (event.data?.type === "FORCE_UPDATE" && !refreshing) {
         refreshing = true;
-        window.location.reload();
+        requestSafeReload();
       }
     });
     const registration = await navigator.serviceWorker.register(
