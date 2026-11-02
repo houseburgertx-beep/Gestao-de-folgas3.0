@@ -825,26 +825,16 @@ async function bootstrap() {
   const ownEmployee = currentEmployeeFrom(employees, profile);
   const currentEmployee = ownEmployee || employees[0] || {};
   const currentMonth = todayIso().slice(0, 7);
-  let monthlyLeaveReward = null;
-  try {
-    monthlyLeaveReward = await monthlyLeaveRewardFor(
-      profile,
-      ownEmployee,
-      currentMonth,
-    );
-  } catch (err) {
-    console.warn("Aviso ao calcular recompensa de folga:", err);
-  }
-  let holidayLeaveRewards = [];
-  try {
-    holidayLeaveRewards = await holidayLeaveRewardsFor(
-      profile,
-      ownEmployee,
-      holidays,
-    );
-  } catch (err) {
-    console.warn("Aviso ao calcular recompensas de feriados:", err);
-  }
+  const [monthlyLeaveReward, holidayLeaveRewards] = await Promise.all([
+    monthlyLeaveRewardFor(profile, ownEmployee, currentMonth).catch((err) => {
+      console.warn("Aviso ao calcular recompensa de folga:", err);
+      return null;
+    }),
+    holidayLeaveRewardsFor(profile, ownEmployee, holidays).catch((err) => {
+      console.warn("Aviso ao calcular recompensas de feriados:", err);
+      return [];
+    }),
+  ]);
   const ownStoreId = String(profile.LojaID || currentEmployee.LojaID || "");
   const ownStoreName = String(
     profile.NomeLoja || currentEmployee.NomeLoja || "",

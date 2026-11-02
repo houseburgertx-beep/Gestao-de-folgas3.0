@@ -1389,10 +1389,24 @@ export function createTasksHandlers() {
       const today = todayIso();
       const week = currentWeekKey();
 
+      // Indexar uma vez evita percorrer todo o histórico para cada colaborador.
+      const tasksByEmployee = new Map();
+      for (const task of tasks) {
+        const uid = String(task.FuncionarioID || task.RESPONSAVEL_ID);
+        if (!tasksByEmployee.has(uid)) tasksByEmployee.set(uid, []);
+        tasksByEmployee.get(uid).push(task);
+      }
+      const adjustmentsByEmployee = new Map();
+      for (const adjustment of adjustments) {
+        const uid = String(adjustment.USUARIO_ID);
+        if (!adjustmentsByEmployee.has(uid)) adjustmentsByEmployee.set(uid, []);
+        adjustmentsByEmployee.get(uid).push(adjustment);
+      }
+
       const active = employees.filter(e => e.Ativo !== false && String(e.Status || "").toLowerCase() !== "inativo");
       const list = active.map(e => {
         const uid = String(e.FuncionarioID || e.id || "");
-        const ownTasks = tasks.filter(t => String(t.FuncionarioID || t.RESPONSAVEL_ID) === uid);
+        const ownTasks = tasksByEmployee.get(uid) || [];
         const doneToday = ownTasks.filter(t => (t.Status === 'Concluída' || t.Coluna === 'concluido') && String(t.DataConclusao || t.CONCLUIDO_EM || '').slice(0, 10) === today).length;
         const pending = ownTasks.filter(t => ['A fazer', 'Em andamento', 'Aguardando aprovação'].includes(t.Status || '') || ['pendente', 'andamento', 'visto'].includes(t.Coluna || '')).length;
         const late = ownTasks.filter(t => {
@@ -1404,7 +1418,7 @@ export function createTasksHandlers() {
         // Pontuação total acumulada
         const allCompleted = ownTasks.filter(t => t.Status === 'Concluída' || t.Coluna === 'concluido');
         const pointsFromTasks = allCompleted.reduce((sum, t) => sum + taskPointValue(t.Prioridade || t.PRIORIDADE), 0);
-        const myAdjusts = adjustments.filter(a => String(a.USUARIO_ID) === uid);
+        const myAdjusts = adjustmentsByEmployee.get(uid) || [];
         const bonus = myAdjusts.filter(a => Number(a.PONTOS) > 0).reduce((s, a) => s + Number(a.PONTOS), 0);
         const penalty = myAdjusts.filter(a => Number(a.PONTOS) < 0).reduce((s, a) => s + Math.abs(Number(a.PONTOS)), 0);
         const totalPoints = Math.max(0, pointsFromTasks + bonus - penalty);

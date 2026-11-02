@@ -53,7 +53,7 @@ await Promise.all([
 let html = template
   .replace(
     /<meta\s+name="app-version"\s+content="[\s\S]*?"\s*\/>/,
-    '<meta name="app-version" content="6.17.4-firebase-github" />',
+    '<meta name="app-version" content="6.17.5-firebase-github" />',
   )
   .replace(
     /<title>[\s\S]*?<\/title>/,
@@ -84,7 +84,7 @@ let html = template
   }, true);
 </script>
 <!-- PDF.js (./vendor/pdfjs/pdf.min.js) is loaded on demand by documents.js. -->
-<script type="module" src="./src/main.js?v=6.17.4"></script>
+<script type="module" src="./src/main.js?v=6.17.5"></script>
 <script defer src="./generated/${clientName}"></script>`,
   )
   .replace(/<base\s+target="_top"\s*\/>/, '<base target="_self" />');

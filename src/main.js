@@ -3,7 +3,6 @@ import "./journey.js";
 import "./tasks.js";
 import "./documents.js";
 import "./whistleblower.js";
-import "./copilot.js";
 import { createApi } from "./core/api.js";
 import { installGoogleAppsScriptBridge } from "./core/bridge.js";
 import "./pwa.js";
@@ -18,6 +17,39 @@ import { acquireClockCamera } from "./core/clock-camera.js";
 import * as clockRecovery from "./core/clock-punch-recovery.js";
 import { createClockLocationReader } from "./core/clock-location.js";
 import { PUSH_CONFIG } from "./push-config.js";
+
+// The assistant is sizeable and is not needed to authenticate or register a
+// punch. Keep its parsing/initialization off the initial mobile startup path.
+function installDeferredCopilot(load = () => import("./copilot.js")) {
+  let pending = false;
+  const onOpen = async (event) => {
+    const button = event.target?.closest?.("#copilotFab, #copilotOpenBtn");
+    if (!button || button.disabled) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    // Several taps while downloading must still open the drawer only once.
+    if (pending) return;
+    pending = true;
+    button.setAttribute("aria-busy", "true");
+    try {
+      const module = await load();
+      module.initCopilot();
+      document.removeEventListener("click", onOpen, true);
+      button.removeAttribute("aria-busy");
+      button.click();
+    } catch (error) {
+      // Keep the listener installed so the next tap can retry a failed chunk.
+      console.warn("Não foi possível abrir o assistente:", error);
+      window.__GESTAO_TOAST__?.("Não foi possível abrir o assistente. Toque novamente para tentar.");
+    } finally {
+      pending = false;
+      button.removeAttribute("aria-busy");
+    }
+  };
+  document.addEventListener("click", onOpen, true);
+}
+
+installDeferredCopilot();
 
 window.__GESTAO_CLOCK_CAMERA__ = acquireClockCamera;
 window.__GESTAO_CLOCK_RECOVERY__ = clockRecovery;

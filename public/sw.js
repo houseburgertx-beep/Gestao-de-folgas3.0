@@ -1,9 +1,9 @@
-const CACHE_NAME = "house-folgas-v6.17.4";
+const CACHE_NAME = "house-folgas-v6.17.5";
 const APP_BASE = new URL("./", self.location.href);
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=6.17.4",
+  "./manifest.webmanifest?v=6.17.5",
   "./apple-touch-icon-6.1.5.png",
   "./apple-touch-icon.png",
   "./icons/app-icon-192.png",
@@ -94,6 +94,21 @@ const cachedAsset = async (request) => {
   return cached || network;
 };
 
+// Content-addressed bundles cannot change at the same URL. Reusing them
+// avoids downloading and revalidating the complete app on every mobile visit.
+const immutableAsset = async (request) => {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok && response.type === "basic") {
+    try { await cache.put(request, response.clone()); } catch (_) {
+      // Full storage must not prevent an otherwise successful online load.
+    }
+  }
+  return response;
+};
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
@@ -113,6 +128,12 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(navigateHandler(request));
+    return;
+  }
+
+  if (url.pathname.startsWith(APP_BASE.pathname) &&
+      /\/(?:assets\/[^/]+-[\w-]{8,}|generated\/legacy-(?:client|styles)-[a-f0-9]{12})\.(?:js|css)$/.test(url.pathname)) {
+    event.respondWith(immutableAsset(request));
     return;
   }
 
