@@ -6,6 +6,9 @@
  */
 
 import { spawn, execSync } from "node:child_process";
+import { openSync, closeSync, chmodSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 const WORKER_URL = "https://house-folgas-notifications.brunohouse.workers.dev";
 const API_KEY = process.env.WA_API_KEY || "";
@@ -57,9 +60,13 @@ async function ensureWaAkg() {
   }
 
   log("Iniciando WA-AKG em MODO PRODUÇÃO compilado na porta 3000...");
+  const logPath = join(homedir(), "Library/Logs/house190-akg.log");
+  const logFd = openSync(logPath, "a", 0o600);
+  chmodSync(logPath, 0o600);
+  try {
   akgProcess = spawn("npm", ["start"], {
     cwd: WA_AKG_DIR,
-    stdio: "ignore",
+    stdio: ["ignore", logFd, logFd],
     env: {
       ...process.env,
       NODE_ENV: "production",
@@ -68,6 +75,11 @@ async function ensureWaAkg() {
     },
   });
 
+  } finally { closeSync(logFd); }
+
+  // Baileys restores its saved session asynchronously after the port opens.
+  lastStartAttempt = Date.now();
+  akgProcess.on("error", () => log("Falha ao iniciar WA-AKG."));
   akgProcess.on("exit", (code) => {
     log(`WA-AKG encerrou com código ${code}. Tentando reiniciar em 3s...`);
     akgProcess = null;
@@ -76,7 +88,7 @@ async function ensureWaAkg() {
   await new Promise((r) => setTimeout(r, 4000));
 }
 
-let lastStartAttempt = 0;
+let lastStartAttempt = Date.now();
 
 async function startSessionIfStopped() {
   const now = Date.now();
@@ -115,7 +127,7 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
   const cleanUrl = url.replace(/\/+$/, "");
   const gatewayUrl = cleanUrl.endsWith("/api") ? cleanUrl : `${cleanUrl}/api`;
   activeTunnelUrl = gatewayUrl;
-  tunnelFailures = 0;
+  // A successful config write does not prove that the public tunnel works.
 
   let phone = "";
   let isConnected = false;
@@ -149,7 +161,7 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
       signal: AbortSignal.timeout(8000),
     });
     if (res.ok) {
-      log(`Sincronização OK: ${isConnected ? "Conectado" : "Desconectado"} (${phone}) -> ${gatewayUrl}`);
+      log(`Sincronização OK: ${isConnected ? "Conectado" : "Desconectado"} -> ${gatewayUrl}`);
       return true;
     }
   } catch (err) {
@@ -159,13 +171,17 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
 }
 
 let tunnelChild = null;
+let tunnelRestartTimer = null;
+let stopping = false;
 
 function runTunnel() {
+  if (stopping) return;
+  clearTimeout(tunnelRestartTimer);
+  activeTunnelUrl = null;
   if (tunnelChild) {
-    try {
-      tunnelChild.kill("SIGKILL");
-    } catch (_) {}
+    const oldChild = tunnelChild;
     tunnelChild = null;
+    try { oldChild.kill("SIGTERM"); } catch (_) {}
   }
 
   const hasCloudflared = (() => {
@@ -179,7 +195,7 @@ function runTunnel() {
 
   if (hasCloudflared) {
     log("Iniciando túnel Cloudflare Edge (cloudflared)...");
-    tunnelChild = spawn("cloudflared", ["tunnel", "--url", "http://localhost:3000"], {
+    tunnelChild = spawn("cloudflared", ["tunnel", "--protocol", "http2", "--url", "http://127.0.0.1:3000"], {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -196,10 +212,14 @@ function runTunnel() {
     tunnelChild.stdout.on("data", onData);
     tunnelChild.stderr.on("data", onData);
 
-    tunnelChild.on("close", (code) => {
+    const child = tunnelChild;
+    child.on("error", () => log("Falha ao iniciar cloudflared."));
+    child.on("close", (code) => {
+      if (stopping || tunnelChild !== child) return;
       log(`Túnel Cloudflare encerrou (código ${code}). Reiniciando em 2s...`);
       tunnelChild = null;
-      setTimeout(runTunnel, 2000);
+      activeTunnelUrl = null;
+      tunnelRestartTimer = setTimeout(runTunnel, 2000);
     });
     return;
   }
@@ -220,10 +240,14 @@ function runTunnel() {
   });
   tunnelChild.stderr.resume();
 
-  tunnelChild.on("close", (code) => {
+  const child = tunnelChild;
+  child.on("error", () => log("Falha ao iniciar túnel alternativo."));
+  child.on("close", (code) => {
+    if (stopping || tunnelChild !== child) return;
     log(`Túnel encerrou (código ${code}). Reiniciando em 2s...`);
     tunnelChild = null;
-    setTimeout(runTunnel, 2000);
+    activeTunnelUrl = null;
+    tunnelRestartTimer = setTimeout(runTunnel, 2000);
   });
 }
 
@@ -264,8 +288,11 @@ export async function startSupervisor() {
   await startSessionIfStopped();
   runTunnel();
 
-  // Loop de monitoramento a cada 15 segundos
+  // Never overlap health/recovery cycles when a network request is slow.
+  let checking = false;
   setInterval(async () => {
+    if (checking || stopping) return;
+    checking = true;
     try {
       await ensureMysql();
       await ensureWaAkg();
@@ -274,12 +301,14 @@ export async function startSupervisor() {
       if (activeTunnelUrl) {
         await syncConfig(activeTunnelUrl);
       }
-    } catch (_) {}
+    } catch (_) {} finally { checking = false; }
   }, 15000);
 }
 
 // Tratamento de sinais de encerramento
 function cleanup() {
+  stopping = true;
+  clearTimeout(tunnelRestartTimer);
   log("Encerrando serviços supervisionados...");
   if (tunnelChild) {
     try { tunnelChild.kill("SIGKILL"); } catch (_) {}

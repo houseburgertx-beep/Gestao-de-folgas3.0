@@ -228,10 +228,16 @@ async function getGatewayConfig(env) {
   let privateConfig = null;
   try {
     const tok = await googleToken(env);
-    [dbConfig, privateConfig] = await Promise.all([
+    const [publicResult, privateResult] = await Promise.allSettled([
       database(env, tok, "tables/Configuracoes/WhatsAppGateway", {}, 6000),
       database(env, tok, "workerPrivate/WhatsAppGateway", {}, 6000),
     ]);
+    // The tunnel URL and its credentials are independent reads. A temporary
+    // failure in one tree must not discard a valid response from the other.
+    if (publicResult.status === "fulfilled") dbConfig = publicResult.value;
+    else console.warn("Failed to fetch public WhatsAppGateway configuration.");
+    if (privateResult.status === "fulfilled") privateConfig = privateResult.value;
+    else console.warn("Failed to fetch private WhatsAppGateway configuration.");
   } catch (err) {
     console.warn("Failed to fetch WhatsAppGateway from RTDB:", err);
   }

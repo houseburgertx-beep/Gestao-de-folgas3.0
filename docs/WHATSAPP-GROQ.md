@@ -43,3 +43,9 @@ Falha, limite ou demora da Groq preserva o aviso factual para não interromper a
 O diagnóstico privado aceita `scenario: "native"` e `scenario: "outbound"`, usa dados sintéticos e não envia mensagens a funcionários.
 
 Validação da versão 6.17.7: 90 testes do Worker aprovados; 321 testes do aplicativo aprovados e um teste de regras reservado ao emulador. Build e dry-run aprovados. Diagnósticos reais da Groq validaram os seis tipos de aviso; o cenário nativo consultou tarefas, preparou um cartão e recusou gravação pelo texto “sim”. Nenhuma mensagem real foi enviada.
+
+## Recuperação do gateway — 03/11/2026
+
+Foi corrigida uma falha do supervisor que zerava o contador de erros públicos a cada gravação bem-sucedida da configuração. Agora duas falhas públicas consecutivas reiniciam o túnel; somente um health-check público saudável interrompe a sequência. A conexão cloudflared usa HTTP/2 e origem IPv4 local, validada com o WA-AKG. Reinícios não criam dois túneis por callbacks atrasados e ciclos de monitoramento não se sobrepõem. O gateway recebe tempo para restaurar a sessão salva antes de o supervisor tentar reiniciá-la; logs locais ficam em arquivo privado.
+
+O Worker preserva a URL pública válida mesmo quando a leitura separada da configuração privada falha. Foram adicionados testes para falhas independentes de leitura e para recuperação do túnel apesar de sincronizações locais bem-sucedidas.
