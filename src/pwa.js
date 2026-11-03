@@ -7,7 +7,8 @@ const requestSafeReload = () => {
   reloadPending = true;
   const reloadWhenReady = () => {
     const captureOpen = document.querySelector("#clockSelfieDialog")?.open;
-    if (window.__IS_CONFIRMING_CLOCK_PUNCH__ || window.__IS_STARTING_CLOCK_PUNCH_ || captureOpen) {
+    const documentOpen = document.querySelector("#documentSignDialog[open], #docLandscapeSignDialog[open], #medicalCertificateDialog[open]");
+    if (window.__IS_CONFIRMING_CLOCK_PUNCH__ || window.__IS_STARTING_CLOCK_PUNCH_ || captureOpen || documentOpen) {
       window.setTimeout(reloadWhenReady, 1500);
       return;
     }

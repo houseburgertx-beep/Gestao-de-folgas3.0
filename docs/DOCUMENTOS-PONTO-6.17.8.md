@@ -7,6 +7,7 @@
 - Funcionários agora recebem os filtros de status e competência depois da restrição aos próprios documentos. Gestor sem unidade não recebe documentos de terceiros.
 - Listagem concorrente é deduplicada; troca de conta, aba ou atualização não permite que uma resposta antiga sobrescreva a mais recente. Pós-mutações sempre forçam atualização.
 - A leitura para assinar só é liberada quando o PDF terminou de carregar. Fechar o modal remove eventos, timers e URLs temporárias; respostas antigas não afetam outro documento.
+- Atualização automática do PWA aguarda fechar assinatura e formulário de atestado, evitando perder rubrica ou anexo durante a publicação.
 - IP é carregado em paralelo, sem bloquear a abertura. Indisponibilidade não vira informação técnica fictícia.
 - Assinatura consulta estado atual no servidor e grava assinatura + status + PDF final em um único PATCH atômico. A resposta é silenciosa (204), sem baixar novamente o mesmo PDF após a gravação. A notificação não bloqueia o recibo.
 - Identificador estável e assinatura imutável no banco impedem sobrescrita concorrente; documento já assinado retorna o recibo original em retry. Nova versão contestada usa o vínculo da assinatura anterior.
@@ -40,4 +41,6 @@ Pontos estruturais ainda existentes: anexos médicos/PDFs ficam no RTDB; retirar
 
 Queda de internet, permissão negada, dispositivo sem armazenamento e indisponibilidade de serviços continuam possíveis. O ponto preserva a tentativa local para recuperação e não deve declarar sucesso sem confirmação do servidor. Não foram criadas marcações, assinaturas ou folgas reais durante os testes.
 
-Validação local da entrega: 355 testes aprovados; um teste de regras depende do emulador (executado no CI). Build de produção aprovado. Os novos casos incluem anexo médico de 2,2 milhões de caracteres preservado, retry de solicitação já aprovada, assinatura atômica, espera de lock expirada e bloqueio de operações atrasadas.
+Validação local da entrega: 356 testes aprovados; um teste de regras depende do emulador (executado no CI). Build de produção aprovado. Os novos casos incluem anexo médico de 2,2 milhões de caracteres preservado, retry de solicitação já aprovada, assinatura atômica, espera de lock expirada e bloqueio de operações atrasadas.
+
+O CI também aprovou as permissões reais no emulador Firebase, incluindo assinatura atômica, proibição de sobrescrever assinatura e leitura de ausência para retry de atestado sem expor documentos de outra pessoa.
