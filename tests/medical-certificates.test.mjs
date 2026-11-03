@@ -21,6 +21,9 @@ test("Atestado Médico: envio, preservação de saldo de folgas e abono automát
     getById: runtime.getById,
     list: runtime.list,
     upsert: runtime.upsert,
+    patchMany: runtime.patchMany,
+    create: runtime.create,
+    getByIdFromServer: runtime.getByIdFromServer,
     patch: runtime.patch,
     requireProfile: runtime.requireProfile,
     resolveEmployeeEntry: runtime.resolveEmployeeEntry,
@@ -28,6 +31,7 @@ test("Atestado Médico: envio, preservação de saldo de folgas e abono automát
   };
 
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
+  runtime.getByIdFromServer = runtime.getById;
   runtime.list = async (table) => [...getTable(table).values()];
   runtime.upsert = async (table, record) => {
     const idKey =
@@ -45,6 +49,17 @@ test("Atestado Médico: envio, preservação de saldo de folgas e abono automát
     getTable(table).set(id, saved);
     return saved;
   };
+  runtime.patchMany = async (items) => {
+    const staged = items.map((item) => {
+      const idKey = item.table === "Documentos" ? "DocumentoID" : "FolgaID";
+      const current = getTable(item.table).get(String(item.id));
+      assert.ok(current || item.createIfMissing);
+      return { table: item.table, id: String(item.id), record: { ...(current || item.record), ...(item.changes || {}), [idKey]: String(item.id) } };
+    });
+    staged.forEach((item) => getTable(item.table).set(item.id, item.record));
+    return staged.map((item) => item.record);
+  };
+  runtime.create = async (table, record) => runtime.upsert(table, record);
   runtime.patch = async (table, id, data) => {
     const existing = getTable(table).get(String(id)) || {};
     const updated = { ...existing, ...data };
@@ -178,11 +193,15 @@ test("Atestado Médico: rejeição pelo gestor atualiza o status do documento pa
     getById: runtime.getById,
     list: runtime.list,
     upsert: runtime.upsert,
+    patchMany: runtime.patchMany,
+    create: runtime.create,
+    getByIdFromServer: runtime.getByIdFromServer,
     patch: runtime.patch,
     requireProfile: runtime.requireProfile,
   };
 
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
+  runtime.getByIdFromServer = runtime.getById;
   runtime.list = async (table) => [...getTable(table).values()];
   runtime.upsert = async (table, record) => {
     const idKey =
@@ -198,6 +217,17 @@ test("Atestado Médico: rejeição pelo gestor atualiza o status do documento pa
     getTable(table).set(id, saved);
     return saved;
   };
+  runtime.patchMany = async (items) => {
+    const staged = items.map((item) => {
+      const idKey = item.table === "Documentos" ? "DocumentoID" : "FolgaID";
+      const current = getTable(item.table).get(String(item.id));
+      assert.ok(current || item.createIfMissing);
+      return { table: item.table, id: String(item.id), record: { ...(current || item.record), ...(item.changes || {}), [idKey]: String(item.id) } };
+    });
+    staged.forEach((item) => getTable(item.table).set(item.id, item.record));
+    return staged.map((item) => item.record);
+  };
+  runtime.create = async (table, record) => runtime.upsert(table, record);
   runtime.patch = async (table, id, data) => {
     const existing = getTable(table).get(String(id)) || {};
     const updated = { ...existing, ...data };
@@ -278,7 +308,7 @@ test("Atestado Médico & Google Drive: parseDriveUrl extrai corretamente ID e UR
   assert.equal(parseDriveUrl("https://example.com/arquivo.png"), null);
 });
 
-test("Atestado Médico: preservação de base64 de imagem de alta resolução até 2MB no banco", async () => {
+test("Atestado Médico: preservação de base64 de imagem de alta resolução no banco", async () => {
   const tables = new Map();
   const getTable = (name) => {
     if (!tables.has(name)) tables.set(name, new Map());
@@ -289,10 +319,14 @@ test("Atestado Médico: preservação de base64 de imagem de alta resolução at
     getById: runtime.getById,
     list: runtime.list,
     upsert: runtime.upsert,
+    patchMany: runtime.patchMany,
+    create: runtime.create,
+    getByIdFromServer: runtime.getByIdFromServer,
     requireProfile: runtime.requireProfile,
   };
 
   runtime.getById = async (table, id) => getTable(table).get(String(id)) || null;
+  runtime.getByIdFromServer = runtime.getById;
   runtime.list = async (table) => [...getTable(table).values()];
   runtime.upsert = async (table, record) => {
     const idKey =
@@ -308,6 +342,17 @@ test("Atestado Médico: preservação de base64 de imagem de alta resolução at
     getTable(table).set(id, saved);
     return saved;
   };
+  runtime.patchMany = async (items) => {
+    const staged = items.map((item) => {
+      const idKey = item.table === "Documentos" ? "DocumentoID" : "FolgaID";
+      const current = getTable(item.table).get(String(item.id));
+      assert.ok(current || item.createIfMissing);
+      return { table: item.table, id: String(item.id), record: { ...(current || item.record), ...(item.changes || {}), [idKey]: String(item.id) } };
+    });
+    staged.forEach((item) => getTable(item.table).set(item.id, item.record));
+    return staged.map((item) => item.record);
+  };
+  runtime.create = async (table, record) => runtime.upsert(table, record);
 
   try {
     await runtime.upsert("Funcionarios", {

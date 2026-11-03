@@ -79,7 +79,7 @@ test("pontos concorrentes do mesmo usuário são serializados sem bloquear outro
 test("upload repete HTTP transitório e resposta inválida, mas recusa erro de autorização", async () => {
   const originalFetch = globalThis.fetch;
   const originalAuth = runtime.auth;
-  runtime.auth = { currentUser: { getIdToken: async () => "test-token" } };
+  runtime.auth = { currentUser: { uid: "upload-owner", getIdToken: async () => "test-token" } };
   try {
     for (const first of [new Response("busy", { status: 503 }), new Response("not-json", { status: 200 })]) {
       let calls = 0;
@@ -104,7 +104,7 @@ test("upload repete HTTP transitório e resposta inválida, mas recusa erro de a
 });
 
 test("handler recupera tentativa real com foto confirmada, horário original e uma única gravação", async () => {
-  const names = ["auth", "requireProfile", "getById", "findOne", "list", "listPeriods", "create", "getByIdFromServer", "createClockRecord", "invalidateTableCache", "invoke"];
+  const names = ["auth", "requireProfile", "getById", "findOne", "list", "listPeriods", "create", "getByIdFromServer", "requestServerRecord", "createClockRecord", "invalidateTableCache", "invoke"];
   const original = Object.fromEntries(names.map((name) => [name, runtime[name]]));
   const originalFetch = globalThis.fetch;
   const entry = attempt();
@@ -116,7 +116,12 @@ test("handler recupera tentativa real com foto confirmada, horário original e u
     ? { FuncionarioID: "employee-1", LojaID: "store-1", Nome: "Ana", Ativo: true }
     : records.find((row) => row.RegistroPontoID === id) || null;
   runtime.getByIdFromServer = async (_, id) => records.find((row) => row.RegistroPontoID === id) || null;
-  runtime.createClockRecord = async (row) => { records.push(row); return row; };
+  runtime.requestServerRecord = async (_, id) => ({ data: records.find((row) => row.RegistroPontoID === id) || null, etag: '"empty-version"' });
+  runtime.createClockRecord = async (row, options) => {
+    assert.equal(options.expectedAbsentEtag, '"empty-version"');
+    assert.equal(options.ownerUid, "recovery-owner");
+    records.push(row); return row;
+  };
   runtime.findOne = async () => ({ Latitude: -12.97, Longitude: -38.5, RaioMetros: 150, Ativo: true });
   runtime.list = async () => [];
   runtime.listPeriods = async () => records;
@@ -206,4 +211,12 @@ test("manifesto mantém endpoint HTTP com autorização Firebase em vez de exigi
   assert.equal(manifest.timeZone, "America/Bahia");
   assert.equal(manifest.webapp.executeAs, "USER_DEPLOYING");
   assert.equal(manifest.webapp.access, "ANYONE_ANONYMOUS");
+});
+
+test('espera de outra tentativa tem prazo e callback atrasado não executa um segundo ponto',async()=>{
+ let release;let secondCalls=0;
+ const first=withClockPunchLock('deadline-owner',()=>new Promise(resolve=>{release=resolve;}));
+ await new Promise(resolve=>setTimeout(resolve,0));
+ const second=withClockPunchLock('deadline-owner',()=>{secondCalls++;},{waitMs:5});
+ await assert.rejects(second,/Outra tentativa/);release();await first;await new Promise(resolve=>setTimeout(resolve,0));assert.equal(secondCalls,0);
 });

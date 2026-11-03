@@ -24,6 +24,7 @@ import {
 } from "./api-base.js";
 import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "../selfie-drive-config.js";
 import { clockAttemptStore, completeClockAttempt, validateClockSelfie, withClockPunchLock } from "./clock-punch-recovery.js";
+import { assertClockRequestActive, withClockDeadline } from "./clock-request.js";
 
 const clockTypes = [
   "ENTRADA",
@@ -51,21 +52,23 @@ const selfieDriveEndpoint = () => {
   return endpoint;
 };
 
-const warmSelfieDriveService = async () => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 7000);
-  try {
-    await fetch(selfieDriveEndpoint(), {
-      method: "GET",
-      mode: "no-cors",
-      cache: "no-store",
-      credentials: "omit",
-      signal: controller.signal,
-    });
-  } catch {
-    // O POST continuará funcionando mesmo se o aquecimento for bloqueado.
-  } finally {
-    clearTimeout(timeout);
+let selfieWarmup;
+let selfieWarmedAt = 0;
+const warmSelfieDriveService = () => {
+  if (selfieWarmup && Date.now() - selfieWarmedAt < 45000) return selfieWarmup;
+  selfieWarmedAt = Date.now();
+  selfieWarmup = withClockDeadline((signal) => fetch(selfieDriveEndpoint(), {
+    method: "GET", mode: "no-cors", cache: "no-store", credentials: "omit", signal,
+  }), 7000).catch(() => {});
+  return selfieWarmup;
+};
+
+const assertClockUser = (uid) => {
+  if (!uid || runtime.auth?.currentUser?.uid !== uid) {
+    const error = new Error("A conta conectada mudou. Entre novamente antes de recuperar o ponto.");
+    error.code = "clock/session-changed";
+    error.retryable = false;
+    throw error;
   }
 };
 
@@ -73,128 +76,100 @@ export async function loadPrivateDriveImage(fileId) {
   assert(/^[A-Za-z0-9_-]{10,160}$/.test(String(fileId || "")), "Identificador de foto inválido.");
   await runtime.requireProfile();
   const user = runtime.auth?.currentUser;
-  assert(user, "Sua sessão expirou. Entre novamente.");
-  const idToken = await user.getIdToken();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
-  try {
+  assert(user?.uid, "Sua sessão expirou. Entre novamente.");
+  return withClockDeadline(async (signal) => {
+    const idToken = await user.getIdToken();
+    assertClockRequestActive(signal);
+    assertClockUser(user.uid);
     const response = await fetch(selfieDriveEndpoint(), {
       method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      credentials: "omit", redirect: "follow", signal: controller.signal,
+      credentials: "omit", cache: "no-store", redirect: "follow", signal,
       body: JSON.stringify({ action: "readPrivateImage", fileId, idToken }),
     });
     const result = await response.json();
-    assert(response.ok && result.ok && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=\s]+$/.test(result.dataUrl),
-      result.error || "Não foi possível abrir a foto protegida.");
+    assertClockRequestActive(signal);
+    assertClockUser(user.uid);
+    assert(response.ok && result?.ok && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=\s]+$/.test(result.dataUrl),
+      result?.error || "Não foi possível abrir a foto protegida.");
     return result.dataUrl;
-  } finally {
-    clearTimeout(timeout);
-  }
+  }, 20000, "O serviço de fotos demorou para responder. Tente abrir a foto novamente.");
 }
 
-export const uploadClockSelfieToDrive = async ({
-  selfieDataUrl,
-  requestId,
-  day,
-  type,
-}) => {
+export const uploadClockSelfieToDrive = async ({ selfieDataUrl, requestId, day, type }) => {
   const selfie = validateClockSelfie(selfieDataUrl);
   const user = runtime.auth?.currentUser;
-  assert(user, "Sua sessão expirou. Entre novamente.");
-  let idToken = await user.getIdToken();
-  assert(idToken, "Não foi possível validar sua sessão. Entre novamente.");
-  const performUpload = async (timeoutMs) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  assert(user?.uid, "Sua sessão expirou. Entre novamente.");
+  let refreshToken = false;
+  const performUpload = (timeoutMs) => withClockDeadline(async (signal) => {
+    assertClockUser(user.uid);
+    const idToken = await user.getIdToken(refreshToken);
+    assertClockRequestActive(signal);
+    assertClockUser(user.uid);
+    assert(idToken, "Não foi possível validar sua sessão. Entre novamente.");
+    const response = await fetch(selfieDriveEndpoint(), {
+      method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      redirect: "follow", credentials: "omit", cache: "no-store", signal,
+      body: JSON.stringify({ action: "uploadClockSelfie", idToken, requestId, day, clockType: type, selfieDataUrl: selfie }),
+    });
+    let result;
     try {
-      const response = await fetch(selfieDriveEndpoint(), {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=UTF-8" },
-        redirect: "follow",
-        credentials: "omit",
-        signal: controller.signal,
-        body: JSON.stringify({
-          action: "uploadClockSelfie",
-          idToken,
-          requestId,
-          day,
-          clockType: type,
-          selfieDataUrl: selfie,
-        }),
-      });
-      let result;
-      try {
-        result = JSON.parse(await response.text());
-      } catch (_) {
-        const error = new Error("O Google Drive devolveu uma resposta inválida. A foto permanece neste aparelho para nova tentativa.");
-        error.retryable = response.status >= 500 || response.ok;
-        throw error;
-      }
-      if (!response.ok || !result?.ok || !result?.fileId) {
-        const error = new Error(result?.error || "O Google Drive não confirmou o envio da selfie.");
-        error.retryable = [408, 429].includes(response.status) || response.status >= 500 || result?.retryable === true;
-        throw error;
-      }
-      return result;
-    } finally {
-      clearTimeout(timeout);
+      result = JSON.parse(await response.text());
+    } catch (_) {
+      const error = new Error("O Google Drive devolveu uma resposta inválida. A foto permanece neste aparelho para nova tentativa.");
+      error.retryable = [408, 429].includes(response.status) || response.status >= 500 || response.ok;
+      throw error;
     }
-  };
+    assertClockRequestActive(signal);
+    assertClockUser(user.uid);
+    if (!response.ok || !result?.ok || typeof result.fileId !== "string" || !result.fileId.trim()) {
+      const error = new Error(result?.error || "O Google Drive não confirmou o envio da selfie.");
+      refreshToken = response.status === 401;
+      error.retryable = refreshToken || [408, 429].includes(response.status) || response.status >= 500 || result?.retryable === true;
+      throw error;
+    }
+    return result;
+  }, timeoutMs, "O Google Drive demorou para responder. A foto permanece neste aparelho para nova tentativa.");
 
-  let response;
+  let result;
   try {
-    response = await performUpload(20000);
+    result = await performUpload(20000);
   } catch (firstError) {
     if (firstError.retryable === false) throw firstError;
-    console.warn(
-      "[ponto] Primeira tentativa de envio ao Google Drive falhou, tentando novamente:",
-      firstError?.message || firstError,
-    );
+    assertClockUser(user.uid);
     try {
-      try {
-        idToken = await user.getIdToken(true);
-      } catch {
-        // Mantém o token existente se a renovação pela rede falhar
-      }
-      response = await performUpload(25000);
+      result = await performUpload(25000);
     } catch (secondError) {
-      console.error(
-        "[ponto] Falha definitiva no envio da selfie ao Google Drive:",
-        secondError?.message || secondError,
-      );
-      if (secondError?.name === "AbortError" || firstError?.name === "AbortError") {
-        throw new Error(
-          "O Google Drive demorou demais para responder. Tente novamente; a selfie não será duplicada.",
-        );
-      }
-      throw new Error(
-        "Não foi possível enviar a selfie ao Google Drive. Verifique a internet e tente novamente.",
-      );
+      if (secondError.retryable === false || secondError.code === "clock/request-timeout") throw secondError;
+      const failure = new Error("Não foi possível enviar a selfie ao Google Drive. Verifique a internet e tente novamente.");
+      failure.retryable = true;
+      throw failure;
     }
   }
-  const result = response;
+  assertClockUser(user.uid);
   return {
-    fileId: String(result.fileId),
-    fileUrl: String(result.fileUrl || ""),
-    fileName: String(result.fileName || ""),
-    uploadedAt: String(result.uploadedAt || nowIso()),
+    fileId: result.fileId.trim(), fileUrl: String(result.fileUrl || ""),
+    fileName: String(result.fileName || ""), uploadedAt: String(result.uploadedAt || nowIso()),
   };
 };
 
 async function persistClockAttempt(ownerUid, attempt) {
-  assert(runtime.auth?.currentUser?.uid === ownerUid, "A conta conectada mudou. Entre novamente antes de recuperar o ponto.");
+  assertClockUser(ownerUid);
   // Resolve an ambiguous prior write before touching Drive or retrying Firebase.
-  const existing = await runtime.getByIdFromServer("RegistrosPonto", attempt.requestId);
-  if (existing?.RequestID === attempt.requestId) {
-    assert(String(existing.FuncionarioID) === attempt.employeeId, "Identificador de ponto já utilizado.");
+  const { data: existing, etag } = await runtime.requestServerRecord("RegistrosPonto", attempt.requestId);
+  assertClockUser(ownerUid);
+  const matches = (row) => row?.RequestID === attempt.requestId && row?.RegistroPontoID === attempt.requestId &&
+    String(row.FuncionarioID) === attempt.employeeId && String(row.LojaID) === String(attempt.record.LojaID);
+  if (existing !== null) {
+    assert(matches(existing), "Identificador de ponto já utilizado.");
     await clockAttemptStore.remove(ownerUid, attempt.requestId).catch(() => {});
     return existing;
   }
   const saved = await completeClockAttempt({
     uid: ownerUid,
     attempt,
-    upload: (pending) => uploadClockSelfieToDrive({ ...pending, selfieDataUrl: pending.selfieDataUrl }),
+    upload: (pending) => { assertClockUser(ownerUid); return uploadClockSelfieToDrive(pending); },
     save: async (pending) => {
+      assertClockUser(ownerUid);
       const selfie = pending.selfie;
       const record = {
         ...pending.record,
@@ -205,14 +180,16 @@ async function persistClockAttempt(ownerUid, attempt) {
         SelfieSincronizada: true,
       };
       try {
-        return await runtime.createClockRecord(record);
+        return await runtime.createClockRecord(record, { expectedAbsentEtag: etag, ownerUid });
       } catch (error) {
         const confirmed = await runtime.getByIdFromServer("RegistrosPonto", pending.requestId).catch(() => null);
-        if (confirmed?.RequestID !== pending.requestId || String(confirmed.FuncionarioID) !== pending.employeeId) throw error;
+        assertClockUser(ownerUid);
+        if (!matches(confirmed)) throw error;
         return confirmed;
       }
     },
   });
+  assertClockUser(ownerUid);
   runtime.invalidateTableCache?.("RegistrosPonto");
   void audit("Registrar ponto", "Ponto", saved.RegistroPontoID, { after: saved }).catch((error) =>
     console.warn("Auditoria do ponto:", error?.message || error));
@@ -499,6 +476,14 @@ const operationalDayFor = (
     (scheduleFor(schedules, employeeId, previousDay) || defaultScheduleFor(employeeId))
     ? previousDay
     : currentDay;
+};
+
+const nextClockActionAfterSave = (records, schedules, employeeId, saved, now = new Date()) => {
+  const merged = [...records.filter((row) => row.RegistroPontoID !== saved.RegistroPontoID), saved];
+  const currentDay = operationalDayFor(merged, schedules, employeeId, now);
+  const currentSchedule = scheduleFor(schedules, employeeId, currentDay) || defaultScheduleFor(employeeId);
+  const currentRecords = merged.filter((row) => String(row.FuncionarioID) === String(employeeId) && normalizedDateKey(row.Data) === currentDay);
+  return nextClockAction(currentRecords, currentSchedule);
 };
 
 const exactMinutesBetween = (start, end) => {
@@ -1602,10 +1587,7 @@ export function createClockHandlers() {
           assert(previousAttempt.employeeId === empId && String(previousAttempt.record.LojaID) === String(employee.LojaID),
             "O vínculo do funcionário mudou. Solicite a conferência da tentativa ao gestor.");
           const saved = await persistClockAttempt(ownerUid, previousAttempt);
-          const currentDay = operationalDayFor(allRecords, schedules, empId);
-          const currentSchedule = scheduleFor(schedules, empId, currentDay) || defaultScheduleFor(empId);
-          const currentRecords = allRecords.filter((item) => String(item.FuncionarioID) === empId && normalizedDateKey(item.Data) === currentDay);
-          return success({ ...saved, ProximaMarcacao: nextClockAction([...currentRecords.filter((item) => item.RequestID !== saved.RequestID), saved], currentSchedule) },
+          return success({ ...saved, ProximaMarcacao: nextClockActionAfterSave(allRecords, schedules, empId, saved) },
             `Ponto recuperado: ${saved.TipoMarcacao}.`);
         }
         const day = operationalDayFor(
@@ -1631,6 +1613,7 @@ export function createClockHandlers() {
             Number.isFinite(longitude) &&
             Number.isFinite(accuracy) && accuracy >= 0 &&
             Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 &&
+            loc.Latitude != null && loc.Latitude !== "" && loc.Longitude != null && loc.Longitude !== "" &&
             Number.isFinite(Number(loc.Latitude)) && Number.isFinite(Number(loc.Longitude)) &&
             Math.abs(Number(loc.Latitude)) <= 90 && Math.abs(Number(loc.Longitude)) <= 180,
           "Autorize a localização precisa para bater o ponto.",
@@ -1795,7 +1778,7 @@ export function createClockHandlers() {
         return success(
           {
             ...saved,
-            ProximaMarcacao: nextClockAction([...records, saved], schedule),
+            ProximaMarcacao: nextClockActionAfterSave(allRecords, schedules, empId, saved),
           },
           `Ponto registrado: ${type}.`,
         );
@@ -3384,5 +3367,6 @@ export {
   fixedOffWeekdayIndexes,
   isScheduledWorkday,
   operationalDayFor,
+  nextClockActionAfterSave,
   scheduleExpectedMinutes,
 };

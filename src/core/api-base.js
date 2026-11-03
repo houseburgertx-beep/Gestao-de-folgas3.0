@@ -1447,6 +1447,50 @@ async function simulateSchedule(payload) {
   });
 }
 
+const MEDICAL_MAX_BASE64_CHARS = 8 * 1024 * 1024;
+
+export async function confirmMedicalCommit(operation, timeoutMs = 20000) {
+  let timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("O envio ainda não foi confirmado pelo servidor. Consulte Documentos antes de reenviar; mantenha este formulário para repetir com o mesmo identificador.")), timeoutMs);
+  });
+  try { return await Promise.race([Promise.resolve().then(operation), deadline]); }
+  finally { clearTimeout(timer); }
+}
+
+
+const medicalDate = (value, message) => {
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(value), message);
+  const date = new Date(`${value}T12:00:00.000Z`);
+  assert(Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value, message);
+  return date;
+};
+
+const medicalAttachmentFingerprint = async (base64, url) => {
+  assert(base64 || url, "É obrigatório anexar a foto ou PDF do atestado.");
+  assert(!url || /^https:\/\//i.test(url), "Informe um link HTTPS válido para o atestado.");
+  if (!base64) {
+    // A URL fingerprint describes the reference, not the remote file contents.
+    return { hash: await sha256Hex(`url:${url}`), mimeType: "referencia-url", bytes: 0, method: "SHA256_REFERENCIA_URL" };
+  }
+  const dataUrl = base64.match(/^data:([^;,]+);base64,([\s\S]+)$/i);
+  assert(!base64.startsWith("data:") || dataUrl, "O anexo do atestado está em formato inválido.");
+  const mimeType = dataUrl ? dataUrl[1].toLowerCase() : "application/octet-stream";
+  assert(/^(application\/(pdf|octet-stream)|image\/(jpeg|png|webp|gif|heic|heif|tiff|bmp))$/.test(mimeType),
+    "Anexe uma foto ou um PDF válido do atestado.");
+  const content = (dataUrl ? dataUrl[2] : base64).replace(/\s/g, "");
+  assert(content.length <= MEDICAL_MAX_BASE64_CHARS,
+    "O anexo do atestado ultrapassa 6 MB. Escolha um arquivo menor; nenhum documento foi salvo.");
+  assert(content && /^[A-Za-z0-9+/]+={0,2}$/.test(content) && content.length % 4 !== 1,
+    "O anexo do atestado está incompleto ou inválido. Selecione o arquivo novamente.");
+  let decoded;
+  try { decoded = atob(content); } catch (_) {
+    throw new Error("O anexo do atestado está incompleto ou inválido. Selecione o arquivo novamente.");
+  }
+  const bytes = Uint8Array.from(decoded, (char) => char.charCodeAt(0));
+  return { hash: await sha256Hex(bytes), mimeType, bytes: bytes.byteLength, method: "SHA256_BINARIO" };
+};
+
 export function createBaseHandlers() {
   return {
     async loginUser(args) {
@@ -2035,20 +2079,49 @@ export function createBaseHandlers() {
 
       const start = String(payload.dataInicio || payload.DataInicio || "").trim();
       const end = String(payload.dataFim || payload.DataFim || start).trim();
-      assert(/^\d{4}-\d{2}-\d{2}$/.test(start), "Informe a data inicial válida.");
-      assert(/^\d{4}-\d{2}-\d{2}$/.test(end), "Informe a data final válida.");
+      const startDate = medicalDate(start, "Informe a data inicial válida.");
+      const endDate = medicalDate(end, "Informe a data final válida.");
       assert(end >= start, "A data final não pode ser anterior à data inicial.");
-      assert(dateRange(start, end).length <= 60, "O atestado não pode ultrapassar 60 dias.");
+      const diasAbono = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+      assert(diasAbono <= 60, "O atestado não pode ultrapassar 60 dias.");
 
       const docUrl = String(payload.documentoUrl || payload.DocumentoUrl || "").trim();
       const docBase64 = String(payload.documentoBase64 || payload.base64 || payload.base64Data || "").trim();
-      assert(docUrl || docBase64, "É obrigatório anexar a foto ou PDF do atestado.");
+      const attachment = await medicalAttachmentFingerprint(docBase64, docUrl);
+      const requestId = String(payload.requestId || "").trim().toLowerCase();
+      assert(!requestId || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId),
+        "Identificador do envio inválido. Reabra o formulário do atestado.");
+      const receiptKey = requestId ? await sha256Hex(JSON.stringify([String(employee.FuncionarioID), requestId])) : uuid();
+      const docId = `DOC_ATESTADO_${receiptKey}`;
+      const folgaId = `ATESTADO_${receiptKey}`;
+      const submittedAt = nowIso();
+      const crm = String(payload.crm || payload.CRM || "").trim();
+      const observation = String(payload.motivo || payload.Motivo || "").trim();
+      if (requestId) {
+        // A retry can acknowledge an already approved pair, but must never
+        // rewrite its status or mistake an optimistic SDK cache for a receipt.
+        const [existingDoc, existingLeave] = await Promise.all([
+          runtime.getByIdFromServer("Documentos", docId),
+          runtime.getByIdFromServer("Folgas", folgaId),
+        ]);
+        if (existingDoc || existingLeave) {
+          assert(existingDoc && existingLeave,
+            "Já existe um envio incompleto com este identificador. Solicite a conferência da gerência antes de reenviar.");
+          assert(String(existingDoc.FuncionarioID) === String(employee.FuncionarioID) &&
+            String(existingLeave.FuncionarioID) === String(employee.FuncionarioID) &&
+            String(existingDoc.LojaID) === String(employee.LojaID) && String(existingLeave.LojaID) === String(employee.LojaID) &&
+            existingDoc.FolgaID === folgaId && existingLeave.DocumentoID === docId &&
+            existingLeave.DataInicio === start && existingLeave.DataFim === end &&
+            String(existingDoc.CRM || "") === crm && String(existingDoc.Observacao || "") === observation,
+            "Este envio já foi recebido com outros dados. Reabra o formulário para enviar um novo atestado.");
+          const previousAttachment = await medicalAttachmentFingerprint(String(existingDoc.ArquivoOriginalBase64 || ""), String(existingDoc.ArquivoUrl || ""));
+          assert(previousAttachment.hash === attachment.hash && previousAttachment.method === attachment.method,
+            "Este envio já foi recebido com outro anexo. Reabra o formulário para enviar um novo atestado.");
+          return success({ documento: existingDoc, folga: existingLeave }, "Atestado já recebido. O registro original foi preservado.");
+        }
+      }
 
-      const docId = `DOC_ATESTADO_${Date.now()}_${uuid().slice(0, 6)}`;
-      const folgaId = uuid();
-      const diasAbono = dateRange(start, end).length;
-
-      // 1. Grava no banco de Documentos
+      // Build both records first; their links are committed in one atomic update.
       const docRecord = {
         DocumentoID: docId,
         DocID: docId,
@@ -2061,19 +2134,22 @@ export function createBaseHandlers() {
         CPFFuncionario: employee.CPF || "",
         LojaID: employee.LojaID,
         NomeLoja: employee.NomeLoja,
-        DataEnvio: nowIso(),
+        DataEnvio: submittedAt,
         ArquivoUrl: docUrl,
-        ArquivoOriginalBase64: docBase64.length < 2000000 ? docBase64 : "",
-        HashOriginalSHA256: payload.hash || "",
-        CRM: String(payload.crm || payload.CRM || "").trim(),
-        Observacao: String(payload.motivo || payload.Motivo || "").trim(),
+        ArquivoOriginalBase64: docBase64,
+        ArquivoMimeType: attachment.mimeType,
+        ArquivoTamanhoBytes: attachment.bytes,
+        HashOriginalSHA256: attachment.hash,
+        HashOriginalMetodo: attachment.method,
+        ...(requestId ? { RequestID: requestId } : {}),
+        CRM: crm,
+        Observacao: observation,
         FolgaID: folgaId,
         PeriodoAbono: `${start} a ${end}`,
         DiasAbono: diasAbono,
       };
-      await runtime.upsert("Documentos", docRecord);
 
-      // 2. Grava a solicitação em Folgas para aprovação do gestor
+      // Approval uses the linked leave request and never consumes ordinary leave balance.
       const folgaRecord = {
         FolgaID: folgaId,
         FuncionarioID: employee.FuncionarioID,
@@ -2085,23 +2161,37 @@ export function createBaseHandlers() {
         DataFim: end,
         TipoFolga: "Atestado Médico",
         Periodo: "Dia inteiro",
-        Motivo: String(payload.motivo || payload.Motivo || "Atestado médico").trim(),
-        CRM: String(payload.crm || payload.CRM || "").trim(),
+        Motivo: observation || "Atestado médico",
+        CRM: crm,
+        ...(requestId ? { RequestID: requestId } : {}),
         DocumentoID: docId,
         DocumentoUrl: docUrl,
         DiasAbono: diasAbono,
         Origem: "Portal do Colaborador - Atestado Médico",
         Status: APP.status.pending,
         SolicitadoPor: profile.Email,
-        DataSolicitacao: nowIso(),
-        DataCriacao: nowIso(),
-        DataAtualizacao: nowIso(),
+        DataSolicitacao: submittedAt,
+        DataCriacao: submittedAt,
+        DataAtualizacao: submittedAt,
       };
-      const savedFolga = await runtime.upsert("Folgas", folgaRecord);
+      const saved = await confirmMedicalCommit(() => runtime.patchMany([
+        { table: "Documentos", id: docId, createIfMissing: true, record: docRecord },
+        { table: "Folgas", id: folgaId, createIfMissing: true, record: folgaRecord },
+      ]));
+      const savedDoc = saved?.[0] || docRecord;
+      const savedFolga = saved?.[1] || folgaRecord;
 
-      await audit("Enviar atestado médico", "Documentos", docId, {
-        after: { documento: docRecord, folga: savedFolga },
-      });
+      // Audit references only. Never replicate the medical file, CPF, diagnosis,
+      // CRM or a potentially public medical URL into the general audit table.
+      // Audit availability cannot turn a confirmed atomic commit into a failure.
+      void audit("Enviar atestado médico", "Documentos", docId, {
+        after: {
+          DocumentoID: docId, FolgaID: folgaId, FuncionarioID: employee.FuncionarioID,
+          LojaID: employee.LojaID, DataInicio: start, DataFim: end, DiasAbono: diasAbono,
+          HashOriginalSHA256: attachment.hash, HashOriginalMetodo: attachment.method,
+          ArquivoMimeType: attachment.mimeType, ArquivoTamanhoBytes: attachment.bytes,
+        },
+      }).catch(() => console.warn("Atestado salvo; não foi possível concluir a auditoria neste momento."));
 
       createNotification({
         storeId: savedFolga.LojaID,
@@ -2113,7 +2203,7 @@ export function createBaseHandlers() {
       }).catch(() => {});
 
       return success(
-        { documento: docRecord, folga: savedFolga },
+        { documento: savedDoc, folga: savedFolga },
         "Atestado médico enviado com sucesso! Aguardando aprovação da gerência para abono das faltas.",
       );
     },

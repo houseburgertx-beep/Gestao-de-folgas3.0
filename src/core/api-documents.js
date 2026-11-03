@@ -1,3 +1,4 @@
+import {readSigningDocument,commitSignature} from './document-signing.js';
 import { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFArray, decodePDFRawStream } from "pdf-lib";
 import { runtime } from "./runtime.js";
 import { assert, nowIso, uuid } from "./utils.js";
@@ -1278,12 +1279,12 @@ export function createDocumentsHandlers() {
 
         // Se for colaborador normal, vê estritamente seus próprios documentos
         if (!isUserAdmin && !isUserManager) {
-          return docFuncId === userFuncId;
+          if (!userFuncId || docFuncId !== userFuncId) return false;
         }
 
         // Se for gerente de loja, restringe à sua própria loja por padrão se não especificada
         if (!isUserAdmin && isUserManager) {
-          if (userLojaId && docLojaId !== userLojaId && docFuncId !== userFuncId) {
+          if ((!userLojaId || docLojaId !== userLojaId) && (!userFuncId || docFuncId !== userFuncId)) {
             return false;
           }
         }
@@ -1321,8 +1322,9 @@ export function createDocumentsHandlers() {
       const pendingCount = filtered.filter((d) => d.Status === "Pendente").length;
       const signedCount = filtered.filter((d) => d.Status === "Assinado").length;
 
-      // Otimização de performance: remove os pesados arquivos Base64 da listagem geral,
-      // economizando até 95% de tráfego de dados. O arquivo completo é obtido pontualmente via documentsGet.
+      // Keep binary fields out of UI list state. RTDB currently still downloads
+      // complete scoped records; removing those bytes from the network requires
+      // a separate metadata index and migration, not merely stripping this response.
       const lightDocuments = filtered.map((doc) => {
         const { ArquivoOriginalBase64, ArquivoFinalBase64, ...rest } = doc;
         return {
@@ -1401,7 +1403,9 @@ export function createDocumentsHandlers() {
         (e) => String(e.FuncionarioID || e.id || e.Funcionario || "").trim() === String(payload.FuncionarioID).trim(),
       );
 
-      const empIdVal = String(targetEmp?.FuncionarioID || payload.FuncionarioID).trim();
+      assert(targetEmp, "Colaborador destinatário não encontrado. Atualize o cadastro e tente novamente.");
+      assert(isAdmin(profile) || (profile.LojaID && String(targetEmp.LojaID) === String(profile.LojaID)), "Emita documentos somente para colaboradores da sua unidade.");
+      const empIdVal = String(targetEmp.FuncionarioID || targetEmp.id).trim();
       const empNome = String(targetEmp?.Nome || payload.NomeFuncionario || "Colaborador").trim();
       const empCpf = String(targetEmp?.CPF || payload.CPFFuncionario || "").trim();
       const empCargo = String(targetEmp?.Cargo || payload.CargoFuncionario || "").trim();
@@ -1424,7 +1428,7 @@ export function createDocumentsHandlers() {
       if (payload.OrigemTipo === "PDF_IMPORTADO") {
         assert(pdfBase64, "O arquivo PDF original é obrigatório.");
         if (!hashOriginal) {
-          hashOriginal = await sha256Hex(pdfBase64);
+          hashOriginal = await sha256Hex(base64ToUint8Array(pdfBase64));
         }
       } else {
         // Modelo interno de texto
@@ -1510,7 +1514,9 @@ export function createDocumentsHandlers() {
             (e) => String(e.FuncionarioID || e.id || e.Funcionario || "").trim() === String(item.FuncionarioID).trim(),
           );
 
-          const empIdVal = String(targetEmp?.FuncionarioID || item.FuncionarioID).trim();
+          assert(targetEmp, "Colaborador não encontrado no cadastro autorizado.");
+          assert(isAdmin(profile) || (profile.LojaID && String(targetEmp.LojaID) === String(profile.LojaID)), "Importe documentos somente para colaboradores da sua unidade.");
+          const empIdVal = String(targetEmp.FuncionarioID || targetEmp.id).trim();
           const empNome = String(targetEmp?.Nome || item.NomeFuncionario || "Colaborador").trim();
           const empCpf = String(targetEmp?.CPF || item.CPFFuncionario || "").trim();
           const empCargo = String(targetEmp?.Cargo || item.CargoFuncionario || "").trim();
@@ -1523,7 +1529,7 @@ export function createDocumentsHandlers() {
           const docId = `DOC_${Date.now()}_${uuid().slice(0, 6)}_${idx + 1}`;
           let hashOriginal = String(item.HashOriginalSHA256 || "").trim();
           if (!hashOriginal) {
-            hashOriginal = await sha256Hex(item.ArquivoOriginalBase64);
+            hashOriginal = await sha256Hex(base64ToUint8Array(item.ArquivoOriginalBase64));
           }
 
           const record = {
@@ -1598,9 +1604,12 @@ export function createDocumentsHandlers() {
       assert(rubricBase64, "Desenhe sua rubrica no painel de assinatura para continuar.");
 
       const profile = await runtime.requireProfile();
-      const doc = await runtime.getById("Documentos", docId);
+      const ownerUid = runtime.auth?.currentUser?.uid;
+      assert(ownerUid, "Sua sessão expirou. Entre novamente antes de assinar.");
+      // Locate legacy storage keys, then read authoritative state rather than SDK cache.
+      assert(await runtime.getById("Documentos", docId), "Documento não encontrado.");
+      const doc = await readSigningDocument(runtime, docId, ownerUid);
       assert(doc, "Documento não encontrado.");
-      assert(doc.Status !== "Assinado", "Este documento já foi assinado anteriormente.");
 
       const userFuncId = String(profile.FuncionarioID || "").trim();
       const isUserAdmin = isAdmin(profile);
@@ -1608,6 +1617,9 @@ export function createDocumentsHandlers() {
         isUserAdmin || String(doc.FuncionarioID || "").trim() === userFuncId,
         "Apenas o colaborador titular pode assinar este documento.",
       );
+
+      if (doc.Status === "Assinado") return success({documento:doc,assinatura:{AssinaturaID:doc.AssinaturaID,CodigoValidacao:doc.CodigoValidacao},pdfBase64:doc.ArquivoFinalBase64,recovered:true});
+      assert(["Pendente","Contestado"].includes(doc.Status), "Este documento não está disponível para assinatura.");
 
       const validationCode = generateValidationCode();
       const signTime = nowIso();
@@ -1628,7 +1640,7 @@ export function createDocumentsHandlers() {
         TimestampUTC: timestampUtc,
         EnderecoIP: String(signPayload.EnderecoIP || "Dispositivo Seguro"),
         DispositivoInfo: String(signPayload.DispositivoInfo || "Navegador Web / Mobile"),
-        NavegadorInfo: String(signPayload.NavegadorInfo || navigator?.userAgent || ""),
+        NavegadorInfo: String(signPayload.NavegadorInfo || globalThis.navigator?.userAgent || ""),
       };
 
       // Geração do PDF final e cálculo dos hashes
@@ -1640,7 +1652,7 @@ export function createDocumentsHandlers() {
         rubricPngBytes: rubricBytes,
       });
 
-      const signatureId = `ASS_${Date.now()}_${uuid().slice(0, 6)}`;
+      const signatureId = `ASS_${await sha256Hex(`${docId}|${doc.HashOriginalSHA256 || ""}|${doc.AssinaturaID || ""}`)}`;
       const signatureRecord = {
         AssinaturaID: signatureId,
         DocumentoID: docId,
@@ -1660,31 +1672,24 @@ export function createDocumentsHandlers() {
         ArquivoFinalBase64: signedPdfResult.finalPdfBase64,
       };
 
-      // Grava no banco a assinatura
-      await runtime.create("DocumentosAssinaturas", signatureRecord);
-
-      // Atualiza o documento para Assinado
-      const updatedDoc = await runtime.patch("Documentos", docId, {
+      // A single acknowledged server update cannot leave an orphan signature.
+      const updatedDoc = await commitSignature(runtime, doc, signatureRecord, {
         Status: "Assinado",
         DataAssinatura: signTime,
         AssinaturaID: signatureId,
         HashDocumentoFinalSHA256: signedPdfResult.finalHashSha256,
         CodigoValidacao: validationCode,
         ArquivoFinalBase64: signedPdfResult.finalPdfBase64,
-      });
+      }, ownerUid);
 
-      // Notifica o gestor / RH
-      try {
-        await createNotification({
-          storeId: doc.LojaID,
-          type: "Documentos",
-          subject: "Documento Assinado",
-          message: `${doc.NomeFuncionario} assinou eletronicamente o documento "${doc.Titulo}".`,
-          relatedId: doc.DocumentoID,
-        });
-      } catch (err) {
-        console.warn("[documents] Falha ao notificar gestor:", err);
-      }
+      // The signature receipt must not wait for a secondary notification write.
+      if (runtime.auth?.currentUser?.uid === ownerUid) void createNotification({
+        storeId: doc.LojaID,
+        type: "Documentos",
+        subject: "Documento Assinado",
+        message: `${doc.NomeFuncionario} assinou eletronicamente o documento "${doc.Titulo}".`,
+        relatedId: doc.DocumentoID,
+      }).catch(() => console.warn("[documents] Notificação de assinatura pendente."));
 
       return success({
         documento: updatedDoc,

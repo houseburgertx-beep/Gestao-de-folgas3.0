@@ -8317,7 +8317,7 @@
     if (window.__IS_CONFIRMING_CLOCK_PUNCH__) return;
     if (!CLOCK_SELFIE_DATA_)
       return toast("Capture a selfie antes de confirmar o ponto.", true);
-    window.__IS_CONFIRMING_CLOCK_PUNCH_ = true;
+    window.__IS_CONFIRMING_CLOCK_PUNCH__ = true;
     const confirm = $("#clockSelfieConfirm"),
       status = $("#clockSelfieStatus");
     confirm.disabled = true;
@@ -8381,7 +8381,7 @@
     } finally {
       confirm.textContent = "Confirmar ponto";
       confirm.disabled = confirmed || !CLOCK_SELFIE_DATA_;
-      window.__IS_CONFIRMING_CLOCK_PUNCH_ = false;
+      window.__IS_CONFIRMING_CLOCK_PUNCH__ = false;
       if (confirmed) {
         setClockButtonsBusy(true);
         setTimeout(() => {
