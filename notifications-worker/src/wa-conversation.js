@@ -20,5 +20,5 @@ export async function createWhatsAppConversationStore(env, token, phone, fetcher
     if (!response.ok) throw Error('conversation_storage_unavailable');
     return method === 'GET' ? response.json() : null;
   };
-  return { load:()=>request('GET'),save:state=>request('PUT',state) };
+  return { key:id,load:()=>request('GET'),save:state=>request('PUT',state) };
 }

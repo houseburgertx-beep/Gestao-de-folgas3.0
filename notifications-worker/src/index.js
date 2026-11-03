@@ -1,3 +1,4 @@
+import {runGroqConversation,GROQ_CHAT_MODEL} from "./wa-chat.js";
 import { relayNotification, verifyCreatorNotificationEvent } from "./notification-relay.js";
 import { handleIntegrity } from "./whistleblower-service.js";
 import webpush from "web-push";
@@ -356,7 +357,7 @@ async function handle(request, env) {
           const lock = await env.DB.prepare(
             "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,'sending',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state='sending',lease_until=excluded.lease_until WHERE deliveries.state!='sent' AND deliveries.lease_until<?"
           )
-            .bind(eventKey, rawFrom, now + 60000, now + 86400000, now)
+            .bind(eventKey, rawFrom, now + (env.GROQ_API_KEY ? 120000 : 60000), now + 86400000, now)
             .run();
 
           if (!lock.meta.changes) {
@@ -423,6 +424,27 @@ async function handle(request, env) {
     } catch (err) {
       return json({ error: "inbound_failed", details: String(err.message || err) }, 502);
     }
+  }
+
+  if (route === "/wa-ai-diagnostic") {
+    const serviceToken=request.headers.get("X-Service-Token");
+    if (!env.WA_SERVICE_TOKEN || !serviceToken || !await equalSecret(serviceToken,env.WA_SERVICE_TOKEN)) return json({error:"forbidden"},403);
+    if (request.method !== "POST") return json({error:"method_not_allowed"},405);
+    if (!env.GROQ_API_KEY) return json({configured:false,provider:"groq"},503);
+    // No real employee records and no WhatsApp delivery in diagnostics.
+    const sample={FuncionarioID:"synthetic-ai-test",Nome:"Lucas Teste",LojaID:"synthetic-store",Ativo:true,Perfil:"Funcionário",Cargo:"Atendente"};
+    const today=new Date(now-3*3600000).toISOString().slice(0,10);
+    const tomorrow=new Date(Date.parse(`${today}T12:00:00Z`)+86400000).toISOString().slice(0,10);
+    const fixtures={JornadasPonto:{a:{FuncionarioID:sample.FuncionarioID,Ativa:true,VigenteDe:"2020-01-01",DiasTrabalho:"0,1,2,3,4,5,6",Entrada:"08:00",Saida:"17:00"}},Folgas:{a:{FuncionarioID:sample.FuncionarioID,DataInicio:tomorrow,DataFim:tomorrow,Status:"Aprovada"}},Tarefas:{a:{FuncionarioID:sample.FuncionarioID,Titulo:"Conferir freezers",Status:"A fazer",LojaID:sample.LojaID}}};
+    let state;const memory={load:async()=>state,save:async value=>{state=value;}};
+    const turns=[];
+    const questions=body.scenario==="conversation" ? ["Meu ônibus atrasou, acho que vou chegar às 08:20.","Quantos minutos de atraso em relação ao meu horário?","Então escreva uma mensagem curta para avisar meu gerente, com isso."] : ["Qual é meu horário hoje?","E amanhã?","Quais são minhas tarefas?"];
+    for(const question of questions) {
+      const result=await runGroqConversation({env,employee:sample,employees:[sample],profile:sample,database:async(_e,_t,path)=>fixtures[path.split("/").at(-1)]||{},now,text:question,memory,executeLegacy:async()=>({replyText:"Diagnóstico não grava alterações."})});
+      turns.push({question,action:result?.action,reply:result?.replyText,providerStatus:result?.providerStatus});
+      if(result?.action!=="groq_conversation")break;
+    }
+    return json({configured:true,provider:"groq",model:env.GROQ_MODEL||GROQ_CHAT_MODEL,turns});
   }
 
   if (route === "/wa-clock-event") {

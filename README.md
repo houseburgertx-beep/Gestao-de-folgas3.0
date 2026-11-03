@@ -55,3 +55,5 @@ Os arquivos desativados de Arena/House Link, sem referências no aplicativo, for
 O ajuste mobile 6.17.5 está documentado em [melhorias mobile](docs/MOBILE-6.17.5.md).
 
 A revisão da IA e do dashboard está em [House AI 6.17.6](docs/HOUSE-AI-6.17.6.md).
+
+O WhatsApp conversacional usa [Groq com histórico e ferramentas do sistema](docs/WHATSAPP-GROQ.md).
