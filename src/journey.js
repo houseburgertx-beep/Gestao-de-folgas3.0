@@ -289,7 +289,6 @@ function personal() {
  ${d?.nextAction ? `<button class="btn btn-primary j-wide${isExitAction?' btn-punch-exit':''}" data-j-punch="${esc(d.nextAction)}" aria-label="Bater ponto: ${esc(nextLabel)}"><span>Bater ponto · ${esc(nextLabel)}</span> <span aria-hidden="true">◉</span></button>` : `<button class="btn btn-primary j-wide" data-view-target="timeclock"><span>${d?.loadError ? 'Tentar carregar meu ponto' : 'Conferir meus registros'}</span> <span aria-hidden="true">↗</span></button>`}
  ${today?.incompleto?'<p class="w-footnote">Há marcações para conferir. Abra o ponto e solicite a correção.</p>':''}</article>
  ${renderOperationalNoticeCard()}
- ${renderCraqueDaSemanaCard()}
  <article class="j-card w-wallet"><div class="j-card-top"><div><span class="eyebrow">MEUS DIREITOS E SALDOS</span><h3>Folgas e horas</h3></div><span class="w-fixed-off-badge">Folga: <strong>${esc(fixedDays || 'Não cadastrada')}</strong></span></div><div class="w-wallet-values"><button data-view-target="timeoff"><span>Folgas extras disponíveis</span><strong>${data.coreReady?esc(me.SaldoFolgas ?? '—'):'—'}</strong><small>Ver minhas folgas ↗</small></button><button data-view-target="timeclock"${isDebit?' class="is-debit"':isCredit?' class="is-credit"':''}><span>Banco de horas</span><strong class="${balanceClass}">${esc(balance || '—')}</strong><small>${mineBalance?.desde?'Desde '+esc(dateLabel(mineBalance.desde)):'Abra o ponto para conferir o período'} ↗</small></button></div><div class="w-actions"><button class="btn btn-secondary" data-j-request-leave>Pedir folga</button><button class="btn btn-secondary" data-j-medical-leave>Enviar atestado</button><button class="btn btn-secondary w-btn-docs" data-view-target="documents">Documentos ↗</button></div></article>
  <article class="j-card w-myrequests"><div class="j-card-top"><div><span class="eyebrow">ACOMPANHAMENTO</span><h3>Meus pedidos</h3></div><button class="btn btn-ghost" data-view-target="pending-center">Ver todos ↗</button></div>${leaveItems(requests.slice(0,4))||emptyState(data.coreReady?'Você ainda não tem pedidos':'Carregando seus pedidos','Peça uma folga e acompanhe a decisão por aqui.')}<div class="w-next-leave"><span>Próxima folga aprovada</span><strong>${coming.length?esc(dateLabel(coming[0].DataInicio)):'Nenhuma agendada'}</strong></div></article>`;
 }
@@ -302,34 +301,45 @@ function unitOverview() {
  if(!data.manager || stores().length<2) return '';
  return `<section class="v-units"><div class="v-section-label">VISÃO POR UNIDADE <span>Selecione para filtrar o painel</span></div><div class="v-unit-grid">${stores().map(s=>{const id=storeId(s), people=uniquePeople(list(data.presence?.presence)).filter(p=>String(p.LojaID)===id), working=people.filter(p=>p.status==='trabalhando').length, onBreak=people.filter(p=>p.status==='intervalo').length;return `<button data-j-unit-card="${esc(id)}" aria-pressed="${unit===id}"><strong>${esc(storeName(s)||'Unidade sem nome')}</strong><div class="v-unit-meter" aria-hidden="true"><i style="width:${people.length?working/people.length*100:0}%"></i><b style="width:${people.length?onBreak/people.length*100:0}%"></b></div><small>${data.presence?`${working} trabalhando · ${onBreak} no intervalo`:'Aguardando registros'} <span>↗</span></small></button>`}).join('')}</div></section>`;
 }
-function dailyMotivationalQuote() {
- const quotes = [
-  "A excelência do nosso burger começa no capricho de cada detalhe. Equipe unida faz o melhor turno!",
-  "Pontualidade e dedicação na chapa: o cliente percebe o nosso carinho em cada entrega.",
-  "Hoje é dia de superar metas com sorriso no rosto e organização impecável da praça.",
-  "O segredo de um time de sucesso é cuidar do colega e honrar nosso padrão de qualidade.",
-  "Capricho na montagem e atenção ao tempo: juntos fazemos a House 190 brilhar!",
-  "Cada cliente satisfeito é reflexo do nosso trabalho em equipe. Bom turno a todos!",
-  "Comunicação rápida e foco total: o melhor atendimento começa com a nossa união.",
-  "Limpeza, agilidade e padrão: nossa cozinha é o coração da experiência House 190.",
-  "Foco no processo e carinho na entrega: o resultado vem do esforço de cada um aqui.",
-  "Um turno de cada vez, sempre com o melhor atendimento e a máxima qualidade!"
- ];
- const dayIndex = Math.floor(Date.now() / 86400000) % quotes.length;
- return quotes[dayIndex];
+// Stable throughout the local day; advances at midnight in Bahia, not UTC.
+const DAILY_QUOTES = ["Hoje, faça bem o que está ao seu alcance. O cuidado de cada um fortalece a equipe.", "Seu trabalho tem valor. Um detalhe bem cuidado pode transformar o dia de alguém.", "Um bom turno começa com respeito, atenção e parceria. Conte com a sua equipe.", "Não precisa fazer tudo de uma vez. Um passo bem feito já faz o dia avançar.", "Quem cuida dos detalhes ajuda a construir grandes resultados. Seu capricho faz diferença.", "Comunicar com clareza e ouvir com atenção também é trabalhar em equipe.", "Hoje é uma nova oportunidade de aprender, colaborar e reconhecer o que deu certo.", "O melhor resultado nasce quando ninguém precisa fazer tudo sozinho.", "Seu esforço aparece no cuidado com cada entrega. Valorize o caminho que está construindo.", "Trabalhar com atenção é cuidar de você, dos colegas e de quem confia na nossa equipe.", "Pequenos avanços também merecem reconhecimento. Perceba o que você já conquistou.", "Qualidade se constrói no dia a dia, com calma para pensar e cuidado para fazer.", "Gentileza também faz parte de um bom trabalho. Ela muda o clima de todo o turno.", "Uma equipe forte compartilha conhecimento, pede ajuda e comemora junto.", "Hoje, escolha um detalhe para fazer ainda melhor. A evolução começa assim.", "Seu jeito de colaborar pode tornar o dia de um colega mais leve.", "Organização abre espaço para trabalhar melhor. Comece pelo próximo passo.", "Um dia difícil não apaga o valor do seu trabalho. Siga com cuidado e conte com apoio.", "O cuidado que você coloca no trabalho chega até quem está do outro lado da entrega.", "Cada pessoa contribui de um jeito. A sua presença importa para esta equipe.", "Reconhecer um colega também é construir um lugar melhor para trabalhar.", "Dedicação e respeito deixam marcas positivas. Continue construindo as suas.", "Uma boa rotina combina atenção, parceria e espaço para aprender.", "Faça uma coisa de cada vez, com presença. Constância também é uma conquista.", "O trabalho ganha força quando a equipe se escuta e se ajuda.", "Hoje, leve com você o que aprendeu ontem e dê espaço para aprender algo novo.", "O resultado importa, e o cuidado com as pessoas durante o caminho também.", "Seu empenho não precisa ser perfeito para ter valor. Aprender faz parte do processo.", "Bom trabalho é aquele que une responsabilidade, respeito e colaboração.", "Cada turno traz uma chance de contribuir e crescer. Aproveite a sua, no seu ritmo.", "Um gesto de apoio pode mudar o dia de alguém. Que tal começar por aí?", "Você faz parte do que a House constrói todos os dias. Obrigado por somar."];
+function dailyMotivationalQuote(now = new Date()) {
+ const day = dateKey(now);
+ const index = Math.floor(Date.parse(`${day}T12:00:00Z`) / 86400000);
+ return DAILY_QUOTES[index % DAILY_QUOTES.length];
+}
+const animatedRecognitions = new Set();
+function currentEmployeeRecognition(now = new Date()) {
+ const employeeId = ownId();
+ if (!employeeId) return null;
+ const today = dateKey(now), weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+ const start = shiftDate(today, -((weekday + 6) % 7)), end = shiftDate(start, 6);
+ const userStore = String(data.user?.LojaID || data.user?.lojaId || '');
+ return list(data.recognitions).filter(row => {
+  if (String(row.FuncionarioID || '') !== employeeId || row.Ativo !== undefined && !active(row.Ativo)) return false;
+  if (userStore && row.LojaID && String(row.LojaID) !== userStore) return false;
+  if (row.SemanaInicio && row.SemanaFim) return row.SemanaInicio <= today && row.SemanaFim >= today;
+  const created = new Date(row.CriadoEm || row.DataCriacao || '');
+  if (!Number.isFinite(created.getTime())) return false;
+  const day = dateKey(created);
+  return day >= start && day <= today && day <= end;
+ }).sort((a,b) => String(b.CriadoEm || b.DataCriacao || '').localeCompare(String(a.CriadoEm || a.DataCriacao || '')) || String(b.ReconhecimentoID || '').localeCompare(String(a.ReconhecimentoID || '')))[0] || null;
+}
+function personalRecognition() {
+ const recognition = currentEmployeeRecognition();
+ if (!recognition) return '';
+ const key = `${ownId()}:${recognition.ReconhecimentoID || recognition.CriadoEm}`;
+ const animate = !animatedRecognitions.has(key);
+ animatedRecognitions.add(key);
+ const author = String(recognition.AtribuidoPor || '').split('@')[0];
+ return `<section class="v-profile-highlight${animate?' is-new':''}" data-profile-recognition aria-label="Seu reconhecimento da semana"><span class="v-highlight-icon" aria-hidden="true"><span class="v-star-3d"><svg class="v-star-front" viewBox="0 0 64 64"><defs><linearGradient id="welcome-star-gold" x1="8" y1="4" x2="55" y2="59" gradientUnits="userSpaceOnUse"><stop stop-color="#fffefa"/><stop offset=".6" stop-color="#faf1dd"/><stop offset="1" stop-color="#eddbb8"/></linearGradient></defs><path d="m32 4 8 18 20 2-15 14 4 21-17-10-17 10 4-21L4 24l20-2Z" fill="url(#welcome-star-gold)" stroke="#bba170" stroke-width="2" stroke-linejoin="round"/></svg></span></span><div class="v-highlight-copy"><span class="v-highlight-label">Seu destaque da semana</span><strong>${esc(recognition.Categoria || 'Você fez a diferença')}</strong>${recognition.Motivo?`<p>${esc(recognition.Motivo)}</p>`:''}${author?`<small>Reconhecido por ${esc(author)}</small>`:''}</div></section>`;
 }
 
 function workspaceHero() {
  const me=list(data.employees).find(p=>String(p.FuncionarioID)===ownId());
  const first=String(me?.Nome || data.user?.Nome || data.user?.nome || '').trim().split(' ')[0];
- const kitchen = window.cozinhaFlowGetBalance?.() || {
-   totalEarned: Number(me?.Pontos || 0),
-   available: Number(me?.Pontos || 0),
-   levelInfo: getKitchenLevel(Number(me?.Pontos || 0))
- };
- const { level } = kitchen.levelInfo || getKitchenLevel(0);
  if(data.manager) return `${managerCommand()}<div class="w-sync house-sync"><span>${data.presenceError?'Não foi possível atualizar a presença':data.updatedAt?'Presença atualizada às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" data-j-refresh>↻ Atualizar</button></div>${unitOverview()}`;
- return `<header class="v-workspace-hero"><div class="v-hero-copy"><div class="v-hero-top-row"><span class="eyebrow">GRUPO HOUSE 190 / ${data.manager?'GESTÃO':'MINHA JORNADA'}</span><span class="j-kitchen-tag">${esc(level.name)}</span></div><h2>${data.manager?'O dia acontece com a sua equipe.':`${first?'Oi, '+esc(first)+'!':'Olá!'}`}</h2><div class="v-daily-quote"><span class="v-quote-sparkle">✦</span><p class="v-quote-text">“${esc(dailyMotivationalQuote())}”</p></div><div class="v-hero-actions"><button class="btn btn-primary" data-view-target="${data.manager?'pending-center':'timeclock'}">${data.manager?'Resolver pendências':'Registrar meu ponto'} <span>↗</span></button><button class="btn btn-secondary" data-view-target="tasks">Minhas Tarefas</button></div></div><div class="v-hero-clock"><div class="v-clock-head"><span class="v-clock-live-dot"></span><small data-live-date></small></div><strong data-live-clock></strong><div class="v-clock-caption"><i></i> ${data.manager?'Organização para cada turno':'Um registro de cada vez'}</div></div></header><div class="v-workspace-toolbar"><div><span class="eyebrow">${data.manager?'ACOMPANHAMENTO DO DIA':'SUA ÁREA PESSOAL'}</span><h3>${data.manager?'Operação de hoje':'Hoje e próximos dias'}</h3></div>${unitSelect()}<div class="w-sync"><span>${!data.manager?'Seus registros, tarefas e folgas':data.presenceError?'Falha ao atualizar a presença':data.updatedAt?'Presença às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" ${data.manager?'data-j-refresh':'data-view-target="notifications"'}>${data.manager?'↻ Atualizar':'Meus avisos ↗'}</button></div></div>${unitOverview()}`;
+ return `<header class="v-workspace-hero"><div class="v-hero-copy"><div class="v-hero-top-row"><span class="eyebrow">GRUPO HOUSE 190 / ${data.manager?'GESTÃO':'MINHA JORNADA'}</span></div><h2>${data.manager?'O dia acontece com a sua equipe.':`${first?'Oi, '+esc(first)+'!':'Olá!'}`}</h2>${personalRecognition()}<div class="v-daily-quote"><span class="v-quote-marker" aria-hidden="true"></span><p class="v-quote-text" data-daily-quote>${esc(dailyMotivationalQuote())}</p></div><div class="v-hero-actions"><button class="btn btn-primary" data-view-target="${data.manager?'pending-center':'timeclock'}">${data.manager?'Resolver pendências':'Registrar meu ponto'} <span>↗</span></button><button class="btn btn-secondary" data-view-target="tasks">Minhas Tarefas</button></div></div><div class="v-hero-clock"><div class="v-clock-head"><span class="v-clock-live-dot"></span><small data-live-date></small></div><strong data-live-clock></strong><div class="v-clock-caption"><i></i> ${data.manager?'Organização para cada turno':'Um registro de cada vez'}</div></div></header><div class="v-workspace-toolbar"><div><span class="eyebrow">${data.manager?'ACOMPANHAMENTO DO DIA':'SUA ÁREA PESSOAL'}</span><h3>${data.manager?'Operação de hoje':'Hoje e próximos dias'}</h3></div>${unitSelect()}<div class="w-sync"><span>${!data.manager?'Seus registros, tarefas e folgas':data.presenceError?'Falha ao atualizar a presença':data.updatedAt?'Presença às '+time(data.updatedAt):'Aguardando presença'}</span><button class="btn btn-secondary" ${data.manager?'data-j-refresh':'data-view-target="notifications"'}>${data.manager?'↻ Atualizar':'Meus avisos ↗'}</button></div></div>${unitOverview()}`;
 }
 function renderTeam() {
  const r=rows().filter(p=>(teamFilter==='todos'||(teamFilter==='atrasados'?delay(p)>0:p.status===teamFilter))&&`${p.Nome} ${p.Cargo} ${personUnit(p)}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
@@ -502,7 +512,8 @@ function render(force = false) {
  tick();
  if(typeof window.warmClockLocation_==='function'){if(typeof window.requestIdleCallback==='function'){window.requestIdleCallback(()=>window.warmClockLocation_(),{timeout:3000});}else{setTimeout(()=>window.warmClockLocation_(),800);}}
 }
-function tick(){const now=new Date();document.querySelectorAll('[data-live-clock]').forEach(e=>e.textContent=now.toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}));document.querySelectorAll('[data-live-date]').forEach(e=>e.textContent=now.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'long',day:'2-digit',month:'short',year:'numeric'}));}
+let renderedDay = dateKey();
+function tick(){const now=new Date();const today=dateKey(now);if(today!==renderedDay){renderedDay=today;render();return;}document.querySelectorAll('[data-live-clock]').forEach(e=>e.textContent=now.toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}));document.querySelectorAll('[data-live-date]').forEach(e=>e.textContent=now.toLocaleDateString('pt-BR',{timeZone:'America/Bahia',weekday:'long',day:'2-digit',month:'short',year:'numeric'}));}
 window.addEventListener('house-journey',e=>{const next=e.detail || {};if(String(next.user?.email || next.user?.Email || '')!==String(data.user?.email || data.user?.Email || '')){unit='';search='';teamFilter='todos';}data=next;if(unit && !stores().some(s=>storeId(s)===unit))unit='';render()});
 window.addEventListener('gestao-dashboard-active', () => { if (journeyDirty) render(true); });
 window.addEventListener('gestao-view-change', e => { const v = e.detail?.view; if (v === 'shift-plan' || v === 'live-team') { renderSchedule(); renderTeam(); } });

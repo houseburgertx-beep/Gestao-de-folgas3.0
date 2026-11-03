@@ -6965,3 +6965,66 @@ body #clockSelfieDialog .dialog-actions div.hidden {
 
 
 
+
+/* Personal welcome: daily encouragement and the employee's own weekly award. */
+.v-personal-home .v-daily-quote {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 2px 0 4px !important;
+  align-items: flex-start !important;
+  gap: 9px !important;
+}
+.v-quote-marker {
+  width: 3px;
+  min-height: 30px;
+  align-self: stretch;
+  flex: 0 0 3px;
+  border-radius: 3px;
+  background: #a5a0e6;
+}
+.v-personal-home .v-quote-text {
+  font-size: 13px !important;
+  font-style: normal !important;
+  font-weight: 450;
+  line-height: 1.5 !important;
+  color: #5c6373 !important;
+  text-wrap: pretty;
+}
+.v-profile-highlight {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  overflow: hidden;
+  margin: 10px 0 12px;
+  padding: 12px 13px;
+  border: 1px solid #eddfc6;
+  border-radius: 15px;
+  background: linear-gradient(115deg, #fffaf0, #fffdf8);
+}
+.v-highlight-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  height: 32px;
+  border-radius: 11px;
+  background: #f9edcf;
+  color: #9b6b21;
+}
+.v-highlight-icon svg { width: 20px; height: 20px; }
+.v-highlight-copy { min-width: 0; position: relative; z-index: 1; }
+.v-highlight-label { display: block; font-size: 10px; font-weight: 700; color: #8c682e; letter-spacing: .055em; text-transform: uppercase; }
+.v-highlight-copy strong { display: block; margin-top: 3px; font-size: 14px; font-weight: 650; line-height: 1.35; color: #694718; overflow-wrap: anywhere; }
+.v-highlight-copy p { margin: 5px 0 0; color: #75634c; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.v-highlight-copy small { display: block; margin-top: 5px; color: #887860; font-size: 10px; line-height: 1.4; }
+.v-profile-highlight.is-new { animation: house-highlight-enter .55s ease-out both; }
+/* Small, quiet recognition mark with a light perspective movement. */
+.v-profile-highlight { border-color: #e9e2d6; background: linear-gradient(110deg, #fffdf8, #fff); }
+.v-highlight-icon { position: relative; flex: 0 0 30px; height: 37px; background: transparent; border-radius: 0; perspective: 350px; }
+.v-highlight-icon::after { content: ''; position: absolute; width: 17px; height: 4px; bottom: 1px; left: 6px; border-radius: 50%; background: radial-gradient(ellipse, #9c87531a, transparent 70%); }
+.v-star-3d { position: absolute; left: 2px; top: 2px; width: 26px; height: 26px; transform-style: preserve-3d; animation: house-star-float 7s ease-in-out infinite; }
+.v-highlight-icon .v-star-front { position: absolute; inset: 0; width: 26px; height: 26px; transform: translateZ(1px); animation: none; }
+@keyframes house-highlight-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes house-star-float { 0%, 100% { transform: translateY(0) rotateY(-15deg) rotateZ(-3deg); } 50% { transform: translateY(-2px) rotateY(15deg) rotateZ(3deg); } }
+@media (prefers-reduced-motion: reduce) { .v-profile-highlight.is-new, .v-star-3d { animation: none; } }

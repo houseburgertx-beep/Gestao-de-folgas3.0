@@ -60,6 +60,9 @@
     operationalAnnouncements: [],
     recognitions: [],
   };
+  let RECOGNITIONS_REQUEST_ = null;
+  let RECOGNITIONS_OWNER_ = "";
+  let RECOGNITIONS_VERSION_ = 0;
   window.__GESTAO_STATE__ = state;
   const FN = {
     login: "loginUser",
@@ -3829,7 +3832,7 @@
     PUBLISH_JOURNEY_PENDING_ = true;
     const dispatch = () => {
       PUBLISH_JOURNEY_PENDING_ = false;
-      window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches, announcements: state.operationalAnnouncements || [], recognitions: state.recognitions || []}}));
+      window.dispatchEvent(new CustomEvent("house-journey", {detail: {user: state.user, employee: isEmployee(), manager: isManager(), presence: state.livePresenceData, stores: state.stores, clock: state.timeClock, balance: state.timeClockBalance || state.hourBalance, schedules: state.clockSettings?.loaded ? state.clockSettings.schedules : null, coreReady: state.coreReady, updatedAt: state.livePresenceUpdatedAt, presenceError: state.livePresenceError, employees: state.employees, timeOff: state.timeOff, pending: state.incompletePunches, pendingCounts: pendingCenterCounts_(), incompletePunches: state.incompletePunches, announcements: state.operationalAnnouncements || [], recognitions: RECOGNITIONS_OWNER_ === recognitionOwnerKey_() ? (state.recognitions || []) : []}}));
     };
     if (typeof requestAnimationFrame === "function") {
       requestAnimationFrame(dispatch);
@@ -3840,6 +3843,7 @@
   function renderDashboard() {
     if (typeof warmClockLocation_ === "function") warmClockLocation_();
     window.dispatchEvent(new Event("gestao-dashboard-active"));
+    if (recognitionOwnerKey_() !== RECOGNITIONS_OWNER_) loadRecognitions_();
     publishJourney_();
     if (!state.operationalAnnouncementsLoaded_) {
       state.operationalAnnouncementsLoaded_ = true;
@@ -11893,14 +11897,45 @@
     }
   }
 
-  async function loadRecognitions_() {
-    try {
-      const rows = await call("listarReconhecimentos", sessionToken());
-      state.recognitions = arr(rows);
-      publishJourney_();
-    } catch (err) {
-      console.warn("Falha ao carregar reconhecimentos:", err);
+  function recognitionOwnerKey_() {
+    if (!state.user) return "";
+    return JSON.stringify([
+      window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "",
+      String(state.user.FuncionarioID || state.user.funcionarioId || state.user.id || ""),
+      String(state.user.Perfil || state.user.perfil || ""),
+      String(state.user.LojaID || state.user.lojaId || ""),
+    ]);
+  }
+  async function loadRecognitions_({ force = false } = {}) {
+    const owner = recognitionOwnerKey_();
+    if (!owner) {
+      ++RECOGNITIONS_VERSION_;
+      RECOGNITIONS_OWNER_ = "";
+      state.recognitions = [];
+      return;
     }
+    if (owner !== RECOGNITIONS_OWNER_) {
+      RECOGNITIONS_OWNER_ = owner;
+      state.recognitions = [];
+      publishJourney_();
+    }
+    if (!force && RECOGNITIONS_REQUEST_?.owner === owner) return RECOGNITIONS_REQUEST_.promise;
+    const version = ++RECOGNITIONS_VERSION_;
+    const entry = { owner, promise: null };
+    RECOGNITIONS_REQUEST_ = entry;
+    entry.promise = (async () => {
+      try {
+        const rows = await call("listarReconhecimentos", sessionToken());
+        if (version !== RECOGNITIONS_VERSION_ || owner !== recognitionOwnerKey_()) return;
+        state.recognitions = arr(rows);
+        publishJourney_();
+      } catch (err) {
+        if (version === RECOGNITIONS_VERSION_ && owner === recognitionOwnerKey_()) console.warn("Falha ao carregar reconhecimentos:", err);
+      } finally {
+        if (RECOGNITIONS_REQUEST_ === entry) RECOGNITIONS_REQUEST_ = null;
+      }
+    })();
+    return entry.promise;
   }
 
   function openRecognizeEmployeeDialog() {
@@ -11949,7 +11984,7 @@
         "Destaque da Semana registrado com sucesso!"
       );
       closeDialog("recognizeEmployeeDialog");
-      await loadRecognitions_();
+      await loadRecognitions_({ force: true });
     } catch (err) {
       toast("Erro ao registrar homenagem: " + (err.message || "tente novamente"), true);
     }
@@ -12067,7 +12102,7 @@
     try {
       await call("excluirReconhecimento", sessionToken(), recId);
       toast("Destaque da Semana removido com sucesso.");
-      await loadRecognitions_();
+      await loadRecognitions_({ force: true });
     } catch (err) {
       toast("Erro ao excluir destaque: " + (err.message || "tente novamente"), true);
     }

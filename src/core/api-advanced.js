@@ -22,6 +22,7 @@ import {
   success,
 } from "./api-base.js";
 import { clockContext } from "./api-clock.js";
+import { bahiaDay, shiftDate } from "./reminder-policy.js";
 
 const filterAudience = (rows, profile) =>
   rows.filter((item) => {
@@ -1525,14 +1526,22 @@ export function createAdvancedHandlers() {
 
       const emp = await runtime.getById("Funcionarios", payload.FuncionarioID);
       assert(emp, "Colaborador não encontrado.");
-      if (emp.LojaID) scopeRecord(profile, emp);
+      assert(emp.Ativo === undefined || asBoolean(emp.Ativo), "Colaborador inativo não pode receber reconhecimento.");
+      if (!isAdmin(profile)) {
+        assert(emp.LojaID && String(emp.LojaID) === String(profile.LojaID || ""), "Este perfil só pode reconhecer colaboradores da própria loja.");
+      }
+      scopeRecord(profile, emp);
 
       const store = emp.LojaID ? await runtime.getById("Lojas", emp.LojaID) : null;
       const recId = uuid();
       const now = nowIso();
+      const day = bahiaDay(Date.parse(now));
+      const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+      const weekStart = shiftDate(day, -((weekday + 6) % 7));
+      const recognizedEmployeeId = String(emp.FuncionarioID || emp.funcionarioId || emp.id || payload.FuncionarioID).trim();
       const saved = await runtime.upsert("Reconhecimentos", {
         ReconhecimentoID: recId,
-        FuncionarioID: emp.FuncionarioID,
+        FuncionarioID: recognizedEmployeeId,
         NomeFuncionario: emp.Nome,
         Cargo: emp.Cargo || "Colaborador",
         LojaID: emp.LojaID || profile.LojaID || "",
@@ -1540,6 +1549,8 @@ export function createAdvancedHandlers() {
         Categoria: String(payload.Categoria || "Destaque da Semana").trim(),
         Motivo: String(payload.Motivo || "").trim(),
         Semana: String(payload.Semana || "").trim() || `Semana ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`,
+        SemanaInicio: weekStart,
+        SemanaFim: shiftDate(weekStart, 6),
         AtribuidoPor: profile.Nome || profile.Email,
         CriadoEm: now,
         Ativo: true,
@@ -1547,7 +1558,7 @@ export function createAdvancedHandlers() {
 
       await runtime.upsert("Notificacoes", {
         NotificacaoID: uuid(),
-        DestinatarioID: emp.FuncionarioID,
+        DestinatarioID: recognizedEmployeeId,
         LojaID: emp.LojaID || profile.LojaID || "",
         Titulo: "Reconhecimento: Destaque da Semana!",
         Mensagem: `Parabéns! Você foi reconhecido como "${saved.Categoria}" por ${saved.AtribuidoPor}: "${saved.Motivo}"`,
@@ -1565,7 +1576,13 @@ export function createAdvancedHandlers() {
       const rows = await runtime.list("Reconhecimentos", { profile });
       return success(
         rows
-          .filter((item) => asBoolean(item.Ativo !== false))
+          .filter((item) => item.Ativo === undefined || asBoolean(item.Ativo))
+          .filter((item) => {
+            if (isAdmin(profile)) return true;
+            if (isManager(profile)) return Boolean(profile.LojaID) && String(item.LojaID || "") === String(profile.LojaID);
+            const employeeId = String(profile.FuncionarioID || profile.funcionarioId || "").trim();
+            return Boolean(employeeId) && String(item.FuncionarioID || item.funcionarioId || "").trim() === employeeId;
+          })
           .sort((a, b) => String(b.CriadoEm || "").localeCompare(String(a.CriadoEm || ""))),
       );
     },
