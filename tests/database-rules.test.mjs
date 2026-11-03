@@ -42,6 +42,32 @@ test('Firebase Database rules enforce roles, privacy, balances and document owne
   const otherDoc = { ...doc, DocID: 'doc-bob', DocumentoID: 'doc-bob', FuncionarioID: 'emp-bob' };
   const complaint = { DenunciaID: 'DEN-1', PIN: '1234', LojaID: 'store-a', Descricao: 'Confidencial', Status: 'Recebida' };
   allowed(await request(base, { admin: true, method: 'PUT', data: { meta: { initialized: true }, access, tables: { Configuracoes: { WhatsAppGateway: { Chave: 'WhatsAppGateway', ApiKey: 'test-secret' }, GeminiConfig: { Chave: 'GeminiConfig', apiKey: 'test-ai-secret' }, Publico: { Chave: 'Publico', Valor: 'visivel' } }, Funcionarios: { 'emp-alice': employee }, Documentos: { 'doc-alice': doc, 'doc-bob': otherDoc }, Denuncias: { 'DEN-1': complaint, 'DEN-2': { ...complaint, DenunciaID: 'DEN-2', LojaID: 'store-b' }, 'DEN-G': { ...complaint, DenunciaID: 'DEN-G', LojaID: 'GERAL' } }, DenunciasMensagens: { 'msg-1': { MensagemID: 'msg-1', DenunciaID: 'DEN-1', Texto: 'privado' } }, Folgas: { own: { FuncionarioID: 'emp-inactive', LojaID: 'store-a', Status: 'Pendente' } } } } }));
+  await t.test('atomic document signature commits both records and cannot be overwritten even by admin', async () => {
+    const id='doc-atomic';
+    allowed(await request(`${base}/tables/Documentos/${id}`,{admin:true,method:'PUT',data:{...doc,DocumentoID:id,DocID:id}}));
+    const signature={AssinaturaID:'ASS_atomic',DocumentoID:id,FuncionarioID:'emp-alice',LojaID:'store-a',DataHoraAssinatura:'2026-11-03T12:00:00Z',AssinaturaRubricaBase64:'test-rubric'};
+    const updates={
+      'tables/DocumentosAssinaturas/ASS_atomic':signature,
+      [`tables/Documentos/${id}/Status`]:'Assinado',
+      [`tables/Documentos/${id}/AssinaturaID`]:'ASS_atomic',
+    };
+    denied(await request(base,{uid:'bob',method:'PATCH',data:updates}));
+    assert.equal(JSON.parse((await request(`${base}/tables/Documentos/${id}`,{uid:'alice'})).body).Status,'Pendente');
+    allowed(await request(base,{uid:'alice',method:'PATCH',data:updates}));
+    assert.equal(JSON.parse((await request(`${base}/tables/Documentos/${id}`,{uid:'alice'})).body).Status,'Assinado');
+    denied(await request(base,{uid:'admin',method:'PATCH',data:{...updates,'tables/DocumentosAssinaturas/ASS_atomic':{...signature,AssinaturaRubricaBase64:'replacement'}}}));
+    assert.equal(JSON.parse((await request(`${base}/tables/DocumentosAssinaturas/ASS_atomic`,{uid:'alice'})).body).AssinaturaRubricaBase64,'test-rubric');
+  });
+  await t.test('medical retry preflight reads only absence and does not expose another employee file',async()=>{
+    const hash='a'.repeat(64),documentId=`DOC_ATESTADO_${hash}`,leaveId=`ATESTADO_${hash}`;
+    allowed(await request(`${base}/tables/Documentos/${documentId}`,{uid:'alice'}));
+    allowed(await request(`${base}/tables/Folgas/${leaveId}`,{uid:'alice'}));
+    denied(await request(`${base}/tables/Documentos/${documentId}`,{uid:'inactive'}));
+    allowed(await request(`${base}/tables/Documentos/${documentId}`,{admin:true,method:'PUT',data:{...otherDoc,DocumentoID:documentId,DocID:documentId,Tipo:'Atestado Médico'}}));
+    allowed(await request(`${base}/tables/Folgas/${leaveId}`,{admin:true,method:'PUT',data:{FolgaID:leaveId,FuncionarioID:'emp-bob',LojaID:'store-a',Status:'Pendente'}}));
+    denied(await request(`${base}/tables/Documentos/${documentId}`,{uid:'alice'}));
+    denied(await request(`${base}/tables/Folgas/${leaveId}`,{uid:'alice'}));
+  });
   await t.test('unprovisioned account cannot choose a role or employee identity', async () => {
     denied(await request(`${base}/access/outsider`, { uid: 'outsider', method: 'PUT', data: profile('outsider', 'Administrador') }));
     denied(await request(`${base}/access/outsider`, { uid: 'outsider', method: 'PUT', data: profile('outsider') }));

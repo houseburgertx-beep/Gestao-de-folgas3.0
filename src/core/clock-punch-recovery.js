@@ -5,31 +5,43 @@ const STORE_NAME = "attempts";
 const localLocks = new Map();
 const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 
-export function createClockAttemptStore(indexedDB = globalThis.indexedDB) {
+export function createClockAttemptStore(indexedDB = globalThis.indexedDB, { timeoutMs = 8000 } = {}) {
   let database;
   const memory = new Map();
   const keyFor = (uid, requestId) => `${uid}:${requestId}`;
+  const unavailable = () => new Error("O armazenamento do ponto demorou para responder. Feche outras abas ou reabra o aplicativo e tente novamente.");
   const open = () => {
     if (database) return database;
     database = new Promise((resolve, reject) => {
-      const request = indexedDB.open(DATABASE_NAME, 1);
+      let settled = false;
+      let request;
+      const fail = (error) => { if (!settled) { settled = true; clearTimeout(timer); reject(error || unavailable()); } };
+      const timer = setTimeout(() => fail(unavailable()), timeoutMs);
+      try { request = indexedDB.open(DATABASE_NAME, 2); } catch (error) { fail(error); return; }
       request.onupgradeneeded = () => {
-        request.result.createObjectStore(STORE_NAME, { keyPath: "key" });
+        const db = request.result;
+        const store = db.objectStoreNames.contains(STORE_NAME)
+          ? request.transaction.objectStore(STORE_NAME)
+          : db.createObjectStore(STORE_NAME, { keyPath: "key" });
+        // Query only the connected user's rows instead of loading every photo
+        // from every account that has used this device into JavaScript memory.
+        if (!store.indexNames.contains("uid")) store.createIndex("uid", "uid", { unique: false });
       };
       request.onsuccess = () => {
         const db = request.result;
+        if (settled) { db.close(); return; }
+        settled = true;
+        clearTimeout(timer);
         db.onversionchange = () => { db.close(); database = null; };
         resolve(db);
       };
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error("Feche as outras abas do ponto e tente novamente."));
+      request.onerror = () => fail(request.error);
+      request.onblocked = () => fail(new Error("Feche as outras abas do ponto e tente novamente."));
     }).catch((error) => { database = null; throw error; });
     return database;
   };
   const transact = async (mode, operation) => {
     if (!indexedDB) {
-      // The memory backend is for Node/unit tests. Browsers must not silently
-      // claim durable recovery when their storage is blocked or unavailable.
       if (typeof window !== "undefined") {
         throw new Error("O armazenamento seguro do ponto está indisponível neste navegador. Libere o armazenamento e tente novamente.");
       }
@@ -37,32 +49,71 @@ export function createClockAttemptStore(indexedDB = globalThis.indexedDB) {
     }
     const db = await open();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, mode);
-      const request = operation(tx.objectStore(STORE_NAME));
-      tx.oncomplete = () => resolve(clone(request?.result));
-      tx.onerror = () => reject(tx.error || request?.error);
-      tx.onabort = () => reject(tx.error || new Error("Não foi possível preservar a foto do ponto neste aparelho."));
+      let settled = false;
+      let tx;
+      let request;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve(clone(request?.result));
+      };
+      const timer = setTimeout(() => {
+        try { tx?.abort(); } catch (_) {}
+        finish(unavailable());
+      }, timeoutMs);
+      try {
+        tx = db.transaction(STORE_NAME, mode);
+        tx.oncomplete = () => finish();
+        tx.onerror = () => finish(tx.error || request?.error || unavailable());
+        tx.onabort = () => finish(tx.error || unavailable());
+        request = operation(tx.objectStore(STORE_NAME));
+      } catch (error) {
+        try { tx?.abort(); } catch (_) {}
+        finish(error);
+      }
     });
   };
   return {
     async get(uid, requestId) {
+      if (!uid || !requestId) return null;
       const key = keyFor(uid, requestId);
       const row = await transact("readonly", (store, data) => store ? store.get(key) : clone(data.get(key)));
       return row ? clone(row.attempt) : null;
     },
     async put(uid, attempt) {
       if (!uid || !attempt?.requestId) throw new Error("Tentativa de ponto sem identificação.");
-      const key = keyFor(uid, attempt.requestId);
-      const row = { key, uid, attempt: clone(attempt) };
-      await transact("readwrite", (store, data) => store ? store.put(row) : data.set(key, row));
+      const row = { key: keyFor(uid, attempt.requestId), uid, attempt: clone(attempt) };
+      await transact("readwrite", (store, data) => store ? store.put(row) : data.set(row.key, row));
       return clone(attempt);
     },
+    async reserve(uid, attempt) {
+      if (!uid || !attempt?.requestId) throw new Error("Tentativa de ponto sem identificação.");
+      const row = { key: keyFor(uid, attempt.requestId), uid, attempt: clone(attempt) };
+      const result = await transact("readwrite", (store, data) => {
+        if (!store) {
+          if (!data.has(row.key)) data.set(row.key, row);
+          return clone(data.get(row.key));
+        }
+        let chosen;
+        const read = store.get(row.key);
+        read.onsuccess = () => {
+          chosen = read.result || row;
+          if (!read.result) store.add(row);
+        };
+        return { get result() { return chosen; } };
+      });
+      return clone(result.attempt);
+    },
     async remove(uid, requestId) {
+      if (!uid || !requestId) return;
       const key = keyFor(uid, requestId);
       await transact("readwrite", (store, data) => store ? store.delete(key) : data.delete(key));
     },
     async list(uid) {
-      const rows = await transact("readonly", (store, data) => store ? store.getAll() : [...data.values()]);
+      if (!uid) return [];
+      const rows = await transact("readonly", (store, data) => store ? store.index("uid").getAll(uid) : [...data.values()]);
       return (rows || []).filter((row) => row.uid === uid).map((row) => clone(row.attempt))
         .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
     },
@@ -72,17 +123,19 @@ export function createClockAttemptStore(indexedDB = globalThis.indexedDB) {
 export const clockAttemptStore = createClockAttemptStore();
 
 export async function saveClockDraft(uid, draft) {
-  if (!draft?.requestId || !draft?.payload) throw new Error("Tentativa de ponto incompleta.");
+  if (!uid || !draft?.requestId || !draft?.payload) throw new Error("Tentativa de ponto incompleta.");
   validateClockSelfie(draft.payload.selfieDataUrl);
-  const capturedAt = String(draft.capturedAt || draft.payload.capturedAt || new Date().toISOString());
-  return clockAttemptStore.put(uid, {
-    ...clone(draft),
+  const capturedAt = new Date(draft.capturedAt || draft.payload.capturedAt || Date.now());
+  if (!Number.isFinite(capturedAt.getTime())) throw new Error("Horário da tentativa de ponto inválido.");
+  // Persist only evidence needed for recovery. Never copy session tokens or
+  // unrelated caller metadata from a legacy offline-queue payload.
+  const { latitude, longitude, accuracy, locationTimestamp, selfieDataUrl, expectedAction } = draft.payload;
+  return clockAttemptStore.reserve(uid, {
     requestId: `draft:${draft.requestId}`,
     originalRequestId: draft.requestId,
-    kind: "draft",
-    createdAt: capturedAt,
-    capturedAt,
-    payload: { ...clone(draft.payload), requestId: draft.requestId, capturedAt },
+    kind: "draft", createdAt: capturedAt.toISOString(), capturedAt: capturedAt.toISOString(),
+    payload: { latitude, longitude, accuracy, locationTimestamp, selfieDataUrl, expectedAction,
+      requestId: draft.requestId, capturedAt: capturedAt.toISOString() },
   });
 }
 
@@ -95,18 +148,28 @@ export const removeClockDraft = (uid, requestId) => clockAttemptStore.remove(uid
 
 // Serialize within a tab and, where available, across tabs. Different IDs from
 // an accidental double tap must not independently advance the same workday.
-export function withClockPunchLock(uid, operation) {
+export function withClockPunchLock(uid, operation, {waitMs=12000}={}) {
   const previous = localLocks.get(uid) || Promise.resolve();
-  const current = previous.catch(() => {}).then(() => {
-    if (globalThis.navigator?.locks?.request) {
-      return navigator.locks.request(`house-clock-punch:${uid}`, operation);
-    }
+  const controller = new AbortController();
+  let timer;
+  const expired = () => new Error("Outra tentativa de ponto ainda está em andamento. Aguarde ou feche a outra aba; sua captura foi preservada.");
+  const deadline = new Promise((_,reject) => { timer=setTimeout(()=>{controller.abort();reject(expired());},waitMs); });
+  const execute = () => {
+    if(controller.signal.aborted) throw expired();
+    clearTimeout(timer);
     return operation();
+  };
+  const current = previous.catch(() => {}).then(() => {
+    if(controller.signal.aborted) throw expired();
+    if (globalThis.navigator?.locks?.request) {
+      return navigator.locks.request(`house-clock-punch:${uid}`, {signal:controller.signal}, execute);
+    }
+    return execute();
   });
   localLocks.set(uid, current);
-  return current.finally(() => {
-    if (localLocks.get(uid) === current) localLocks.delete(uid);
-  });
+  const cleanup = () => { if (localLocks.get(uid) === current) localLocks.delete(uid); };
+  current.then(cleanup,cleanup);
+  return Promise.race([current,deadline]).finally(()=>clearTimeout(timer));
 }
 
 export function validateClockSelfie(value) {

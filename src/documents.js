@@ -4,7 +4,7 @@
 // ==========================================================================
 
 import { DOCUMENT_TEMPLATES, sha256Hex, parseBatchPayrollPdf, formatMonthLabel } from "./core/api-documents.js";
-import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "./selfie-drive-config.js";
+import { uuid } from "./core/utils.js";
 
 const $ = (selector, parent = document) => parent.querySelector(selector);
 const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
@@ -55,22 +55,27 @@ let state = {
 /**
  * Obtém IP público do cliente com timeout curto e fallback
  */
+let clientIpRequest = null;
 async function getClientIp() {
   if (state.cachedIp) return state.cachedIp;
-  try {
+  if (clientIpRequest) return clientIpRequest;
+  clientIpRequest = (async () => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2500);
-    const res = await fetch("https://api.ipify.org?format=json", {
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    const data = await res.json();
-    state.cachedIp = String(data?.ip || "").trim();
-    return state.cachedIp;
-  } catch {
-    state.cachedIp = "Conexão Segura Registrada";
-    return state.cachedIp;
-  }
+    try {
+      const res = await fetch("https://api.ipify.org?format=json", { signal: controller.signal });
+      if (!res.ok) throw new Error("IP indisponível");
+      const data = await res.json();
+      state.cachedIp = String(data?.ip || "").trim();
+      return state.cachedIp || "Não disponível";
+    } catch {
+      // Unavailable IP is not evidence of a verified secure connection.
+      return "Não disponível";
+    } finally {
+      clearTimeout(timer);
+    }
+  })().finally(() => { clientIpRequest = null; });
+  return clientIpRequest;
 }
 
 /**
@@ -117,7 +122,7 @@ export function parseDriveUrl(url) {
 }
 
 /**
- * Comprime imagem ou lê PDF para envio seguro ao Google Drive
+ * Comprime imagem ou lê PDF para envio pelo canal autenticado de Documentos
  */
 async function compressMedicalDocument(file, maxDimension = 1280, quality = 0.78) {
   if (!file) throw new Error("Arquivo não fornecido.");
@@ -165,55 +170,21 @@ async function compressMedicalDocument(file, maxDimension = 1280, quality = 0.78
 }
 
 /**
- * Envia o atestado para a conta grupo190house@gmail.com no Google Drive
+ * Prepara o anexo médico para submitMedicalCertificate autenticado.
+ * O uploader de tarefas não aceita PDF nem classifica dados médicos.
  */
-async function uploadMedicalCertificateToDrive(file, employeeName = "Colaborador") {
-  const endpoint = SELFIE_DRIVE_UPLOAD_ENDPOINT;
+async function prepareMedicalCertificateAttachment(file, employeeName = "Colaborador") {
   const compressed = await compressMedicalDocument(file);
-  const ext = file.type === "application/pdf" ? "pdf" : "jpg";
+  const ext = compressed.mimeType === "application/pdf" ? "pdf" : "jpg";
   const dateStr = new Date().toISOString().slice(0, 10);
   const cleanName = String(employeeName || "colaborador")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "_");
-  const fileName = `atestado_${cleanName}_${dateStr}_${Date.now()}.${ext}`;
-
-  if (!endpoint) {
-    return { url: compressed.base64, base64: compressed.base64, fileName };
-  }
-
-  const payload = {
-    action: "driveUpload",
-    name: fileName,
-    mimeType: compressed.mimeType,
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return {
+    url: "",
     base64: compressed.base64,
+    fileName: `atestado_${cleanName}_${dateStr}_${Date.now()}.${ext}`,
   };
-
-  const formData = new FormData();
-  Object.entries(payload).forEach(([k, v]) => formData.append(k, v));
-
-  try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      body: formData,
-    });
-    if (!res.ok) throw new Error("Servidor Google Drive indisponível temporariamente.");
-    const json = await res.json().catch(() => ({}));
-    const fileUrl = json.url || json.fileUrl;
-    if (fileUrl) {
-      return {
-        url: fileUrl,
-        fileId: json.fileId || "",
-        base64: compressed.base64,
-        fileName,
-      };
-    }
-    return { url: compressed.base64, base64: compressed.base64, fileName };
-  } catch (err) {
-    console.warn("[documents] Falha no upload para o Google Drive, usando contingência:", err);
-    return { url: compressed.base64, base64: compressed.base64, fileName };
-  }
 }
 
 /**
@@ -223,7 +194,9 @@ export async function initDocumentsModule(context = {}) {
   state.user = context.user || window.__GESTAO_USER__ || window.state?.user || null;
   state.stores = (context.stores && context.stores.length) ? context.stores : (window.state?.stores || []);
   state.employees = (context.employees && context.employees.length) ? context.employees : (window.state?.employees || []);
-  state.isManager = Boolean(context.isManager || window.__GESTAO_IS_MANAGER__);
+  state.isManager = typeof context.isManager === "boolean"
+    ? context.isManager
+    : Boolean(window.__GESTAO_IS_MANAGER__);
   state.isAdmin = Boolean(
     context.isAdmin ||
       String(state.user?.Perfil || state.user?.perfil || "")
@@ -243,61 +216,72 @@ export async function initDocumentsModule(context = {}) {
 /**
  * Carrega a lista de documentos do Firebase
  */
-export async function loadDocuments() {
+let documentListRequest = null;
+let documentListVersion = 0;
+let documentListLoadedOwner = null;
+function documentListOwner() {
+  return JSON.stringify([
+    window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "",
+    userFuncId(state.user), String(state.user?.Email || state.user?.email || ""),
+    state.isManager, state.isAdmin,
+  ]);
+}
+
+export async function loadDocuments({ force = false } = {}) {
   const container = $("#documentsAppRoot");
   if (!container) return;
-
+  const owner = documentListOwner();
+  if (documentListLoadedOwner !== owner) {
+    state.documents = [];
+    state.currentSigningDoc = null;
+    documentListLoadedOwner = owner;
+  }
+  if (!force && documentListRequest?.owner === owner) return documentListRequest.promise;
+  const version = ++documentListVersion;
+  const current = () => version === documentListVersion && owner === documentListOwner();
   state.loading = true;
   renderLoadingState();
-
-  try {
-    const targetStore = state.storeFilter === "all" ? "" : state.storeFilter;
-    const targetStatus = state.statusFilter === "all" ? "" : state.statusFilter;
-    const targetFunc = state.activeTab === "minhas" ? userFuncId(state.user) : "";
-    const targetMonth = state.monthFilter === "all" ? "" : state.monthFilter;
-
-    const res = await callApi(
-      "documentsList",
-      targetStore,
-      targetStatus,
-      targetFunc,
-      targetMonth,
-    );
-    const docs = res?.documents || res?.data?.documents || res?.data || (Array.isArray(res) ? res : []);
-    state.documents = Array.isArray(docs) ? docs : [];
-
-    // Atualiza contadores e badge do menu
-    const myId = userFuncId(state.user);
-    const myPending = state.documents.filter(
-      (d) =>
-        d.Status === "Pendente" &&
-        (!myId || String(d.FuncionarioID || "").trim() === myId),
-    ).length;
-
-    const navBadge = $("#documentsNavBadge");
-    if (navBadge) {
-      if (myPending > 0) {
-        navBadge.textContent = myPending;
-        navBadge.classList.remove("hidden");
-      } else {
-        navBadge.classList.add("hidden");
+  const entry = { owner, promise: null };
+  documentListRequest = entry;
+  entry.promise = (async () => {
+    try {
+      // Tabs/search/status/month/store are local presentation filters. Loading
+      // only the filtered subset here made switching tabs lose other documents.
+      // Authorization and the manager's store scope remain enforced by the API.
+      const targetFunc = (state.isManager || state.isAdmin) ? "" : userFuncId(state.user);
+      const res = await callApi("documentsList", "", "", targetFunc, "");
+      if (!current()) return;
+      const docs = res?.documents || res?.data?.documents || res?.data || (Array.isArray(res) ? res : []);
+      state.documents = Array.isArray(docs) ? docs : [];
+      const myId = userFuncId(state.user);
+      const myPending = state.documents.filter(
+        (d) => d.Status === "Pendente" && myId && String(d.FuncionarioID || "").trim() === myId,
+      ).length;
+      const navBadge = $("#documentsNavBadge");
+      if (navBadge) {
+        if (myPending > 0) {
+          navBadge.textContent = myPending;
+          navBadge.classList.remove("hidden");
+        } else {
+          navBadge.classList.add("hidden");
+        }
       }
-    }
-
-    renderDocumentsView();
-  } catch (err) {
-    console.error("[documents] Erro ao carregar documentos:", err);
-    if (container) {
+      renderDocumentsView();
+    } catch (err) {
+      if (!current()) return;
+      console.error("[documents] Erro ao carregar documentos:", err);
       container.innerHTML = `
         <div class="panel" style="padding: 2rem; text-align: center;">
           <p style="color: #ef4444; font-weight: 600;">Falha ao carregar documentos: ${esc(err.message)}</p>
           <button class="btn btn-primary" onclick="window.initDocumentsModule()">Tentar Novamente</button>
         </div>
       `;
+    } finally {
+      if (version === documentListVersion) state.loading = false;
+      if (documentListRequest === entry) documentListRequest = null;
     }
-  } finally {
-    state.loading = false;
-  }
+  })();
+  return entry.promise;
 }
 
 /**
@@ -1162,7 +1146,7 @@ function bindViewEvents() {
 
   const refreshBtn = $("#docRefreshBtn");
   if (refreshBtn) {
-    refreshBtn.onclick = () => loadDocuments();
+    refreshBtn.onclick = () => loadDocuments({ force: true });
   }
 
   const batchUploadBtn = $("#docBatchUploadBtn");
@@ -1349,6 +1333,7 @@ export async function renderPdfToContainer(containerEl, base64Pdf, blobUrl = "")
     containerEl.innerHTML = "";
     containerEl.appendChild(wrapper);
     containerEl.scrollTop = 0;
+    return true;
   } catch (err) {
     console.warn("[documents] Falha ao renderizar PDF via canvas:", err);
     if (blobUrl) {
@@ -1360,6 +1345,7 @@ export async function renderPdfToContainer(containerEl, base64Pdf, blobUrl = "")
         </div>
       `;
     }
+    return false;
   }
 }
 
@@ -1367,13 +1353,17 @@ export async function renderPdfToContainer(containerEl, base64Pdf, blobUrl = "")
 /**
  * Abre o Modal de Leitura Obrigatória e Assinatura Eletrônica
  */
+let signingDialogVersion = 0;
 export async function openSignDialog(docId) {
+  const version = ++signingDialogVersion;
+  const owner = documentListOwner();
   let doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
   if (!doc) {
     alert("Documento não localizado.");
     return;
   }
   await ensureDocumentFullPayload(doc);
+  if (version !== signingDialogVersion || owner !== documentListOwner()) return;
 
   state.currentSigningDoc = doc;
   state.hasScrolledToBottom = false;
@@ -1382,7 +1372,7 @@ export async function openSignDialog(docId) {
   const dialog = $("#documentSignDialog");
   if (!dialog) return;
 
-  const ip = await getClientIp();
+  const ip = "Consultando…";
 
   let pdfBlobUrl = "";
   if (doc.ArquivoOriginalBase64) {
@@ -1472,7 +1462,7 @@ export async function openSignDialog(docId) {
         </label>
 
         <div style="background:#f8fafc; border-radius:10px; padding:10px; font-size:11.5px; color:#64748b; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-          <span>IP: <strong>${esc(ip)}</strong></span>
+          <span>IP: <strong id="docSignIp">${esc(ip)}</strong></span>
           <span>Segurança: <strong>SHA-256 + Lei 14.063/2020</strong></span>
         </div>
       </div>
@@ -1492,18 +1482,36 @@ export async function openSignDialog(docId) {
   dialog.showModal?.() || dialog.setAttribute("open", "true");
 
   setupSignModalEvents(dialog, doc, pdfBlobUrl);
+  getClientIp().then((ip) => {
+    if (version !== signingDialogVersion || owner !== documentListOwner() || !dialog.open) return;
+    const label = dialog.querySelector("#docSignIp");
+    if (label) label.textContent = ip;
+  });
 }
 
 /**
  * Configura os eventos de rolagem e canvas no modal
  */
 function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
-  const close = () => {
+  dialog.__disposeDocumentSignature?.();
+  let disposed = false;
+  let submittingSignature = false;
+  const signingOwner = documentListOwner();
+  let removeGlobalHandlers = () => {};
+  const cleanup = () => {
+    if (disposed) return;
+    disposed = true;
+    removeGlobalHandlers();
+    dialog.removeEventListener("close", cleanup);
+    if (dialog.__disposeDocumentSignature === cleanup) delete dialog.__disposeDocumentSignature;
     if (pdfBlobUrl && pdfBlobUrl.startsWith("blob:")) {
-      try {
-        URL.revokeObjectURL(pdfBlobUrl);
-      } catch (_) {}
+      try { URL.revokeObjectURL(pdfBlobUrl); } catch (_) {}
     }
+  };
+  dialog.__disposeDocumentSignature = cleanup;
+  dialog.addEventListener("close", cleanup, { once: true });
+  const close = () => {
+    cleanup();
     dialog.close?.() || dialog.removeAttribute("open");
   };
 
@@ -1545,29 +1553,27 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
   };
 
   if (viewerBox) {
-    viewerBox.addEventListener("scroll", () => {
+    let viewerReady = !doc.ArquivoOriginalBase64;
+    const checkReadProgress = () => {
+      if (disposed || !viewerReady) return;
       const scrollTotal = viewerBox.scrollHeight - viewerBox.clientHeight;
-      if (scrollTotal <= 20) {
+      if (scrollTotal <= 40) {
         unlockSignature();
         return;
       }
-      const current = viewerBox.scrollTop;
-      const pct = Math.min(100, Math.round((current / scrollTotal) * 100));
+      const pct = Math.min(100, Math.round((viewerBox.scrollTop / scrollTotal) * 100));
       if (progressFill) progressFill.style.width = `${pct}%`;
-      if (pct >= 80) {
-        unlockSignature();
-      }
-    });
-
-    // Se o documento for de página única ou altura reduzida, desbloqueia automaticamente
-    setTimeout(() => {
-      if (viewerBox.scrollHeight <= viewerBox.clientHeight + 40) {
-        unlockSignature();
-      }
-    }, 1500);
-
+      if (pct >= 80) unlockSignature();
+    };
+    viewerBox.addEventListener("scroll", checkReadProgress);
     if (doc.ArquivoOriginalBase64) {
-      renderPdfToContainer(viewerBox, doc.ArquivoOriginalBase64, pdfBlobUrl);
+      renderPdfToContainer(viewerBox, doc.ArquivoOriginalBase64, pdfBlobUrl).then((rendered) => {
+        if (disposed) return;
+        viewerReady = rendered === true;
+        checkReadProgress();
+      });
+    } else {
+      checkReadProgress();
     }
   }
 
@@ -1622,6 +1628,7 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
     canvas.addEventListener("mousedown", startDraw);
     canvas.addEventListener("mousemove", drawMove);
     window.addEventListener("mouseup", stopDraw);
+    removeGlobalHandlers = () => window.removeEventListener("mouseup", stopDraw);
 
     canvas.addEventListener("touchstart", (e) => {
       e.preventDefault();
@@ -1720,11 +1727,13 @@ function cropSignatureCanvas(sourceCanvas, padding = 10) {
 
   // Submissão da Assinatura
   confirmBtn?.addEventListener("click", async () => {
-    if (!state.signatureHasDrawn || !checkAffirmation?.checked) {
-      alert("Por favor, desenhe sua rubrica e marque a concordância.");
+    if (submittingSignature) return;
+    if (disposed || !state.hasScrolledToBottom || !state.signatureHasDrawn || !checkAffirmation?.checked) {
+      alert("Leia o documento, desenhe sua rubrica e marque a concordância.");
       return;
     }
 
+    submittingSignature = true;
     confirmBtn.disabled = true;
     confirmBtn.innerHTML = "Autenticando criptografia...";
 
@@ -1733,6 +1742,9 @@ function cropSignatureCanvas(sourceCanvas, padding = 10) {
       const croppedCanvas = cropSignatureCanvas(canvas, 12);
       const rubricDataUrl = croppedCanvas.toDataURL("image/png");
       const clientIp = await getClientIp();
+      if (disposed || signingOwner !== documentListOwner()) {
+        throw new Error("A sessão ou o documento mudou antes do envio da assinatura. Abra o documento novamente.");
+      }
 
       const signPayload = {
         DocumentoID: doc.DocumentoID,
@@ -1745,12 +1757,14 @@ function cropSignatureCanvas(sourceCanvas, padding = 10) {
       const result = await callApi("documentsSign", signPayload);
       close();
       alert("Documento assinado com sucesso!\nO certificado pericial e o hash criptográfico foram gerados.");
-      await loadDocuments();
+      await loadDocuments({ force: true });
     } catch (err) {
       console.error("[documents] Falha ao assinar:", err);
       alert(`Erro na assinatura: ${err.message}`);
       confirmBtn.disabled = false;
       confirmBtn.innerHTML = "Confirmar e Assinar";
+    } finally {
+      submittingSignature = false;
     }
   });
 }
@@ -2393,15 +2407,18 @@ export function openMedicalCertificateDialog(options = {}) {
     document.body.appendChild(dialog);
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   const defaultDate = options.defaultDate || today;
 
+  const requestId = uuid();
+  const submissionOwner = documentListOwner();
   let isPeriodMode = false;
   let showOptionals = false;
   let selectedFile = null;
   let fileBase64 = "";
   let crmValue = "";
   let reasonValue = "";
+  let submitting = false;
 
   const renderModalContent = () => {
     dialog.innerHTML = `
@@ -2605,9 +2622,15 @@ export function openMedicalCertificateDialog(options = {}) {
 
     const handleFileSelected = (file) => {
       if (!file) return;
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+      if (isPdf && file.size > 6 * 1024 * 1024) {
+        alert("O PDF deve ter no máximo 6 MB. Reduza o arquivo antes de anexar.");
+        return;
+      }
       selectedFile = file;
       const reader = new FileReader();
       reader.onload = (e) => {
+        if (selectedFile !== file) return;
         fileBase64 = e.target.result;
         renderModalContent();
       };
@@ -2625,6 +2648,7 @@ export function openMedicalCertificateDialog(options = {}) {
 
     // Submissão do atestado
     $("#medSubmitBtn", dialog)?.addEventListener("click", async () => {
+      if (submitting) return;
       const feedback = $("#medFeedbackMsg", dialog);
       const submitBtn = $("#medSubmitBtn", dialog);
 
@@ -2636,6 +2660,11 @@ export function openMedicalCertificateDialog(options = {}) {
         feedback.style.border = `1px solid ${isError ? "#fecaca" : "#a7f3d0"}`;
         feedback.textContent = text;
       };
+
+      if (submissionOwner !== documentListOwner()) {
+        showFeedback("Sua sessão mudou. Feche este formulário e abra novamente antes de enviar.", true);
+        return;
+      }
 
       let start = "";
       let end = "";
@@ -2665,19 +2694,22 @@ export function openMedicalCertificateDialog(options = {}) {
       const reason = $("#medReasonInput", dialog)?.value || reasonValue || "";
       const empName = state.user?.Nome || state.user?.nome || "Colaborador";
 
+      submitting = true;
       submitBtn.disabled = true;
-      submitBtn.innerHTML = `<span>Salvando no Google Drive...</span>`;
-      showFeedback("Enviando atestado para o Drive seguro da House 190...", false);
+      submitBtn.innerHTML = `<span>Preparando anexo...</span>`;
+      showFeedback("Preparando envio seguro do atestado...", false);
 
       try {
-        // 1. Upload para o Google Drive da conta grupo190house@gmail.com
-        const uploadResult = await uploadMedicalCertificateToDrive(selectedFile, empName);
+        // 1. Prepara PDF/foto sem usar o uploader de tarefas.
+        const uploadResult = await prepareMedicalCertificateAttachment(selectedFile, empName);
+        if (submissionOwner !== documentListOwner()) throw new Error("Sua sessão mudou antes do envio do atestado. Abra o formulário novamente.");
         const docUrl = uploadResult.url || "";
         const docBase64 = uploadResult.base64 || fileBase64;
 
         // 2. Invoca a API de atestado médico
         submitBtn.innerHTML = `<span>Finalizando pedido de abono...</span>`;
         await callApi("submitMedicalCertificate", {
+          requestId,
           dataInicio: start,
           dataFim: end,
           documentoUrl: docUrl,
@@ -2689,7 +2721,7 @@ export function openMedicalCertificateDialog(options = {}) {
         showFeedback("Atestado enviado! As faltas serão abonadas assim que o gestor aprovar.", false);
         setTimeout(() => {
           dialog.close();
-          loadDocuments();
+          loadDocuments({ force: true });
           if (typeof window.renderRequests === "function") {
             window.renderRequests();
           }
@@ -2698,6 +2730,7 @@ export function openMedicalCertificateDialog(options = {}) {
           }
         }, 1200);
       } catch (err) {
+        submitting = false;
         console.error("[documents] Erro ao enviar atestado:", err);
         showFeedback(`Erro ao enviar: ${err.message}`, true);
         submitBtn.disabled = false;
@@ -3057,7 +3090,7 @@ function setupUploadDialogEvents(dialog) {
       state.activeTab = "gestao";
       state.storeFilter = "all";
       state.statusFilter = "all";
-      await loadDocuments();
+      await loadDocuments({ force: true });
     } catch (err) {
       console.error("[documents] Falha ao emitir:", err);
       alert(`Erro na emissão: ${err.message}`);
@@ -3275,7 +3308,7 @@ export function openTemplateDialog() {
       if (typeof window.toast === "function") {
         window.toast(res?.message || "Documento gerado com sucesso!");
       }
-      await loadDocuments();
+      await loadDocuments({ force: true });
     } catch (err) {
       alert(err.message || "Erro ao emitir documento.");
       if (submitBtn) {
@@ -3696,7 +3729,7 @@ export async function openPreviewDialog(docId) {
         }
         alert("Atestado aprovado com sucesso! As faltas foram abonadas automaticamente no espelho de ponto.");
         dialog.close();
-        await loadDocuments();
+        await loadDocuments({ force: true });
         if (typeof window.refreshJourneyData_ === "function") window.refreshJourneyData_();
         if (typeof window.renderRequests === "function") window.renderRequests();
       } catch (err) {
@@ -3720,7 +3753,7 @@ export async function openPreviewDialog(docId) {
         }
         alert("Atestado recusado.");
         dialog.close();
-        await loadDocuments();
+        await loadDocuments({ force: true });
         if (typeof window.refreshJourneyData_ === "function") window.refreshJourneyData_();
         if (typeof window.renderRequests === "function") window.renderRequests();
       } catch (err) {
@@ -3747,7 +3780,7 @@ async function deleteDocument(docId) {
   try {
     await callApi("documentsDelete", docId);
     alert("Documento excluído com sucesso.");
-    await loadDocuments();
+    await loadDocuments({ force: true });
   } catch (err) {
     alert(`Erro ao excluir: ${err.message}`);
   }
@@ -4167,7 +4200,7 @@ export function openBatchConfirmDialog(parsedResult, fileName) {
         const res = await callApi("documentsBatchCreate", payload);
         dialog.close();
         alert(`${res.createdCount || payload.length} holerite(s) importado(s) e disponibilizado(s) com sucesso!\nCada colaborador já pode assinar em Meus Documentos.`);
-        await loadDocuments();
+        await loadDocuments({ force: true });
       } catch (err) {
         console.error("[documents] Falha ao importar lote:", err);
         alert(`Erro ao importar lote: ${err.message}`);

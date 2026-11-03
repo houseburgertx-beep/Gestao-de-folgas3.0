@@ -758,12 +758,14 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(dialogs, /Selfie obrigatória/);
   assert.match(dialogs, /A imagem não será salva no Firebase/);
   assert.match(api, /uploadClockSelfieToDrive/);
-  assert.match(api, /new AbortController\(\)/);
+  const requestHelper = await readFile(new URL("../src/core/clock-request.js", import.meta.url), "utf8");
+  assert.match(requestHelper, /new AbortController\(\)/);
+  assert.match(api, /withClockDeadline/);
   assert.match(api, /warmSelfieDriveService/);
   assert.match(api, /mode:\s*"no-cors"/);
   assert.match(api, /async prepareTimeClockSelfieUpload/);
   assert.match(api, /const \[employee, location, schedules, allRecords\] = await Promise\.all/);
-  assert.match(api, /signal:\s*controller\.signal/);
+  assert.match(api, /credentials:\s*"omit"[\s\S]*?signal/);
   assert.match(api, /runtime\.create\("RegistrosPonto"/);
   assert.match(api, /ProximaMarcacao:\s*nextClockAction/);
   assert.match(api, /SelfieStorage:\s*"Google Drive"/);
@@ -2557,7 +2559,7 @@ test("Otimização de performance: cache em memória no runtime, resiliência do
   // 2. Upload de selfie tem idToken válido e retry automático
   assert.match(
     apiClockJs,
-    /idToken\s*=\s*await\s+user\.getIdToken\(\)/,
+    /idToken\s*=\s*await\s+user\.getIdToken\((?:refreshToken)?\)/,
     "uploadClockSelfieToDrive deve obter o idToken do usuário autenticado",
   );
   assert.match(
@@ -3973,7 +3975,7 @@ test("Blindagem do Ponto Eletrônico (Portaria 671 MTE / Mobile PWA): anti-bounc
   );
   assert.match(
     scriptsHtml,
-    /window\.__IS_CONFIRMING_CLOCK_PUNCH_\s*=\s*true;/,
+    /window\.__IS_CONFIRMING_CLOCK_PUNCH__\s*=\s*true;/,
     "Scripts.html deve travar envio duplo ao confirmar ponto com selfie",
   );
 });

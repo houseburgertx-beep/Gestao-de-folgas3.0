@@ -1391,6 +1391,7 @@ export class FirebaseRuntime {
     try {
       const operation = async () => {
         const token = await user.getIdToken();
+        if (controller.signal.aborted) { const failure = new Error("O servidor do ponto demorou para confirmar. A tentativa permanece neste aparelho para recuperação."); failure.code = "database/confirmation-timeout"; throw failure; }
         if (this.auth?.currentUser?.uid !== user.uid) throw new Error("A conta conectada mudou. Entre novamente.");
         const storageKey = pathKey(id);
         const root = this.root.split("/").map(encodeURIComponent).join("/");
@@ -1434,13 +1435,15 @@ export class FirebaseRuntime {
     return data === null ? null : clone(data);
   }
 
-  async createClockRecord(record) {
+  async createClockRecord(record, options = {}) {
     const id = String(record?.RegistroPontoID || "");
     if (!id || record?.RequestID !== id) throw new Error("Identificação da tentativa de ponto inválida.");
     const normalized = cleanObject({ ...record, ...periodFieldsFor("RegistrosPonto", record) });
     const matches = (current) => current?.RequestID === id && current?.RegistroPontoID === id &&
       String(current.FuncionarioID) === String(record.FuncionarioID) && String(current.LojaID) === String(record.LojaID);
-    const existing = await this.requestServerRecord("RegistrosPonto", id);
+    if (options.ownerUid && options.ownerUid !== this.auth?.currentUser?.uid) throw new Error("A conta conectada mudou. Entre novamente.");
+    const canReusePreflight = options.ownerUid === this.auth?.currentUser?.uid && typeof options.expectedAbsentEtag === "string" && options.expectedAbsentEtag.length > 0;
+    const existing = canReusePreflight ? {data:null,etag:options.expectedAbsentEtag} : await this.requestServerRecord("RegistrosPonto", id);
     if (existing.data !== null) {
       if (!matches(existing.data)) throw new Error("Este identificador de ponto já foi utilizado por outro registro.");
       return clone(existing.data);

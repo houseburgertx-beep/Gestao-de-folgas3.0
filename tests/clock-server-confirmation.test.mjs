@@ -94,3 +94,10 @@ test("confirmação tem prazo e erro de autorização nunca retorna cache", asyn
     globalThis.clearTimeout = originalClearTimeout;
   }
 });
+
+test('preflight do mesmo usuário elimina GET redundante mantendo PUT condicional e proteção da conta',async(t)=>{
+ const app=setup();const calls=[];t.mock.method(globalThis,'fetch',async(url,options)=>{calls.push(options);return new Response(options.body);});
+ assert.equal((await app.createClockRecord(record(),{expectedAbsentEtag:'"preflight"',ownerUid:'owner'})).RequestID,record().RequestID);
+ assert.deepEqual(calls.map(c=>c.method),['PUT']);assert.equal(calls[0].headers['If-Match'],'"preflight"');
+ await assert.rejects(app.createClockRecord(record(),{expectedAbsentEtag:'"preflight"',ownerUid:'other'}),/conta conectada mudou/);assert.equal(calls.length,1);
+});
