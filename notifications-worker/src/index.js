@@ -457,15 +457,18 @@ async function handle(request, env) {
     const today=new Date(now-3*3600000).toISOString().slice(0,10);
     const tomorrow=new Date(Date.parse(`${today}T12:00:00Z`)+86400000).toISOString().slice(0,10);
     const fixtures={JornadasPonto:{a:{FuncionarioID:sample.FuncionarioID,Ativa:true,VigenteDe:"2020-01-01",DiasTrabalho:"0,1,2,3,4,5,6",Entrada:"08:00",Saida:"17:00"}},Folgas:{a:{FuncionarioID:sample.FuncionarioID,DataInicio:tomorrow,DataFim:tomorrow,Status:"Aprovada"}},Tarefas:{a:{FuncionarioID:sample.FuncionarioID,Titulo:"Conferir freezers",Status:"A fazer",LojaID:sample.LojaID}}};
-    let state;const memory={load:async()=>state,save:async value=>{state=value;}};
+    // Match a real JSON database roundtrip, including property reordering.
+    const sortedJSON=value=>Array.isArray(value)?value.map(sortedJSON):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,sortedJSON(value[key])])):value;
+    let state;const memory={load:async()=>state,save:async value=>{state=sortedJSON(JSON.parse(JSON.stringify(value)));}};
+    let confirmations=0;const confirmedRequests=[];
     const turns=[];
-    const questions=body.scenario==="native" ? ["Quais são minhas tarefas?","Crie uma tarefa para eu conferir o estoque amanhã, prioridade alta.","Sim, pode aplicar."] : body.scenario==="conversation" ? ["Meu ônibus atrasou, acho que vou chegar às 08:20.","Quantos minutos de atraso em relação ao meu horário?","Então escreva uma mensagem curta para avisar meu gerente, com isso."] : ["Qual é meu horário hoje?","E amanhã?","Quais são minhas tarefas?"];
+    const questions=body.scenario==="leave" ? ["Quero folgar sexta feira, motivo: compromisso pessoal.","Em vez de sexta, quero sábado, pelo mesmo motivo.","Envia"] : body.scenario==="leave-sim" ? ["Quero folgar sábado, motivo: compromisso pessoal.","Sim"] : body.scenario==="leave-reason" ? ["Quero folgar sábado","Para resolver documentos pessoais","Envia"] : body.scenario==="native" ? ["Quais são minhas tarefas?","Crie uma tarefa para eu conferir o estoque amanhã, prioridade alta.","Sim, pode aplicar."] : body.scenario==="conversation" ? ["Meu ônibus atrasou, acho que vou chegar às 08:20.","Quantos minutos de atraso em relação ao meu horário?","Então escreva uma mensagem curta para avisar meu gerente, com isso."] : ["Qual é meu horário hoje?","E amanhã?","Quais são minhas tarefas?"];
     for(const question of questions) {
-      const result=await runGroqConversation({env,employee:sample,employees:[sample],profile:body.scenario==="native"?{...sample,Perfil:"Gerente"}:sample,channel:body.scenario==="native"?"app":"whatsapp",authScope:{uid:"synthetic-app"},appContext:{currentView:"tasks"},database:async(_e,_t,path)=>fixtures[path.split("/").at(-1)]||{},now,text:question,memory,executeLegacy:async()=>({replyText:"Diagnóstico não grava alterações."})});
+      const result=await runGroqConversation({env,employee:sample,employees:[sample],profile:body.scenario==="native"?{...sample,Perfil:"Gerente"}:sample,channel:body.scenario==="native"?"app":"whatsapp",authScope:{uid:"synthetic-app"},appContext:{currentView:"tasks"},database:async(_e,_t,path)=>fixtures[path.split("/").at(-1)]||{},now,text:question,memory,executeLegacy:async text=>{confirmations++;confirmedRequests.push(text);return {action:"diagnostic_confirmed",replyText:"Pedido de teste confirmado. Nenhum registro real foi criado."};}});
       turns.push({question,action:result?.action,reply:result?.replyText,data:result?.data,providerStatus:result?.providerStatus});
       if(result?.action!=="groq_conversation")break;
     }
-    return json({configured:true,provider:"groq",model:env.GROQ_MODEL||GROQ_CHAT_MODEL,turns});
+    return json({configured:true,provider:"groq",model:env.GROQ_MODEL||GROQ_CHAT_MODEL,turns,confirmations,confirmedRequests});
   }
 
   if (route === "/wa-clock-event") {

@@ -49,3 +49,15 @@ Validação da versão 6.17.7: 90 testes do Worker aprovados; 321 testes do apli
 Foi corrigida uma falha do supervisor que zerava o contador de erros públicos a cada gravação bem-sucedida da configuração. Agora duas falhas públicas consecutivas reiniciam o túnel; somente um health-check público saudável interrompe a sequência. A conexão cloudflared usa HTTP/2 e origem IPv4 local, validada com o WA-AKG. Reinícios não criam dois túneis por callbacks atrasados e ciclos de monitoramento não se sobrepõem. O gateway recebe tempo para restaurar a sessão salva antes de o supervisor tentar reiniciá-la; logs locais ficam em arquivo privado.
 
 O Worker preserva a URL pública válida mesmo quando a leitura separada da configuração privada falha. Foram adicionados testes para falhas independentes de leitura e para recuperação do túnel apesar de sincronizações locais bem-sucedidas.
+
+## Contexto e confirmação — correção de 03/11/2026
+
+A identidade do histórico agora é comparada pelos valores de UID, perfil e canal, sem depender da ordem das propriedades devolvidas pelo RTDB. Testes usam o armazenamento real com um roundtrip JSON sintético que reordena chaves: o mesmo defeito que descartava histórico e propostas foi reproduzido antes da correção.
+
+Confirmações como “sim”, “envia”, “envie” e “pode mandar” consomem somente uma proposta vigente, sem nova chamada ao modelo. Alteração da data invalida a proposta anterior, mesmo se a nova preparação falhar; confirmação com ressalva não executa a proposta antiga. Falha do provedor em uma conversa sem alteração preserva a proposta já preparada.
+
+Datas relativas são calculadas no servidor com calendário da Bahia. Em 03/11/2026, sexta é 06/11 e sábado é 07/11. Correções como “em vez de sexta, quero sábado” substituem a referência antiga. O modelo recebe calendário de 14 dias e a confirmação mostra as datas efetivas da proposta; não escolhe livremente outro dia. Motivo deve vir das mensagens da pessoa, sem preencher justificativa fictícia. A IA prepara imediatamente quando recebe os dados necessários e pede somente a informação que falta.
+
+Os diagnósticos privados `leave`, `leave-sim` e `leave-reason` usam conversa sintética e simulação de persistência com chaves reordenadas. A confirmação executa apenas um stub, sem registrar folgas reais nem enviar WhatsApp.
+
+Validação desta correção: 109 testes do Worker aprovados; 323 testes do aplicativo aprovados, com um teste de regras reservado ao emulador. Build do Worker em dry-run aprovado. Groq real validou “sexta → em vez de sexta, sábado → envia” e “quero folgar sábado → motivo em outra mensagem → envia”, preservando 07/11/2026 e confirmando uma única vez no stub de teste.
