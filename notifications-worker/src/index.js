@@ -1,3 +1,5 @@
+import {composeWhatsAppMessage} from './wa-message-composer.js';
+import {handleAppHouseAI} from "./house-ai-app.js";
 import {runGroqConversation,GROQ_CHAT_MODEL} from "./wa-chat.js";
 import { relayNotification, verifyCreatorNotificationEvent } from "./notification-relay.js";
 import { handleIntegrity } from "./whistleblower-service.js";
@@ -382,6 +384,7 @@ async function handle(request, env) {
         const sendRes = await sendWhatsAppMessage(env, {
           phone: rawFrom,
           text: aiResult.replyText,
+          aiPrepared: aiResult.action === "groq_conversation",
           gwConfig: gw,
         });
 
@@ -426,11 +429,23 @@ async function handle(request, env) {
     }
   }
 
+  if (route === "/house-ai-chat") {
+    if(request.method!=="POST")return json({success:false,message:"method_not_allowed"},405);
+    try { return json(await handleAppHouseAI({request,payload:body,env,authenticate,database,token:()=>googleToken(env),now})); }
+    catch(error) {return json({success:false,message:error.message==="unauthorized"?"Sua sessão expirou. Entre novamente.":error.status?error.message:"Não foi possível consultar a IA agora."},error.message==="unauthorized"?401:error.status||502);}
+  }
+
   if (route === "/wa-ai-diagnostic") {
     const serviceToken=request.headers.get("X-Service-Token");
     if (!env.WA_SERVICE_TOKEN || !serviceToken || !await equalSecret(serviceToken,env.WA_SERVICE_TOKEN)) return json({error:"forbidden"},403);
     if (request.method !== "POST") return json({error:"method_not_allowed"},405);
     if (!env.GROQ_API_KEY) return json({configured:false,provider:"groq"},503);
+    if(body.scenario==="outbound") {
+      const samples=["Entrada registrada às 08:00", "Saída registrada às 17:00", "Intervalo iniciado às 12:00", "Retorno do intervalo às 13:00", "House 190\nFolga aprovada\nSeu pedido de folga para 2026-11-06 foi aprovado!", "Aviso: reunião da equipe amanhã às 09:00"];
+      const messages=[];
+      for(const source of samples)messages.push(await composeWhatsAppMessage(env,source));
+      return json({configured:true,provider:"groq",messages});
+    }
     // No real employee records and no WhatsApp delivery in diagnostics.
     const sample={FuncionarioID:"synthetic-ai-test",Nome:"Lucas Teste",LojaID:"synthetic-store",Ativo:true,Perfil:"Funcionário",Cargo:"Atendente"};
     const today=new Date(now-3*3600000).toISOString().slice(0,10);
@@ -438,10 +453,10 @@ async function handle(request, env) {
     const fixtures={JornadasPonto:{a:{FuncionarioID:sample.FuncionarioID,Ativa:true,VigenteDe:"2020-01-01",DiasTrabalho:"0,1,2,3,4,5,6",Entrada:"08:00",Saida:"17:00"}},Folgas:{a:{FuncionarioID:sample.FuncionarioID,DataInicio:tomorrow,DataFim:tomorrow,Status:"Aprovada"}},Tarefas:{a:{FuncionarioID:sample.FuncionarioID,Titulo:"Conferir freezers",Status:"A fazer",LojaID:sample.LojaID}}};
     let state;const memory={load:async()=>state,save:async value=>{state=value;}};
     const turns=[];
-    const questions=body.scenario==="conversation" ? ["Meu ônibus atrasou, acho que vou chegar às 08:20.","Quantos minutos de atraso em relação ao meu horário?","Então escreva uma mensagem curta para avisar meu gerente, com isso."] : ["Qual é meu horário hoje?","E amanhã?","Quais são minhas tarefas?"];
+    const questions=body.scenario==="native" ? ["Quais são minhas tarefas?","Crie uma tarefa para eu conferir o estoque amanhã, prioridade alta.","Sim, pode aplicar."] : body.scenario==="conversation" ? ["Meu ônibus atrasou, acho que vou chegar às 08:20.","Quantos minutos de atraso em relação ao meu horário?","Então escreva uma mensagem curta para avisar meu gerente, com isso."] : ["Qual é meu horário hoje?","E amanhã?","Quais são minhas tarefas?"];
     for(const question of questions) {
-      const result=await runGroqConversation({env,employee:sample,employees:[sample],profile:sample,database:async(_e,_t,path)=>fixtures[path.split("/").at(-1)]||{},now,text:question,memory,executeLegacy:async()=>({replyText:"Diagnóstico não grava alterações."})});
-      turns.push({question,action:result?.action,reply:result?.replyText,providerStatus:result?.providerStatus});
+      const result=await runGroqConversation({env,employee:sample,employees:[sample],profile:body.scenario==="native"?{...sample,Perfil:"Gerente"}:sample,channel:body.scenario==="native"?"app":"whatsapp",authScope:{uid:"synthetic-app"},appContext:{currentView:"tasks"},database:async(_e,_t,path)=>fixtures[path.split("/").at(-1)]||{},now,text:question,memory,executeLegacy:async()=>({replyText:"Diagnóstico não grava alterações."})});
+      turns.push({question,action:result?.action,reply:result?.replyText,data:result?.data,providerStatus:result?.providerStatus});
       if(result?.action!=="groq_conversation")break;
     }
     return json({configured:true,provider:"groq",model:env.GROQ_MODEL||GROQ_CHAT_MODEL,turns});

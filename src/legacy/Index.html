@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.17.6" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.17.7" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -2446,23 +2446,15 @@
 
         <div id="copilotSettingsPanel" class="copilot-settings-panel hidden">
           <div class="copilot-settings-header">
-            <strong>Configurações da IA (Gemini)</strong>
-            <span id="copilotEngineStatus" class="copilot-engine-status">Motor Local</span>
+            <strong>IA integrada ao sistema</strong>
+            <span id="copilotEngineStatus" class="copilot-engine-status">Groq · servidor</span>
           </div>
-          <p class="copilot-settings-desc">Escolha o modelo de IA e insira sua chave do Google AI Studio. Se deixado em branco, o motor autônomo offline opera com latência zero.</p>
+          <p class="copilot-settings-desc">A House AI usa a Groq pelo servidor autenticado. A chave fica protegida no servidor e você não precisa configurar nada neste aparelho.</p>
           <div class="copilot-settings-field">
-            <label for="copilotModelSelect" class="copilot-settings-label">Modelo de IA:</label>
-            <select id="copilotModelSelect" class="copilot-settings-select">
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado - Ultrarrápido)</option>
-              <option value="gemini-4-argon">Gemini 4 Argon (Raciocínio Avançado)</option>
-            </select>
+            <span class="copilot-settings-label">Provedor: Groq</span>
+            <span class="copilot-settings-help">Modelo gerenciado pelo sistema: gpt-oss-120b.</span>
           </div>
-          <div class="copilot-settings-input-group">
-            <input type="password" id="copilotApiKeyInput" class="copilot-settings-input" placeholder="Cole sua chave de API do Gemini..." autocomplete="off">
-            <button type="button" id="copilotSaveKeyBtn" class="copilot-settings-save-btn">Salvar</button>
-            <button type="button" id="copilotClearKeyBtn" class="copilot-settings-clear-btn" title="Remover chave">Limpar</button>
-          </div>
-          <small class="copilot-settings-help">Obtenha sua chave gratuita em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.</small>
+          <small class="copilot-settings-help">É necessário estar conectado à internet. Alterações nos registros continuam exigindo sua confirmação e as permissões do seu perfil.</small>
         </div>
 
         <div class="copilot-body" id="copilotBody">

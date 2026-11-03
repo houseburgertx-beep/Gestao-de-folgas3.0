@@ -1,3 +1,5 @@
+import { composeWhatsAppMessage } from "./wa-message-composer.js";
+
 /**
  * Módulo de Integração com o Gateway WhatsApp (WA-AKG)
  * Permite envio de mensagens via API REST para números de colaboradores da House 190.
@@ -62,7 +64,7 @@ export function normalizeWhatsAppPhone(phone) {
  * @param {number} [options.timeoutMs=10000]
  * @returns {Promise<{ success: boolean, status?: number, error?: string, skipped?: boolean }>}
  */
-export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000, gwConfig = null }) {
+export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000, gwConfig = null, aiPrepared = false }) {
   const isEnabled =
     env.WA_ENABLED === true ||
     env.WA_ENABLED === 1 ||
@@ -84,6 +86,9 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000,
   if (!target) {
     return { success: false, error: "invalid_phone" };
   }
+
+  const composed = await composeWhatsAppMessage(env, text, { aiPrepared });
+  text = composed.text;
 
   const apiEndpoint = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
   const endpoint = `${apiEndpoint}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(target.jid)}/send`;
@@ -123,6 +128,7 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000,
       success: true,
       status: res.status,
       messageId,
+      composition: composed.composition,
     };
   } catch (err) {
     return {
@@ -147,7 +153,7 @@ export async function sendWhatsAppMessage(env, { phone, text, timeoutMs = 10000,
  */
 export async function sendWhatsAppButtons(
   env,
-  { phone, text, footer = "Grupo House 190", buttons = [], timeoutMs = 10000, gwConfig = null },
+  { phone, text, footer = "Grupo House 190", buttons = [], timeoutMs = 10000, gwConfig = null, aiPrepared = false },
 ) {
   const isEnabled =
     env.WA_ENABLED === true ||
@@ -180,8 +186,12 @@ export async function sendWhatsAppButtons(
     : [];
 
   if (validButtons.length === 0) {
-    return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig });
+    return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig, aiPrepared });
   }
+
+  const composed = await composeWhatsAppMessage(env, text, { aiPrepared });
+  text = composed.text;
+  aiPrepared = true;
 
   const apiEndpoint = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
   const endpoint = `${apiEndpoint}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(target.jid)}/buttons`;
@@ -223,14 +233,14 @@ export async function sendWhatsAppButtons(
       });
 
       if (!fallbackRes.ok) {
-        return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig });
+        return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig, aiPrepared });
       }
-      return { success: true, status: fallbackRes.status };
+      return { success: true, status: fallbackRes.status, composition: composed.composition };
     }
 
-    return { success: true, status: res.status };
+    return { success: true, status: res.status, composition: composed.composition };
   } catch (err) {
-    return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig });
+    return sendWhatsAppMessage(env, { phone, text, timeoutMs, gwConfig, aiPrepared });
   }
 }
 
@@ -248,7 +258,7 @@ export async function sendWhatsAppButtons(
  */
 export async function sendWhatsAppPoll(
   env,
-  { phone, question, options = [], selectableCount = 1, timeoutMs = 10000, gwConfig = null },
+  { phone, question, options = [], selectableCount = 1, timeoutMs = 10000, gwConfig = null, aiPrepared = false },
 ) {
   const isEnabled =
     env.WA_ENABLED === true ||
@@ -280,6 +290,8 @@ export async function sendWhatsAppPoll(
     return { success: false, error: "poll_requires_at_least_2_options" };
   }
 
+  const composed = await composeWhatsAppMessage(env, question || "Selecione uma opção", { aiPrepared });
+
   const apiEndpoint = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
   const endpoint = `${apiEndpoint}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(target.jid)}/poll`;
 
@@ -292,7 +304,7 @@ export async function sendWhatsAppPoll(
         "bypass-tunnel-reminder": "true",
       },
       body: JSON.stringify({
-        question: String(question || "Selecione uma opção").slice(0, 255),
+        question: (composed.text.length<=255?composed.text:String(question||"Selecione uma opção")).slice(0, 255),
         options: validOptions,
         selectableCount: Math.min(validOptions.length, Math.max(1, selectableCount || 1)),
       }),
@@ -308,7 +320,7 @@ export async function sendWhatsAppPoll(
       };
     }
 
-    return { success: true, status: res.status };
+    return { success: true, status: res.status, composition: composed.composition };
   } catch (err) {
     return {
       success: false,

@@ -31,3 +31,15 @@ O banco de horas consolidado continua no aplicativo: o chat não inventa saldo a
 77 testes do Worker aprovados, incluindo histórico, ferramentas, isolamento, confirmação única, erro de provedor, revisão de orientação sem fonte e trava concorrente usando o schema SQLite real do D1. Regressão do aplicativo: 307 aprovados e um teste de regras executado separadamente no emulador do CI.
 
 Integração baseada na [API Groq](https://console.groq.com/docs/api-reference), [ferramentas](https://console.groq.com/docs/tool-use/overview) e [modelos/cotas](https://console.groq.com/docs/models). Não foi enviado WhatsApp real a funcionários durante a validação.
+
+## Aplicativo e avisos automáticos — 6.17.7
+
+O chat do aplicativo usa `/house-ai-chat`, autenticado pelo Firebase. A Groq consulta ferramentas autorizadas pelo perfil no servidor; o navegador não escolhe identidade, histórico nem modelo. O contexto é separado por conta, unidade, perfil e canal. Tarefas, folgas, comunicados e feriados geram cartões de revisão conforme as permissões existentes; a confirmação usa o botão do aplicativo.
+
+Os envios centralizados de texto, botões e enquetes passam pelo compositor Groq, inclusive ponto, intervalos, lembretes e comunicados. Respostas já geradas pela Groq não passam duas vezes. O compositor escolhe apresentação e tom; os fatos ficam em slots opacos ordenados, sem transmitir o conteúdo pessoal do aviso ao modelo. Datas ISO são apresentadas em formato brasileiro e links permanecem intactos. A validação impede omitir fatos, inverter status ou adicionar regras.
+
+Falha, limite ou demora da Groq preserva o aviso factual para não interromper a entrega. Permanecem a dependência do gateway conectado e os limites do provedor. Avisos automáticos não são incorporados ao histórico conversacional nesta versão.
+
+O diagnóstico privado aceita `scenario: "native"` e `scenario: "outbound"`, usa dados sintéticos e não envia mensagens a funcionários.
+
+Validação da versão 6.17.7: 90 testes do Worker aprovados; 321 testes do aplicativo aprovados e um teste de regras reservado ao emulador. Build e dry-run aprovados. Diagnósticos reais da Groq validaram os seis tipos de aviso; o cenário nativo consultou tarefas, preparou um cartão e recusou gravação pelo texto “sim”. Nenhuma mensagem real foi enviada.

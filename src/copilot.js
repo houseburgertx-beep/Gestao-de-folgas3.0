@@ -1,5 +1,5 @@
 // ==========================================================================
-// COPILOTO HOUSE 190 — Assistente Operacional Ativo com Gemini Flash & Argon
+// COPILOTO HOUSE 190 — Assistente operacional com Groq nativa no servidor
 // Folgas 3.0 & CozinhaFlow
 // Estritamente sem emojis, com confirmação obrigatória e controle RBAC
 // ==========================================================================
@@ -1376,6 +1376,15 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
   const tasks = Array.isArray(context.tasks) ? context.tasks : [];
   const swaps = Array.isArray(context.swaps) ? context.swaps : [];
   const timeOff = Array.isArray(context.timeOff) ? context.timeOff : [];
+  const resolveExplicitEmployee = (id) => {
+    if (!id) return null;
+    const match = employees.find((employee) => getUserId(employee) === id);
+    if (match) return match;
+    const ownEmployeeId = String(user.FuncionarioID || user.funcionarioId || "").trim();
+    return ownEmployeeId && ownEmployeeId === id
+      ? { ...user, FuncionarioID: ownEmployeeId }
+      : null;
+  };
 
   switch (name) {
     case "criarTarefaCozinha": {
@@ -1389,14 +1398,21 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
       const titulo = String(args.titulo || "Higienização e organização operacional").trim();
       const prioridade = String(args.prioridade || "Normal").trim();
       const prazo = String(args.prazo || "").trim();
+      const hasExplicitId = Object.prototype.hasOwnProperty.call(args, "responsavelId");
+      const explicitId = String(args.responsavelId ?? "").trim();
       let targetEmployee = null;
-      if (args.responsavelNome) {
+      if (hasExplicitId) {
+        targetEmployee = resolveExplicitEmployee(explicitId);
+        if (!targetEmployee) {
+          return { type: "error", message: "O responsável informado pela IA não foi encontrado. Nenhuma tarefa foi preparada." };
+        }
+      } else if (args.responsavelNome) {
         targetEmployee = findEmployeeInText(args.responsavelNome, employees);
       }
 
-      if (targetEmployee && role === "manager" && userStore) {
-        const empStore = String(targetEmployee.LojaID || targetEmployee.lojaId || "");
-        if (empStore && empStore !== userStore) {
+      if (targetEmployee && role === "manager") {
+        const empStore = getUserStoreId(targetEmployee);
+        if ((hasExplicitId && (!userStore || !empStore)) || (userStore && empStore && empStore !== userStore)) {
           return {
             type: "error",
             message: `O colaborador ${targetEmployee.Nome} pertence a outra unidade. Você pode delegar tarefas apenas para a sua loja.`,
@@ -1406,10 +1422,10 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
 
       const payload = {
         TITULO: titulo,
-        DESCRICAO: `Tarefa criada pelo Copiloto House 190 (Gemini) a pedido de ${userName}.`,
+        DESCRICAO: `Tarefa criada pelo Copiloto House 190 a pedido de ${userName}.`,
         PRIORIDADE: prioridade,
         PRAZO: prazo,
-        RESPONSAVEL_ID: targetEmployee ? String(targetEmployee.FuncionarioID || targetEmployee.id || "") : "",
+        RESPONSAVEL_ID: targetEmployee ? getUserId(targetEmployee) : "",
         RESPONSAVEL_NOME: targetEmployee ? String(targetEmployee.Nome || "") : "Equipe da Cozinha",
         LojaID: targetEmployee?.LojaID || userStore,
         STATUS: "A fazer",
@@ -1539,32 +1555,39 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
       const formattedDate = parsedDate ? parsedDate.formattedDate : isoDate;
       const reason = extractReasonFromText(args.motivo || (role === "employee" ? "Solicitação de folga via Copiloto" : `Folga concedida via Copiloto por ${userName}`));
 
+      const hasExplicitId = Object.prototype.hasOwnProperty.call(args, "colaboradorId");
+      const explicitId = String(args.colaboradorId ?? "").trim();
       let targetEmp = null;
-      if (args.colaboradorNome) {
+      if (hasExplicitId) {
+        targetEmp = resolveExplicitEmployee(explicitId);
+        if (!targetEmp) {
+          return { type: "error", message: "O colaborador informado pela IA não foi encontrado. Nenhuma folga foi preparada." };
+        }
+      } else if (args.colaboradorNome) {
         targetEmp = findEmployeeInText(args.colaboradorNome + (args.lojaNome ? ` do ${args.lojaNome}` : ""), employees);
       }
 
-      if (targetEmp && role === "employee" && targetEmp.FuncionarioID !== userId) {
+      if (targetEmp && role === "employee" && getUserId(targetEmp) !== userId) {
         return {
           type: "error",
           message: "Você só pode solicitar folga para o seu próprio usuário. A concessão ou solicitação de folga para outros colaboradores é restrita à gerência e administração.",
         };
       }
 
-      if (targetEmp && role === "manager" && userStore) {
-        const empStore = String(targetEmp.LojaID || targetEmp.lojaId || "");
-        if (empStore && empStore !== userStore) {
+      if (targetEmp && role === "manager") {
+        const empStore = getUserStoreId(targetEmp);
+        if ((hasExplicitId && (!userStore || !empStore)) || (userStore && empStore && empStore !== userStore)) {
           return {
             type: "error",
-            message: `O colaborador ${targetEmp.Nome} pertence a outra unidade. Você pode conceder folga apenas para colaboradores da sua loja.`,
+            message: `O colaborador ${targetEmp.Nome} pertence a outra unidade ou não possui unidade confirmada. Você pode conceder folga apenas para colaboradores da sua loja.`,
           };
         }
       }
 
-      if (targetEmp && role !== "employee" && targetEmp.FuncionarioID !== userId) {
+      if (targetEmp && role !== "employee" && getUserId(targetEmp) !== userId) {
         const storeLabel = targetEmp.NomeLoja || (targetEmp.LojaID ? `Loja ${targetEmp.LojaID}` : (userStore ? `Loja ${userStore}` : "Unidade"));
         const payload = {
-          FuncionarioID: targetEmp.FuncionarioID || targetEmp.id,
+          FuncionarioID: getUserId(targetEmp),
           NomeFuncionario: targetEmp.Nome || targetEmp.nome,
           LojaID: targetEmp.LojaID || targetEmp.lojaId || userStore,
           DataInicio: isoDate,
@@ -1589,7 +1612,7 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
             { label: "Status Inicial", value: "Aprovada (concedida pela gestão)" },
           ],
           details: {
-            empId: targetEmp.FuncionarioID || targetEmp.id,
+            empId: getUserId(targetEmp),
             empName: targetEmp.Nome || targetEmp.nome,
             isoDate,
             formattedDate,
@@ -2224,6 +2247,35 @@ export function resolveCopilotProxyResult(prompt, context = {}, response) {
     return { type: "query", reply: stripEmojis(data.reply) };
   }
   return parseCopilotIntent(prompt, context);
+}
+
+// Native app chat always uses the authenticated server. Local API keys and
+// legacy Gemini helpers are kept only for compatibility with older consumers.
+export async function callNativeHouseAI(prompt, context = {}, api = null) {
+  const client = api || (typeof window !== "undefined" ? window.__GESTAO_FIREBASE__?.api : null);
+  if (!client || typeof client.invoke !== "function") {
+    throw new Error("A sessão do sistema ainda não está pronta. Entre novamente e tente outra vez.");
+  }
+  const response = await client.invoke("callHouseAIChat", [{
+    prompt: String(prompt || "").trim(),
+    currentView: String(context.currentView || "dashboard"),
+  }]);
+  if (response?.success === false) {
+    const reason = response.error?.message || response.error || response.message;
+    throw new Error(typeof reason === "string" ? reason : "A Groq não concluiu a consulta. Tente novamente.");
+  }
+  const data = response?.data || response;
+  if (data?.type === "function_call") {
+    const known = GEMINI_TOOLS.some((group) => group.functionDeclarations.some((tool) => tool.name === data.name));
+    if (!known || !data.args || typeof data.args !== "object" || Array.isArray(data.args)) {
+      throw new Error("A IA retornou uma ação não reconhecida. Nenhuma alteração foi aplicada.");
+    }
+    return convertFunctionCallToAction(data.name, data.args, context);
+  }
+  if (data?.type === "query" && data.provider === "groq" && typeof data.reply === "string" && data.reply.trim()) {
+    return { type: "query", reply: stripEmojis(data.reply), provider: data.provider, model: data.model };
+  }
+  throw new Error("A IA retornou uma resposta inválida. Tente novamente; nenhuma alteração foi aplicada.");
 }
 
 export async function callGeminiCopilot(prompt, context = {}) {
@@ -3803,7 +3855,7 @@ function _parseCopilotIntentRaw(text, context = {}) {
       DESCRICAO: `Tarefa criada pelo Copiloto House 190 a pedido de ${userName}.`,
       PRIORIDADE: prioridade,
       PRAZO: prazo,
-      RESPONSAVEL_ID: targetEmployee ? String(targetEmployee.FuncionarioID || targetEmployee.id || "") : "",
+      RESPONSAVEL_ID: targetEmployee ? getUserId(targetEmployee) : "",
       RESPONSAVEL_NOME: targetEmployee ? String(targetEmployee.Nome || "") : "Equipe da Cozinha",
       LojaID: targetEmployee?.LojaID || userStore,
       STATUS: "A fazer",
@@ -3919,7 +3971,7 @@ function _parseCopilotIntentRaw(text, context = {}) {
     const reason = extractReasonFromText(clean, targetEmp && role !== "employee" ? `Folga concedida via Copiloto por ${userName}` : "Solicitação de folga via Copiloto");
 
     // Caso A: Gestor ou Administrador concedendo folga para colaborador identificado
-    if (targetEmp && role !== "employee" && targetEmp.FuncionarioID !== userId) {
+    if (targetEmp && role !== "employee" && getUserId(targetEmp) !== userId) {
       const storeLabel = targetEmp.NomeLoja || (targetEmp.LojaID ? `Loja ${targetEmp.LojaID}` : (userStore ? `Loja ${userStore}` : "Unidade"));
       const payload = {
         FuncionarioID: targetEmp.FuncionarioID || targetEmp.id,
@@ -4595,78 +4647,21 @@ export function initCopilot() {
   const suggestions = $("#copilotQuickSuggestions");
   const fab = $("#copilotFab");
 
-  // Painel de Configurações da Chave Gemini
+  // Connection details are informational: credentials stay on the server.
   const settingsBtn = $("#copilotSettingsBtn");
   const settingsPanel = $("#copilotSettingsPanel");
-  const apiKeyInput = $("#copilotApiKeyInput");
-  const modelSelect = $("#copilotModelSelect");
-  const saveKeyBtn = $("#copilotSaveKeyBtn");
-  const clearKeyBtn = $("#copilotClearKeyBtn");
   const engineStatus = $("#copilotEngineStatus");
 
   function updateEngineStatus() {
-    const key = getGeminiApiKey();
-    let model = getGeminiModel();
-  if (model === "gemini-4-argon") {
-    model = "gemini-2.5-pro";
-  }
-    if (apiKeyInput) {
-      apiKeyInput.value = key ? "••••••••••••••••" : "";
-    }
-    if (modelSelect) {
-      modelSelect.value = model;
-    }
     if (engineStatus) {
-      if (key) {
-        const label = model === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
-        engineStatus.textContent = `${label} Ativo`;
-        engineStatus.className = "copilot-engine-status copilot-engine-status--gemini";
-      } else {
-        engineStatus.textContent = "Motor Local Ativo";
-        engineStatus.className = "copilot-engine-status";
-      }
+      engineStatus.textContent = "Groq · servidor";
+      engineStatus.className = "copilot-engine-status";
     }
   }
-
-  modelSelect?.addEventListener("change", () => {
-    const chosen = modelSelect.value;
-    setGeminiModel(chosen);
-    updateEngineStatus();
-    if (typeof window.__GESTAO_TOAST__ === "function") {
-      const name = chosen === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini 2.0 Flash";
-      window.__GESTAO_TOAST__(`Modelo alternado para ${name}.`);
-    }
-  });
-
   settingsBtn?.addEventListener("click", () => {
     settingsPanel?.classList.toggle("hidden");
     updateEngineStatus();
   });
-
-  saveKeyBtn?.addEventListener("click", () => {
-    const val = apiKeyInput?.value?.trim();
-    if (val && !val.startsWith("•••")) {
-      setGeminiApiKey(val);
-      if (typeof window.__GESTAO_TOAST__ === "function") {
-        window.__GESTAO_TOAST__("Chave da API do Gemini salva com sucesso.");
-      }
-    }
-    if (modelSelect) {
-      setGeminiModel(modelSelect.value);
-    }
-    updateEngineStatus();
-    settingsPanel?.classList.add("hidden");
-  });
-
-  clearKeyBtn?.addEventListener("click", () => {
-    setGeminiApiKey("");
-    if (apiKeyInput) apiKeyInput.value = "";
-    if (typeof window.__GESTAO_TOAST__ === "function") {
-      window.__GESTAO_TOAST__("Chave removida. Usando motor local.");
-    }
-    updateEngineStatus();
-  });
-
   updateEngineStatus();
 
   function openDrawer() {
@@ -4784,13 +4779,7 @@ export function initCopilot() {
     }
 
     const userName = getUserName(user);
-    const hasKey = Boolean(getGeminiApiKey());
-    let model = getGeminiModel();
-  if (model === "gemini-4-argon") {
-    model = "gemini-2.5-pro";
-  }
-    const modelName = model === "gemini-4-argon" ? "Gemini 4 Argon" : "Gemini Flash";
-    const engineNote = hasKey ? `Motor ${modelName} ativado.` : "Motor local autônomo ativado.";
+    const engineNote = "IA Groq integrada ao sistema, com conexão segura pelo servidor.";
 
     if (messages && messages.children.length === 0) {
       const greeting = `Olá, **${userName}**. Sou o Copiloto House 190. ${engineNote} Você está na tela **${screenInfo.title}**. Como posso ajudar na sua operação hoje?`;
@@ -4900,34 +4889,12 @@ export function initCopilot() {
         currentView: getCurrentView(),
       };
 
-      let intent = null;
-      const apiKey = getGeminiApiKey();
-
-      if (apiKey) {
-        const currentModel = getGeminiModel();
-        const modelLabel = currentModel === "gemini-4-argon" ? "Gemini 2.5 Pro" : "Gemini Flash";
-        const waitMsg = appendAssistantMessage(`Pensando com ${modelLabel}…`);
-        try {
-          intent = await callGeminiCopilot(text, context);
-        } catch (err) {
-          console.warn("Falha no Gemini, usando fallback local:", err);
-          intent = parseCopilotIntent(text, context);
-        } finally {
-          waitMsg?.remove();
-        }
-      } else {
-        // Tenta consultar House AI Proxy da arquitetura central
-        try {
-          const api = window.__GESTAO_FIREBASE__?.api;
-          if (api && typeof api.invoke === "function") {
-            const houseAiRes = await api.invoke("callGeminiProxy", [{ prompt: text, context }]);
-            intent = resolveCopilotProxyResult(text, context, houseAiRes);
-          }
-        } catch (_) {}
-
-        if (!intent) {
-          intent = parseCopilotIntent(text, context);
-        }
+      let intent;
+      const waitMsg = appendAssistantMessage("Consultando a Groq…");
+      try {
+        intent = await callNativeHouseAI(text, context);
+      } finally {
+        waitMsg?.remove();
       }
 
       if (!intent || intent.type === "empty") {
@@ -5028,7 +4995,10 @@ export function initCopilot() {
       }
     } catch (err) {
       console.error("Erro no processamento do copiloto:", err);
-      appendAssistantMessage("Desculpe, ocorreu um erro ao processar o seu comando. Por favor, tente novamente.");
+      const reason = String(err?.message || "A Groq está indisponível no momento. Tente novamente.");
+      const message = `Não foi possível concluir a consulta: ${reason}`;
+      appendAssistantMessage(message);
+      copilotChatHistory.push({ role: "assistant", text: message });
     } finally {
       isProcessing = false;
       if (sendBtn) sendBtn.disabled = false;
@@ -5040,13 +5010,34 @@ export function initCopilot() {
   }
 
   const clearChatBtn = $("#copilotClearChatBtn");
-  clearChatBtn?.addEventListener("click", () => {
-    if (messages) messages.innerHTML = "";
-    clearCopilotChatHistory();
-    updateWelcomeAndChips();
-    if (input) {
-      input.value = "";
-      input.style.height = "auto";
+  clearChatBtn?.addEventListener("click", async () => {
+    if (isProcessing) return;
+    isProcessing = true;
+    clearChatBtn.disabled = true;
+    const sendBtn = $("#copilotSendBtn");
+    const wasSendDisabled = sendBtn?.disabled;
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+      await callNativeHouseAI("limpar conversa", { currentView: getCurrentView() });
+      if (messages) messages.innerHTML = "";
+      clearCopilotChatHistory();
+      pendingAction = null;
+      updateWelcomeAndChips();
+      if (input) {
+        input.value = "";
+        input.style.height = "auto";
+      }
+    } catch (error) {
+      const message = `Não foi possível limpar a conversa: ${String(error?.message || "Tente novamente.")}`;
+      if (typeof window.__GESTAO_TOAST__ === "function") {
+        window.__GESTAO_TOAST__(message);
+      } else {
+        appendAssistantMessage(message);
+      }
+    } finally {
+      isProcessing = false;
+      clearChatBtn.disabled = false;
+      if (sendBtn) sendBtn.disabled = wasSendDisabled;
     }
   });
 

@@ -5,6 +5,7 @@
 // ==========================================================================
 
 import { runtime } from "./runtime.js";
+import { requestWorker } from "./worker-client.js";
 import { assert, nowIso, todayIso, uuid } from "./utils.js";
 import { audit, isAdmin, isManager, requireAdmin, success } from "./api-base.js";
 import {
@@ -64,6 +65,14 @@ export function checkHouseAIRBAC(profile, targetFuncionarioId, targetLojaId = ""
 
 export function createHouseAIHandlers() {
   return {
+    async callHouseAIChat(args) {
+      const [payload = {}] = args || [];
+      await runtime.requireProfile();
+      return requestWorker("/house-ai-chat", {
+        prompt: String(payload.prompt || "").trim(),
+        currentView: String(payload.currentView || "dashboard"),
+      }, { timeout: 55000 });
+    },
     /**
      * Proxy seguro para a API do Gemini.
      * Mantém chaves e modelos centralizados no backend.
