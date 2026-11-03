@@ -1,6 +1,6 @@
 # Gestão de Folgas — Grupo House 190
 
-Versão 6.17.5. Aplicação PWA em JavaScript/Vite, Firebase Authentication e Realtime Database, com Cloudflare Worker para notificações e WhatsApp e serviço Google Apps Script para fotos privadas no Drive.
+Versão 6.17.6. Aplicação PWA em JavaScript/Vite, Firebase Authentication e Realtime Database, com Cloudflare Worker para notificações e WhatsApp e serviço Google Apps Script para fotos privadas no Drive.
 
 Os fluxos ativos incluem funcionários/lojas, folgas e trocas, férias, ponto com selfie e localização, banco de horas, documentos/assinaturas, tarefas, comunicados, relatórios e Canal de Integridade. A interface e seus estilos foram preservados nesta revisão.
 
@@ -53,3 +53,5 @@ Ou, com o emulador já iniciado, defina `FIREBASE_DATABASE_EMULATOR_HOST=127.0.0
 Os arquivos desativados de Arena/House Link, sem referências no aplicativo, foram removidos; permanecem recuperáveis no histórico Git. Nenhuma tela ativa foi retirada.
 
 O ajuste mobile 6.17.5 está documentado em [melhorias mobile](docs/MOBILE-6.17.5.md).
+
+A revisão da IA e do dashboard está em [House AI 6.17.6](docs/HOUSE-AI-6.17.6.md).

@@ -2212,6 +2212,20 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
 // CHAMADA À API DO GEMINI (FLASH OU ARGON)
 // ==========================================================================
 
+// The proxy can fall back to a generic routing hint. Keep the richer local
+// parser responsible for those replies so actual queries/actions are preserved.
+export function resolveCopilotProxyResult(prompt, context = {}, response) {
+  const data = response?.data || response;
+  if (data?.engine === "local" || !data) return parseCopilotIntent(prompt, context);
+  if (data.type === "function_call") {
+    return convertFunctionCallToAction(data.name, data.args || {}, context);
+  }
+  if (typeof data.reply === "string" && data.reply.trim()) {
+    return { type: "query", reply: stripEmojis(data.reply) };
+  }
+  return parseCopilotIntent(prompt, context);
+}
+
 export async function callGeminiCopilot(prompt, context = {}) {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
@@ -2295,7 +2309,7 @@ Seu objetivo principal é resolver a necessidade do usuário com precisão cirú
 - Quinta folga mensal definida e organizada pelo gerente responsável.
 - Trocas de folga devem ser solicitadas pelo aplicativo e estão sujeitas à aprovação do gerente.
 - Feriados trabalhados e horas extras acompanhados pelo sistema de banco de horas com crédito de folga compensatória.
-- Ponto eletrônico: registro inviolável, livre e sem exigência de validação facial.
+- Ponto eletrônico: registro exclusivamente no aplicativo, com captura de foto e localização conforme configuração da unidade. Nunca registrar ponto pelo chat ou WhatsApp.
 - Atestados médicos: prazo de entrega de 48h para lançamento pelo gestor com abono no banco de horas.
 
 5. NÍVEIS DE ACESSO (RBAC RIGOROSO):
@@ -2359,6 +2373,7 @@ Seu objetivo principal é resolver a necessidade do usuário com precisão cirú
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(20000),
     });
 
     if (!res.ok) {
@@ -4906,13 +4921,7 @@ export function initCopilot() {
           const api = window.__GESTAO_FIREBASE__?.api;
           if (api && typeof api.invoke === "function") {
             const houseAiRes = await api.invoke("callGeminiProxy", [{ prompt: text, context }]);
-            const resData = houseAiRes?.data || houseAiRes;
-            if (resData?.reply) {
-              intent = {
-                type: "query",
-                reply: resData.reply,
-              };
-            }
+            intent = resolveCopilotProxyResult(text, context, houseAiRes);
           }
         } catch (_) {}
 

@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = "6.17.5";
+const SERVICE_WORKER_VERSION = "6.17.6";
 
 let registrationPromise;
 let reloadPending = false;

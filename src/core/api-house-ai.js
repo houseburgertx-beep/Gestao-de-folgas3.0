@@ -123,6 +123,7 @@ Regras Inegociáveis:
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(20000),
         });
 
         if (!res.ok) {
@@ -734,6 +735,7 @@ function executeHouseAILocalIntent(prompt, context, profile) {
   // Detecção de consultas de banco de horas
   if (norm.includes("banco de horas") || norm.includes("saldo de horas") || norm.includes("horas negativas")) {
     return {
+      engine: "local",
       type: "query",
       reply: "Consultando banco de horas nos registros oficiais. Você pode visualizar o saldo individual ou da equipe na aba Banco de Horas com total apuração das batidas.",
       actionIntent: "consultarBancoHoras",
@@ -743,6 +745,7 @@ function executeHouseAILocalIntent(prompt, context, profile) {
   // Detecção de consultas de folgas
   if (norm.includes("folga") || norm.includes("folgas da semana") || norm.includes("quem folga")) {
     return {
+      engine: "local",
       type: "query",
       reply: "Consultando escala de folgas. A política do Grupo House 190 prevê 5 folgas mensais na escala 6x1, organizadas de segunda a quinta-feira com a 5ª folga definida pela gerência.",
       actionIntent: "consultarFolgas",
@@ -752,6 +755,7 @@ function executeHouseAILocalIntent(prompt, context, profile) {
   // Detecção de ponto eletrônico
   if (norm.includes("ponto") || norm.includes("batida") || norm.includes("ajuste de ponto")) {
     return {
+      engine: "local",
       type: "query",
       reply: "O ponto eletrônico da House 190 opera sob as diretrizes da Portaria 671/MTE. Para correções de batidas esquecidas, utilize a função de Ajuste de Ponto para aprovação do gestor.",
       actionIntent: "solicitarAjustePonto",
@@ -760,6 +764,7 @@ function executeHouseAILocalIntent(prompt, context, profile) {
 
   // Resposta padrão
   return {
+      engine: "local",
     type: "query",
     reply: `Olá, ${profile.Nome || "Colaborador"}! Como assistente operacional House AI, estou conectada a todos os módulos do sistema (Folgas, Ponto, Tarefas, Escalas e Documentos). Como posso te apoiar hoje?`,
   };

@@ -1,4 +1,5 @@
-import { active } from "../../src/core/reminder-policy.js";
+import { createWhatsAppConversationStore, isConversationFollowUp, resolveConversationFollowUp } from "./wa-conversation.js";
+import { active, bahiaDay, scheduleForDay, workday } from "../../src/core/reminder-policy.js";
 /**
  * HOUSE AI 2.0 — Cérebro Operacional Central do Grupo House 190 para WhatsApp
  * Extensão conversacional oficial do sistema Gestão de Folgas & CozinhaFlow
@@ -324,64 +325,105 @@ export function extractDateFromText(text, now = Date.now()) {
 /**
  * Gera mensagem motivacional para marcações de ponto (Entrada, Saída, Intervalo)
  */
-export function generateMotivationalTimeClockMessage({ type, employeeName, timeStr }) {
-  const firstName = String(employeeName || "Colaborador").trim().split(/\s+/)[0];
-  const time = timeStr || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+export function generateMotivationalTimeClockMessage({
+  type, employeeName, timeStr, rng = Math.random, recordId = "", previousMessage = "",
+}) {
+  const firstName = String(employeeName || "").trim().split(/\s+/)[0] || "Colaborador";
+  const time = timeStr || new Date().toLocaleTimeString("pt-BR", {
+    hour: "2-digit", minute: "2-digit", timeZone: "America/Bahia",
+  });
+  const messages = {
+    ENTRADA: {
+      label: "ENTRADA",
+      endings: [
+        "Bom início de turno na House 190. Conte com a equipe e tenha um bom trabalho!",
+        "Desejamos um bom turno na House 190, com atenção às atividades e colaboração entre todos.",
+        "Um novo turno começa na House 190. Que a organização e a parceria acompanhem seu trabalho.",
+        "Bom trabalho na House 190! Mantenha o cuidado com cada atividade e procure a liderança quando precisar.",
+        "Desejamos uma boa jornada na House 190. Trabalhar em equipe ajuda a cuidar de cada etapa do serviço.",
+        "Bom início de jornada na House 190. Faça seu trabalho com atenção e respeite os cuidados de segurança.",
+        "Que seu turno na House 190 transcorra bem. Boa comunicação e cooperação ajudam no dia a dia.",
+        "A House 190 deseja um bom turno. Comece com calma, organize suas atividades e conte com o time.",
+      ],
+    },
+    SAIDA: {
+      label: "SAÍDA",
+      endings: [
+        "A House 190 deseja um bom descanso. Aproveite seu tempo fora do trabalho.",
+        "Bom descanso! Reserve este tempo para cuidar de você e de seus planos pessoais.",
+        "Tenha um bom descanso e uma boa volta para casa, se estiver a caminho.",
+        "Desejamos um bom descanso. Até o próximo turno na House 190!",
+        "Agora, aproveite seu período de descanso da forma que for melhor para você.",
+        "A House 190 deseja um descanso tranquilo e bons momentos no seu tempo livre.",
+        "Bom descanso! Que você aproveite bem o tempo com suas atividades fora do trabalho.",
+        "Desejamos um bom descanso. Cuide de você e até a próxima jornada.",
+      ],
+    },
+    SAIDA_INTERVALO: {
+      label: "SAÍDA PARA INTERVALO",
+      endings: [
+        "Bom intervalo! Aproveite sua pausa com tranquilidade.",
+        "Desejamos uma boa pausa. Use este tempo para descansar.",
+        "Bom intervalo! Cuide de você durante esse período de descanso.",
+        "Tenha uma pausa tranquila e aproveite esse momento para você.",
+        "Bom descanso durante o intervalo. Retome suas atividades após a pausa combinada.",
+        "A House 190 deseja um bom intervalo. Aproveite seu tempo de pausa.",
+        "Boa pausa! Este é seu momento de descanso durante o turno.",
+        "Desejamos um intervalo tranquilo. Aproveite para fazer sua pausa com calma.",
+      ],
+    },
+    RETORNO_INTERVALO: {
+      label: "RETORNO DO INTERVALO",
+      endings: [
+        "Bom retorno! Desejamos uma boa continuidade de turno na House 190.",
+        "Bom trabalho nesta etapa do turno. Conte com a equipe quando precisar.",
+        "Desejamos um bom retorno às atividades, com atenção e organização.",
+        "Boa continuidade de jornada! Mantenha a comunicação com o time.",
+        "Bom retorno ao trabalho. Cuide de cada atividade e respeite os procedimentos de segurança.",
+        "A House 190 deseja uma boa continuidade de turno. Bom trabalho!",
+        "Bom retorno! Siga com cuidado nas atividades e procure a liderança se precisar de apoio.",
+        "Desejamos uma boa sequência de trabalho, com parceria entre todos da equipe.",
+      ],
+    },
+  }[type];
+  if (!messages?.endings) return "";
 
-  if (type === "ENTRADA") {
-    const mensagens = [
-      `Olá, ${firstName}! Bom início de turno na House 190!\n\n` +
-      `Seu ponto de ENTRADA foi registrado às ${time} com sucesso.\n\n` +
-      `Desejamos uma jornada produtiva, com foco, energia e excelente trabalho em equipe. O sucesso do nosso salão e da nossa cozinha depende da dedicação de cada um de nós. Tenha um excelente trabalho hoje!`,
-
-      `Olá, ${firstName}! Ponto de ENTRADA confirmado às ${time}.\n\n` +
-      `Comece este turno com entusiasmo e compromisso com a excelência. Nosso time é forte porque cada colaborador faz a diferença. Desejamos uma jornada brilhante e cheia de realizações na House 190!`,
-
-      `Olá, ${firstName}! Ponto de ENTRADA registrado às ${time} com sucesso.\n\n` +
-      `Que seu turno na House 190 seja marcado pela agilidade, cooperação e pelo melhor atendimento aos nossos clientes. Bom trabalho e estamos juntos nesta missão!`,
-    ];
-    return stripHouseAIEmojis(mensagens[Math.floor(Math.random() * mensagens.length)]);
+  let sample;
+  if (recordId) {
+    // A mesma marcação mantém o texto em tentativas de reenvio, sem estado global.
+    let hash = 2166136261;
+    for (const char of `${type}:${recordId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    sample = (hash >>> 0) / 4294967296;
+  } else {
+    sample = Number(rng());
   }
-
-  if (type === "SAIDA") {
-    const mensagens = [
-      `Excelente descanso, ${firstName}!\n\n` +
-      `Sua jornada de hoje foi finalizada e registrada às ${time} com sucesso.\n\n` +
-      `Agradecemos imensamente por todo o seu empenho, dedicação e energia dedicados ao Grupo House 190 hoje. Descanse bastante e recarregue as energias para o próximo turno!`,
-
-      `Turno concluído com sucesso, ${firstName}!\n\n` +
-      `Ponto de SAÍDA registrado às ${time}.\n\n` +
-      `Parabéns pela entrega, dedicação e profissionalismo de hoje. O Grupo House 190 tem muito orgulho de ter você em nosso time. Tenha um ótimo descanso!`,
-
-      `Jornada finalizada, ${firstName}!\n\n` +
-      `Saída registrada às ${time}.\n\n` +
-      `Seu trabalho de hoje fez a diferença para o nosso time e nossos clientes. Agora é hora de descansar e desfrutar do seu tempo livre. Um excelente descanso e até breve!`,
-    ];
-    return stripHouseAIEmojis(mensagens[Math.floor(Math.random() * mensagens.length)]);
-  }
-
-  if (type === "SAIDA_INTERVALO") {
-    return stripHouseAIEmojis(
-      `Bom intervalo, ${firstName}!\n\n` +
-      `Sua saída para descanso foi registrada às ${time}.\n\n` +
-      `Aproveite sua pausa para se alimentar com calma e recuperar o fôlego regulamentar.`
-    );
-  }
-
-  if (type === "RETORNO_INTERVALO") {
-    return stripHouseAIEmojis(
-      `Bem-vindo(a) de volta do intervalo, ${firstName}!\n\n` +
-      `Seu retorno foi registrado às ${time}.\n\n` +
-      `Desejamos uma ótima continuidade de turno e um excelente fechamento de dia!`
-    );
-  }
-
-  return "";
+  const bounded = Number.isFinite(sample) ? Math.min(0.9999999999999999, Math.max(0, sample)) : 0;
+  let index = Math.floor(bounded * messages.endings.length);
+  const render = (selected) => stripHouseAIEmojis(
+    `Olá, ${firstName}! Ponto de ${messages.label} registrado às ${time}.\n\n${messages.endings[selected]}`,
+  );
+  // O chamador pode fornecer o último texto persistido; não depende do isolate do Worker.
+  if (previousMessage && render(index) === previousMessage) index = (index + 1) % messages.endings.length;
+  return render(index);
 }
 
 /**
  * Processa a mensagem de WhatsApp recebida e retorna o texto de resposta House AI
  */
+export function classifyHouseAIReadIntent(text = "") {
+  const q = String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  // This classifier never infers a write from conversational context.
+  if (/\b(criar|cria|cadastrar|cadastre|aprovar|aprove|conceder|conceda|cancelar|cancele|excluir|exclua|concluir|conclua|pedir|solicitar|registrar|bater)\b/.test(q)) return "";
+  if (/saldo.*(?:consumo|vale)|limite.*consumo|quanto.*posso.*consumir/.test(q)) return "consumo";
+  if (/saldo/.test(q) && !/hora|folga|consumo|vale|credito/.test(q)) return "clarificar_saldo";
+  if (/^(?:quais|qual|ver|mostrar|consultar|minhas|me mostre|o que (?:eu )?preciso fazer)/.test(q) && /tarefa|o que (?:eu )?preciso fazer/.test(q)) return "tarefas";
+  if (/quem.*(?:trabalha|escala)|equipe.*hoje/.test(q)) return "equipe";
+  if (/quando.*(?:descanso|descansar)|meus? dias? de descanso|proximo descanso/.test(q)) return "folgas";
+  if (/quanto.*(?:devo|tenho).*hora|(?:devendo|credito).*hora/.test(q)) return "horas";
+  if (/que horas.*(?:entro|saio|comeco|termino)|qual.*turno/.test(q)) return "escala";
+  return "";
+}
+
 export async function processInboundHouseAI({
   from,
   text = "",
@@ -390,10 +432,11 @@ export async function processInboundHouseAI({
   database,
   tok,
   now = Date.now(),
+  conversationStore = null,
 }) {
   const normPhone = normalizeWhatsAppPhone(from);
   const cleanPhone = normPhone ? normPhone.digits : String(from || "").replace(/\D/g, "");
-  const cleanText = stripHouseAIEmojis(text).toLowerCase().trim();
+  let cleanText = stripHouseAIEmojis(text).toLowerCase().trim();
   const appUrl = (env.APP_URL || "https://houseburgertx-beep.github.io/Gestao-de-folgas3.0/").replace(/\/+$/, "") + "/";
 
   // 1. Busca Colaboradores e Perfis do Firebase RTDB
@@ -440,6 +483,56 @@ export async function processInboundHouseAI({
   }
   const firstName = String(matchedEmp.Nome || pushName || "Colaborador").trim().split(/\s+/)[0];
   const empId = String(matchedEmp.FuncionarioID || matchedEmp.id || "");
+
+  const storeId = String(matchedEmp.LojaID || "");
+  const memory = conversationStore || await createWhatsAppConversationStore(env, tok, cleanPhone).catch(() => null);
+  if (memory && /^(menu|ajuda|recomecar|recomeçar|limpar conversa)$/.test(cleanText)) {
+    await memory.save({employeeId:empId,storeId,intent:"",at:now}).catch(()=>{});
+  }
+  if (memory && isConversationFollowUp(cleanText)) {
+    const previous = await memory.load().catch(() => null);
+    cleanText = resolveConversationFollowUp({text: cleanText, previous, employeeId: empId, storeId, now});
+  }
+  const readIntent = classifyHouseAIReadIntent(cleanText);
+  const subject = readIntent || (cleanText === "1" || cleanText.includes("folga") ? "folgas" : cleanText === "2" || /banco de horas|saldo de horas/.test(cleanText) ? "horas" : cleanText === "3" || /meu hor[aá]rio|meu turno/.test(cleanText) ? "escala" : "");
+  const queryDate = extractDateFromText(cleanText, now) || bahiaDay(now);
+  if (memory && ["folgas","horas","escala","tarefas","equipe"].includes(subject) && !/\b(criar|cria|aprovar|aprove|conceder|conceda|cancelar|pedir|solicitar|quero)\b/.test(cleanText)) {
+    await memory.save({employeeId: empId, storeId, intent: subject, date:queryDate, at: now}).catch(() => {});
+  }
+  if (isConversationFollowUp(cleanText) && !subject && !/saldo/.test(cleanText)) {
+    return {handled:true,authorized:true,action:"clarificar_contexto",replyText:"Você quer consultar folgas, escala ou tarefas para esse dia? Diga o assunto para eu conferir o registro certo."};
+  }
+  if (/quem sou eu|meu cadastro|minhas informa[cç][oõ]es|meus dados/.test(cleanText)) {
+    const stores = await database(env,tok,"tables/Lojas").catch(()=>({}));
+    const store = Object.values(stores || {}).find(row=>String(row.LojaID || row.id || "")===storeId);
+    return {handled:true,authorized:true,action:"consulta_cadastro_proprio",replyText:stripHouseAIEmojis(`Seu cadastro no sistema:\n\nNome: ${matchedEmp.Nome || firstName}\nUnidade: ${store?.NomeLoja || store?.Nome || matchedEmp.NomeLoja || "Não informada"}\nCargo: ${matchedEmp.Cargo || "Não informado"}\nTurno: ${matchedEmp.Turno || "Não informado"}\n\nPara corrigir seus dados, procure a gerência. Dados pessoais sensíveis ficam disponíveis apenas no aplicativo.`)};
+  }
+  if (readIntent === "consumo") {
+    return {handled:true,authorized:true,action:"consulta_consumo",replyText:`Para conferir seu saldo e limite de consumo atualizados, abra a aba Consumo no aplicativo: ${appUrl}?view=takeat-credit\n\nO saldo de consumo é diferente do banco de horas; não vou misturar os dois.`};
+  }
+  if (readIntent === "clarificar_saldo") {
+    return { handled: true, authorized: true, action: "clarificar_saldo",
+      replyText: `Olá, ${firstName}! Você quer consultar seu saldo de horas ou suas folgas? Responda “banco de horas” ou “minhas folgas” para eu consultar o registro certo.` };
+  }
+  if (readIntent === "tarefas") {
+    try {
+      const rows = await database(env, tok, "tables/Tarefas");
+      const storeId = String(matchedEmp.LojaID || "");
+      const tasks = Object.values(rows || {}).filter((task) => {
+        const owner = String(task.FuncionarioID || task.RESPONSAVEL_ID || "");
+        const store = String(task.LojaID || task.LOJA_ID || "");
+        const status = String(task.Status || task.STATUS || task.Coluna || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const requested = extractDateFromText(cleanText, now);
+        const date = String(task.DataTurno || task.DATA_TURNO || task.Prazo || task.PRAZO || "").slice(0,10);
+        return owner === empId && (!store || (storeId && store === storeId)) && (!requested || date === requested) && !["concluida", "concluido", "cancelada", "cancelado"].includes(status);
+      });
+      const lines = tasks.slice(0, 10).map((task) => `- ${String(task.Titulo || task.TITULO || "Tarefa sem título").replace(/\s+/g, " ").slice(0, 120)}`);
+      return { handled: true, authorized: true, action: "consulta_tarefas",
+        replyText: stripHouseAIEmojis(`Olá, ${firstName}! Você tem ${tasks.length} tarefa(s) em aberto${extractDateFromText(cleanText, now) ? " para " + queryDate.split("-").reverse().join("/") : ""}.\n\n${lines.join("\n")}${tasks.length > 10 ? "\nVeja as demais no aplicativo." : ""}\n\nConfira os detalhes e atualize suas atividades no aplicativo:\n${appUrl}?view=tasks`) };
+    } catch {
+      return { handled: true, authorized: true, action: "consulta_tarefas_indisponivel", replyText: "Não consegui consultar suas tarefas agora. Tente novamente ou abra a aba Tarefas no aplicativo." };
+    }
+  }
 
   // 1.5 CONFIRMAÇÕES E AGRADECIMENTOS ("sim", "ok", "obrigado", "valeu", etc.)
   if (
@@ -901,6 +994,7 @@ export async function processInboundHouseAI({
 
   // 5. CONSULTA DE FOLGAS E ESCALA DE FOLGAS (Opção 1 ou texto)
   if (
+    readIntent === "folgas" ||
     cleanText === "1" ||
     cleanText.includes("folga") ||
     cleanText.includes("folgas") ||
@@ -912,6 +1006,18 @@ export async function processInboundHouseAI({
   ) {
     const folgasData = await database(env, tok, "tables/Folgas").catch(() => ({}));
     const allFolgas = Object.values(folgasData || {});
+    const explicitDates = extractDatesFromText(cleanText, now);
+    if (explicitDates.length === 1) {
+      const date = explicitDates[0];
+      const ownLeaves = allFolgas.filter(row => String(row.FuncionarioID || row.funcionarioId || "") === empId &&
+        String(row.DataInicio || row.Data || row.data || "").slice(0,10) <= date &&
+        String(row.DataFim || row.DataInicio || row.Data || row.data || "").slice(0,10) >= date);
+      const approved = ownLeaves.some(row => ["aprovada","concluída"].includes(String(row.Status || "").toLowerCase()));
+      const pending = ownLeaves.some(row => String(row.Status || "").toLowerCase() === "pendente");
+      const display = date.split("-").reverse().join("/");
+      return {handled:true,authorized:true,action:"consulta_folgas",replyText:`${firstName}, para ${display}: ${approved ? "há folga aprovada no sistema." : pending ? "há um pedido pendente de avaliação; ainda não é uma folga aprovada." : "não encontrei uma folga aprovada nos pedidos cadastrados. Confira também o descanso fixo da sua jornada na aba Ponto."}\n\n${appUrl}?view=timeoff`};
+    }
+
 
     // Data atual no fuso de Brasília/Bahia (UTC-3)
     const nowBahia = new Date(now - 3 * 3600000);
@@ -920,7 +1026,7 @@ export async function processInboundHouseAI({
 
     const minhasFolgasMes = allFolgas.filter((f) => {
       const fEmpId = String(f.FuncionarioID || f.funcionarioId || "");
-      const fDate = String(f.Data || f.data || "").slice(0, 7);
+      const fDate = String(f.DataInicio || f.Data || f.data || "").slice(0, 7);
       return fEmpId === empId && fDate === mesAtual;
     });
 
@@ -934,7 +1040,7 @@ export async function processInboundHouseAI({
     // Formata datas das folgas aprovadas no mês
     const datasAprovadas = aprovadas
       .map((f) => {
-        const d = String(f.Data || f.data || "");
+        const d = String(f.DataInicio || f.Data || f.data || "");
         const parts = d.split("-");
         return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d;
       })
@@ -945,16 +1051,16 @@ export async function processInboundHouseAI({
     const proximasFolgas = allFolgas
       .filter((f) => {
         const fEmpId = String(f.FuncionarioID || f.funcionarioId || "");
-        const fDate = String(f.Data || f.data || "");
+        const fDate = String(f.DataInicio || f.Data || f.data || "");
         const status = String(f.Status || "").toLowerCase();
         return fEmpId === empId && fDate >= hojeStr && status === "aprovada";
       })
-      .sort((a, b) => String(a.Data || a.data).localeCompare(String(b.Data || b.data)));
+      .sort((a, b) => String(a.DataInicio || a.Data || a.data).localeCompare(String(b.DataInicio || b.Data || b.data)));
 
     let proximaTexto = "";
     if (proximasFolgas.length > 0) {
       const prox = proximasFolgas[0];
-      const pDate = String(prox.Data || prox.data || "");
+      const pDate = String(prox.DataInicio || prox.Data || prox.data || "");
       const parts = pDate.split("-");
       proximaTexto = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : pDate;
     }
@@ -990,6 +1096,7 @@ export async function processInboundHouseAI({
 
   // 5. CONSULTA DE BANCO DE HORAS (Opção 2 ou texto)
   if (
+    readIntent === "horas" ||
     cleanText === "2" ||
     cleanText.includes("banco de horas") ||
     cleanText.includes("saldo de horas") ||
@@ -999,7 +1106,9 @@ export async function processInboundHouseAI({
     cleanText.includes("saldo atual") ||
     cleanText.includes("saldo")
   ) {
-    const punchesData = await database(env, tok, "tables/RegistroPonto").catch(() => ({}));
+    if (queryDate > bahiaDay(now)) return {handled:true,authorized:true,action:"consulta_banco_horas",replyText:"Ainda não há saldo futuro confirmado para essa data. Confira a apuração atual e a programação da jornada no aplicativo."};
+    let punchesData = await database(env, tok, "tables/RegistrosPonto");
+    if (!Object.keys(punchesData || {}).length) punchesData = await database(env, tok, "tables/RegistroPonto");
     const punches = Object.values(punchesData || {}).filter(
       (p) => String(p.FuncionarioID || p.funcionarioId || "") === empId
     );
@@ -1018,7 +1127,7 @@ export async function processInboundHouseAI({
       const mins = h * 60 + m;
 
       const list = punchesByDay.get(dataStr) || [];
-      list.push(mins);
+      list.push({mins, stamp: Date.parse(p.DataHora || ""), type:p.TipoMarcacao});
       punchesByDay.set(dataStr, list);
     }
 
@@ -1026,10 +1135,13 @@ export async function processInboundHouseAI({
     let diasTrabalhados = 0;
 
     for (const [_, minsList] of punchesByDay.entries()) {
-      minsList.sort((a, b) => a - b);
+      const rank = {ENTRADA:0,SAIDA_INTERVALO:1,RETORNO_INTERVALO:2,SAIDA_FINAL:3};
+      minsList.sort((a, b) => Number.isFinite(a.stamp) && Number.isFinite(b.stamp) ? a.stamp-b.stamp : a.type in rank && b.type in rank ? rank[a.type]-rank[b.type] : a.mins-b.mins);
       let dayWorked = 0;
       for (let i = 0; i < minsList.length - 1; i += 2) {
-        dayWorked += Math.max(0, minsList[i + 1] - minsList[i]);
+        const start=minsList[i],end=minsList[i+1];
+        const duration=Number.isFinite(start.stamp)&&Number.isFinite(end.stamp) ? (end.stamp-start.stamp)/60000 : (end.mins-start.mins+1440)%1440;
+        if (duration >= 0 && duration <= 18*60) dayWorked += duration;
       }
       if (dayWorked > 0) {
         totalTrabalhadoMinutos += dayWorked;
@@ -1048,7 +1160,8 @@ export async function processInboundHouseAI({
       action: "consulta_banco_horas",
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}!\n\n` +
-        `Seu saldo atual no banco de horas é de *${saldoFormatado}* horas (${situacao}).\n\n` +
+        `A estimativa simplificada das marcações consultadas é de *${saldoFormatado}* horas (${situacao}).\n\n` +
+        `Esta estimativa usa base fixa de 7h20 por dia com batidas e não é o saldo consolidado. Jornada contratual, ajustes, ausências e movimentos de banco de horas devem ser conferidos na apuração do aplicativo.\n\n` +
         `* Total de dias apurados: ${diasTrabalhados}\n` +
         `* Horas trabalhadas: ${Math.floor(totalTrabalhadoMinutos / 60)}h${totalTrabalhadoMinutos % 60}m\n\n` +
         `Compensações e saídas antecipadas devem ser alinhadas previamente com a gerência da sua loja.\n\n` +
@@ -1059,8 +1172,9 @@ export async function processInboundHouseAI({
 
   // 6. CONSULTA DE ESCALA E HORÁRIO DE HOJE (Opção 3 ou texto)
   if (
+    readIntent === "escala" ||
     cleanText === "3" ||
-    cleanText.includes("escala") ||
+    (cleanText.includes("escala") && readIntent !== "equipe") ||
     cleanText.includes("meu horario") ||
     cleanText.includes("meu horário") ||
     cleanText.includes("horario de hoje") ||
@@ -1069,25 +1183,22 @@ export async function processInboundHouseAI({
     cleanText.includes("meu turno") ||
     cleanText.includes("jornada")
   ) {
-    const schedulesData = await database(env, tok, "tables/JornadasPonto").catch(() => ({}));
+    const schedulesData = await database(env, tok, "tables/JornadasPonto");
     const schedules = Object.values(schedulesData || {});
 
-    const nowBahia = new Date(now - 3 * 3600000);
-    const diaSemanaNum = nowBahia.getDay();
+    const diaSemanaNum = new Date(`${queryDate}T12:00:00Z`).getUTCDay();
     const diaSemanaNome = DIAS_SEMANA[diaSemanaNum];
-
-    const empSchedules = schedules.filter(
-      (s) => String(s.FuncionarioID || s.funcionarioId || "") === empId
-    );
-    const jornadaHoje = empSchedules.find(
-      (s) => Number(s.DiaSemana ?? s.diaSemana) === diaSemanaNum
-    ) || empSchedules[0];
-
-    const entrada = jornadaHoje?.Entrada || jornadaHoje?.entrada || "Definido por escala";
-    const intervalo = jornadaHoje?.SaidaIntervalo && jornadaHoje?.RetornoIntervalo
-      ? `${jornadaHoje.SaidaIntervalo} às ${jornadaHoje.RetornoIntervalo}`
-      : "1h de intervalo regulamentar";
-    const saida = jornadaHoje?.Saida || jornadaHoje?.saida || "Conforme escala";
+    const folgasData = await database(env,tok,"tables/Folgas");
+    const jornadaHoje = scheduleForDay(schedules,empId,queryDate) || schedules.find(row =>
+      String(row.FuncionarioID || "") === empId && row.Ativa === undefined &&
+      Number(row.DiaSemana) === diaSemanaNum &&
+      (!row.VigenteDe || row.VigenteDe <= queryDate) && (!row.VigenteAte || row.VigenteAte >= queryDate));
+    const displayDate = queryDate.split("-").reverse().join("/");
+    if (!jornadaHoje) return {handled:true,authorized:true,action:"consulta_escala",replyText:`Não encontrei uma jornada ativa para ${displayDate}. Confira a aba Ponto ou procure a gerência para confirmar seus horários.`};
+    if (!workday(matchedEmp,jornadaHoje,queryDate,Object.values(folgasData || {}))) return {handled:true,authorized:true,action:"consulta_escala",replyText:`${firstName}, ${displayDate} está marcado como dia de descanso conforme a jornada e as folgas cadastradas. Confira os detalhes no aplicativo: ${appUrl}?view=timeclock`};
+    const entrada = jornadaHoje.Entrada || "Não informada";
+    const intervalo = jornadaHoje.SaidaIntervalo && jornadaHoje.RetornoIntervalo ? `${jornadaHoje.SaidaIntervalo} às ${jornadaHoje.RetornoIntervalo}` : "Não informado na jornada";
+    const saida = jornadaHoje.Saida || "Não informada";
 
     return {
       handled: true,
@@ -1095,7 +1206,7 @@ export async function processInboundHouseAI({
       action: "consulta_escala",
       replyText: stripHouseAIEmojis(
         `Olá, ${firstName}!\n\n` +
-        `Sua escala para hoje (${diaSemanaNome}) está definida como:\n\n` +
+        `Sua escala para ${displayDate} (${diaSemanaNome}) está definida como:\n\n` +
         `* Entrada: ${entrada}\n` +
         `* Intervalo: ${intervalo}\n` +
         `* Saída: ${saida}\n` +
@@ -1151,6 +1262,7 @@ export async function processInboundHouseAI({
 
   // 9. QUEM ESTÁ TRABALHANDO HOJE / EQUIPE DA LOJA (Opção 6 ou texto)
   if (
+    readIntent === "equipe" ||
     cleanText === "6" ||
     cleanText.includes("quem ta trabalhando") ||
     cleanText.includes("quem está trabalhando") ||
@@ -1162,16 +1274,17 @@ export async function processInboundHouseAI({
     const allFolgas = Object.values(folgasData || {});
 
     const nowBahia = new Date(now - 3 * 3600000);
-    const hojeStr = nowBahia.toISOString().slice(0, 10);
+    const hojeStr = queryDate;
 
     const folgasHoje = new Set(
       allFolgas
-        .filter((f) => (f.Data || f.data) === hojeStr && String(f.Status || "").toLowerCase() === "aprovada")
+        .filter((f) => String(f.DataInicio || f.Data || f.data || "").slice(0,10) <= hojeStr && String(f.DataFim || f.DataInicio || f.Data || f.data || "").slice(0,10) >= hojeStr && String(f.Status || "").toLowerCase() === "aprovada")
         .map((f) => String(f.FuncionarioID || f.funcionarioId || ""))
     );
 
     const lojaId = matchedEmp.LojaID || "";
     const colegasLoja = employees.filter((e) => {
+      if (e.Ativo !== undefined && !active(e.Ativo)) return false;
       if (!lojaId) return matchedEmp.Perfil === "Administrador";
       return String(e.LojaID || "") === String(lojaId);
     });
@@ -1189,16 +1302,16 @@ export async function processInboundHouseAI({
     }
 
     const linhas = [
-      `Olá, ${firstName}! Aqui está a visão da equipe para hoje:`,
+      `Olá, ${firstName}! Aqui está a visão da equipe para ${queryDate.split("-").reverse().join("/")}:`,
       ``,
-      `* Em atividade (${escalados.length}):`,
+      `* Escala prevista (${escalados.length}):`,
       ...escalados.slice(0, 8).map((n) => `  - ${n}`),
     ];
 
     if (deFolga.length > 0) {
       linhas.push(
         ``,
-        `* De folga hoje (${deFolga.length}):`,
+        `* De folga na data (${deFolga.length}):`,
         ...deFolga.slice(0, 6).map((n) => `  - ${n}`)
       );
     }
@@ -1380,6 +1493,7 @@ Responda de forma precisa e útil:`;
       `• Folgas (consultar folgas do mês e saldo)\n` +
       `• Banco de horas (horas trabalhadas e saldo)\n` +
       `• Minha escala (horário e turno de hoje)\n` +
+      `• Minhas tarefas (atividades em aberto)\n` +
       `• Pedir folga (solicitar folga para uma data)\n` +
       `• Meus documentos (espelho de ponto e assinatura)\n` +
       `• Políticas da casa (regras de RH e escala)\n\n` +

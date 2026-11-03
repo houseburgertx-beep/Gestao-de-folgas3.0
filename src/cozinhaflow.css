@@ -6511,13 +6511,10 @@ body #clockSelfieDialog .dialog-actions div.hidden {
   font-variant-numeric: tabular-nums !important;
 }
 
-/* Desobstrução do Rodapé: Conteúdo nunca é coberto pela barra inferior */
+/* A área .content já reserva o espaço do dock. A jornada é uma seção
+   intermediária: reservar novamente aqui criava um grande vão entre cartões. */
 #journeyHome {
-  padding-bottom: calc(115px + env(safe-area-inset-bottom, 20px)) !important;
-}
-
-.v-personal-home {
-  padding-bottom: calc(115px + env(safe-area-inset-bottom, 20px)) !important;
+  padding-bottom: 0 !important;
 }
 
 /* ==========================================================================

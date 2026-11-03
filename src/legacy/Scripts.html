@@ -3562,9 +3562,10 @@
     const handledMagic = await checkWhatsAppMagicTokenArrival_();
     if (handledMagic) return;
 
-    const pushView = new URLSearchParams(location.search).get("view");
-    if (["timeclock","notifications","documents","whistleblower"].includes(pushView)) {
-      const url = new URL(location.href); url.searchParams.delete("view"); history.replaceState(null,"",url);
+    const routeParams = new URLSearchParams(location.search);
+    const pushView = routeParams.get("view") || routeParams.get("tab");
+    if (["timeclock","notifications","documents","whistleblower","tasks","timeoff","takeat-credit"].includes(pushView)) {
+      const url = new URL(location.href); url.searchParams.delete("view"); url.searchParams.delete("tab"); history.replaceState(null,"",url);
       switchView(pushView); return;
     }
     renderDashboard();
@@ -3967,36 +3968,50 @@
           `;
         }).join("");
       } else {
-        const user = state.currentUser || {};
-        const userName = user.Nome || "Colaborador";
-        const folgas = Array.isArray(state.timeOff) ? state.timeOff : [];
-        const minhasFolgas = folgas.filter((f) => String(val(f, "Status", "status") || "").toLowerCase() === "aprovada");
-
+        const user = state.user || {};
+        const userName = String(user.Nome || user.nome || "Colaborador").trim().split(/\s+/)[0];
+        const employeeId = String(user.FuncionarioID || user.funcionarioId || "");
+        const month = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia", year: "numeric", month: "2-digit" }).format(new Date());
+        const minhasFolgas = arr(state.timeOff).filter((f) =>
+          employeeId && String(val(f, "FuncionarioID", "funcionarioId")) === employeeId &&
+          String(val(f, "Status", "status") || "").toLowerCase() === "aprovada" &&
+          String(val(f, "DataInicio", "dataInicio") || "").slice(0, 7) === month
+        );
         container.innerHTML = `
-          <div class="house-ai-empty" style="text-align: left; background: var(--surface, #ffffff); border-left: 4px solid #4f46e5;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
-              <span class="house-ai-pill">Assistente Ativa</span>
-              <button type="button" class="btn btn-primary" style="min-height: 38px; padding: 0 12px; font-size: 12px;" onclick="const fab=$('#copilotFab')||$('#copilotOpenBtn'); if(fab) fab.click();">Conversar com House AI</button>
+          <div class="house-ai-personal">
+            <strong>Olá, ${esc(userName)}. Como posso ajudar?</strong>
+            <p>Consulte seus registros, acompanhe pedidos e prepare solicitações pelo assistente.</p>
+            <span class="house-ai-personal-summary">${minhasFolgas.length === 1 ? "1 folga aprovada" : minhasFolgas.length + " folgas aprovadas"} neste mês</span>
+            <div class="house-ai-quick-actions" aria-label="Perguntas para House AI">
+              <button type="button" data-house-prompt="Quando é minha próxima folga?">Próxima folga</button>
+              <button type="button" data-house-prompt="Qual é meu saldo de horas?">Banco de horas</button>
+              <button type="button" data-house-prompt="Quais são minhas tarefas?">Minhas tarefas</button>
             </div>
-            <strong style="font-size: 14px; color: var(--text);">Olá, ${esc(userName.split(" ")[0])}! Suas informações estão sincronizadas.</strong>
-            <p style="margin-top: 4px; font-size: 12.5px; color: var(--muted);">Você possui ${minhasFolgas.length} de 5 folgas regulamentares aprovadas neste mês. Você pode me consultar sobre seu banco de horas, solicitar folgas ou tirar dúvidas das regras da empresa.</p>
+            <small>Você confere e confirma qualquer alteração antes de enviar.</small>
           </div>
         `;
       }
+      container.querySelectorAll("[data-house-prompt]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const input = $("#copilotInput");
+          if (input) { input.value = button.dataset.housePrompt; input.dispatchEvent(new Event("input", { bubbles: true })); }
+          ($("#copilotFab") || $("#copilotOpenBtn"))?.click();
+        });
+      });
 
       // Bind das ações recomendadas
       container.querySelectorAll(".house-ai-action-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           const act = btn.getAttribute("data-house-action");
           if (act === "navegar_folgas" || act === "navegar_escala") {
-            navigateTo("timeoff");
+            switchView("timeoff");
           } else if (act === "navegar_tarefas") {
-            navigateTo("tasks");
+            switchView("tasks");
           } else if (act === "solicitarAjustePonto") {
             const openFab = $("#copilotFab") || $("#copilotOpenBtn");
             if (openFab) openFab.click();
           } else {
-            navigateTo("dashboard");
+            switchView("dashboard");
           }
         });
       });

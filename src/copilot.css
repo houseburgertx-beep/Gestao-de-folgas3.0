@@ -1291,3 +1291,28 @@
   text-align: center;
 }
 
+
+/* Dashboard pessoal: leitura curta e ações confortáveis no celular. */
+.house-ai-dashboard-section { border-radius:22px; padding:20px; gap:16px; }
+.house-ai-dash-title-group { min-width:0; flex-direction:column; align-items:flex-start; gap:8px; }
+.house-ai-dash-title-group h3 { font-size:18px; line-height:1.3; letter-spacing:-.025em; }
+.house-ai-dash-actions { flex-shrink:0; }
+.house-ai-insights-container { grid-template-columns:minmax(0,1fr); }
+.house-ai-personal { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.house-ai-personal > strong { font-size:17px; line-height:1.45; color:var(--text); }
+.house-ai-personal p { margin:0; font-size:14px; line-height:1.6; color:var(--muted); }
+.house-ai-personal-summary { align-self:flex-start; padding:7px 10px; border-radius:10px; background:var(--primary-soft,#eeebff); color:var(--primary,#4f46e5); font-size:12px; font-weight:650; }
+.house-ai-quick-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.house-ai-quick-actions button { border:1px solid var(--line); background:var(--surface-2); color:var(--text); border-radius:12px; padding:10px 12px; min-height:44px; font:inherit; font-size:12px; cursor:pointer; }
+.house-ai-personal > small { color:var(--muted); font-size:11px; line-height:1.5; }
+#docHomeAlertBanner { border-color:var(--line); border-radius:20px; padding:18px; }
+#docHomeAlertBanner .incomplete-alert-text p { line-height:1.5; }
+@media(max-width:600px) {
+  .house-ai-dash-header { align-items:flex-start; gap:14px; }
+  .house-ai-dash-title-group { width:100%; }
+  .house-ai-dash-actions { display:grid; grid-template-columns:auto minmax(0,1fr); width:100%; }
+  .house-ai-dash-actions #houseAiOpenChatBtn { background:var(--primary,#6759eb); color:#fff; border:0; }
+  .house-ai-dashboard-section { padding:18px; margin-bottom:16px; }
+  .house-ai-quick-actions button { flex:1 1 auto; }
+  #journeyHome { margin-bottom:16px; }
+}
