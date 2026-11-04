@@ -199,6 +199,8 @@ export class FirebaseRuntime {
     this.authResolved = false;
     this.readyPromise = Promise.resolve(null);
     this.periodIndexMigrationPromise = null;
+    this.periodIndexReadyState = null;
+    this.periodIndexReadyCheck = null;
     this.recordKeys = new Map();
     this.queryCache = new Map();
     this.pendingQueries = new Map();
@@ -211,6 +213,8 @@ export class FirebaseRuntime {
       if (!table || key.startsWith(`${table}:`)) this.pendingQueries.delete(key);
     }
     if (!table) {
+      this.periodIndexReadyState = null;
+      this.periodIndexReadyCheck = null;
       this.queryCache.clear();
       return;
     }
@@ -355,6 +359,11 @@ export class FirebaseRuntime {
             LojaID: profile.LojaID || employee.LojaID || "",
             NomeLoja: profile.NomeLoja || employee.NomeLoja || "",
             Cargo: profile.Cargo || employee.Cargo || "",
+            PoliticaPrivacidadeCiente:
+              asBoolean(profile.PoliticaPrivacidadeCiente) || asBoolean(employee.PoliticaPrivacidadeCiente),
+            PoliticaPrivacidadeData: profile.PoliticaPrivacidadeData || employee.PoliticaPrivacidadeData || "",
+            PoliticaPrivacidadeVersao: profile.PoliticaPrivacidadeVersao || employee.PoliticaPrivacidadeVersao || "",
+            PoliticaPrivacidadeAssinatura: profile.PoliticaPrivacidadeAssinatura || employee.PoliticaPrivacidadeAssinatura || "",
             Ativo:
               asBoolean(profile.Ativo) && employee.Ativo !== false,
           };
@@ -958,14 +967,20 @@ export class FirebaseRuntime {
     const storeId = String(profile?.LojaID || "");
     const employeeId = String(profile?.FuncionarioID || "");
     const cacheKey = `${table}:${this.auth?.currentUser?.uid || ""}:${role}:${storeId}:${employeeId}`;
+    return this.cachedRows_(cacheKey, table, () => this.fetchScopedRows_(table, profile), forceRefresh);
+  }
+
+  // Reuse short-lived read snapshots only; clock confirmations always use
+  // requestServerRecord and are never routed through this cache.
+  async cachedRows_(cacheKey, table, load, forceRefresh = false) {
     const cached = this.queryCache.get(cacheKey);
-    const ttl = ["RegistrosPonto", "Notificacoes"].includes(table) ? 15000 : 45000;
+    const ttl = ["RegistrosPonto", "AjustesPonto", "Notificacoes"].includes(table) ? 15000 : 45000;
     if (!forceRefresh && cached && Date.now() - cached.timestamp < ttl) {
       return clone(cached.data);
     }
     if (this.pendingQueries.has(cacheKey)) return clone(await this.pendingQueries.get(cacheKey));
     const generation = this.cacheGeneration;
-    const request = this.fetchScopedRows_(table, profile);
+    const request = load();
     this.pendingQueries.set(cacheKey, request);
     try {
       const rows = await request;
@@ -1174,11 +1189,28 @@ export class FirebaseRuntime {
     return { storageKey: selected.key, record: clone(selected.record) };
   }
 
-  async periodIndexesReady() {
-    const snapshot = await get(
-      this.appRef(`meta/migrations/${PERIOD_INDEX_MIGRATION}`),
-    );
+  async fetchPeriodIndexesReady_() {
+    const snapshot = await get(this.appRef(`meta/migrations/${PERIOD_INDEX_MIGRATION}`));
     return snapshot.val() === true;
+  }
+
+  async periodIndexesReady() {
+    const uid = this.auth?.currentUser?.uid || "";
+    if (this.periodIndexReadyState?.uid === uid) return true;
+    if (this.periodIndexReadyCheck?.uid === uid) return this.periodIndexReadyCheck.promise;
+    const entry = { uid, promise: null };
+    this.periodIndexReadyCheck = entry;
+    entry.promise = this.fetchPeriodIndexesReady_().then((ready) => {
+      // A completed migration stays complete for this account/session. Never
+      // retain a false result: a manager may retry after an admin migrates.
+      if (ready && this.periodIndexReadyCheck === entry && (this.auth?.currentUser?.uid || "") === uid) {
+        this.periodIndexReadyState = { uid };
+      }
+      return ready;
+    }).finally(() => {
+      if (this.periodIndexReadyCheck === entry) this.periodIndexReadyCheck = null;
+    });
+    return entry.promise;
   }
 
   async ensurePeriodIndexes(options = {}) {
@@ -1208,6 +1240,7 @@ export class FirebaseRuntime {
         this.appRef(`meta/migrations/${PERIOD_INDEX_MIGRATION}`),
         true,
       );
+      this.periodIndexReadyState = { uid: this.auth?.currentUser?.uid || "" };
       return true;
     })().finally(() => {
       this.periodIndexMigrationPromise = null;
@@ -1229,6 +1262,11 @@ export class FirebaseRuntime {
       return this.list(table, { profile });
     }
 
+    const cacheKey = `${table}:period:${this.auth?.currentUser?.uid || ""}:${roleName(profile)}:${String(profile?.LojaID || "")}:${String(profile?.FuncionarioID || "")}:${normalizedPeriod}`;
+    return this.cachedRows_(cacheKey, table, () => this.fetchPeriodRows_(table, normalizedPeriod, profile), Boolean(options.forceRefresh));
+  }
+
+  async fetchPeriodRows_(table, normalizedPeriod, profile) {
     let ready = false;
     try {
       ready = await this.ensurePeriodIndexes({ profile });
@@ -1277,7 +1315,7 @@ export class FirebaseRuntime {
     }
     const groups = await Promise.all(
       uniquePeriods.map((period) =>
-        this.listPeriod(table, period, { profile }),
+        this.listPeriod(table, period, { profile, forceRefresh: options.forceRefresh }),
       ),
     );
     const idField = ID_FIELDS[table];

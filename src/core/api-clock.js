@@ -1054,12 +1054,14 @@ const accumulatedHourBalance = ({
 
 async function clockContext(filters = {}) {
   const profile = await runtime.requireProfile();
+  const currentDay = todayIso();
+  const currentMonth = currentDay.slice(0, 7);
   const month = /^\d{4}-\d{2}$/.test(String(filters.month || ""))
     ? String(filters.month)
-    : monthIso();
+    : currentMonth;
   const recordPeriods = new Set([month]);
-  if (month === monthIso()) {
-    recordPeriods.add(previousDateKey(todayIso()).slice(0, 7));
+  if (month === currentMonth) {
+    recordPeriods.add(previousDateKey(currentDay).slice(0, 7));
   }
   const [employees, records, schedules, adjustments, timeOff, justifications, bankMovements] =
     await Promise.all([
@@ -1137,32 +1139,44 @@ async function clockContext(filters = {}) {
     !todayTimeOff &&
     isFixedOffForDate(ownEmployee, operationalDay, timeOff);
 
+  // Index once rather than scanning the entire month's records for each employee/day.
+  const rowsByEmployeeDay = new Map();
+  for (const row of monthRecords) {
+    let byDay = rowsByEmployeeDay.get(row.FuncionarioID);
+    if (!byDay) rowsByEmployeeDay.set(row.FuncionarioID, byDay = new Map());
+    const day = normalizedDateKey(row.Data);
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(row);
+  }
+  const approvedJustifications = new Map();
+  for (const item of justifications) {
+    if (item.Status !== "Aprovada") continue;
+    let byDay = approvedJustifications.get(item.FuncionarioID);
+    if (!byDay) approvedJustifications.set(item.FuncionarioID, byDay = new Map());
+    const day = normalizedDateKey(item.Data);
+    if (!byDay.has(day)) byDay.set(day, item);
+  }
   const days = [];
   const [year, monthNumber] = month.split("-").map(Number);
   const monthDays = new Date(year, monthNumber, 0).getDate();
   const trackingStartByEmployee =
     firstPunchDatesByEmployee(trackingRecords);
   for (const employee of allowed) {
+    const employeeTimeOff = timeOff.filter(item => item.FuncionarioID === employee.FuncionarioID);
+    const employeeSchedules = schedules.filter(item => String(item.FuncionarioID ?? "").trim() === String(employee.FuncionarioID ?? "").trim());
+    const employeeRowsByDay = rowsByEmployeeDay.get(employee.FuncionarioID);
+    const employeeJustifications = approvedJustifications.get(employee.FuncionarioID);
     for (let day = 1; day <= monthDays; day += 1) {
       const dateKey = `${month}-${String(day).padStart(2, "0")}`;
-      if (dateKey > todayIso()) continue;
+      if (dateKey > currentDay) continue;
       const trackingStart = trackingStartByEmployee.get(
         employee.FuncionarioID,
       );
-      const hasJustification = justifications.some(
-        (item) =>
-          item.FuncionarioID === employee.FuncionarioID &&
-          normalizedDateKey(item.Data) === dateKey &&
-          item.Status === "Aprovada",
-      );
-      if ((!trackingStart || dateKey < trackingStart) && !hasJustification) continue;
-      const schedule = scheduleFor(schedules, employee.FuncionarioID, dateKey);
-      const rows = monthRecords.filter(
-        (item) =>
-          item.FuncionarioID === employee.FuncionarioID &&
-          normalizedDateKey(item.Data) === dateKey,
-      );
-      const approvedOff = timeOff.find(
+      const justification = employeeJustifications?.get(dateKey);
+      if ((!trackingStart || dateKey < trackingStart) && !justification) continue;
+      const schedule = scheduleFor(employeeSchedules, employee.FuncionarioID, dateKey);
+      const rows = employeeRowsByDay?.get(dateKey) || [];
+      const approvedOff = employeeTimeOff.find(
         (item) =>
           item.FuncionarioID === employee.FuncionarioID &&
           ["Aprovada", "Concluída"].includes(item.Status) &&
@@ -1173,7 +1187,7 @@ async function clockContext(filters = {}) {
       );
       const weekday = new Date(`${dateKey}T12:00:00`).getDay();
       const fixed =
-        !approvedOff && isFixedOffForDate(employee, dateKey, timeOff);
+        !approvedOff && isFixedOffForDate(employee, dateKey, employeeTimeOff);
       const scheduledDay = isScheduledWorkday(
         schedule,
         employee,
@@ -1194,15 +1208,9 @@ async function clockContext(filters = {}) {
             : 0,
         dateKey,
       });
-      const justification = justifications.find(
-        (item) =>
-          item.FuncionarioID === employee.FuncionarioID &&
-          normalizedDateKey(item.Data) === dateKey &&
-          item.Status === "Aprovada",
-      );
       const balanceState = justification
         ? { minutes: 0, text: "Justificado", pending: false }
-        : dayBalanceState(dateKey, metrics);
+        : dayBalanceState(dateKey, metrics, currentDay);
       days.push({
         funcionarioId: employee.FuncionarioID,
         nome: employee.Nome,
@@ -1298,35 +1306,30 @@ async function clockContext(filters = {}) {
 
 async function quickClockContext() {
   const profile = await runtime.requireProfile();
-  const employee = await runtime.getById(
-    "Funcionarios",
-    profile.FuncionarioID,
-  );
-  if (!employee || !asBoolean(employee.Ativo)) {
-    return {
-      month: monthIso(),
-      date: todayIso(),
-      todayRecords: [],
-      records: [],
-      days: [],
-      adjustments: [],
-      nextAction: "",
-      offToday: false,
-      offTodayLabel: "",
-      breakDurationMinutes: 0,
-      flexibleTwoShifts: false,
-      summary: {},
-    };
-  }
-  const [records, schedules, timeOff] = await Promise.all([
-    runtime.listPeriods(
-      "RegistrosPonto",
-      [monthIso(), previousDateKey(todayIso()).slice(0, 7)],
-      { profile },
-    ),
+  const unavailable = () => ({
+    month: monthIso(),
+    date: todayIso(),
+    todayRecords: [],
+    records: [],
+    days: [],
+    adjustments: [],
+    nextAction: "",
+    offToday: false,
+    offTodayLabel: "",
+    breakDurationMinutes: 0,
+    flexibleTwoShifts: false,
+    summary: {},
+  });
+  if (!profile.FuncionarioID) return unavailable();
+  const [employee, records, schedules, timeOff] = await Promise.all([
+    runtime.getById("Funcionarios", profile.FuncionarioID),
+    runtime.listPeriods("RegistrosPonto", [monthIso(), previousDateKey(todayIso()).slice(0, 7)], { profile }),
     runtime.list("JornadasPonto", { profile }),
     runtime.list("Folgas", { profile }),
   ]);
+  if (!employee || !asBoolean(employee.Ativo)) {
+    return unavailable();
+  }
   const empId = String(employee.FuncionarioID ?? "").trim();
   const operationalDay = operationalDayFor(
     records,

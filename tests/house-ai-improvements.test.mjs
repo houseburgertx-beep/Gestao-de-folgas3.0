@@ -18,7 +18,7 @@ test('resposta remota válida é preservada e ausência de resposta aciona o par
 });
 test('cartão pessoal usa nome e somente folgas próprias aprovadas no mês', async () => {
   const source = await readFile(new URL('../src/legacy/Scripts.html', import.meta.url),'utf8');
-  const start = source.indexOf('  async function renderHouseAiDashboard_()');
+  const start = source.indexOf('  async function renderHouseAiDashboardContent_(owner)');
   const end = source.indexOf('  function activity(',start);
   const month = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit'}).format(new Date());
   const container = { innerHTML:'',querySelectorAll:()=>[] };
@@ -28,7 +28,7 @@ test('cartão pessoal usa nome e somente folgas próprias aprovadas no mês', as
     {FuncionarioID:'emp1',Status:'Pendente',DataInicio:`${month}-11`},
     {FuncionarioID:'emp1',Status:'Aprovada',DataInicio:'2020-01-01'},
   ]};
-  await vm.runInNewContext(`${source.slice(start,end)};renderHouseAiDashboard_()`, {
+  await vm.runInNewContext(`${source.slice(start,end)};renderHouseAiDashboardContent_()`, {
     state,Date,Intl,console,$:()=>container,isAdmin:()=>false,isManager:()=>false,arr:x=>Array.isArray(x)?x:[],
     val:(row,...keys)=>keys.map(k=>row[k]).find(x=>x!==undefined),esc:x=>String(x),
   });

@@ -400,29 +400,37 @@ Regras Inegociáveis:
      * Analisa anomalias, faltas, inconsistências e riscos de escala.
      */
     async generateProactiveInsights(args) {
-      const [filter = {}] = args;
-      const profile = await runtime.requireProfile().catch(() => ({ Perfil: "admin" }));
-      const lojaId = filter.lojaId || (!isAdmin(profile) ? profile.LojaID : "");
-
-      const [employees, punches, folgas, trocas, tarefas, docs] = await Promise.all([
-        runtime.list("Funcionarios", { profile: null }).catch(() => []),
-        runtime.list("RegistroPonto", { profile: null }).catch(() => []),
-        runtime.list("Folgas", { profile: null }).catch(() => []),
-        runtime.list("TrocasFolga", { profile: null }).catch(() => []),
-        runtime.list("Tarefas", { profile: null }).catch(() => []),
-        runtime.list("Documentos", { profile: null }).catch(() => []),
+      const [filter = {}] = args || [];
+      const profile = await runtime.requireProfile();
+      const requestedStore = String(filter.lojaId || "").trim();
+      const ownStore = String(profile.LojaID || profile.lojaId || "").trim();
+      const admin = isAdmin(profile);
+      const employeeId = String(profile.FuncionarioID || profile.funcionarioId || "").trim();
+      const manager = isManager(profile);
+      if (!admin && requestedStore) assert(ownStore && requestedStore === ownStore, "Seu perfil só pode consultar insights da própria unidade.");
+      if (!admin && manager) assert(ownStore, "Vincule este perfil a uma unidade antes de consultar insights.");
+      if (!admin && !manager) assert(employeeId, "Funcionário não vinculado ao acesso.");
+      const lojaId = admin ? requestedStore : ownStore;
+      const today = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+      const yesterday = new Date(Date.parse(`${today}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
+      const periods = [...new Set([today.slice(0, 7), yesterday.slice(0, 7)])];
+      const inScope = row => {
+        if (lojaId && String(row.LojaID || row.lojaId || "") !== lojaId) return false;
+        if (!admin && !manager && String(row.FuncionarioID || row.funcionarioId || "") !== employeeId) return false;
+        return true;
+      };
+      const scopedList = table => runtime.list(table, { profile }).then(rows => rows.filter(inScope)).catch(() => []);
+      const [employees, punches, folgas, tarefas, docs] = await Promise.all([
+        scopedList("Funcionarios"),
+        runtime.listPeriods("RegistrosPonto", periods, { profile }).then(rows => rows.filter(inScope)).catch(() => []),
+        scopedList("Folgas"),
+        scopedList("Tarefas"),
+        scopedList("Documentos"),
       ]);
-
-      const filteredEmps = employees.filter((e) => {
-        if (!lojaId) return true;
-        return String(e.LojaID || "").toLowerCase() === String(lojaId).toLowerCase();
-      });
-
+      const filteredEmps = employees;
       const insights = [];
-      const today = todayIso();
 
       // 1. Detecção de Batidas Incompletas no dia anterior
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
       for (const emp of filteredEmps) {
         const empId = String(emp.FuncionarioID || emp.id);
         const yPunches = punches.filter((p) => {

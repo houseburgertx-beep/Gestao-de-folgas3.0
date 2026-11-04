@@ -278,12 +278,15 @@ test("20. WhatsApp: Tratamento de payload vazio ou corrompido", async () => {
 // BLOCO 4: MOTOR DE INSIGHTS PROATIVOS (Cenários 21 a 30)
 // --------------------------------------------------------------------------
 
-test("21. Insights Proativos: Detecção de batidas ímpares no dia anterior", async () => {
+test("21. Insights Proativos: Detecção de batidas ímpares no dia anterior", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const origList = runtime.list;
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const bahiaToday = new Intl.DateTimeFormat("en-CA", {timeZone:"America/Bahia",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const yesterday = new Date(Date.parse(`${bahiaToday}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
   runtime.list = async (col) => {
     if (col === "Funcionarios") return [{ FuncionarioID: "emp_imp", Nome: "João Sem Saída" }];
-    if (col === "RegistroPonto") return [{ FuncionarioID: "emp_imp", Data: yesterday, Hora: "08:00" }];
+    if (col === "RegistrosPonto") return [{ FuncionarioID: "emp_imp", Data: yesterday, Hora: "08:00" }];
     return [];
   };
   try {
@@ -296,7 +299,9 @@ test("21. Insights Proativos: Detecção de batidas ímpares no dia anterior", a
   }
 });
 
-test("22. Insights Proativos: Alerta de solicitações de folga pendentes", async () => {
+test("22. Insights Proativos: Alerta de solicitações de folga pendentes", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const origList = runtime.list;
   runtime.list = async (col) => {
     if (col === "Folgas") return [{ FolgaID: "f1", Status: "Pendente" }, { FolgaID: "f2", Status: "Pendente" }];
@@ -312,7 +317,9 @@ test("22. Insights Proativos: Alerta de solicitações de folga pendentes", asyn
   }
 });
 
-test("23. Insights Proativos: Identificação de tarefas operacionais vencidas", async () => {
+test("23. Insights Proativos: Identificação de tarefas operacionais vencidas", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const origList = runtime.list;
   runtime.list = async (col) => {
     if (col === "Tarefas") return [{ ID: "t1", Status: "A fazer", Prazo: "2020-01-01" }];
@@ -328,7 +335,9 @@ test("23. Insights Proativos: Identificação de tarefas operacionais vencidas",
   }
 });
 
-test("24. Insights Proativos: Alerta de documentos pendentes de assinatura", async () => {
+test("24. Insights Proativos: Alerta de documentos pendentes de assinatura", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const origList = runtime.list;
   runtime.list = async (col) => {
     if (col === "Documentos") return [{ ID: "d1", Status: "Pendente" }];
@@ -344,9 +353,11 @@ test("24. Insights Proativos: Alerta de documentos pendentes de assinatura", asy
   }
 });
 
-test("25. Insights Proativos: Risco de cobertura com mais de 40% da equipe em folga", async () => {
+test("25. Insights Proativos: Risco de cobertura com mais de 40% da equipe em folga", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const origList = runtime.list;
-  const today = todayIso();
+  const today = new Intl.DateTimeFormat("en-CA", {timeZone:"America/Bahia",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
   runtime.list = async (col) => {
     if (col === "Funcionarios") return [{ FuncionarioID: "e1" }, { FuncionarioID: "e2" }];
     if (col === "Folgas") return [{ FuncionarioID: "e1", Data: today, Status: "Aprovada" }];
@@ -362,7 +373,9 @@ test("25. Insights Proativos: Risco de cobertura com mais de 40% da equipe em fo
   }
 });
 
-test("26. Insights Proativos: Estrutura estrita de cada insight (origem, gravidade, justificativa)", async () => {
+test("26. Insights Proativos: Estrutura estrita de cada insight (origem, gravidade, justificativa)", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const origList = runtime.list;
   runtime.list = async (col) => {
     if (col === "Documentos") return [{ ID: "d1", Status: "Pendente" }];
@@ -382,7 +395,9 @@ test("26. Insights Proativos: Estrutura estrita de cada insight (origem, gravida
   }
 });
 
-test("27. Insights Proativos: Zero repetição de erros e deduplicação", async () => {
+test("27. Insights Proativos: Zero repetição de erros e deduplicação", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const origList = runtime.list;
   runtime.list = async () => [];
   try {
@@ -393,14 +408,18 @@ test("27. Insights Proativos: Zero repetição de erros e deduplicação", async
   }
 });
 
-test("28. Insights Proativos: Separação de gravidades (crítica, alta, média)", async () => {
+test("28. Insights Proativos: Separação de gravidades (crítica, alta, média)", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const res = await handlers.generateProactiveInsights([{}]);
   assert.ok(typeof res.data.criticos === "number");
   assert.ok(typeof res.data.altos === "number");
   assert.ok(typeof res.data.medios === "number");
 });
 
-test("29. Insights Proativos: Zero emojis nos títulos e descrições", async () => {
+test("29. Insights Proativos: Zero emojis nos títulos e descrições", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const res = await handlers.generateProactiveInsights([{}]);
   for (const item of res.data.insights) {
     assert.equal(EMOJI_REGEX.test(item.titulo), false);
@@ -408,7 +427,9 @@ test("29. Insights Proativos: Zero emojis nos títulos e descrições", async ()
   }
 });
 
-test("30. Insights Proativos: Filtragem por unidade/loja específica", async () => {
+test("30. Insights Proativos: Filtragem por unidade/loja específica", async (t) => {
+  t.mock.method(runtime, "requireProfile", async () => ({ Perfil: "Administrador" }));
+  t.mock.method(runtime, "listPeriods", async (table, _periods, options) => runtime.list(table, options));
   const res = await handlers.generateProactiveInsights([{ lojaId: "loja_especifica" }]);
   assert.equal(res.success, true);
 });

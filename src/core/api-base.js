@@ -800,8 +800,24 @@ const dashboardFrom = (stores, employees, records) => {
   };
 };
 
-async function bootstrap() {
+async function bootstrap({ fast = false } = {}) {
+  const startedAt = Date.now();
   const profile = await runtime.requireProfile();
+  if (fast) {
+    // Authentication and profile validation remain mandatory. Operational
+    // collections and reconciliations belong to the existing deferred load,
+    // so a large table or notification read never delays opening the shell.
+    return {
+      app: { name: APP.name, version: APP.version },
+      user: sessionUser(profile),
+      permissions: PERMISSIONS[profile.Perfil] || [],
+      stores: [], employees: [], timeOff: [], holidays: [], users: [], dashboard: {},
+      monthlyLeaveReward: null, holidayLeaveRewards: [], monthlyCreditReport: null,
+      deferred: true,
+      usersDeferred: isAdmin(profile),
+      performance: { mode: "firebase-profile", serverMs: Date.now() - startedAt },
+    };
+  }
   let stores = [], initialEmployees = [], timeOff = [], holidays = [];
   try {
     [stores, initialEmployees, timeOff, holidays] = await Promise.all([
@@ -881,7 +897,7 @@ async function bootstrap() {
     monthlyCreditReport: null,
     deferred: false,
     usersDeferred: isAdmin(profile),
-    performance: { mode: "firebase-direct", serverMs: 0 },
+    performance: { mode: "firebase-direct", serverMs: Date.now() - startedAt },
   };
 }
 
@@ -1504,7 +1520,7 @@ export function createBaseHandlers() {
         payload.senha || payload.password || payload.Senha,
         shouldRemember,
       );
-      const data = await bootstrap();
+      const data = await bootstrap({ fast: true });
       const token = await user.getIdToken();
       return success(
         {
@@ -1528,7 +1544,7 @@ export function createBaseHandlers() {
       if (!user) {
         return success({ redirecting: true }, "Redirecionando para login com o Google...");
       }
-      const data = await bootstrap();
+      const data = await bootstrap({ fast: true });
       const token = await user.getIdToken();
       return success(
         {
@@ -1583,8 +1599,9 @@ export function createBaseHandlers() {
       );
     },
 
-    async getBootstrapDataWithSession() {
-      return success(await bootstrap(), "Aplicação carregada.");
+    async getBootstrapDataWithSession(args) {
+      const [payload] = dropClientToken(args);
+      return success(await bootstrap({ fast: payload?.fast === true && payload?.forceRefresh !== true }), "Aplicação carregada.");
     },
 
     async getDashboardData() {

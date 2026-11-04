@@ -175,3 +175,14 @@ test('filtro por loja na escala isola colaboradores da unidade selecionada via c
  assert.match(filteredHtml,/Ana Centro/);
  assert.doesNotMatch(filteredHtml,/Bruno Sul/);
 });
+test('hidden team and schedule avoid DOM construction until their view opens',()=>{
+ const h=harness();let teamActive=false,shiftActive=false;
+ h.nodes.set('#view-live-team',{classList:{contains:c=>c==='view'||c==='active'&&teamActive}});
+ h.nodes.set('#view-shift-plan',{classList:{contains:c=>c==='view'||c==='active'&&shiftActive}});
+ h.send({manager:true,employees:[{FuncionarioID:'e1',Nome:'Ana',Ativo:true}],presence:{presence:[]}});
+ assert.equal(h.nodes.has('#journeyTeam'),false);assert.equal(h.nodes.has('#journeySchedule'),false);
+ teamActive=true;h.events['gestao-view-change']({detail:{view:'live-team'}});
+ assert.ok(h.nodes.has('#journeyTeam'));assert.equal(h.nodes.has('#journeySchedule'),false);
+ shiftActive=true;h.events['gestao-view-change']({detail:{view:'shift-plan'}});
+ assert.ok(h.nodes.has('#journeySchedule'));
+});

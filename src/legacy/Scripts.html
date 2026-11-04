@@ -1377,7 +1377,7 @@
     $("#incompletePunchesActionBtn") &&
       ($("#incompletePunchesActionBtn").onclick = openQuickFixPunchesDialog_);
     $("#houseAiRefreshBtn") &&
-      ($("#houseAiRefreshBtn").onclick = () => renderHouseAiDashboard_());
+      ($("#houseAiRefreshBtn").onclick = () => renderHouseAiDashboard_(true));
     $("#houseAiOpenChatBtn") &&
       ($("#houseAiOpenChatBtn").onclick = () => {
         const fab = $("#copilotFab") || $("#copilotOpenBtn");
@@ -2190,11 +2190,11 @@
     scheduleMonthlyLeaveReward_();
     document.body.classList.toggle("app-core-loading", deferred);
     saveTurboShellCache_();
-    console.info("[performance] interface pronta", {
+    console.info("[performance] interface pronta" + JSON.stringify({
       elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
       serverMs: Number(data.performance?.serverMs || 0),
       mode: data.performance?.mode || (deferred ? "fast" : "full"),
-    });
+    }));
     if (deferred) scheduleDeferredBootstrap_();
     else scheduleSecondaryLoads_();
   }
@@ -2231,11 +2231,11 @@
     })
       .then((data) => {
         mergeDeferredBootstrap_(data || {});
-        console.info("[performance] dados principais sincronizados", {
+        console.info("[performance] dados principais sincronizados" + JSON.stringify({
           elapsedMs: Date.now() - startedAt,
           totalMs: Date.now() - APP_BOOT_STARTED_AT_,
           serverMs: Number(data?.performance?.serverMs || 0),
-        });
+        }));
         return data;
       })
       .catch((error) => {
@@ -2318,10 +2318,18 @@
     );
   }
 
-  function scheduleIdleTask_(task, timeout) {
-    if (typeof window.requestIdleCallback === "function")
-      window.requestIdleCallback(task, { timeout: timeout || 5000 });
-    else setTimeout(task, timeout || 5000);
+  function scheduleIdleTask_(task, delay) {
+    // requestIdleCallback.timeout is a deadline, not a delay. Stagger requests
+    // before asking for idle CPU so background work cannot flood startup.
+    const owner = window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "";
+    return setTimeout(() => {
+      const run = () => {
+        if (owner !== (window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "")) return;
+        Promise.resolve().then(task).catch(error => console.warn("Carga secundária:", error?.message || error));
+      };
+      if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(run, { timeout: 1500 });
+      else run();
+    }, delay || 5000);
   }
 
   function compactTurboRows_(rows, limit) {
@@ -3848,9 +3856,9 @@
   function renderDashboard() {
     if (typeof warmClockLocation_ === "function") warmClockLocation_();
     window.dispatchEvent(new Event("gestao-dashboard-active"));
-    if (recognitionOwnerKey_() !== RECOGNITIONS_OWNER_) loadRecognitions_();
+    if (state.coreReady && recognitionOwnerKey_() !== RECOGNITIONS_OWNER_) loadRecognitions_();
     publishJourney_();
-    if (!state.operationalAnnouncementsLoaded_) {
+    if (state.coreReady && !state.operationalAnnouncementsLoaded_) {
       state.operationalAnnouncementsLoaded_ = true;
       loadOperationalAnnouncements_();
       loadRecognitions_();
@@ -3926,24 +3934,44 @@
     renderMiniCalendar();
     renderStoreChart();
     renderPendingCenterSummary_();
-    if (typeof renderProximaFolga === "function") renderProximaFolga();
     checkGoogleLinkBanner_();
-    checkIncompletePunches_();
-    checkPendingDocuments_();
-    checkPrivacyPolicyPopup_();
-    loadLivePresence_();
+    if (state.coreReady) {
+      if (typeof renderProximaFolga === "function") renderProximaFolga();
+      checkIncompletePunches_();
+      checkPendingDocuments_();
+      checkPrivacyPolicyPopup_();
+      loadLivePresence_();
+      scheduleIdleTask_(() => renderHouseAiDashboard_(), 2500);
+    }
     if (isKitchenChief()) renderEmployeeClockDashboard();
-    renderHouseAiDashboard_();
   }
 
-  async function renderHouseAiDashboard_() {
+  let HOUSE_AI_DASHBOARD_REQUEST_ = null;
+  let HOUSE_AI_DASHBOARD_LAST_ = { key: "", at: 0 };
+  function houseAiDashboardKey_() {
+    return JSON.stringify([window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "", state.user?.Perfil || "", state.user?.LojaID || "", state.selectedStoreId || ""]);
+  }
+  async function renderHouseAiDashboard_(force = false) {
+    if (!force && (!state.coreReady || state.currentView !== "dashboard")) return;
+    const key = houseAiDashboardKey_();
+    if (HOUSE_AI_DASHBOARD_REQUEST_?.key === key) return HOUSE_AI_DASHBOARD_REQUEST_.promise;
+    if (!force && HOUSE_AI_DASHBOARD_LAST_.key === key && Date.now() - HOUSE_AI_DASHBOARD_LAST_.at < 60000) return;
+    const entry = { key, promise: null };
+    entry.promise = renderHouseAiDashboardContent_(key).then(() => {
+      if (houseAiDashboardKey_() === key) HOUSE_AI_DASHBOARD_LAST_ = { key, at: Date.now() };
+    }).finally(() => { if (HOUSE_AI_DASHBOARD_REQUEST_ === entry) HOUSE_AI_DASHBOARD_REQUEST_ = null; });
+    HOUSE_AI_DASHBOARD_REQUEST_ = entry;
+    return entry.promise;
+  }
+  async function renderHouseAiDashboardContent_(owner) {
     const container = $("#houseAiInsightsContainer");
     if (!container) return;
     const isManagerOrAdmin = isAdmin() || isManager();
 
     try {
       if (isManagerOrAdmin) {
-        const res = await gas(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
+        const res = await call(FN.houseAiInsights, { lojaId: state.selectedStoreId || "" });
+        if (owner !== houseAiDashboardKey_()) return;
         const data = res?.data || res || {};
         const insights = Array.isArray(data.insights) ? data.insights : [];
 
@@ -6590,9 +6618,9 @@
         if (typeof renderEmployeeClockDashboard === "function") renderEmployeeClockDashboard();
         if (typeof publishJourney_ === "function") publishJourney_();
         saveTurboShellCache_();
-        console.info("[performance] ponto imediato pronto", {
+        console.info("[performance] ponto imediato pronto" + JSON.stringify({
           elapsedMs: Date.now() - APP_BOOT_STARTED_AT_,
-        });
+        }));
         return data;
       } catch (error) {
         console.warn("Ponto imediato:", error.message);
@@ -8317,6 +8345,7 @@
   }
 
   function checkPrivacyPolicyPopup_() {
+    if (!state.coreReady) return;
     if (!state.user && !state.profile && !state.bootstrap?.user) return;
 
     // 1. Já assinou localmente ou remotamente?
