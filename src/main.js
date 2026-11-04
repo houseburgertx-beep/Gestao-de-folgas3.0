@@ -53,7 +53,11 @@ installDeferredCopilot();
 
 window.__GESTAO_CLOCK_CAMERA__ = acquireClockCamera;
 window.__GESTAO_CLOCK_RECOVERY__ = clockRecovery;
-window.__GESTAO_CLOCK_LOCATION__ = createClockLocationReader(navigator.geolocation);
+window.__GESTAO_CLOCK_LOCATION__ = createClockLocationReader(navigator.geolocation, {
+  permissions: navigator.permissions,
+  secureContext: window.isSecureContext,
+  allowedByPolicy: () => (document.permissionsPolicy || document.featurePolicy)?.allowsFeature?.("geolocation") !== false,
+});
 window.__GESTAO_WORKER_URL__ = PUSH_CONFIG.endpoint;
 const api = createApi();
 window.__GESTAO_FIREBASE__ = { runtime, api };

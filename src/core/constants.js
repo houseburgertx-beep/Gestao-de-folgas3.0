@@ -119,7 +119,6 @@ export const PUBLIC_AUTH_TABLES = new Set([
   "Feriados",
   "RegrasFolga",
   "PontosCatalogo",
-  "Reconhecimentos",
   "Tarefas",
 ]);
 

@@ -104,7 +104,7 @@ test("upload repete HTTP transitório e resposta inválida, mas recusa erro de a
 });
 
 test("handler recupera tentativa real com foto confirmada, horário original e uma única gravação", async () => {
-  const names = ["auth", "requireProfile", "getById", "findOne", "list", "listPeriods", "create", "getByIdFromServer", "requestServerRecord", "createClockRecord", "invalidateTableCache", "invoke"];
+  const names = ["auth", "requireProfile", "getById", "findOne", "listWhere", "list", "listPeriods", "create", "getByIdFromServer", "requestServerRecord", "createClockRecord", "invalidateTableCache", "invoke"];
   const original = Object.fromEntries(names.map((name) => [name, runtime[name]]));
   const originalFetch = globalThis.fetch;
   const entry = attempt();
@@ -122,7 +122,7 @@ test("handler recupera tentativa real com foto confirmada, horário original e u
     assert.equal(options.ownerUid, "recovery-owner");
     records.push(row); return row;
   };
-  runtime.findOne = async () => ({ Latitude: -12.97, Longitude: -38.5, RaioMetros: 150, Ativo: true });
+  runtime.listWhere = async () => [{ LojaID: "store-1", Latitude: -12.97, Longitude: -38.5, RaioMetros: 150, Ativo: true }];
   runtime.list = async () => [];
   runtime.listPeriods = async () => records;
   runtime.create = async (table, row) => { if (table === "RegistrosPonto") records.push(row); return row; };
@@ -133,6 +133,11 @@ test("handler recupera tentativa real com foto confirmada, horário original e u
   try {
     globalThis.fetch = async () => { throw new TypeError("offline"); };
     const handler = createClockHandlers().registerTimeClockPunch;
+    const requestServer = runtime.requestServerRecord;
+    runtime.requestServerRecord = async () => { throw new Error("preflight offline"); };
+    await assert.rejects(handler([payload]), /preflight offline/);
+    assert.equal((await clockAttemptStore.get("recovery-owner", entry.requestId)).selfieDataUrl, image);
+    runtime.requestServerRecord = requestServer;
     await assert.rejects(handler([payload]), /Não foi possível enviar/);
     assert.equal(records.length, 0);
     assert.equal((await clockAttemptStore.get("recovery-owner", entry.requestId)).selfieDataUrl, image);

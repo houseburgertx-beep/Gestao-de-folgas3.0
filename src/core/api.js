@@ -36,9 +36,7 @@ export function createApi() {
       } catch (error) {
         const code = String(error?.code || "");
         if (code.includes("permission-denied")) {
-          throw new Error(
-            "O Firebase bloqueou esta operação. Publique database.rules.json e confirme o perfil do usuário.",
-          );
+          throw Object.assign(new Error("O servidor recusou o acesso a este registro. Entre novamente ou peça à gerência para conferir seu cadastro."), {code, retryable:false});
         }
         if (
           code.includes("auth/invalid-credential") ||

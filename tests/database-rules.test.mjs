@@ -68,6 +68,14 @@ test('Firebase Database rules enforce roles, privacy, balances and document owne
     denied(await request(`${base}/tables/Documentos/${documentId}`,{uid:'alice'}));
     denied(await request(`${base}/tables/Folgas/${leaveId}`,{uid:'alice'}));
   });
+  await t.test('employee can query only their own weekly recognition, not the full table or another employee',async()=>{
+    allowed(await request(`${base}/tables/Reconhecimentos/award-alice`,{admin:true,method:'PUT',data:{ReconhecimentoID:'award-alice',FuncionarioID:'emp-alice',LojaID:'store-a',Ativo:true}}));
+    allowed(await request(`${base}/tables/Reconhecimentos/award-bob`,{admin:true,method:'PUT',data:{ReconhecimentoID:'award-bob',FuncionarioID:'emp-bob',LojaID:'store-a',Ativo:true}}));
+    denied(await request(`${base}/tables/Reconhecimentos`,{uid:'alice'}));
+    const own=await request(`${base}/tables/Reconhecimentos`,{uid:'alice',query:{orderBy:'FuncionarioID',equalTo:'emp-alice'}});allowed(own);assert.ok(JSON.parse(own.body)['award-alice']);assert.equal(JSON.parse(own.body)['award-bob'],undefined);
+    denied(await request(`${base}/tables/Reconhecimentos`,{uid:'alice',query:{orderBy:'FuncionarioID',equalTo:'emp-bob'}}));
+    allowed(await request(`${base}/tables/Reconhecimentos`,{uid:'manager',query:{orderBy:'LojaID',equalTo:'store-a'}}));
+  });
   await t.test('unprovisioned account cannot choose a role or employee identity', async () => {
     denied(await request(`${base}/access/outsider`, { uid: 'outsider', method: 'PUT', data: profile('outsider', 'Administrador') }));
     denied(await request(`${base}/access/outsider`, { uid: 'outsider', method: 'PUT', data: profile('outsider') }));
@@ -160,6 +168,18 @@ test('Firebase Database rules enforce roles, privacy, balances and document owne
       const invalidId = `invalid-${Object.keys(patch)[0]}-${String(Object.values(patch)[0]).replace(/[^a-z0-9]/gi, '')}`;
       denied(await request(`${base}/tables/RegistrosPonto/${invalidId}`, { uid: 'alice', method: 'PUT', data: { ...record, RegistroPontoID: invalidId, RequestID: invalidId, ...patch } }));
     }
+  });
+  await t.test('coarse GPS requires the complete uncertainty area inside the official configured store area',async()=>{
+    const location={LocalPontoID:'location-large',LojaID:'store-a',Latitude:-16.4,Longitude:-39.1,RaioMetros:10000,Ativo:true};
+    allowed(await request(`${base}/tables/LocaisPonto/location-large`,{admin:true,method:'PUT',data:location}));
+    const row={FuncionarioID:'emp-alice',LojaID:'store-a',Data:'2026-11-04',DataHora:'2026-11-04T12:00:00.000Z',TipoMarcacao:'ENTRADA',Status:'Válido',SelfieStorage:'Google Drive',SelfieDriveFileID:'real-file-receipt',Latitude:-16.4,Longitude:-39.1,PrecisaoMetros:1500,LocalPontoID:'location-large',LocalizacaoOrigem:'LocaisPonto',LocalizacaoValidacao:'coarse-contained'};
+    const save=(id,delta={})=>request(`${base}/tables/RegistrosPonto/${id}`,{uid:'alice',method:'PUT',data:{...row,...delta,RegistroPontoID:id,RequestID:id}});
+    allowed(await save('coarse-valid-location'));
+    denied(await save('coarse-outside-location',{Latitude:-15,DistanciaLojaMetros:0,RaioValidadoMetros:999999}));
+    denied(await save('coarse-invalid-location',{LocalPontoID:'made-up-location'}));
+    denied(await save('coarse-too-imprecise',{PrecisaoMetros:6000}));
+    allowed(await request(`${base}/tables/LocaisPonto/location-large/RaioMetros`,{admin:true,method:'PUT',data:150}));
+    denied(await save('coarse-small-official-area'));
   });
   await t.test('WhatsApp navigation tokens remain private, scoped and immutable on access', async () => {
     const token = { TokenID: 'magic-alice', Token: 'magic-alice', FuncionarioID: 'emp-alice', FuncionarioStorageKey: 'emp-alice', NomeFuncionario: 'Alice', LojaID: 'store-a', Destino: 'documents', Tipo: 'ESPELHO_PONTO', DocID: 'doc-alice', ExpiraEm: '2026-12-01T12:00:00.000Z', Utilizado: false, Acessos: 0 };

@@ -159,3 +159,15 @@ test("IndexedDB consulta o índice UID sem trazer fotos de outras contas", async
   assert.deepEqual(queried, ["owner-a", "owner-b"]);
   assert.equal((await clockAttemptStore.list("not-a-real-owner")).length, 0);
 });
+
+test('captura é preservada antes de haver GPS e renovar localização não troca foto nem horário',async()=>{
+ const {refreshClockDraftLocation,markClockDraftLocationIssue}=await import('../src/core/clock-punch-recovery.js');
+ const uid='gps-recovery-owner',requestId='12345678-abcd-1234-abcd-123456789013';const capturedAt='2026-11-04T12:00:00Z';
+ const first=await saveClockDraft(uid,{requestId,capturedAt,payload:{selfieDataUrl:image,expectedAction:'ENTRADA',requestId,capturedAt}});
+ assert.equal(first.requiresLocationRefresh,true);assert.equal(first.payload.selfieDataUrl,image);
+ const refreshed=await refreshClockDraftLocation(uid,requestId,{timestamp:Date.now(),coords:{latitude:-17.5,longitude:-39.7,accuracy:20}});
+ assert.equal(refreshed.requiresLocationRefresh,false);assert.equal(refreshed.capturedAt,new Date(capturedAt).toISOString());assert.equal(refreshed.payload.selfieDataUrl,image);assert.equal(refreshed.originalRequestId,requestId);
+ await markClockDraftLocationIssue(uid,requestId);assert.equal((await listClockDrafts(uid)).find(r=>r.requestId===requestId).requiresLocationRefresh,true);
+ assert.equal((await listClockDrafts('other-owner')).some(r=>r.requestId===requestId),false);
+ await removeClockDraft(uid,requestId);
+});
