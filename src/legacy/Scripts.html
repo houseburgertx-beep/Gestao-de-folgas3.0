@@ -12028,6 +12028,13 @@
       return;
     }
     renderRecognitionManagement_();
+    requestAnimationFrame(() => {
+      const dialog = $("#recognitionPanelDialog");
+      if (dialog?.open && owner === recognitionOwnerKey_()) {
+        dialog.scrollTop = 0;
+        dialog.querySelector("[data-close]")?.focus({ preventScroll: true });
+      }
+    });
   }
   function openEditRecognition_(id) {
     if (!isManager()) return;
