@@ -21,3 +21,14 @@ test('duas falhas públicas reiniciam túnel mesmo com sincronização local bem
 test('resposta pública saudável interrompe a sequência de falhas',async()=>{
  const s=supervisor();await s.sync();await s.check();s.setHealthy(true);await s.check();s.setHealthy(false);await s.check();assert.equal(s.restarts,0);await s.sync();await s.check();assert.equal(s.restarts,1);
 });
+const recoverySource=source.slice(source.indexOf('export function sessionRecoveryAction'),source.indexOf('\nasync function startSessionIfStopped')).replace('export ','');
+const recoveryContext=vm.createContext({});
+vm.runInContext(`${recoverySource};this.action=sessionRecoveryAction;`,recoveryContext);
+test('supervisor não disputa reconexão nativa nem reinicia sessão aguardando QR',()=>{
+ const action=recoveryContext.action;
+ assert.equal(action({status:'DISCONNECTED',hasInstance:true},60000),null);
+ assert.equal(action({status:'DISCONNECTED',hasInstance:true},299999),null);
+ assert.equal(action({status:'DISCONNECTED',hasInstance:true},300000),'restart');
+ for(const status of ['SCAN_QR','LOGGED_OUT','CONNECTED','WORKING'])assert.equal(action({status,hasInstance:true},900000),null);
+ assert.equal(action({status:'STOPPED',hasInstance:false},0),'start');
+});

@@ -89,6 +89,13 @@ async function ensureWaAkg() {
 }
 
 let lastStartAttempt = Date.now();
+let disconnectedSince = 0;
+
+export function sessionRecoveryAction(session, elapsed) {
+  if (["CONNECTED", "WORKING", "SCAN_QR", "LOGGED_OUT"].includes(session.status)) return null;
+  if (session.hasInstance && elapsed < 300000) return null;
+  return session.status === "STOPPED" || !session.hasInstance ? "start" : "restart";
+}
 
 async function startSessionIfStopped() {
   const now = Date.now();
@@ -104,11 +111,14 @@ async function startSessionIfStopped() {
     if (check.ok) {
       const data = await check.json();
       const sess = data?.data || data || {};
-      const isOk = sess.status === "CONNECTED" || sess.status === "WORKING" || Boolean(sess.me);
-      if (!isOk && sess.status !== "SCAN_QR") {
+      const connected = sess.status === "CONNECTED" || sess.status === "WORKING";
+      if (connected || sess.status === "SCAN_QR" || sess.status === "LOGGED_OUT") disconnectedSince = 0;
+      else if (!disconnectedSince) disconnectedSince = now;
+      const endpoint = sessionRecoveryAction(sess, now - disconnectedSince);
+      if (endpoint) {
         lastStartAttempt = now;
-        log(`Sessão com status '${sess.status}'. Disparando auto-wake/restart com debounce...`);
-        const endpoint = sess.status === "STOPPED" ? "start" : "restart";
+        disconnectedSince = now;
+        log(`Sessão com status '${sess.status}'. Recuperação controlada: ${endpoint}.`);
         await fetch(`http://127.0.0.1:3000/api/sessions/${INSTANCE}/${endpoint}`, {
           method: "POST",
           headers: { "X-API-Key": API_KEY, "Content-Type": "application/json" },
@@ -140,7 +150,7 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
     if (sRes.ok) {
       const data = await sRes.json();
       const sess = data?.data || data || {};
-      isConnected = sess.status === "CONNECTED" || sess.status === "WORKING" || Boolean(sess.me);
+      isConnected = sess.status === "CONNECTED" || sess.status === "WORKING";
       if (sess.me?.id) {
         phone = sess.me.id.split("@")[0].split(":")[0];
       }
