@@ -11878,7 +11878,7 @@
       const id = String(emp.FuncionarioID || emp.funcionarioId || "").trim();
       const active = val(emp, "Ativo", "ativo");
       return id && counts.get(id) === 1 && (active === "" || bool(active)) &&
-        ((typeof isStoreAdmin === "function" && isStoreAdmin()) ||
+        (isAdmin() ||
           (userStoreId && String(val(emp, "LojaID", "lojaId")) === userStoreId));
     });
   }

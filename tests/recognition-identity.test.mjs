@@ -122,7 +122,7 @@ function selectorHarness() {
   const context = { state, $: () => select, window: {}, arr: x => Array.isArray(x) ? x : [],
     val: (o, ...keys) => { for (const key of keys) if (o?.[key] != null) return o[key]; return ''; },
     bool: v => v === true || String(v) === 'true' || String(v) === '1', esc: v => String(v),
-    idOf: (o, type) => o[type + 'ID'], isStoreAdmin: () => false };
+    idOf: (o, type) => o[type + 'ID'], isAdmin: () => state.user.Perfil === 'Administrador' };
   const start = source.indexOf('  function recognitionEligibleEmployees_()');
   const end = source.indexOf('  function openNewAnnouncementDialog()', start);
   const ownerStart = source.indexOf('  function recognitionOwnerKey_()');
@@ -208,4 +208,19 @@ test('recognition notify UI coalesces double clicks and does not claim WhatsApp 
   assert.equal(notices.length, 1);
   assert.match(notices[0], /Aviso salvo no aplicativo/);
   assert.match(notices[0], /ainda não foi confirmada/);
+});
+
+test('administrator without a store can select active employees across units', () => {
+  const app = selectorHarness();
+  app.state.user = { Perfil: 'Administrador', LojaID: '' };
+  app.state.employees = [
+    { FuncionarioID: 'e1', Nome: 'Ana', LojaID: 's1', Ativo: true },
+    { FuncionarioID: 'e2', Nome: 'Bruno', LojaID: 's2', Ativo: true },
+    { FuncionarioID: 'inactive', LojaID: 's1', Ativo: false },
+    { id: 'auth-only', Nome: 'Login', LojaID: 's1', Ativo: true },
+  ];
+  app.populate();
+  assert.deepEqual(Array.from(app.eligible(), x => x.FuncionarioID), ['e1', 'e2']);
+  assert.match(app.select.innerHTML, /Ana/);
+  assert.match(app.select.innerHTML, /Bruno/);
 });
