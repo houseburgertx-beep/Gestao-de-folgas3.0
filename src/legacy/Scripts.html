@@ -11991,14 +11991,80 @@
         if (version !== RECOGNITIONS_VERSION_ || owner !== recognitionOwnerKey_()) return;
         state.recognitions = arr(rows);
         publishJourney_();
+        if (typeof renderRecognitionManagement_ === "function") renderRecognitionManagement_();
+        return true;
       } catch (err) {
         if (version === RECOGNITIONS_VERSION_ && owner === recognitionOwnerKey_()) console.warn("Falha ao carregar reconhecimentos:", err);
+        return false;
       } finally {
         if (RECOGNITIONS_REQUEST_ === entry) RECOGNITIONS_REQUEST_ = null;
       }
     })();
     return entry.promise;
   }
+
+  let RECOGNITION_EDIT_ = null;
+  function renderRecognitionManagement_() {
+    const container = $("#recognitionPanelContent");
+    if (!container || !$("#recognitionPanelDialog")?.open || !isManager()) return;
+    window.renderRecognitionPanel_?.(container, {
+      rows: RECOGNITIONS_OWNER_ === recognitionOwnerKey_() ? arr(state.recognitions) : [],
+      stores: state.stores,
+      onEdit: openEditRecognition_, onRemove: deleteRecognition_, onNotify: notifyEmployeeRecognition_,
+      onCreate: openRecognizeEmployeeDialog, onRefresh: openRecognitionPanel_,
+    });
+  }
+  async function openRecognitionPanel_() {
+    if (!isManager()) return;
+    const owner = recognitionOwnerKey_();
+    const container = $("#recognitionPanelContent");
+    if (!container) return;
+    container.textContent = "Carregando destaques…";
+    openDialog("recognitionPanelDialog");
+    const loaded = await loadRecognitions_({ force: true });
+    if (owner !== recognitionOwnerKey_() || !isManager()) { closeDialog("recognitionPanelDialog"); return; }
+    if (loaded === false) {
+      container.textContent = "Não foi possível carregar os destaques. Feche e abra o painel para tentar novamente.";
+      return;
+    }
+    renderRecognitionManagement_();
+  }
+  function openEditRecognition_(id) {
+    if (!isManager()) return;
+    const row = arr(state.recognitions).find(item => String(item.ReconhecimentoID) === String(id));
+    if (!row) return toast("Atualize o painel antes de editar este destaque.", true);
+    RECOGNITION_EDIT_ = { id: String(id), owner: recognitionOwnerKey_() };
+    $("#editRecognitionEmployee").textContent = row.NomeFuncionario || "Colaborador";
+    $("#editRecognitionCategory").value = row.Categoria || "Destaque da Semana";
+    $("#editRecognitionWeek").value = row.Semana || "";
+    $("#editRecognitionReason").value = row.Motivo || "";
+    $("#editRecognitionForm").onsubmit = saveRecognitionEdit_;
+    openDialog("editRecognitionDialog");
+  }
+  async function saveRecognitionEdit_(event) {
+    event.preventDefault();
+    const entry = RECOGNITION_EDIT_;
+    if (!entry || entry.owner !== recognitionOwnerKey_() || !isManager()) {
+      closeDialog("editRecognitionDialog"); return toast("Seu acesso mudou. Abra o destaque novamente.", true);
+    }
+    const button = event.target.querySelector('button[type="submit"]');
+    if (button?.disabled) return;
+    const payload = { Categoria: $("#editRecognitionCategory").value.trim(), Semana: $("#editRecognitionWeek").value.trim(), Motivo: $("#editRecognitionReason").value.trim() };
+    if (!payload.Categoria || !payload.Motivo) return toast("Preencha a categoria e o elogio.", true);
+    try {
+      setAdvancedBusy_(button, true);
+      await call("editarReconhecimento", sessionToken(), entry.id, payload);
+      if (entry.owner !== recognitionOwnerKey_()) return;
+      RECOGNITION_EDIT_ = null;
+      closeDialog("editRecognitionDialog");
+      toast("Destaque atualizado.");
+      await loadRecognitions_({ force: true });
+      renderRecognitionManagement_();
+    } catch (error) {
+      if (entry.owner === recognitionOwnerKey_()) toast(error.message || "Não foi possível editar o destaque.", true);
+    } finally { setAdvancedBusy_(button, false); }
+  }
+  window.openRecognitionPanel_ = openRecognitionPanel_;
 
   function openRecognizeEmployeeDialog() {
     populateRecognizeEmployeeSelect_();

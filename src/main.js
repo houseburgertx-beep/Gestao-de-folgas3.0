@@ -1,3 +1,5 @@
+import { renderRecognitionPanel } from "./recognition-panel.js";
+window.renderRecognitionPanel_ = renderRecognitionPanel;
 import "./brand.js";
 import "./journey.js";
 import "./tasks.js";

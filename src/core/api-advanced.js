@@ -1593,6 +1593,36 @@ export function createAdvancedHandlers() {
       );
     },
 
+    async editarReconhecimento(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const [rawId, rawPayload] = dropClientToken(args);
+      const recId = String(rawId || "").trim();
+      const payload = rawPayload || {};
+      assert(recId, "Identificador do reconhecimento não informado.");
+      const recognition = await runtime.getById("Reconhecimentos", recId);
+      assert(recognition && String(recognition.ReconhecimentoID || "") === recId, "Reconhecimento não encontrado.");
+      assert(recognition.Ativo === undefined || asBoolean(recognition.Ativo), "Este reconhecimento está inativo.");
+      if (!isAdmin(profile)) {
+        assert(profile.LojaID && recognition.LojaID && String(profile.LojaID) === String(recognition.LojaID), "Este perfil só pode editar reconhecimentos da própria loja.");
+      }
+      scopeRecord(profile, recognition);
+      const category = String(payload.Categoria ?? recognition.Categoria ?? "Destaque da Semana").trim();
+      const reason = String(payload.Motivo ?? recognition.Motivo ?? "").trim();
+      const week = String(payload.Semana ?? recognition.Semana ?? "").trim();
+      assert(category, "Informe a categoria do reconhecimento.");
+      assert(reason, "Descreva o elogio da liderança.");
+      const saved = await runtime.upsert("Reconhecimentos", {
+        ...recognition,
+        Categoria: category,
+        Motivo: reason,
+        Semana: week,
+        AtualizadoEm: nowIso(),
+        AtualizadoPor: profile.Email || profile.Nome || "Gerência",
+      });
+      return success(saved, "Destaque atualizado com sucesso.");
+    },
+
     async notificarReconhecimento(args) {
       const profile = await runtime.requireProfile();
       requireManager(profile);

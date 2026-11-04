@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jornada" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="./manifest.webmanifest?v=6.17.11" />
+    <link rel="manifest" href="./manifest.webmanifest?v=6.17.12" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png" />
     <link
       rel="apple-touch-icon"
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
-    <meta name="app-version" content="6.17.11-firebase-github" />
+    <meta name="app-version" content="6.17.12-firebase-github" />
     <title>Gestão de Folgas</title>
     <link rel="stylesheet" href="./generated/legacy-styles-553039b353df.css">
   </head>
@@ -4534,6 +4534,21 @@
 
 
 
+<dialog id="recognitionPanelDialog" style="max-width:980px;width:94vw;padding:0;border:1px solid var(--line);border-radius:24px;background:var(--surface);color:var(--text);max-height:90dvh;overflow:auto;">
+  <button type="button" class="icon-btn" data-close="recognitionPanelDialog" aria-label="Fechar painel de destaques" style="position:absolute;right:18px;top:18px;z-index:1">✕</button>
+  <div id="recognitionPanelContent"></div>
+</dialog>
+<dialog id="editRecognitionDialog" style="max-width:540px;width:94vw;padding:24px;border:1px solid var(--line);border-radius:24px;background:var(--surface);color:var(--text);max-height:90dvh;overflow:auto;">
+  <form id="editRecognitionForm" style="display:grid;gap:16px">
+    <div><span class="eyebrow">RECONHECIMENTO</span><h3 style="margin:6px 0">Editar destaque</h3><p id="editRecognitionEmployee" style="margin:0;color:var(--muted)"></p></div>
+    <label>Categoria<input id="editRecognitionCategory" class="form-input" required maxlength="120" style="width:100%;margin-top:6px"></label>
+    <label>Semana / Período<input id="editRecognitionWeek" class="form-input" maxlength="120" style="width:100%;margin-top:6px"></label>
+    <label>Elogio da liderança<textarea id="editRecognitionReason" class="form-input" rows="5" required maxlength="5000" style="width:100%;margin-top:6px;resize:vertical"></textarea></label>
+    <small style="color:var(--muted)">A edição mantém o funcionário e as datas originais. Para enviar um aviso, use “Avisar” no painel.</small>
+    <div style="display:flex;justify-content:flex-end;gap:10px"><button type="button" class="btn btn-secondary" data-close="editRecognitionDialog">Cancelar</button><button type="submit" class="btn btn-primary">Salvar alterações</button></div>
+  </form>
+</dialog>
+
     <script>
   if (window.__GESTAO_API_STATUS__ === "ready") {
     window.__GESTAO_API_READY__ = Promise.resolve();
@@ -4552,7 +4567,7 @@
   }, true);
 </script>
 <!-- PDF.js (./vendor/pdfjs/pdf.min.js) is loaded on demand by documents.js. -->
-<script type="module" src="./src/main.js?v=6.17.11"></script>
-<script defer src="./generated/legacy-client-07b62f623a04.js"></script>
+<script type="module" src="./src/main.js?v=6.17.12"></script>
+<script defer src="./generated/legacy-client-d424bf45a7a2.js"></script>
   </body>
 </html>

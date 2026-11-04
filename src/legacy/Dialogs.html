@@ -2056,3 +2056,18 @@
 
 
 
+
+<dialog id="recognitionPanelDialog" style="max-width:980px;width:94vw;padding:0;border:1px solid var(--line);border-radius:24px;background:var(--surface);color:var(--text);max-height:90dvh;overflow:auto;">
+  <button type="button" class="icon-btn" data-close="recognitionPanelDialog" aria-label="Fechar painel de destaques" style="position:absolute;right:18px;top:18px;z-index:1">✕</button>
+  <div id="recognitionPanelContent"></div>
+</dialog>
+<dialog id="editRecognitionDialog" style="max-width:540px;width:94vw;padding:24px;border:1px solid var(--line);border-radius:24px;background:var(--surface);color:var(--text);max-height:90dvh;overflow:auto;">
+  <form id="editRecognitionForm" style="display:grid;gap:16px">
+    <div><span class="eyebrow">RECONHECIMENTO</span><h3 style="margin:6px 0">Editar destaque</h3><p id="editRecognitionEmployee" style="margin:0;color:var(--muted)"></p></div>
+    <label>Categoria<input id="editRecognitionCategory" class="form-input" required maxlength="120" style="width:100%;margin-top:6px"></label>
+    <label>Semana / Período<input id="editRecognitionWeek" class="form-input" maxlength="120" style="width:100%;margin-top:6px"></label>
+    <label>Elogio da liderança<textarea id="editRecognitionReason" class="form-input" rows="5" required maxlength="5000" style="width:100%;margin-top:6px;resize:vertical"></textarea></label>
+    <small style="color:var(--muted)">A edição mantém o funcionário e as datas originais. Para enviar um aviso, use “Avisar” no painel.</small>
+    <div style="display:flex;justify-content:flex-end;gap:10px"><button type="button" class="btn btn-secondary" data-close="editRecognitionDialog">Cancelar</button><button type="submit" class="btn btn-primary">Salvar alterações</button></div>
+  </form>
+</dialog>

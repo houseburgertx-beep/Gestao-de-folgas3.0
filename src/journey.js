@@ -193,7 +193,7 @@ function renderCraqueDaSemanaCard() {
      <span class="eyebrow" style="color: #b45309; font-size: 10.5px;">RECONHECIMENTO OPERACIONAL</span>
      <h4 style="margin: 1px 0 0; font-size: 14px; font-weight: 700; color: #78350f;">Destaque da Semana</h4>
     </div>
-    <button class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>
+    <button type="button" class="btn btn-ghost" data-j-manage-recognitions>Ver todos · ${applicable.length}</button><button class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>
    </div>
   </article>`;
  }
@@ -213,6 +213,7 @@ function renderCraqueDaSemanaCard() {
    </div>
    ${data.manager ? `
     <div class="craque-head-actions">
+     <button type="button" class="btn btn-ghost" data-j-manage-recognitions>Ver todos · ${applicable.length}</button>
      <button type="button" class="btn btn-ghost" data-j-notify-recognition="${esc(latest.ReconhecimentoID)}">Avisar colaborador</button>
      <button type="button" class="craque-del-btn" data-j-delete-recognition="${esc(latest.ReconhecimentoID)}" title="Excluir destaque">✕</button>
      <button type="button" class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>
@@ -554,6 +555,7 @@ document.addEventListener('click',e=>{
     }
     return;
   }
+  if(e.target.closest('[data-j-manage-recognitions]')){window.openRecognitionPanel_?.();return;}
   const notifyRec=e.target.closest('[data-j-notify-recognition]');
   if(notifyRec) window.notifyEmployeeRecognition_?.(notifyRec.dataset.jNotifyRecognition);
   const delRec=e.target.closest('[data-j-delete-recognition]');
