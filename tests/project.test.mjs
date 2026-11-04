@@ -744,8 +744,10 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(location, /options\.timeout \?\? 12000/);
   assert.match(location, /maximumAge:\s*0/);
   assert.match(client, /__GESTAO_CLOCK_LOCATION__/);
-  assert.match(client, /latitude:\s*pos\.coords\.latitude/);
-  assert.match(client, /longitude:\s*pos\.coords\.longitude/);
+  const draftRecovery = await readFile(new URL("../src/core/clock-punch-recovery.js", import.meta.url), "utf8");
+  assert.match(draftRecovery, /latitude:c\.latitude/);
+  assert.match(client, /refreshClockDraftLocation/);
+  assert.match(draftRecovery, /longitude:c\.longitude/);
   assert.match(client, /getUserMedia/);
   assert.match(client, /facingMode:\s*"user"/);
   assert.match(client, /CLOCK_POSITION_PROMISE_ = getClockPosition_\(\)/);
@@ -764,7 +766,7 @@ test("registro de ponto exige selfie no Drive sem gravar a imagem no Firebase", 
   assert.match(api, /warmSelfieDriveService/);
   assert.match(api, /mode:\s*"no-cors"/);
   assert.match(api, /async prepareTimeClockSelfieUpload/);
-  assert.match(api, /const \[employee, location, schedules, allRecords\] = await Promise\.all/);
+  assert.match(api, /const \[employee, locations, schedules, allRecords\] = await Promise\.all/);
   assert.match(api, /credentials:\s*"omit"[\s\S]*?signal/);
   assert.match(api, /runtime\.create\("RegistrosPonto"/);
   assert.match(api, /ProximaMarcacao:\s*nextClockAction/);
@@ -2229,9 +2231,11 @@ test("otimização de ponto: geolocalização rápida com pré-aquecimento e val
   assert.match(client, /updateClockLocationStatus_/, "Deve atualizar status da localização na tela da selfie");
 
   // Backend: validação de raio sem penalizar imprecisão indoor
-  assert.match(clockApi, /const withinStore =/, "api-clock deve ter validação justa de geofence");
-  assert.match(clockApi, /Math\.max\(150,\s*configuredRadius\)/, "Raio deve possuir piso seguro de 150m");
-  assert.match(clockApi, /safeAccuracy <= 350/, "Deve filtrar imprecisão excessiva");
+  const geofence = await readFile(new URL("../src/core/clock-geofence.js", import.meta.url), "utf8");
+  assert.match(clockApi, /checkClockGeofence/);
+  assert.match(geofence, /Math\.max\(150,\s*configuredRadius\)/, "Raio deve possuir piso seguro de 150m");
+  assert.match(geofence, /safeAccuracy <= 350/, "Precisão indoor preservada no raio padrão");
+  assert.match(geofence, /conservativeDistance \+ safeAccuracy <= configuredRadius/, "GPS aproximado deve caber integralmente no raio configurado");
 });
 
 test("persistência de login, atualização forçada do PWA e desativação de zoom automático mobile", async () => {
@@ -2570,7 +2574,7 @@ test("Otimização de performance: cache em memória no runtime, resiliência do
 
   // 3. Tolerância de geofence calibrada para ambientes fechados
   assert.match(
-    apiClockJs,
+    await readFile(new URL("../src/core/clock-geofence.js", import.meta.url), "utf8"),
     /safeAccuracy\s*<=\s*350/,
     "Geofence deve permitir precisão típica de cozinhas e ambientes fechados",
   );
@@ -3942,7 +3946,7 @@ test("Blindagem do Ponto Eletrônico (Portaria 671 MTE / Mobile PWA): anti-bounc
 
   // 3. Leitor compartilhado coordena GPS e rede sem multiplicar requisições por tela.
   const location = await readFile(new URL("../src/core/clock-location.js", import.meta.url), "utf8");
-  assert.match(location, /const fallbackTimer = setTimeout\(/);
+  assert.match(location, /const fallbackTimer\s*=\s*setTimeout\(/);
   assert.match(location, /enableHighAccuracy:\s*false/);
   assert.match(location, /if \(pending\) return pending/);
   assert.match(scriptsHtml, /__GESTAO_CLOCK_LOCATION__/);

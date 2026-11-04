@@ -787,9 +787,14 @@
     return new Promise((resolve, reject) => {
       const runner = google.script.run
           .withSuccessHandler(resolve)
-          .withFailureHandler((e) =>
-            reject(new Error(e?.message || String(e))),
-          ),
+          .withFailureHandler((e) => {
+            const error = new Error(e?.message || String(e));
+            if (typeof e?.code === "string" || typeof e?.code === "number") error.code = e.code;
+            if (typeof e?.retryable === "boolean") error.retryable = e.retryable;
+            if (typeof e?.geoValidated === "boolean") error.geoValidated = e.geoValidated;
+            if (typeof e?.locationReason === "string") error.locationReason = e.locationReason;
+            reject(error);
+          }),
         token = typeof sessionToken === "function" ? sessionToken() : "";
       if (
         token &&
@@ -815,9 +820,9 @@
   const pendingCalls = new Map();
   function callKey(name, args) {
     try {
-      return name + "|" + JSON.stringify(args);
+      return (window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "") + "|" + name + "|" + JSON.stringify(args);
     } catch (e) {
-      return name + "|" + String(args);
+      return (window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "") + "|" + name + "|" + String(args);
     }
   }
   async function call(name, ...args) {
@@ -7272,6 +7277,31 @@
       () => startClockPunch_("SEM_DESCANSO"),
     );
   }
+  async function resumeClockLocationDraft_(draft, uid) {
+    if (clockOwnerUid_() !== uid) return;
+    openDialog("clockSelfieDialog");
+    resetClockSelfieCapture_(true);
+    CLOCK_PUNCH_REQUEST_ID_ = draft.requestId;
+    CLOCK_EXPECTED_ACTION_ = draft.payload.expectedAction;
+    const dialog = $("#clockSelfieDialog"), status = $("#clockSelfieStatus");
+    status.textContent = "Recuperando sua selfie preservada…";
+    let timer;
+    try {
+      const image = await new Promise((resolve,reject) => {
+        const img = new Image();
+        timer = setTimeout(()=>reject(new Error("Não foi possível abrir a selfie preservada. Reabra o ponto para tentar novamente.")),10000);
+        img.onload=()=>resolve(img);img.onerror=()=>reject(new Error("Não foi possível abrir a selfie preservada."));
+        img.src = draft.payload.selfieDataUrl;
+      });
+      if (clockOwnerUid_() !== uid || !dialog.open || CLOCK_PUNCH_REQUEST_ID_ !== draft.requestId) return;
+      await setClockSelfieCanvas_(image,image.naturalWidth||image.width,image.naturalHeight||image.height,false);
+      if (clockOwnerUid_() !== uid || !dialog.open || CLOCK_PUNCH_REQUEST_ID_ !== draft.requestId) return;
+      CLOCK_SELFIE_DATA_ = draft.payload.selfieDataUrl;
+      $("#clockSelfieRetake")?.classList.add("hidden");
+      status.textContent = `Selfie e horário de ${new Date(draft.capturedAt).toLocaleString("pt-BR")} preservados. Confirme para atualizar a localização e reenviar esta tentativa.`;
+    } catch(error) { status.textContent=error.message;toast(error.message,true); }
+    finally { clearTimeout(timer); }
+  }
   async function startClockPunch_(expectedAction) {
     if (window.__IS_STARTING_CLOCK_PUNCH_) return;
     window.__IS_STARTING_CLOCK_PUNCH_ = true;
@@ -7303,8 +7333,10 @@
       const uid = clockOwnerUid_();
       if (recovery && uid && (await recovery.listClockDrafts(uid)).length) {
         await syncOfflinePunches_();
-        if ((await recovery.listClockDrafts(uid)).length) {
-          return toast("Existe uma marcação pendente neste aparelho. Reconecte para sincronizá-la antes da próxima marcação.", true);
+        const remainingDrafts = await recovery.listClockDrafts(uid);
+        if (remainingDrafts.length) {
+          if (remainingDrafts[0].requiresLocationRefresh) return await resumeClockLocationDraft_(remainingDrafts[0], uid);
+          return toast("Existe uma marcação sem confirmação. A foto e o horário foram preservados; tente sincronizar antes da próxima marcação.", true);
         }
         await loadTimeClockQuick_();
         expectedAction = String((state.timeClock || {}).nextAction || "");
@@ -7319,7 +7351,7 @@
       const status = $("#clockSelfieStatus");
       if (status) {
         status.textContent = CLOCK_CACHED_POSITION_ && Date.now() - CLOCK_CACHED_AT_ < 180000
-          ? "Localização confirmada. Centralize o rosto e capture a selfie."
+          ? "Localização recebida. Centralize o rosto e capture a selfie."
           : "Obtendo localização do aparelho…";
       }
       CLOCK_POSITION_PROMISE_ = getClockPosition_();
@@ -7629,8 +7661,8 @@
     const status = $("#clockSelfieStatus");
     if (status && !CLOCK_SELFIE_DATA_) {
       status.textContent = acc
-        ? `Localização confirmada (±${acc}m). Centralize o rosto e capture a selfie.`
-        : "Localização confirmada. Centralize o rosto e capture a selfie.";
+        ? `Localização recebida (±${acc}m). Centralize o rosto e capture a selfie.`
+        : "Localização recebida. Centralize o rosto e capture a selfie.";
     }
   }
   function warmClockLocation_() {
@@ -7638,10 +7670,10 @@
     getClockPosition_().catch(() => {});
   }
   window.warmClockLocation_ = warmClockLocation_;
-  async function getClockPosition_() {
+  async function getClockPosition_(options = {}) {
     const read = window.__GESTAO_CLOCK_LOCATION__;
     if (!read) throw new Error("O ponto está carregando. Tente novamente em instantes.");
-    const position = await read();
+    const position = await read(options);
     CLOCK_CACHED_POSITION_ = position;
     CLOCK_CACHED_AT_ = position.timestamp;
     updateClockLocationStatus_(position);
@@ -7649,7 +7681,7 @@
   }
   function clockLocationError_(error) {
     if (error?.code === 1)
-      return "Permissão de localização negada. Ative a localização precisa para este navegador nas configurações do aparelho.";
+      return error?.message || "O acesso à localização foi bloqueado. Confira a permissão do site e do próprio navegador.";
     if (error?.code === 2)
       return "O aparelho não conseguiu determinar sua localização. Verifique se a localização e o Wi-Fi estão ligados.";
     if (error?.code === 3)
@@ -7724,12 +7756,17 @@
       let count = 0;
       for (const draft of await recovery.listClockDrafts(uid)) {
         if (clockOwnerUid_() !== uid) break;
+        if (draft.requiresLocationRefresh) break;
         try {
           const saved = await call(FN.clockPunch, sessionToken(), draft.payload);
           await recovery.removeClockDraft(uid, draft.requestId);
           if (clockOwnerUid_() === uid) applySavedClockPunch_(saved);
           count++;
         } catch (error) {
+          if (error?.geoValidated === false && ["clock/location-invalid", "clock/location-imprecise", "clock/location-outside"].includes(error.code)) {
+            await recovery.markClockDraftLocationIssue(uid, draft.requestId).catch(() => {});
+            window.__GESTAO_CLOCK_LOCATION__?.invalidate?.();
+          }
           console.warn("[ponto] Marcação preservada para nova tentativa:", error.message);
           break;
         }
@@ -8337,16 +8374,19 @@
       localDraft = (await window.__GESTAO_CLOCK_RECOVERY__.listClockDrafts(uid))
         .find((draft) => draft.requestId === CLOCK_PUNCH_REQUEST_ID_);
       if (!localDraft) {
-        const pos = await getClockPosition_();
-        const payload = {
-          latitude: pos.coords.latitude, longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy, locationTimestamp: pos.timestamp,
-          selfieDataUrl: CLOCK_SELFIE_DATA_, expectedAction: CLOCK_EXPECTED_ACTION_,
-          requestId: CLOCK_PUNCH_REQUEST_ID_, capturedAt: new Date().toISOString(),
-        };
+        const capturedAt = new Date().toISOString();
         localDraft = await window.__GESTAO_CLOCK_RECOVERY__.saveClockDraft(uid, {
-          requestId: CLOCK_PUNCH_REQUEST_ID_, payload,
+          requestId: CLOCK_PUNCH_REQUEST_ID_, capturedAt,
+          payload: { selfieDataUrl: CLOCK_SELFIE_DATA_, expectedAction: CLOCK_EXPECTED_ACTION_, requestId: CLOCK_PUNCH_REQUEST_ID_, capturedAt },
         });
+        $("#clockSelfieRetake")?.classList.add("hidden");
+      }
+      if (clockOwnerUid_() !== uid) return;
+      if (localDraft.requiresLocationRefresh) {
+        status.textContent = "Selfie e horário preservados. Obtendo uma localização válida…";
+        const position = await getClockPosition_({fresh:Number.isFinite(localDraft.payload.latitude)});
+        if (clockOwnerUid_() !== uid) return;
+        localDraft = await window.__GESTAO_CLOCK_RECOVERY__.refreshClockDraftLocation(uid, CLOCK_PUNCH_REQUEST_ID_, position);
       }
       networkAttempted = true;
       const saved = await call(FN.clockPunch, sessionToken(), localDraft.payload);
@@ -8374,13 +8414,22 @@
       });
       refreshClockAfterPunch_();
     } catch (error) {
-      if (networkAttempted && localDraft) {
-        status.textContent = "Marcação pendente. A foto foi preservada neste aparelho para reenvio.";
-        toast("O envio não foi confirmado. Foto e horário preservados neste aparelho; a sincronização será tentada ao reconectar.", true);
+      const refreshableLocation = error?.geoValidated === false && ["clock/location-invalid", "clock/location-imprecise", "clock/location-outside"].includes(error.code);
+      if (refreshableLocation && localDraft) {
+        await window.__GESTAO_CLOCK_RECOVERY__.markClockDraftLocationIssue(uid, CLOCK_PUNCH_REQUEST_ID_).catch(() => {});
+        window.__GESTAO_CLOCK_LOCATION__?.invalidate?.();
+        status.textContent = `${error.message} Sua selfie foi preservada. Toque em Confirmar ponto para atualizar o GPS.`;
+        toast(status.textContent, true);
+      } else if (error?.geoValidated === false) {
+        status.textContent = error.message;
+        toast(error.message, true);
+      } else if (networkAttempted && localDraft) {
+        status.textContent = "O servidor ainda não confirmou a marcação. A foto foi preservada neste aparelho.";
+        toast(`${error?.message || "O envio não foi confirmado."} Foto e horário preservados para recuperação.`, true);
       } else {
         const message = error?.code ? clockLocationError_(error) : error?.message || "Não foi possível registrar o ponto.";
-        status.textContent = message;
-        toast(message, true);
+        status.textContent = localDraft ? `${message} Sua selfie e o horário foram preservados. Toque em Confirmar ponto para tentar novamente.` : message;
+        toast(status.textContent, true);
       }
     } finally {
       confirm.textContent = "Confirmar ponto";
@@ -10817,8 +10866,11 @@
     if (notificationCheckBusy_ || document.visibilityState === "hidden" || !navigator.onLine) return;
     if (!sessionToken() && !state.user) return;
     notificationCheckBusy_ = true;
+    const owner = window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "";
     try {
       var rows = arr(await call(FN.notifications, { limit: 25 }));
+      if (owner !== (window.__GESTAO_FIREBASE__?.runtime?.auth?.currentUser?.uid || "")) return;
+      let recognitionChanged = false;
       var isFirst = knownNotificationIds_.size === 0;
 
       rows.forEach(function(n) {
@@ -10826,6 +10878,7 @@
         var isUnread = val(n, "Status") !== "Lida";
         if (!knownNotificationIds_.has(id)) {
           knownNotificationIds_.add(id);
+          if (String(val(n, "Tipo")).toLowerCase() === "reconhecimento") recognitionChanged = true;
           if (!isFirst && isUnread) {
             playNotificationChime_();
             showInAppNotificationBanner_(n);
@@ -10834,6 +10887,7 @@
       });
 
       state.notifications = rows;
+      if (recognitionChanged) void loadRecognitions_({force:true});
       var unreadCount = rows.filter(function(n) { return val(n, "Status") !== "Lida"; }).length;
       ["#notificationBadge", "#notificationTopBadge"].forEach(function(sel) {
         var el = $(sel);
@@ -11812,38 +11866,46 @@
     }
   }
 
+  function recognitionEligibleEmployees_() {
+    const userStoreId = String(val(state.user, "LojaID", "lojaId") || "");
+    const counts = new Map();
+    const rows = arr(state.employees);
+    for (const emp of rows) {
+      const id = String(emp.FuncionarioID || emp.funcionarioId || "").trim();
+      if (id) counts.set(id, (counts.get(id) || 0) + 1);
+    }
+    return rows.filter((emp) => {
+      const id = String(emp.FuncionarioID || emp.funcionarioId || "").trim();
+      const active = val(emp, "Ativo", "ativo");
+      return id && counts.get(id) === 1 && (active === "" || bool(active)) &&
+        ((typeof isStoreAdmin === "function" && isStoreAdmin()) ||
+          (userStoreId && String(val(emp, "LojaID", "lojaId")) === userStoreId));
+    });
+  }
   function populateRecognizeEmployeeSelect_() {
     const el = $("#recognizeEmployeeSelect");
     if (!el) return;
-    const old = el.value;
-    const activeEmps = arr(state.employees).filter(
-      (x) => bool(val(x, "Ativo", "ativo")) !== false,
-    );
-    const userStoreId = String(val(state.user, "LojaID", "lojaId") || "");
-    const filtered = (typeof isStoreAdmin === "function" && isStoreAdmin())
-      ? activeEmps
-      : activeEmps.filter((emp) => !userStoreId || String(val(emp, "LojaID", "lojaId")) === userStoreId);
-
-    el.innerHTML =
-      '<option value="">Selecione um colaborador...</option>' +
-      filtered
-        .map((emp) => {
-          const empId = idOf(emp, "Funcionario") || val(emp, "FuncionarioID", "funcionarioId", "id");
-          const empName = val(emp, "Nome", "nome") || "Colaborador";
-          const empRole = val(emp, "Cargo", "cargo") || "Colaborador";
-          const empStoreId = val(emp, "LojaID", "lojaId");
-          const storeObj = arr(state.stores).find(
-            (st) => String(idOf(st, "Loja")) === String(empStoreId) || String(val(st, "LojaID", "lojaId")) === String(empStoreId),
-          );
-          const storeLbl = storeObj
-            ? ` (${val(storeObj, "NomeLoja", "nomeLoja")})`
-            : "";
-          return `<option value="${esc(empId)}">${esc(empName)} - ${esc(empRole)}${esc(storeLbl)}</option>`;
-        })
-        .join("");
-    if (old && el.querySelector(`option[value="${esc(old)}"]`)) {
-      el.value = old;
+    const owner = recognitionOwnerKey_();
+    const old = el.dataset.recognitionOwner === owner ? el.value : "";
+    const filtered = recognitionEligibleEmployees_();
+    const nameCounts = new Map();
+    for (const emp of filtered) {
+      const name = String(val(emp, "Nome", "nome") || "Colaborador").trim().toLocaleLowerCase("pt-BR");
+      nameCounts.set(name, (nameCounts.get(name) || 0) + 1);
     }
+    el.innerHTML = '<option value="">Selecione um colaborador...</option>' + filtered.map((emp) => {
+      const empId = String(emp.FuncionarioID || emp.funcionarioId).trim();
+      const empName = val(emp, "Nome", "nome") || "Colaborador";
+      const empRole = val(emp, "Cargo", "cargo") || "Colaborador";
+      const empStoreId = val(emp, "LojaID", "lojaId");
+      const storeObj = arr(state.stores).find((st) => String(idOf(st, "Loja")) === String(empStoreId));
+      const storeLbl = storeObj ? ` (${val(storeObj, "NomeLoja", "nomeLoja")})` : "";
+      const identity = nameCounts.get(String(empName).trim().toLocaleLowerCase("pt-BR")) > 1 ? ` [ID: ${empId}]` : "";
+      return `<option value="${esc(empId)}">${esc(empName)} - ${esc(empRole)}${esc(storeLbl)}${esc(identity)}</option>`;
+    }).join("");
+    el.dataset.recognitionOwner = owner;
+    el.value = "";
+    if (old && filtered.some(emp => String(emp.FuncionarioID || emp.funcionarioId).trim() === old)) el.value = old;
   }
 
   function openNewAnnouncementDialog() {
@@ -11960,6 +12022,7 @@
   async function saveEmployeeRecognition_(e) {
     if (e && e.preventDefault) e.preventDefault();
     const empId = $("#recognizeEmployeeSelect")?.value;
+    const selectionOwner = $("#recognizeEmployeeSelect")?.dataset.recognitionOwner;
     const category = $("#recognizeCategorySelect")?.value || "Destaque da Semana";
     const week = $("#recognizeWeekInput")?.value?.trim() || "";
     const reason = $("#recognizeReasonInput")?.value?.trim();
@@ -11967,13 +12030,17 @@
     if (!empId) {
       return toast("Selecione o colaborador a ser homenageado.", true);
     }
+    if (selectionOwner !== recognitionOwnerKey_() || !recognitionEligibleEmployees_().some(emp => String(emp.FuncionarioID || emp.funcionarioId).trim() === empId)) {
+      populateRecognizeEmployeeSelect_();
+      return toast("A lista de colaboradores mudou. Selecione novamente o destinatário.", true);
+    }
     if (!reason) {
       return toast("Descreva o elogio da liderança.", true);
     }
 
     const submitBtn = e?.target?.querySelector ? e.target.querySelector('button[type="submit"]') : null;
     try {
-      await advancedAction_(
+      const result = await advancedAction_(
         submitBtn,
         () => call("atribuirReconhecimento", sessionToken(), {
           FuncionarioID: empId,
@@ -11983,6 +12050,7 @@
         }),
         "Destaque da Semana registrado com sucesso!"
       );
+      if (result?.AvisoNotificacao || result?.data?.AvisoNotificacao) toast(result.AvisoNotificacao || result.data.AvisoNotificacao, true);
       closeDialog("recognizeEmployeeDialog");
       await loadRecognitions_({ force: true });
     } catch (err) {
@@ -12093,6 +12161,29 @@
       toast("Erro ao excluir aviso: " + (err.message || "tente novamente"), true);
     }
   }
+
+  const RECOGNITION_NOTIFY_PENDING_ = new Map();
+  async function notifyEmployeeRecognition_(recId) {
+    const id = String(recId || "").trim();
+    if (!id) return;
+    const owner = recognitionOwnerKey_();
+    const key = `${owner}:${id}`;
+    if (RECOGNITION_NOTIFY_PENDING_.has(key)) return RECOGNITION_NOTIFY_PENDING_.get(key);
+    const pending = (async () => {
+      try {
+        const result = await call("notificarReconhecimento", sessionToken(), id);
+        if (owner === recognitionOwnerKey_()) toast("Aviso salvo no aplicativo. A entrega pelo WhatsApp ainda não foi confirmada.");
+        return result;
+      } catch (error) {
+        if (owner === recognitionOwnerKey_()) toast("Não foi possível salvar o aviso: " + (error.message || "tente novamente"), true);
+      } finally {
+        RECOGNITION_NOTIFY_PENDING_.delete(key);
+      }
+    })();
+    RECOGNITION_NOTIFY_PENDING_.set(key, pending);
+    return pending;
+  }
+  window.notifyEmployeeRecognition_ = notifyEmployeeRecognition_;
 
   async function deleteRecognition_(recId) {
     if (!recId) return;

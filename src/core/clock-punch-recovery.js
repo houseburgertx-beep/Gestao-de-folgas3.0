@@ -134,6 +134,7 @@ export async function saveClockDraft(uid, draft) {
     requestId: `draft:${draft.requestId}`,
     originalRequestId: draft.requestId,
     kind: "draft", createdAt: capturedAt.toISOString(), capturedAt: capturedAt.toISOString(),
+    requiresLocationRefresh: !Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(accuracy),
     payload: { latitude, longitude, accuracy, locationTimestamp, selfieDataUrl, expectedAction,
       requestId: draft.requestId, capturedAt: capturedAt.toISOString() },
   });
@@ -145,6 +146,22 @@ export async function listClockDrafts(uid) {
 }
 
 export const removeClockDraft = (uid, requestId) => clockAttemptStore.remove(uid, `draft:${requestId}`);
+
+export async function markClockDraftLocationIssue(uid, requestId) {
+  const draft = await clockAttemptStore.get(uid, `draft:${requestId}`);
+  if (!draft || draft.kind !== "draft") return;
+  await clockAttemptStore.put(uid, {...draft, requiresLocationRefresh:true});
+}
+export async function refreshClockDraftLocation(uid, requestId, position) {
+  const draft = await clockAttemptStore.get(uid, `draft:${requestId}`);
+  if (!draft || draft.kind !== "draft") throw new Error("Tentativa preservada não encontrada. Capture uma nova selfie.");
+  const c = position?.coords;
+  if (!c || !Number.isFinite(c.latitude) || Math.abs(c.latitude)>90 || !Number.isFinite(c.longitude) || Math.abs(c.longitude)>180 || !Number.isFinite(c.accuracy) || c.accuracy<0 || c.accuracy>5000 || !Number.isFinite(position.timestamp) || Date.now()-position.timestamp>30000 || position.timestamp>Date.now()+5000) throw new Error("A nova localização não é válida. Tente atualizar novamente.");
+  const updated = {...draft,requiresLocationRefresh:false,payload:{...draft.payload,latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy,locationTimestamp:position.timestamp}};
+  await clockAttemptStore.put(uid,updated);
+  return updated;
+}
+
 
 // Serialize within a tab and, where available, across tabs. Different IDs from
 // an accidental double tap must not independently advance the same workday.

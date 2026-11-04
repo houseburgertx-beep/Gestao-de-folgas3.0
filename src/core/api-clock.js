@@ -3,7 +3,6 @@ import {
   asBoolean,
   assert,
   csvDataUrl,
-  haversineMeters,
   minutesBetween,
   minutesText,
   monthIso,
@@ -25,6 +24,7 @@ import {
 import { SELFIE_DRIVE_UPLOAD_ENDPOINT } from "../selfie-drive-config.js";
 import { clockAttemptStore, completeClockAttempt, validateClockSelfie, withClockPunchLock } from "./clock-punch-recovery.js";
 import { assertClockRequestActive, withClockDeadline } from "./clock-request.js";
+import { checkClockGeofence, chooseClockStoreLocation, clockLocationError, coordinateNumber, validStoreCoordinates } from "./clock-geofence.js";
 
 const clockTypes = [
   "ENTRADA",
@@ -154,6 +154,12 @@ export const uploadClockSelfieToDrive = async ({ selfieDataUrl, requestId, day, 
 
 async function persistClockAttempt(ownerUid, attempt) {
   assertClockUser(ownerUid);
+  // Preserve the validated capture before the first server read. A network loss
+  // during preflight must remain recoverable even without the UI draft wrapper.
+  const reserved = await clockAttemptStore.reserve(ownerUid, attempt);
+  assert(reserved.employeeId === attempt.employeeId && String(reserved.record?.LojaID) === String(attempt.record?.LojaID),
+    "Tentativa de ponto vinculada a outro funcionário ou unidade.");
+  attempt = reserved;
   // Resolve an ambiguous prior write before touching Drive or retrying Firebase.
   const { data: existing, etag } = await runtime.requestServerRecord("RegistrosPonto", attempt.requestId);
   assertClockUser(ownerUid);
@@ -200,6 +206,36 @@ async function persistClockAttempt(ownerUid, attempt) {
     ).catch(() => {});
   }
   return saved;
+}
+
+const readClockLocations = (storeId) => withClockDeadline(
+  () => runtime.listWhere("LocaisPonto", "LojaID", storeId), 12000,
+  "Não foi possível carregar o local do ponto. Verifique a conexão e tente novamente."
+).then((locations) => ({ locations }), (error) => ({ locations: [], error }));
+
+async function resolveClockStoreLocation(employee, profile, initial) {
+  const storeId = String(employee.LojaID || profile.LojaID || "").trim();
+  // An outdated access record must never select the old unit's coordinates.
+  const changedStore = storeId !== String(profile.LojaID || "").trim();
+  if (changedStore) throw clockLocationError("clock/location-access", "A loja do seu acesso está diferente do cadastro do funcionário. Entre novamente; se continuar, peça à gerência para corrigir o vínculo da unidade.");
+  const result = initial;
+  const configured = chooseClockStoreLocation(result.locations, storeId);
+  if (configured) return { ...configured, LocalizacaoOrigem: "LocaisPonto" };
+  // Use only the unit's official stored coordinates as the legacy fallback.
+  // Never use the caller's location or another unit to invent a store centre.
+  const store = await runtime.getById("Lojas", storeId).catch(() => null);
+  if (store && store.Ativo !== false && validStoreCoordinates(store) && !result.error) {
+    return { LocalPontoID: `store-loc-${storeId}`, LojaID: storeId,
+      NomeLoja: store.NomeLoja || store.Nome || "Loja", Latitude: store.Latitude, Longitude: store.Longitude,
+      RaioMetros: store.RaioMetros ?? 150, Ativo: true, LocalizacaoOrigem: "Lojas" };
+  }
+  if (result.error) {
+    const denied = /permission[-_ ]?denied|acesso|permiss/i.test(String(result.error.code || "") + " " + String(result.error.message || ""));
+    throw clockLocationError(denied ? "clock/location-access" : "clock/location-unavailable", denied
+      ? "Não foi possível consultar o local da unidade vinculada ao funcionário. Solicite à gerência que confira o vínculo da loja."
+      : "Não foi possível carregar o local do ponto. Verifique a conexão e tente novamente.");
+  }
+  throw clockLocationError("clock/location-config", "A unidade está sem coordenadas válidas para o ponto. Solicite à gerência que confira o local da loja.");
 }
 
 const timeValue = (dateTime) => {
@@ -1454,15 +1490,17 @@ export function createClockHandlers() {
       );
       assert(store, "Loja não encontrada.");
       scopeRecord(profile, store);
-      const latitude = Number(payload.latitude);
-      const longitude = Number(payload.longitude);
+      const latitude = coordinateNumber(payload.latitude);
+      const longitude = coordinateNumber(payload.longitude);
       assert(
         Number.isFinite(latitude) &&
           Number.isFinite(longitude) &&
           Math.abs(latitude) <= 90 &&
-          Math.abs(longitude) <= 180,
+          Math.abs(longitude) <= 180 && !(latitude === 0 && longitude === 0),
         "Informe latitude e longitude válidas.",
       );
+      const requestedRadius = payload.raioMetros == null || payload.raioMetros === "" ? 150 : coordinateNumber(payload.raioMetros);
+      assert(Number.isFinite(requestedRadius) && requestedRadius > 0, "Informe um raio de ponto válido em metros.");
       const existing = await runtime.findOne(
         "LocaisPonto",
         "LojaID",
@@ -1475,7 +1513,7 @@ export function createClockHandlers() {
         NomeLoja: store.NomeLoja,
         Latitude: latitude,
         Longitude: longitude,
-        RaioMetros: Math.max(20, Number(payload.raioMetros || 150)),
+        RaioMetros: Math.max(20, requestedRadius),
         Ativo: true,
         DataAtualizacao: nowIso(),
         AtualizadoPor: profile.Email,
@@ -1546,9 +1584,9 @@ export function createClockHandlers() {
         const storeId = String(profile.LojaID || "");
         assert(employeeId, "Usuário sem funcionário vinculado.");
         assert(storeId, "Usuário sem loja vinculada.");
-        const [employee, location, schedules, allRecords] = await Promise.all([
+        const [employee, locations, schedules, allRecords] = await Promise.all([
           runtime.getById("Funcionarios", employeeId),
-          runtime.findOne("LocaisPonto", "LojaID", storeId),
+          readClockLocations(profile.LojaID),
           runtime.list("JornadasPonto", { profile }),
           runtime.listPeriods(
             "RegistrosPonto",
@@ -1557,32 +1595,8 @@ export function createClockHandlers() {
           ),
         ]);
         assert(employee && asBoolean(employee.Ativo), "Funcionário inativo.");
-        const targetStoreId = String(employee.LojaID || storeId);
-        let loc = location;
-        if (!loc) {
-          const allLocations = await runtime.list("LocaisPonto", { profile }).catch(() => []);
-          loc = allLocations.find(
-            (item) =>
-              String(item.LojaID || "").trim() === targetStoreId ||
-              Number(item.LojaID) === Number(targetStoreId),
-          );
-        }
-        if (!loc) {
-          const store = await runtime.getById("Lojas", targetStoreId).catch(() => null);
-          if (store?.Latitude && store?.Longitude) {
-            loc = {
-              LocalPontoID: `store-loc-${targetStoreId}`,
-              LojaID: targetStoreId,
-              NomeLoja: store.NomeLoja || store.Nome || "Loja",
-              Latitude: store.Latitude,
-              Longitude: store.Longitude,
-              RaioMetros: store.RaioMetros || 150,
-              Ativo: true,
-            };
-          }
-        }
-        assert(loc && asBoolean(loc.Ativo), "Configure o local do ponto.");
         const empId = String(employee.FuncionarioID ?? "").trim();
+        assert(empId === employeeId, "O cadastro retornou outro vínculo de funcionário. Atualize a sessão e peça à gerência para conferir seu acesso.");
         if (previousAttempt) {
           assert(previousAttempt.employeeId === empId && String(previousAttempt.record.LojaID) === String(employee.LojaID),
             "O vínculo do funcionário mudou. Solicite a conferência da tentativa ao gestor.");
@@ -1590,6 +1604,7 @@ export function createClockHandlers() {
           return success({ ...saved, ProximaMarcacao: nextClockActionAfterSave(allRecords, schedules, empId, saved) },
             `Ponto recuperado: ${saved.TipoMarcacao}.`);
         }
+        const loc = await resolveClockStoreLocation(employee, profile, locations);
         const day = operationalDayFor(
           allRecords,
           schedules,
@@ -1605,48 +1620,16 @@ export function createClockHandlers() {
           foundSchedule && asBoolean(foundSchedule.Ativa)
             ? foundSchedule
             : defaultScheduleFor(empId, employee.LojaID, employee.Email);
-        const latitude = payload.latitude == null || payload.latitude === "" ? NaN : Number(payload.latitude);
-        const longitude = payload.longitude == null || payload.longitude === "" ? NaN : Number(payload.longitude);
-        const accuracy = payload.accuracy == null || payload.accuracy === "" ? NaN : Number(payload.accuracy);
-        assert(
-          Number.isFinite(latitude) &&
-            Number.isFinite(longitude) &&
-            Number.isFinite(accuracy) && accuracy >= 0 &&
-            Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 &&
-            loc.Latitude != null && loc.Latitude !== "" && loc.Longitude != null && loc.Longitude !== "" &&
-            Number.isFinite(Number(loc.Latitude)) && Number.isFinite(Number(loc.Longitude)) &&
-            Math.abs(Number(loc.Latitude)) <= 90 && Math.abs(Number(loc.Longitude)) <= 180,
-          "Autorize a localização precisa para bater o ponto.",
-        );
-        const distance = Math.round(
-          haversineMeters(
-            latitude,
-            longitude,
-            Number(loc.Latitude),
-            Number(loc.Longitude),
-          ),
-        );
-        const configuredRadius = Number(loc.RaioMetros || 150);
-        const radius = Math.max(150, configuredRadius);
-        const safeAccuracy = Math.ceil(Math.max(0, accuracy));
-
-        assert(
-          safeAccuracy <= 350,
-          `Sinal de localização muito impreciso (±${safeAccuracy} m). Ative o Wi-Fi ou aproxime-se de uma área aberta para calibrar o GPS.`,
-        );
-
-        // Validação justa e robusta de geofence:
-        // 1. Se a distância calculada está dentro do raio (distance <= radius), o funcionário está fisicamente no local.
-        // 2. Se a distância estimada estiver ligeiramente fora devido a drift em ambiente fechado,
-        //    concede tolerância segura se o círculo de incerteza alcançar a loja.
-        const withinStore =
-          distance <= radius ||
-          (distance - Math.min(safeAccuracy * 0.6, 90) <= radius && safeAccuracy <= 350);
-
-        assert(
-          withinStore,
-          `Você está a ${distance} m da loja (precisão ±${safeAccuracy} m), fora do raio de ${radius} m.`,
-        );
+        let geofence;
+        try { geofence = checkClockGeofence(payload, loc); }
+        catch (error) {
+          error.capturedAt = captureDate.toISOString();
+          error.locationTimestamp = payload.locationTimestamp;
+          throw error;
+        }
+        const { latitude, longitude, accuracy, distance, radius, mode: locationMode } = geofence;
+        const locationTimestamp = Number(payload.locationTimestamp);
+        const hasLocationTimestamp = Number.isFinite(locationTimestamp) && locationTimestamp > 0 && Number.isFinite(new Date(locationTimestamp).getTime());
         const records = allRecords.filter(
           (item) =>
             String(item.FuncionarioID ?? "").trim() === empId &&
@@ -1748,6 +1731,14 @@ export function createClockHandlers() {
           PrecisaoMetros: accuracy,
           DistanciaLojaMetros: distance,
           DentroRaio: true,
+          LocalPontoID: loc.LocalPontoID || "",
+          LocalizacaoOrigem: loc.LocalizacaoOrigem,
+          RaioValidadoMetros: radius,
+          LocalizacaoValidacao: locationMode,
+          ...(hasLocationTimestamp ? {
+            LocalizacaoDataHora: new Date(locationTimestamp).toISOString(),
+            LocalizacaoPosteriorCaptura: locationTimestamp > captureDate.getTime() + 5000,
+          } : {}),
           Origem: "Aplicação web · selfie no Google Drive + localização",
           SelfieStorage: "Google Drive",
           ComprovanteHashSHA256: punchHash,

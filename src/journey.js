@@ -73,7 +73,7 @@ function person(p) {
  return `<article class="j-person">${avatar(p)}<div><strong>${esc(p.Nome || 'Colaborador')}${kitchenTag}</strong><small>${metadata.map(esc).join(' · ')}</small>${detail?`<span>${esc(detail)}</span>`:''}</div><span class="j-status" style="--status:${colors[p.status] || '#c7b4eb'}">${esc(status)}</span></article>`;
 }
 function unitSelect() { return data.manager ? `<label class="j-unit"><span>Unidade</span><select data-j-unit aria-label="Selecionar unidade"><option value="">Todas as unidades</option>${stores().map(s=>`<option value="${esc(storeId(s))}" ${storeId(s)===unit?'selected':''}>${esc(storeName(s) || 'Unidade sem nome')}</option>`).join('')}</select></label>` : ''; }
-const ownId = () => String(data.user?.funcionarioId || data.user?.FuncionarioID || '');
+const ownId = () => String(data.user?.FuncionarioID || data.user?.funcionarioId || '');
 const dateLabel = day => day ? new Date(day.slice(0,10)+'T12:00:00Z').toLocaleDateString('pt-BR',{timeZone:'America/Bahia',day:'2-digit',month:'short'}) : 'Data não informada';
 const norm = text => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const scoped = items => list(items).filter(x => data.manager ? (!unit || String(x.LojaID || list(data.employees).find(p=>String(p.FuncionarioID)===String(x.FuncionarioID))?.LojaID || '') === unit) : String(x.FuncionarioID) === ownId());
@@ -213,6 +213,7 @@ function renderCraqueDaSemanaCard() {
    </div>
    ${data.manager ? `
     <div class="craque-head-actions">
+     <button type="button" class="btn btn-ghost" data-j-notify-recognition="${esc(latest.ReconhecimentoID)}">Avisar colaborador</button>
      <button type="button" class="craque-del-btn" data-j-delete-recognition="${esc(latest.ReconhecimentoID)}" title="Excluir destaque">✕</button>
      <button type="button" class="btn btn-ghost" data-j-new-recognition style="font-size: 12px; padding: 4px 10px; min-height: 32px;">+ Indicar</button>
     </div>
@@ -553,6 +554,8 @@ document.addEventListener('click',e=>{
     }
     return;
   }
+  const notifyRec=e.target.closest('[data-j-notify-recognition]');
+  if(notifyRec) window.notifyEmployeeRecognition_?.(notifyRec.dataset.jNotifyRecognition);
   const delRec=e.target.closest('[data-j-delete-recognition]');
   if(delRec){
     const id=delRec.dataset.jDeleteRecognition;

@@ -32,3 +32,26 @@ test("fallback de rede melhora uma primeira leitura imprecisa", async () => {
   const reader = createClockLocationReader({ watchPosition: (success) => { success(position(320)); return 1; }, clearWatch: () => {}, getCurrentPosition: (success) => success(position(35)) }, { timeout: 50, fallbackDelay: 2 });
   assert.equal((await reader()).coords.accuracy, 35);
 });
+
+test('GPS permission granted contradiz erro1: tenta leitura direta e recupera coordenadas',async()=>{
+ let direct=0;
+ const reader=createClockLocationReader({watchPosition:(_ok,fail)=>{fail({code:1});return 9;},clearWatch(){},getCurrentPosition:ok=>{direct++;ok(position(20));}},{permissions:{query:async()=>({state:'granted'})},timeout:100,fallbackDelay:50});
+ assert.equal((await reader()).coords.accuracy,20);assert.equal(direct,1);
+});
+test('permissão granted com serviço do aparelho bloqueado distingue motivo e não inventa coordenadas',async()=>{
+ let direct=0;
+ const reader=createClockLocationReader({watchPosition:(_ok,fail)=>{fail({code:1});return 9;},clearWatch(){},getCurrentPosition:(_ok,fail)=>{direct++;fail({code:1});}},{permissions:{query:async()=>({state:'granted'})},timeout:100});
+ await assert.rejects(reader(),e=>e.code===1&&e.locationReason==='device');assert.equal(direct,1);
+});
+test('contexto bloqueado é informado antes de chamar o GPS',async()=>{
+ let called=0;const reader=createClockLocationReader({getCurrentPosition(){called++;}},{allowedByPolicy:()=>false});
+ await assert.rejects(reader(),e=>e.locationReason==='policy');assert.equal(called,0);
+});
+test('rejeição de geofence pode invalidar o cache e receber uma nova posição',async()=>{
+ let calls=0;const reader=createClockLocationReader({getCurrentPosition:ok=>{calls++;ok(position(calls===1?10:15));}},{timeout:100});
+ assert.equal((await reader()).coords.accuracy,10);reader.invalidate();assert.equal((await reader({fresh:true})).coords.accuracy,15);assert.equal(calls,2);
+});
+test('posição moderada não aguarda o prazo completo; coarse só retorna ao fim para validação de área',async()=>{
+ const moderate=createClockLocationReader({getCurrentPosition:ok=>ok(position(150))},{settleDelay:5,timeout:100,fallbackDelay:80});assert.equal((await moderate()).coords.accuracy,150);
+ const coarse=createClockLocationReader({getCurrentPosition:ok=>ok(position(1000))},{settleDelay:1,timeout:8,fallbackDelay:5});assert.equal((await coarse()).coords.accuracy,1000);
+});

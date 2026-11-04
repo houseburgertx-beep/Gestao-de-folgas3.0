@@ -1524,8 +1524,11 @@ export function createAdvancedHandlers() {
       assert(payload.FuncionarioID, "Selecione o colaborador a ser reconhecido.");
       assert(String(payload.Motivo || "").trim(), "Informe o motivo do reconhecimento.");
 
-      const emp = await runtime.getById("Funcionarios", payload.FuncionarioID);
+      const requestedEmployeeId = String(payload.FuncionarioID).trim();
+      const emp = await runtime.getById("Funcionarios", requestedEmployeeId);
       assert(emp, "Colaborador não encontrado.");
+      const recognizedEmployeeId = String(emp.FuncionarioID || emp.funcionarioId || "").trim();
+      assert(recognizedEmployeeId && recognizedEmployeeId === requestedEmployeeId, "A identificação do colaborador não confere. Atualize a lista e selecione novamente.");
       assert(emp.Ativo === undefined || asBoolean(emp.Ativo), "Colaborador inativo não pode receber reconhecimento.");
       if (!isAdmin(profile)) {
         assert(emp.LojaID && String(emp.LojaID) === String(profile.LojaID || ""), "Este perfil só pode reconhecer colaboradores da própria loja.");
@@ -1538,7 +1541,6 @@ export function createAdvancedHandlers() {
       const day = bahiaDay(Date.parse(now));
       const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
       const weekStart = shiftDate(day, -((weekday + 6) % 7));
-      const recognizedEmployeeId = String(emp.FuncionarioID || emp.funcionarioId || emp.id || payload.FuncionarioID).trim();
       const saved = await runtime.upsert("Reconhecimentos", {
         ReconhecimentoID: recId,
         FuncionarioID: recognizedEmployeeId,
@@ -1556,18 +1558,22 @@ export function createAdvancedHandlers() {
         Ativo: true,
       });
 
-      await runtime.upsert("Notificacoes", {
-        NotificacaoID: uuid(),
-        DestinatarioID: recognizedEmployeeId,
-        LojaID: emp.LojaID || profile.LojaID || "",
-        Titulo: "Reconhecimento: Destaque da Semana!",
-        Mensagem: `Parabéns! Você foi reconhecido como "${saved.Categoria}" por ${saved.AtribuidoPor}: "${saved.Motivo}"`,
-        Tipo: "reconhecimento",
-        CriadoEm: now,
-        Status: "NaoLida",
-      }).catch(() => {});
-
-      return success(saved, "Reconhecimento atribuído com sucesso!");
+      let notificationWarning = "";
+      try {
+        await createNotification({
+          employeeId: recognizedEmployeeId,
+          storeId: emp.LojaID || profile.LojaID || "",
+          subject: `Reconhecimento: ${saved.Categoria}`,
+          message: `Parabéns! Você foi reconhecido como "${saved.Categoria}" por ${saved.AtribuidoPor}: "${saved.Motivo}"`,
+          type: "Reconhecimento",
+          relatedId: saved.ReconhecimentoID,
+        });
+      } catch (error) {
+        console.warn("[reconhecimento] Destaque salvo; aviso não confirmado:", error.message);
+        notificationWarning = "Destaque salvo, mas não foi possível confirmar o aviso ao colaborador.";
+      }
+      return success(notificationWarning ? { ...saved, AvisoNotificacao: notificationWarning } : saved,
+        notificationWarning || "Reconhecimento atribuído com sucesso!");
     },
 
     async listarReconhecimentos(args) {
@@ -1585,6 +1591,38 @@ export function createAdvancedHandlers() {
           })
           .sort((a, b) => String(b.CriadoEm || "").localeCompare(String(a.CriadoEm || ""))),
       );
+    },
+
+    async notificarReconhecimento(args) {
+      const profile = await runtime.requireProfile();
+      requireManager(profile);
+      const [rawId] = dropClientToken(args);
+      const recId = String(rawId || "").trim();
+      assert(recId, "Identificador do reconhecimento não informado.");
+      const recognition = await runtime.getById("Reconhecimentos", recId);
+      assert(recognition && String(recognition.ReconhecimentoID || "") === recId, "Reconhecimento não encontrado.");
+      assert(recognition.Ativo === undefined || asBoolean(recognition.Ativo), "Este reconhecimento está inativo.");
+      if (!isAdmin(profile)) {
+        assert(profile.LojaID && recognition.LojaID && String(profile.LojaID) === String(recognition.LojaID), "Este perfil só pode notificar reconhecimentos da própria loja.");
+      }
+      scopeRecord(profile, recognition);
+      const employeeId = String(recognition.FuncionarioID || "").trim();
+      assert(employeeId, "Reconhecimento sem identificação do colaborador.");
+      const employee = await runtime.getById("Funcionarios", employeeId);
+      assert(employee && String(employee.FuncionarioID || employee.funcionarioId || "").trim() === employeeId, "A identificação do colaborador não confere.");
+      assert(employee.Ativo === undefined || asBoolean(employee.Ativo), "Colaborador inativo não pode receber aviso.");
+      assert(employee.LojaID && String(employee.LojaID) === String(recognition.LojaID || ""), "A unidade do colaborador não confere com o reconhecimento.");
+      scopeRecord(profile, employee);
+      const notification = await createNotification({
+        employeeId,
+        storeId: employee.LojaID,
+        subject: `Reconhecimento: ${recognition.Categoria || "Destaque da Semana"}`,
+        message: `Parabéns! Você foi reconhecido como "${recognition.Categoria || "Destaque da Semana"}" por ${recognition.AtribuidoPor || "sua liderança"}: "${recognition.Motivo || ""}"`,
+        type: "Reconhecimento",
+        relatedId: recId,
+      });
+      return success({ NotificacaoID: notification.NotificacaoID, FuncionarioID: employeeId, WhatsAppConfirmado: false },
+        "Aviso salvo no aplicativo. A entrega pelo WhatsApp ainda não foi confirmada.");
     },
 
     async excluirReconhecimento(args) {
