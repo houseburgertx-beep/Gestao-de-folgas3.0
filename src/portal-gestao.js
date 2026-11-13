@@ -1,7 +1,11 @@
 import { runtime } from "./core/runtime.js";
 import { ONBOARDING_STAGES, REQUIRED_ADMISSION_DOCUMENTS } from "./core/api-portal.js";
 import { todayIso } from "./core/utils.js";
-import { fetchAllTakeatCredit, loadMappings as loadTakeatMappings } from "./core/takeat-credit.js";
+import {
+  fetchAllTakeatCredit,
+  loadMappings as loadTakeatMappings,
+  resolveAccountMatch as resolveTakeatAccountMatch,
+} from "./core/takeat-credit.js";
 
 const formatBRL = (val) => {
   const n = Number(val || 0);
@@ -1210,6 +1214,161 @@ function injectPortalTabsStyles() {
       border-radius: 8px;
       object-fit: contain;
       border: 1px solid #cbd5e1;
+    }
+
+    /* ---- Hubs Unificados de RH (Sub-navegação limpa sem poluir menu lateral) ---- */
+    .hr-hub-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      margin: 0 0 18px;
+      background: var(--surface-2, #f1f5f9);
+      border: 1px solid var(--line, #e2e8f0);
+      border-radius: 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .hr-hub-tab {
+      appearance: none;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted, #64748b);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+    }
+    .hr-hub-tab:hover {
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--ink, #0f172a);
+    }
+    .hr-hub-tab.is-active {
+      background: var(--surface, #ffffff);
+      color: var(--brand-solid, #2563eb);
+      border-color: var(--line, #e2e8f0);
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+      font-weight: 700;
+    }
+    .hr-hub-tab svg {
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+
+    /* ---- Central Unificada (Atestados + Experiência) ---- */
+    .pending-summary-card.is-atestados {
+      --pending-card-color: #e11d48;
+    }
+    .pending-category-icon.is-atestados {
+      background: rgba(225, 29, 72, 0.12);
+      color: #be123c;
+      font-weight: 800;
+    }
+
+    /* ---- Dossiê 360° do Colaborador ---- */
+    .btn-quick-dossier {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-quick-dossier:hover {
+      background: #dbeafe;
+    }
+    dialog.emp360-dialog {
+      width: min(820px, calc(100vw - 24px));
+    }
+    .emp360-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+      border: 1px solid #dbeafe;
+    }
+    .emp360-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: #2563eb;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .emp360-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 10px;
+    }
+    .emp360-kv {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line, #e2e8f0);
+      background: var(--surface, #ffffff);
+    }
+    .emp360-kv span {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted, #64748b);
+    }
+    .emp360-kv strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 13.5px;
+      color: var(--ink, #0f172a);
+      word-break: break-word;
+    }
+    .emp360-list {
+      display: grid;
+      gap: 8px;
+    }
+    .emp360-row-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line, #e2e8f0);
+      background: var(--surface-2, #f8fafc);
+      font-size: 12.5px;
+    }
+    [data-theme="dark"] .hr-hub-bar {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    [data-theme="dark"] .hr-hub-tab.is-active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #93c5fd;
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+    [data-theme="dark"] .emp360-hero {
+      background: rgba(37, 99, 235, 0.14);
+      border-color: rgba(59, 130, 246, 0.25);
     }
   `;
   document.head.appendChild(style);
@@ -3935,6 +4094,7 @@ export async function refreshPortalViews() {
     loadExperienceAlertsBanner(),
     loadEmployeesOverviewSummary(),
     loadValesList(),
+    loadUnifiedPendingHrItems(),
     loadFichasView(),
     loadPopsList(),
     loadPayrollClosingTable(),
@@ -4043,12 +4203,735 @@ export function mountQuickValeDialog() {
   }
 }
 
+// ============================================================================
+// REORGANIZACAO UNIFICADA DE RH: HUBS, CENTRAL DE DEMANDAS E DOSSIE 360
+// ============================================================================
+
+const HR_HUB_GROUPS = [
+  {
+    id: "pessoas",
+    tabs: [
+      { view: "employees", label: "Equipe & Dossiê 360°", perm: "permission-manager" },
+      { view: "documents", label: "Holerites & Docs", perm: "" },
+      { view: "hour-balances", label: "Banco de Horas", perm: "permission-admin" },
+    ],
+  },
+  {
+    id: "jornada",
+    tabs: [
+      { view: "timeclock", label: "Ponto & Espelhos", perm: "" },
+      { view: "live-team", label: "Equipe Agora", perm: "permission-manager" },
+      { view: "shift-plan", label: "Escala", perm: "" },
+      { view: "calendar", label: "Calendário", perm: "permission-manager" },
+      { view: "timeoff", label: "Folgas", perm: "" },
+    ],
+  },
+  {
+    id: "financeiro",
+    tabs: [
+      { view: "monthly-closing", label: "Folha Salarial", perm: "permission-manager" },
+      { view: "takeat-credit", label: "Contas a Prazo (Takeat)", perm: "" },
+      { view: "fichas", label: "Valor de Ficha", perm: "permission-manager" },
+      { view: "reports", label: "Relatórios", perm: "permission-manager" },
+    ],
+  },
+  {
+    id: "config",
+    tabs: [
+      { view: "stores", label: "Lojas", perm: "permission-manager" },
+      { view: "holidays", label: "Feriados", perm: "permission-manager" },
+      { view: "operations", label: "Regras", perm: "permission-manager" },
+      { view: "access", label: "Acessos & Permissões", perm: "permission-admin" },
+      { view: "whatsapp", label: "WhatsApp", perm: "permission-admin" },
+      { view: "audit", label: "Auditoria", perm: "permission-admin" },
+    ],
+  },
+];
+
+function syncWorkspaceHubBars(activeViewOverride = "") {
+  const isGestao = isGerenteProfile(runtime?.profile);
+  const isAdm = isDiretoriaProfile(runtime?.profile);
+  const currentActive =
+    activeViewOverride ||
+    document.querySelector(".view.active")?.id?.replace(/^view-/, "") ||
+    "";
+
+  document.querySelectorAll(".hr-hub-bar").forEach((bar) => {
+    bar.style.display = isGestao ? "flex" : "none";
+    bar.querySelectorAll(".hr-hub-tab").forEach((btn) => {
+      const target = btn.getAttribute("data-view-target") || "";
+      const perm = btn.getAttribute("data-hub-perm") || "";
+      const visible =
+        perm === "permission-admin"
+          ? isAdm
+          : perm === "permission-manager"
+            ? isGestao
+            : true;
+      btn.style.display = visible ? "inline-flex" : "none";
+      const isActive = target === currentActive;
+      btn.classList.toggle("is-active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+  });
+}
+
+function mountWorkspaceHubBars() {
+  for (const hub of HR_HUB_GROUPS) {
+    for (const currentTab of hub.tabs) {
+      const section = document.getElementById(`view-${currentTab.view}`);
+      if (!section || section.querySelector(`.hr-hub-bar[data-hub="${hub.id}"]`)) continue;
+
+      const bar = document.createElement("nav");
+      bar.className = "hr-hub-bar";
+      bar.setAttribute("data-hub", hub.id);
+      bar.setAttribute("aria-label", `Navegação ${hub.id}`);
+      bar.innerHTML = hub.tabs
+        .map(
+          (tab) => `
+          <button type="button"
+                  class="hr-hub-tab ${tab.view === currentTab.view ? "is-active" : ""}"
+                  data-view-target="${escapeHtml(tab.view)}"
+                  data-hub-perm="${escapeHtml(tab.perm || "")}"
+                  aria-selected="${tab.view === currentTab.view ? "true" : "false"}">
+            ${escapeHtml(tab.label)}
+          </button>
+        `,
+        )
+        .join("");
+
+      section.prepend(bar);
+    }
+  }
+  syncWorkspaceHubBars();
+}
+
+function enhanceUnifiedPendingCenter() {
+  const view = document.getElementById("view-pending-center");
+  if (!view) return;
+
+  const summaryGrid = view.querySelector(".pending-summary-grid");
+  if (summaryGrid && !document.getElementById("pendingAtestadoSummaryCard")) {
+    const card = document.createElement("article");
+    card.id = "pendingAtestadoSummaryCard";
+    card.className = "pending-summary-card is-atestados permission-manager";
+    card.innerHTML = `
+      <span class="pending-summary-icon">+</span>
+      <div>
+        <strong id="pendingAtestadoMetric">0</strong><small>Atestados</small>
+      </div>
+    `;
+    summaryGrid.appendChild(card);
+  }
+
+  const filterBar = view.querySelector(".pending-filter-bar");
+  if (filterBar && !document.getElementById("pendingAtestadoFilterBtn")) {
+    const btn = document.createElement("button");
+    btn.id = "pendingAtestadoFilterBtn";
+    btn.type = "button";
+    btn.className = "pending-filter-btn permission-manager";
+    btn.setAttribute("data-pending-filter", "atestados");
+    btn.innerHTML = `Atestados <em id="pendingAtestadoFilterCount">0</em>`;
+    filterBar.appendChild(btn);
+  }
+
+  const content = view.querySelector(".pending-center-content");
+  if (content && !document.getElementById("pendingAtestadosCategory")) {
+    const sec = document.createElement("section");
+    sec.id = "pendingAtestadosCategory";
+    sec.className = "pending-category permission-manager";
+    sec.setAttribute("data-pending-category", "atestados");
+    sec.innerHTML = `
+      <div class="pending-category-head">
+        <div class="pending-category-heading">
+          <span class="pending-category-icon is-atestados">+</span>
+          <div>
+            <span class="eyebrow">SAÚDE &amp; ABONOS</span>
+            <h3>Atestados Médicos Pendentes</h3>
+            <p>Analise comprovantes, aprove para abonar faltas ou recuse em 1 clique.</p>
+          </div>
+        </div>
+      </div>
+      <div id="atestadosPendingCards" class="request-grid"></div>
+    `;
+    const onboardingSec = content.querySelector('[data-pending-category="onboarding"]');
+    if (onboardingSec) {
+      content.insertBefore(sec, onboardingSec);
+    } else {
+      content.appendChild(sec);
+    }
+  }
+
+  const onboardingSec = content?.querySelector('[data-pending-category="onboarding"]');
+  if (onboardingSec && !document.getElementById("onboardingPendingCards")) {
+    const grid = document.createElement("div");
+    grid.id = "onboardingPendingCards";
+    grid.className = "request-grid permission-manager";
+    grid.style.marginBottom = "12px";
+    const head = onboardingSec.querySelector(".pending-category-head");
+    if (head?.nextSibling) {
+      onboardingSec.insertBefore(grid, head.nextSibling);
+    } else {
+      onboardingSec.appendChild(grid);
+    }
+  }
+}
+
+async function loadUnifiedPendingHrItems() {
+  if (!runtime?.auth?.currentUser) return;
+  const profile = runtime?.profile || {};
+  const isManagerUser = isGerenteProfile(profile);
+  const myEmpId = String(profile.FuncionarioID || "");
+  const storeId = window.__selectedPortalStoreId || (!isDiretoriaProfile(profile) ? String(profile.LojaID || "") : "");
+
+  const atestadosContainer = document.getElementById("atestadosPendingCards");
+  const onboardingContainer = document.getElementById("onboardingPendingCards");
+  if (!atestadosContainer && !onboardingContainer) return;
+
+  try {
+    const [justificativas, docs, employees, alertsRes] = await Promise.all([
+      runtime.list("JustificativasPonto").catch(() => []),
+      runtime.list("Documentos").catch(() => []),
+      runtime.list("Funcionarios").catch(() => []),
+      isManagerUser ? invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+    ]);
+
+    const pendingJust = justificativas.filter((j) => {
+      const isMed = String(j.Tipo || "").toLowerCase().includes("atestado");
+      const st = String(j.Status || "").toLowerCase();
+      if (!isMed || st !== "pendente") return false;
+      if (!isManagerUser && String(j.FuncionarioID || "") !== myEmpId) return false;
+      if (storeId && String(j.LojaID || "") !== String(storeId)) return false;
+      return true;
+    });
+
+    const pendingDocs = docs.filter((d) => {
+      const isMed =
+        String(d.Tipo || "").toLowerCase().includes("atestado") ||
+        String(d.Titulo || "").toLowerCase().includes("atestado");
+      const st = String(d.Status || "").toLowerCase();
+      const isPending = st.includes("pend") || st.includes("aguard");
+      if (!isMed || !isPending) return false;
+      if (!isManagerUser && String(d.FuncionarioID || "") !== myEmpId) return false;
+      if (storeId && String(d.LojaID || "") !== String(storeId)) return false;
+      return true;
+    });
+
+    const mergedAtestados = [
+      ...pendingDocs.map((d) => ({
+        source: "doc",
+        id: d.DocumentoID || d.DocID,
+        folgaId: d.FolgaID || "",
+        empId: d.FuncionarioID,
+        empName: d.NomeFuncionario || d.FuncionarioNome || "Colaborador",
+        loja: d.NomeLoja || d.LojaID || "-",
+        periodo: d.PeriodoAbono || d.DataInicio || "-",
+        dias: d.DiasAbono || 1,
+        motivo: d.Observacao || d.CRM || d.Titulo || "Atestado Médico",
+        url: d.ArquivoUrl || d.ArquivoURL || d.ArquivoOriginalBase64 || "",
+      })),
+      ...pendingJust.map((j) => ({
+        source: "just",
+        id: j.JustificativaPontoID,
+        folgaId: "",
+        empId: j.FuncionarioID,
+        empName: j.FuncionarioNome || "Colaborador",
+        loja: j.NomeLoja || j.LojaID || "-",
+        periodo: j.DataInicio && j.DataFim ? `${j.DataInicio} a ${j.DataFim}` : j.DataOcorrencia || "-",
+        dias: j.DiasAfastamento || 1,
+        motivo: j.Motivo || "Atestado Médico",
+        url: j.ArquivoURL || j.ArquivoUrl || "",
+      })),
+    ];
+
+    window.__portalAtestadosPendingCount = mergedAtestados.length;
+    if (typeof window.syncPendingCenterSummary === "function") {
+      window.syncPendingCenterSummary();
+    }
+
+    if (atestadosContainer) {
+      if (!mergedAtestados.length) {
+        atestadosContainer.innerHTML = `<div class="empty-state" style="padding:14px;">Nenhum atestado médico pendente de avaliação.</div>`;
+      } else {
+        atestadosContainer.innerHTML = mergedAtestados
+          .map(
+            (a) => `
+            <article class="panel" style="padding:14px; display:grid; gap:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <div>
+                  <strong style="font-size:14px;">${escapeHtml(a.empName)}</strong>
+                  <small style="display:block; color:var(--muted);">${escapeHtml(a.loja)} · Período: ${escapeHtml(a.periodo)} (${escapeHtml(String(a.dias))} dia(s))</small>
+                </div>
+                <span class="portal-pill portal-pill--amber">Pendente</span>
+              </div>
+              <p style="margin:0; font-size:12.5px; color:var(--ink-2, #475569);">${escapeHtml(a.motivo)}</p>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                ${
+                  a.source === "doc" || a.url
+                    ? `<button type="button" class="btn btn-secondary btn-sm" data-view-atestado-src="${a.source}" data-atestado-id="${escapeHtml(a.id)}" data-atestado-url="${escapeHtml(a.url)}">Ver Anexo</button>`
+                    : ""
+                }
+                ${
+                  isManagerUser
+                    ? `<button type="button" class="btn btn-primary btn-sm" data-approve-atestado-src="${a.source}" data-atestado-id="${escapeHtml(a.id)}" data-folga-id="${escapeHtml(a.folgaId)}">Aprovar &amp; Abonar</button>
+                       <button type="button" class="btn btn-secondary btn-sm" data-reject-atestado-src="${a.source}" data-atestado-id="${escapeHtml(a.id)}" data-folga-id="${escapeHtml(a.folgaId)}">Recusar</button>`
+                    : ""
+                }
+              </div>
+            </article>
+          `,
+          )
+          .join("");
+
+        atestadosContainer.querySelectorAll("[data-view-atestado-src]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const src = btn.getAttribute("data-view-atestado-src");
+            const id = btn.getAttribute("data-atestado-id");
+            const url = btn.getAttribute("data-atestado-url");
+            if (src === "doc" && typeof window.openPreviewDialog === "function") {
+              window.openPreviewDialog(id);
+            } else if (url) {
+              window.open(url, "_blank", "noopener,noreferrer");
+            }
+          });
+        });
+
+        atestadosContainer.querySelectorAll("[data-approve-atestado-src]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const src = btn.getAttribute("data-approve-atestado-src");
+            const id = btn.getAttribute("data-atestado-id");
+            const folgaId = btn.getAttribute("data-folga-id");
+            try {
+              btn.disabled = true;
+              if (src === "just") {
+                await invokePortal("validarAtestadoMedico", { JustificativaPontoID: id, aprovar: true });
+              } else if (folgaId) {
+                await runtime.invoke("approveTimeOff", [folgaId, "Atestado aprovado na Central de Demandas"]);
+              } else {
+                await runtime.update("Documentos", id, { Status: "Aprovado" });
+              }
+              showPortalToast("Atestado aprovado e faltas abonadas!", "success");
+              await loadUnifiedPendingHrItems();
+            } catch (err) {
+              showPortalToast(err.message || "Erro ao aprovar atestado.", "error");
+              btn.disabled = false;
+            }
+          });
+        });
+
+        atestadosContainer.querySelectorAll("[data-reject-atestado-src]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const motivo = window.prompt("Informe o motivo da recusa do atestado:", "Atestado ilegível ou inválido");
+            if (motivo === null) return;
+            const src = btn.getAttribute("data-reject-atestado-src");
+            const id = btn.getAttribute("data-atestado-id");
+            const folgaId = btn.getAttribute("data-folga-id");
+            try {
+              btn.disabled = true;
+              if (src === "just") {
+                await invokePortal("validarAtestadoMedico", { JustificativaPontoID: id, aprovar: false, observacao: motivo });
+              } else if (folgaId) {
+                await runtime.invoke("rejectTimeOff", [folgaId, motivo]);
+              } else {
+                await runtime.update("Documentos", id, { Status: "Rejeitado", MotivoRecusa: motivo });
+              }
+              showPortalToast("Atestado recusado.", "info");
+              await loadUnifiedPendingHrItems();
+            } catch (err) {
+              showPortalToast(err.message || "Erro ao recusar atestado.", "error");
+              btn.disabled = false;
+            }
+          });
+        });
+      }
+    }
+
+    if (onboardingContainer && isManagerUser) {
+      const inOnboarding = employees.filter((e) => {
+        if (e.Ativo === false) return false;
+        if (storeId && String(e.LojaID || "") !== String(storeId)) return false;
+        return Number(e.EtapaAdmissao || 1) < 5;
+      });
+      const alerts = Array.isArray(alertsRes?.data)
+        ? alertsRes.data.filter((a) => (!storeId || String(a.LojaID || "") === String(storeId)) && Number(a.DiasRestantes ?? 99) <= 15)
+        : [];
+
+      const onboardingCards = [
+        ...alerts.map((a) => ({
+          empId: a.FuncionarioID,
+          nome: a.Nome || "Colaborador",
+          loja: a.NomeLoja || a.LojaID || "-",
+          tag: `Experiência ${a.Marco || ""}d`,
+          pillCls: Number(a.DiasRestantes ?? 99) <= 5 ? "portal-pill--red" : "portal-pill--amber",
+          desc: `Vence em ${a.DiasRestantes} dia(s) (${a.DataVencimento || "-"})`,
+        })),
+        ...inOnboarding.slice(0, 8).map((e) => {
+          const etapa = Number(e.EtapaAdmissao || 1);
+          const stageObj = ONBOARDING_STAGES.find((s) => s.etapa === etapa);
+          return {
+            empId: e.FuncionarioID,
+            nome: e.Nome || "Colaborador",
+            loja: e.NomeLoja || e.LojaID || "-",
+            tag: `Etapa ${etapa}/6`,
+            pillCls: "portal-pill--blue",
+            desc: stageObj?.titulo || "Integração em andamento",
+          };
+        }),
+      ];
+
+      onboardingContainer.innerHTML = onboardingCards.length
+        ? onboardingCards
+            .map(
+              (c) => `
+              <article class="panel" style="padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div>
+                  <strong style="font-size:13.5px;">${escapeHtml(c.nome)}</strong>
+                  <small style="display:block; color:var(--muted);">${escapeHtml(c.loja)} · ${escapeHtml(c.desc)}</small>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="portal-pill ${c.pillCls}">${escapeHtml(c.tag)}</span>
+                  <button type="button" class="btn btn-secondary btn-sm" data-open-dossier-emp="${escapeHtml(c.empId)}">Abrir Dossiê</button>
+                </div>
+              </article>
+            `,
+            )
+            .join("")
+        : `<div class="empty-state" style="padding:14px;">Toda a equipe está com onboarding concluído e sem vencimentos próximos.</div>`;
+    }
+  } catch {
+    // Silencioso
+  }
+}
+
+function ensureEmployee360Dialog() {
+  let dlg = document.getElementById("employee360Dialog");
+  if (dlg) return dlg;
+  dlg = document.createElement("dialog");
+  dlg.id = "employee360Dialog";
+  dlg.className = "folha-dialog emp360-dialog";
+  dlg.innerHTML = `
+    <div class="folha-dialog-head">
+      <div>
+        <span class="eyebrow" style="margin-bottom:2px;">DOSSIÊ 360° DO COLABORADOR</span>
+        <h3 id="emp360Title" style="margin:0; font-size:18px;">Carregando...</h3>
+        <p id="emp360Sub" style="margin:3px 0 0; font-size:12px; color:var(--muted);"></p>
+      </div>
+      <button type="button" id="emp360CloseBtn" class="btn btn-secondary btn-sm">Fechar</button>
+    </div>
+    <div class="folha-dialog-body" id="emp360Body"></div>
+  `;
+  document.body.appendChild(dlg);
+  dlg.querySelector("#emp360CloseBtn")?.addEventListener("click", () => dlg.close());
+  return dlg;
+}
+
+async function openEmployee360Dossier(employeeId) {
+  if (!employeeId) return;
+  const dlg = ensureEmployee360Dialog();
+  const bodyEl = dlg.querySelector("#emp360Body");
+  const titleEl = dlg.querySelector("#emp360Title");
+  const subEl = dlg.querySelector("#emp360Sub");
+
+  titleEl.textContent = "Dossiê 360°";
+  subEl.textContent = "Consolidando cadastro, documentos, Takeat, vales e pagamentos...";
+  bodyEl.innerHTML = `<div style="padding:24px; text-align:center; color:var(--muted);">Carregando ficha completa...</div>`;
+  if (typeof dlg.showModal === "function") dlg.showModal();
+
+  try {
+    const isAdm = isDiretoriaProfile(runtime?.profile);
+    const [emp, docs, justs, vales, pagsRes, takeatSnap, auditRes] = await Promise.all([
+      runtime.getById("Funcionarios", employeeId).catch(() => null),
+      runtime.list("Documentos").catch(() => []),
+      runtime.list("JustificativasPonto").catch(() => []),
+      runtime.list("SolicitacoesVale").catch(() => []),
+      invokePortal("listarPagamentosFolha", { employeeId }).catch(() => ({ data: [] })),
+      getPayrollTakeatSnapshot(false),
+      isAdm ? invokePortal("getEmployeeAuditHistory", { employeeId }).catch(() => ({ data: { logs: [] } })) : Promise.resolve({ data: { logs: [] } }),
+    ]);
+
+    if (!emp) {
+      bodyEl.innerHTML = `<div class="empty-state">Colaborador não encontrado.</div>`;
+      return;
+    }
+
+    const empName = emp.Nome || "Colaborador";
+    const initials = empName
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((s) => s[0]?.toUpperCase() || "")
+      .join("");
+    titleEl.textContent = empName;
+    subEl.textContent = `${emp.NomeLoja || emp.LojaID || "-"} · ${emp.Cargo || "Operação"} · ${emp.Perfil || "Funcionário"}`;
+
+    const empDocs = docs
+      .filter((d) => String(d.FuncionarioID || "") === String(employeeId))
+      .sort((a, b) => String(b.DataCriacao || "").localeCompare(String(a.DataCriacao || "")));
+    const empJusts = justs.filter((j) => String(j.FuncionarioID || "") === String(employeeId));
+    const empVales = vales
+      .filter((v) => String(v.FuncionarioID || "") === String(employeeId))
+      .sort((a, b) => String(b.DataCriacao || b.DataDesejada || "").localeCompare(String(a.DataCriacao || a.DataDesejada || "")));
+    const empPags = Array.isArray(pagsRes?.data) ? pagsRes.data : [];
+    const empAudits = Array.isArray(auditRes?.data?.logs) ? auditRes.data.logs : [];
+
+    let takeatHouseBruto = 0;
+    let takeatFoodBruto = 0;
+    for (const tk of takeatSnap?.items || []) {
+      const matched = resolveTakeatAccountMatch(tk, [emp], takeatSnap?.mappings || {});
+      if (matched && String(matched.FuncionarioID) === String(employeeId)) {
+        const debt = Number(tk.debt || 0);
+        if (tk.storeKey === "teixeira") takeatHouseBruto += debt;
+        if (tk.storeKey === "foodpark") takeatFoodBruto += debt;
+      }
+    }
+
+    const etapaAtual = Number(emp.EtapaAdmissao || 1);
+    const stageInfo = ONBOARDING_STAGES.find((s) => s.etapa === etapaAtual) || { titulo: `Etapa ${etapaAtual}` };
+
+    bodyEl.innerHTML = `
+      <div class="emp360-hero">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="emp360-avatar">${escapeHtml(initials || "?")}</span>
+          <div>
+            <strong style="display:block; font-size:15.5px;">${escapeHtml(empName)}</strong>
+            <span style="font-size:12px; color:var(--muted);">${escapeHtml(emp.Email || "-")} · WhatsApp: ${escapeHtml(emp.WhatsApp || emp.Telefone || "-")}</span>
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <button type="button" id="emp360EditBtn" class="btn btn-secondary btn-sm">Editar Cadastro</button>
+          <button type="button" id="emp360KitBtn" class="btn btn-secondary btn-sm">Kit Admissional</button>
+          ${isGestaoButtonOrFolha(emp, isAdm)}
+        </div>
+      </div>
+
+      <div class="portal-tabs-bar" role="tablist" style="margin-bottom:0;">
+        <button type="button" class="portal-tab-btn is-active" data-emp360-tab="geral">Visão Geral</button>
+        <button type="button" class="portal-tab-btn" data-emp360-tab="docs">Docs &amp; Atestados (${empDocs.length + empJusts.length})</button>
+        <button type="button" class="portal-tab-btn" data-emp360-tab="financeiro">Financeiro &amp; Folha (${empPags.length})</button>
+        ${isAdm ? `<button type="button" class="portal-tab-btn" data-emp360-tab="auditoria">Auditoria (${empAudits.length})</button>` : ""}
+      </div>
+
+      <div data-emp360-panel="geral" class="emp360-grid">
+        <div class="emp360-kv"><span>CPF</span><strong>${escapeHtml(emp.CPF || "-")}</strong></div>
+        <div class="emp360-kv"><span>Admissão</span><strong>${escapeHtml(emp.DataAdmissao || "-")}</strong></div>
+        <div class="emp360-kv"><span>Etapa Onboarding</span><strong>Etapa ${etapaAtual}/6 · ${escapeHtml(stageInfo.titulo)}</strong></div>
+        <div class="emp360-kv"><span>Salário Base</span><strong>${formatBRL(emp.SalarioBase || 0)}</strong></div>
+        <div class="emp360-kv"><span>Chave PIX</span><strong>${escapeHtml(emp.ChavePix || "Não cadastrada")}</strong></div>
+        <div class="emp360-kv"><span>Saldo de Folgas</span><strong>${escapeHtml(String(emp.SaldoFolgas ?? 0))}</strong></div>
+        <div class="emp360-kv"><span>Folga Fixa</span><strong>${escapeHtml(emp.DiaFolgaPreferencial || "-")}</strong></div>
+        <div class="emp360-kv"><span>Situação</span><strong>${emp.Ativo === false ? "Inativo" : "Ativo"}</strong></div>
+      </div>
+
+      <div data-emp360-panel="docs" class="emp360-list" style="display:none;">
+        ${
+          empDocs.length + empJusts.length === 0
+            ? `<div class="empty-state">Nenhum documento ou atestado registrado.</div>`
+            : [
+                ...empDocs.map(
+                  (d) => `
+                  <div class="emp360-row-card">
+                    <div>
+                      <strong>${escapeHtml(d.Titulo || d.Tipo || "Documento")}</strong>
+                      <small style="display:block; color:var(--muted);">${escapeHtml(d.Categoria || d.Tipo || "-")} · Status: ${escapeHtml(d.Status || d.StatusAssinatura || "-")}</small>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" data-emp360-open-doc="${escapeHtml(d.DocumentoID || d.DocID)}">Visualizar</button>
+                  </div>
+                `,
+                ),
+                ...empJusts.map(
+                  (j) => `
+                  <div class="emp360-row-card">
+                    <div>
+                      <strong>${escapeHtml(j.Tipo || "Justificativa")} · ${escapeHtml(j.DataInicio || j.DataOcorrencia || "-")}</strong>
+                      <small style="display:block; color:var(--muted);">${escapeHtml(j.Motivo || "-")} · Status: ${escapeHtml(j.Status || "-")}</small>
+                    </div>
+                    ${
+                      j.ArquivoURL
+                        ? `<a href="${escapeHtml(j.ArquivoURL)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none;">Abrir Anexo ↗</a>`
+                        : ""
+                    }
+                  </div>
+                `,
+                ),
+              ].join("")
+        }
+      </div>
+
+      <div data-emp360-panel="financeiro" class="emp360-list" style="display:none;">
+        <div class="emp360-grid">
+          <div class="emp360-kv">
+            <span>Takeat House TX (-20%)</span>
+            <strong style="color:#dc2626;">- ${formatBRL(takeatHouseBruto * 0.8)}</strong>
+            <small style="color:var(--muted); font-size:11px;">Bruto: ${formatBRL(takeatHouseBruto)}</small>
+          </div>
+          <div class="emp360-kv">
+            <span>Takeat FoodPark (-20%)</span>
+            <strong style="color:#dc2626;">- ${formatBRL(takeatFoodBruto * 0.8)}</strong>
+            <small style="color:var(--muted); font-size:11px;">Bruto: ${formatBRL(takeatFoodBruto)}</small>
+          </div>
+          <div class="emp360-kv">
+            <span>Vales no Sistema</span>
+            <strong>${empVales.length} pedido(s)</strong>
+            <small style="color:var(--muted); font-size:11px;">Último: ${empVales[0] ? formatBRL(empVales[0].Valor || 0) : "-"}</small>
+          </div>
+        </div>
+        <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; color:var(--muted); margin-top:4px;">Histórico de Pagamentos na Folha</div>
+        ${
+          empPags.length === 0
+            ? `<div class="empty-state">Nenhum pagamento de folha registrado ainda.</div>`
+            : empPags
+                .map(
+                  (p) => `
+                  <div class="emp360-row-card">
+                    <div>
+                      <strong>Competência ${escapeHtml(p.AnoMes || p.Competencia || "-")} · ${formatBRL(p.ValorLiquido)}</strong>
+                      <small style="display:block; color:var(--muted);">Pago em ${escapeHtml(String(p.DataPagamento || "").replace("T", " ").slice(0, 16))} por ${escapeHtml(p.PagoPor || "-")}</small>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" data-emp360-open-pag="${escapeHtml(p.PagamentoID)}">Ver Relatório / Comprovante</button>
+                  </div>
+                `,
+                )
+                .join("")
+        }
+      </div>
+
+      ${
+        isAdm
+          ? `<div data-emp360-panel="auditoria" class="emp360-list" style="display:none;">
+              ${
+                empAudits.length === 0
+                  ? `<div class="empty-state">Sem alterações auditadas para este colaborador.</div>`
+                  : empAudits
+                      .slice(0, 20)
+                      .map(
+                        (l) => `
+                        <div class="emp360-row-card">
+                          <div>
+                            <strong>${escapeHtml(l.Acao || "-")} · ${escapeHtml(String(l.Quando || "").replace("T", " ").slice(0, 16))}</strong>
+                            <small style="display:block; color:var(--muted);">${escapeHtml(l.ResumoAlteracao || l.Mensagem || "-")} (por ${escapeHtml(l.QuemNome || "-")})</small>
+                          </div>
+                        </div>
+                      `,
+                      )
+                      .join("")
+              }
+            </div>`
+          : ""
+      }
+    `;
+
+    function isGestaoButtonOrFolha() {
+      return isAdm
+        ? `<button type="button" id="emp360FolhaBtn" class="btn btn-primary btn-sm">Ir para Folha</button>`
+        : "";
+    }
+
+    bodyEl.querySelectorAll("[data-emp360-tab]").forEach((tabBtn) => {
+      tabBtn.addEventListener("click", () => {
+        const target = tabBtn.getAttribute("data-emp360-tab");
+        bodyEl.querySelectorAll("[data-emp360-tab]").forEach((b) => {
+          b.classList.toggle("is-active", b.getAttribute("data-emp360-tab") === target);
+        });
+        bodyEl.querySelectorAll("[data-emp360-panel]").forEach((p) => {
+          p.style.display = p.getAttribute("data-emp360-panel") === target ? (target === "geral" ? "grid" : "grid") : "none";
+        });
+      });
+    });
+
+    bodyEl.querySelector("#emp360EditBtn")?.addEventListener("click", () => {
+      dlg.close();
+      const rowEdit = document.querySelector(`#employeeBody [data-action="edit-employee"][data-id="${employeeId}"]`);
+      if (rowEdit) rowEdit.click();
+    });
+
+    bodyEl.querySelector("#emp360KitBtn")?.addEventListener("click", async () => {
+      try {
+        const res = await invokePortal("gerarKitAdmissionalPdf", { FuncionarioID: employeeId });
+        if (res?.data?.dataUrl) {
+          const a = document.createElement("a");
+          a.href = res.data.dataUrl;
+          a.download = res.data.fileName || "kit-admissional.txt";
+          a.click();
+        }
+        showPortalToast(res?.message || "Kit Admissional gerado!", "success");
+      } catch (err) {
+        showPortalToast(err.message || "Falha ao gerar kit.", "error");
+      }
+    });
+
+    bodyEl.querySelector("#emp360FolhaBtn")?.addEventListener("click", () => {
+      dlg.close();
+      if (typeof window.switchView === "function") window.switchView("monthly-closing");
+    });
+
+    bodyEl.querySelectorAll("[data-emp360-open-doc]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const docId = btn.getAttribute("data-emp360-open-doc");
+        if (typeof window.openPreviewDialog === "function") {
+          dlg.close();
+          window.openPreviewDialog(docId);
+        }
+      });
+    });
+
+    bodyEl.querySelectorAll("[data-emp360-open-pag]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const pid = btn.getAttribute("data-emp360-open-pag");
+        const found = empPags.find((item) => String(item.PagamentoID) === String(pid));
+        if (found) openPayrollReceiptModal(found);
+      });
+    });
+  } catch (err) {
+    bodyEl.innerHTML = `<div class="empty-state">Erro ao carregar dossiê: ${escapeHtml(err.message || "Falha inesperada")}</div>`;
+  }
+}
+
+function injectEmployeeDossierButtons() {
+  const tbody = document.getElementById("employeeBody");
+  if (!tbody) return;
+  tbody.querySelectorAll("tr.employee-directory-row").forEach((tr) => {
+    const rowActions = tr.querySelector(".row-actions");
+    if (!rowActions || rowActions.querySelector("[data-open-dossier-emp]")) return;
+    const editBtn = rowActions.querySelector('[data-action="edit-employee"]');
+    const empId = editBtn?.getAttribute("data-id");
+    if (!empId) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-quick-dossier";
+    btn.setAttribute("data-open-dossier-emp", empId);
+    btn.textContent = "Dossiê";
+    btn.title = "Abrir Dossiê 360° (Docs, Férias, Vales, Takeat e Pagamentos)";
+    rowActions.insertBefore(btn, editBtn);
+  });
+}
+
+function mountEmployee360Dossier() {
+  const tbody = document.getElementById("employeeBody");
+  if (tbody && tbody.dataset.dossierObserver !== "true") {
+    tbody.dataset.dossierObserver = "true";
+    const obs = new MutationObserver(() => injectEmployeeDossierButtons());
+    obs.observe(tbody, { childList: true });
+    injectEmployeeDossierButtons();
+  }
+  if (!document.body.dataset.emp360Bound) {
+    document.body.dataset.emp360Bound = "1";
+    document.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-open-dossier-emp]");
+      if (!btn) return;
+      const empId = btn.getAttribute("data-open-dossier-emp");
+      if (empId) openEmployee360Dossier(empId);
+    });
+  }
+}
+
 export function initPortalGestao() {
   if (typeof document === "undefined") return;
   injectPortalTabsStyles();
   mountTopbarStoreSelector();
   mountWhatsAppPasswordRecovery();
+  mountWorkspaceHubBars();
+  enhanceUnifiedPendingCenter();
   mountEmployeesOverviewSummary();
+  mountEmployee360Dossier();
   enhanceEmployeeDialog();
   mountSolicitacoesTabsAndVale();
   mountQuickValeDialog();
@@ -4057,24 +4940,39 @@ export function initPortalGestao() {
   mountPayrollClosingScreen();
   enhanceAuditView();
 
+  const onViewActivated = (view) => {
+    syncWorkspaceHubBars(view);
+    if (view === "employees") loadEmployeesOverviewSummary();
+    if (view === "fichas") loadFichasView();
+    if (view === "monthly-closing") loadPayrollClosingTable();
+    if (view === "timeoff" || view === "pending-center") {
+      loadValesList();
+      if (view === "pending-center") loadUnifiedPendingHrItems();
+    }
+    if (view === "communication") loadPopsList();
+    if (view === "audit") loadAuditHistoryTable();
+  };
+
   document.querySelectorAll("[data-view]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const view = btn.getAttribute("data-view");
-      if (view === "employees") loadEmployeesOverviewSummary();
-      if (view === "fichas") loadFichasView();
-      if (view === "monthly-closing") loadPayrollClosingTable();
-      if (view === "timeoff" || view === "pending-center") loadValesList();
-      if (view === "communication") loadPopsList();
-      if (view === "audit") loadAuditHistoryTable();
-    });
+    btn.addEventListener("click", () => onViewActivated(btn.getAttribute("data-view")));
   });
 
   document.addEventListener("click", (e) => {
     const targetView = e.target?.closest?.("[data-view-target]")?.getAttribute?.("data-view-target");
-    if (targetView === "timeoff" || targetView === "pending-center") loadValesList();
+    if (targetView) onViewActivated(targetView);
+  });
+
+  window.addEventListener("gestao-view-change", (e) => {
+    if (e?.detail?.view) onViewActivated(e.detail.view);
+  });
+
+  window.addEventListener("gestao-user-hydrated", () => {
+    syncWorkspaceHubBars();
+    loadUnifiedPendingHrItems();
   });
 
   setTimeout(() => {
+    syncWorkspaceHubBars();
     refreshPortalViews();
   }, 1200);
 }
@@ -4083,6 +4981,8 @@ if (typeof window !== "undefined") {
   window.initPortalGestao = initPortalGestao;
   window.refreshPortalViews = refreshPortalViews;
   window.loadValesList = loadValesList;
+  window.loadUnifiedPendingHrItems = loadUnifiedPendingHrItems;
+  window.openEmployee360Dossier = openEmployee360Dossier;
   window.renderEmployeeOnboardingState = renderEmployeeOnboardingState;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => initPortalGestao());

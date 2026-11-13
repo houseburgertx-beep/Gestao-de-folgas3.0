@@ -1539,11 +1539,13 @@
     if ($("#pendingTimeOffAction")) $("#pendingTimeOffAction").onclick = () => editTimeOff();
     if ($("#pendingClockAction")) $("#pendingClockAction").onclick = () => switchView("timeclock");
     if ($("#pendingRefreshBtn")) $("#pendingRefreshBtn").onclick = () => loadPendingCenter_(true);
-    $$("[data-pending-filter]").forEach(
-      (button) =>
-        (button.onclick = () =>
-          setPendingCenterFilter_(button.dataset.pendingFilter)),
-    );
+    const pendingFilterBar = $(".pending-filter-bar");
+    if (pendingFilterBar) {
+      pendingFilterBar.addEventListener("click", (event) => {
+        const button = event.target?.closest?.("[data-pending-filter]");
+        if (button) setPendingCenterFilter_(button.dataset.pendingFilter);
+      });
+    }
     if ($("#swapForm")) $("#swapForm").onsubmit = saveSwapUI;
     if ($("#acknowledgementForm")) {
       $("#acknowledgementForm").onsubmit = (e) =>
@@ -3251,7 +3253,9 @@
      * itens escondidos numa sessão de funcionário permaneciam escondidos quando
      * o mesmo navegador entrava depois como administrador ou responsável.
      */
-    navItems.forEach((item) => item.classList.remove("hidden"));
+    navItems.forEach((item) => {
+      item.classList.remove("hidden", "nav-hub-absorbed");
+    });
     $$(".permission-manager").forEach((item) =>
       item.classList.toggle("hidden", !manager),
     );
@@ -3262,6 +3266,16 @@
       item.classList.toggle("hidden", !admin),
     );
 
+    const employeesNavLabel = $('.nav-item[data-view="employees"] b');
+    if (employeesNavLabel)
+      employeesNavLabel.textContent = manager && !kitchenChief ? "Pessoas & Docs" : "Onboarding & Equipe";
+    const monthlyNavLabel = $('.nav-item[data-view="monthly-closing"] b');
+    if (monthlyNavLabel)
+      monthlyNavLabel.textContent = manager && !kitchenChief ? "Financeiro & Folha" : "Folha Salarial";
+    const storesNavLabel = $('.nav-item[data-view="stores"] b');
+    if (storesNavLabel)
+      storesNavLabel.textContent = manager && !kitchenChief ? "Configurações" : "Lojas";
+
     const timeoffLabel = $('.nav-item[data-view="timeoff"] b');
     if (timeoffLabel)
       timeoffLabel.textContent = employeeMode ? "Minhas folgas" : "Folgas";
@@ -3269,7 +3283,7 @@
     if (pendingLabel)
       pendingLabel.textContent = employeeMode
         ? "Minhas solicitações"
-        : "Pendências";
+        : "Central de Demandas";
     const takeatLabel = $('.nav-item[data-view="takeat-credit"] b');
     if (takeatLabel) {
       takeatLabel.textContent = employeeMode
@@ -3386,7 +3400,31 @@
     if (timeClockNavLabel)
       timeClockNavLabel.textContent = kitchenChief
         ? "Pontos da equipe"
-        : manager ? "Ponto da equipe" : "Meu ponto";
+        : manager ? "Ponto & Escala" : "Meu ponto";
+
+    const HR_HUB_ABSORBED_VIEWS = [
+      "documents",
+      "hour-balances",
+      "live-team",
+      "shift-plan",
+      "calendar",
+      "timeoff",
+      "takeat-credit",
+      "fichas",
+      "reports",
+      "holidays",
+      "operations",
+      "access",
+      "whatsapp",
+      "audit",
+    ];
+    if (manager && !kitchenChief && !employeeMode) {
+      navItems.forEach((item) => {
+        if (HR_HUB_ABSORBED_VIEWS.includes(item.dataset.view)) {
+          item.classList.add("nav-hub-absorbed");
+        }
+      });
+    }
 
     if (employeeMode) {
       const employeeViews = [
@@ -3431,7 +3469,11 @@
       });
     }
     $$(".nav-group").forEach(group => {
-      const hasVisible = [...group.querySelectorAll("button")].some(button => !button.classList.contains("hidden"));
+      const hasVisible = [...group.querySelectorAll("button")].some(
+        (button) =>
+          !button.classList.contains("hidden") &&
+          !button.classList.contains("nav-hub-absorbed"),
+      );
       group.classList.toggle("hidden", !hasVisible || (group.classList.contains("permission-manager") && !manager) || (group.classList.contains("permission-admin") && !admin));
     });
     document.body.classList.toggle("employee-workspace", !manager);
@@ -3442,8 +3484,11 @@
     } catch (_) {}
   }
   function isAdmin() {
+    const p = profile(state.user).toLowerCase();
     return (
-      profile(state.user).toLowerCase().includes("admin") ||
+      p.includes("admin") ||
+      p.includes("diretor") ||
+      p.includes("financeir") ||
       state.permissions.includes("*")
     );
   }
@@ -3520,21 +3565,65 @@
       }
     });
     positionDockIndicator();
+    const HR_PARENT_HUB_MAP = {
+      documents: "employees",
+      "hour-balances": "employees",
+      "live-team": "timeclock",
+      "shift-plan": "timeclock",
+      calendar: "timeclock",
+      timeoff: "timeclock",
+      "takeat-credit": "monthly-closing",
+      fichas: "monthly-closing",
+      reports: "monthly-closing",
+      holidays: "stores",
+      operations: "stores",
+      access: "stores",
+      whatsapp: "stores",
+      audit: "stores",
+    };
+    const isHubNavMode = isManager() && !isKitchenChief() && !isEmployee();
+    const navTargetView = isHubNavMode && HR_PARENT_HUB_MAP[view] ? HR_PARENT_HUB_MAP[view] : view;
+
     $$(".view").forEach((v) =>
       v.classList.toggle("active", v.id === "view-" + view),
     );
     $$(".nav-item[data-view]").forEach((v) =>
-      v.classList.toggle("active", v.dataset.view === view),
+      v.classList.toggle("active", v.dataset.view === navTargetView),
     );
-    const activeNav = $(`.nav-item[data-view="${view}"]`);
+    const activeNav = $(`.nav-item[data-view="${navTargetView}"]`);
     const group = activeNav?.closest("details");
     if (group) group.open = true;
     $$(".nav-item[data-view]").forEach(item => {
-      if (item.dataset.view === view) item.setAttribute("aria-current", "page");
+      if (item.dataset.view === navTargetView) item.setAttribute("aria-current", "page");
       else item.removeAttribute("aria-current");
     });
-    const active = activeNav?.querySelector("b");
-    $("#pageTitle").textContent = active?.textContent || ({notifications:"Avisos e lembretes",governance:"Delegações",whistleblower:"Canal de Denúncias"}[view]) || "Jornada";
+    const HUB_SUBVIEW_TITLES = {
+      "pending-center": isEmployee() ? "Minhas solicitações" : "Central de Demandas",
+      employees: "Pessoas & Docs · Equipe",
+      documents: "Pessoas & Docs · Holerites & Docs",
+      "hour-balances": "Pessoas & Docs · Banco de Horas",
+      timeclock: "Ponto & Escala · Ponto",
+      "live-team": "Ponto & Escala · Equipe Agora",
+      "shift-plan": "Ponto & Escala · Escala",
+      calendar: "Ponto & Escala · Calendário",
+      timeoff: "Ponto & Escala · Folgas",
+      "monthly-closing": "Financeiro & Folha · Folha Salarial",
+      "takeat-credit": "Financeiro & Folha · Contas a Prazo",
+      fichas: "Financeiro & Folha · Valor de Ficha",
+      reports: "Financeiro & Folha · Relatórios",
+      stores: "Configurações · Lojas",
+      holidays: "Configurações · Feriados",
+      operations: "Configurações · Regras",
+      access: "Configurações · Acessos e Permissões",
+      whatsapp: "Configurações · Conexão WhatsApp",
+      audit: "Configurações · Auditoria",
+    };
+    const active = $(`.nav-item[data-view="${view}"] b`) || activeNav?.querySelector("b");
+    $("#pageTitle").textContent =
+      (isHubNavMode && HUB_SUBVIEW_TITLES[view]) ||
+      active?.textContent ||
+      ({notifications:"Avisos e lembretes",governance:"Delegações",whistleblower:"Canal de Denúncias"}[view]) ||
+      "Jornada";
     $("#breadcrumb").textContent = "Grupo House 190 / " + $("#pageTitle").textContent;
     document.body.classList.remove("menu-open");
     renderCurrentView(view);
@@ -3545,6 +3634,7 @@
         })
         .catch(() => {});
   }
+  window.switchView = switchView;
   async function checkWhatsAppMagicTokenArrival_() {
     const params = new URLSearchParams(location.search);
     const magicToken = params.get("magic_token") || (params.get("action") === "magic_access" ? params.get("token") : null);
@@ -4381,12 +4471,14 @@
         );
       }).length;
     const vales = Number(window.__portalValesPendingCount || 0);
+    const atestados = Number(window.__portalAtestadosPendingCount || 0);
     return {
       timeOff: timeOff,
       clock: clock,
       swaps: swaps,
       vales: vales,
-      total: timeOff + clock + swaps + vales,
+      atestados: atestados,
+      total: timeOff + clock + swaps + vales + atestados,
     };
   }
 
@@ -4400,10 +4492,12 @@
         pendingClockMetric: counts.clock,
         pendingSwapMetric: counts.swaps,
         pendingValeMetric: counts.vales,
+        pendingAtestadoMetric: counts.atestados,
         pendingTimeOffFilterCount: counts.timeOff,
         pendingClockFilterCount: counts.clock,
         pendingSwapFilterCount: counts.swaps,
         pendingValeFilterCount: counts.vales,
+        pendingAtestadoFilterCount: counts.atestados,
       };
     Object.keys(values).forEach((id) => {
       const element = $("#" + id);
@@ -4416,7 +4510,7 @@
   window.syncPendingCenterSummary = renderPendingCenterSummary_;
 
   function setPendingCenterFilter_(filter, silent) {
-    const allowed = ["all", "timeoff", "clock", "swaps", "vale", "documents", "onboarding"];
+    const allowed = ["all", "timeoff", "clock", "swaps", "vale", "atestados", "documents", "onboarding"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
     $$("[data-pending-filter]").forEach((button) => {
@@ -4463,6 +4557,7 @@
         loadSwaps(),
         loadVacations_(),
         typeof window.loadValesList === "function" ? window.loadValesList() : Promise.resolve(),
+        typeof window.loadUnifiedPendingHrItems === "function" ? window.loadUnifiedPendingHrItems() : Promise.resolve(),
       ]);
       state.pendingCenter.loaded = true;
       renderRequests();

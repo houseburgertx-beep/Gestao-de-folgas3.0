@@ -3447,3 +3447,7 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
     width: 100%;
   }
 }
+
+.nav-item.nav-hub-absorbed {
+  display: none !important;
+}
