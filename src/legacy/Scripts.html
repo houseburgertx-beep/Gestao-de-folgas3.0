@@ -1212,7 +1212,7 @@
       const target = event.target.closest("[data-view-target]");
       if (target && !target.disabled) {
         const pendingFilter = target.dataset.pendingFilterTarget;
-        if (["all", "timeoff", "clock", "swaps"].includes(pendingFilter)) state.pendingCenter.filter = pendingFilter;
+        if (["all", "timeoff", "clock", "swaps", "vale"].includes(pendingFilter)) state.pendingCenter.filter = pendingFilter;
         switchView(target.dataset.viewTarget);
       }
     });
@@ -3334,12 +3334,26 @@
     $("#pendingCenterSubtitle").textContent = employeeMode
       ? "Peça, acompanhe e consulte tudo em um só lugar."
       : "Tudo que precisa da sua atenção em um só lugar.";
-    $("#pendingNewTimeOff").textContent = employeeMode
-      ? "＋ Pedir folga"
-      : "＋ Criar folga";
-    $("#pendingTimeOffAction").textContent = employeeMode
-      ? "＋ Pedir folga"
-      : "＋ Criar folga";
+    if ($("#pendingNewTimeOff")) {
+      $("#pendingNewTimeOff").textContent = employeeMode
+        ? "＋ Pedir folga"
+        : "＋ Criar folga";
+    }
+    if ($("#pendingTimeOffAction")) {
+      $("#pendingTimeOffAction").textContent = employeeMode
+        ? "＋ Pedir folga"
+        : "＋ Criar folga";
+    }
+    if ($("#pendingValeTitle")) {
+      $("#pendingValeTitle").textContent = employeeMode
+        ? "Meus pedidos de vale"
+        : "Pedidos de vale";
+    }
+    if ($("#pendingValeDescription")) {
+      $("#pendingValeDescription").textContent = employeeMode
+        ? "Acompanhe o andamento dos seus adiantamentos."
+        : "Valide e acompanhe solicitações de vale da equipe.";
+    }
     $("#pendingTimeOffTitle").textContent = employeeMode
       ? "Meus pedidos de folga"
       : "Pedidos de folga";
@@ -4366,11 +4380,13 @@
           ].includes(currentEmployeeId)
         );
       }).length;
+    const vales = Number(window.__portalValesPendingCount || 0);
     return {
       timeOff: timeOff,
       clock: clock,
       swaps: swaps,
-      total: timeOff + clock + swaps,
+      vales: vales,
+      total: timeOff + clock + swaps + vales,
     };
   }
 
@@ -4383,9 +4399,11 @@
         pendingTimeOffMetric: counts.timeOff,
         pendingClockMetric: counts.clock,
         pendingSwapMetric: counts.swaps,
+        pendingValeMetric: counts.vales,
         pendingTimeOffFilterCount: counts.timeOff,
         pendingClockFilterCount: counts.clock,
         pendingSwapFilterCount: counts.swaps,
+        pendingValeFilterCount: counts.vales,
       };
     Object.keys(values).forEach((id) => {
       const element = $("#" + id);
@@ -4395,9 +4413,10 @@
     badgeElement.classList.toggle("hidden", counts.total === 0);
     setPendingCenterFilter_(state.pendingCenter.filter || "all", true);
   }
+  window.syncPendingCenterSummary = renderPendingCenterSummary_;
 
   function setPendingCenterFilter_(filter, silent) {
-    const allowed = ["all", "timeoff", "clock", "swaps", "documents", "onboarding"];
+    const allowed = ["all", "timeoff", "clock", "swaps", "vale", "documents", "onboarding"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
     $$("[data-pending-filter]").forEach((button) => {
@@ -4428,6 +4447,7 @@
     if (state.pendingCenter.loaded && !force) {
       if (state.timeClock) renderTimeClock();
       renderSwaps();
+      if (typeof window.loadValesList === "function") window.loadValesList();
       return;
     }
     const refresh = $("#pendingRefreshBtn");
@@ -4442,6 +4462,7 @@
         loadTimeClock(false, !!force),
         loadSwaps(),
         loadVacations_(),
+        typeof window.loadValesList === "function" ? window.loadValesList() : Promise.resolve(),
       ]);
       state.pendingCenter.loaded = true;
       renderRequests();

@@ -627,12 +627,22 @@ function injectPortalTabsStyles() {
       }
 
       /* Cartoes responsivos automaticos no celular para tabelas de Vale e Fichas */
+      #portalValeSection .table-wrap,
+      .table-wrap:has(table.portal-responsive-table) {
+        overflow: visible !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+      }
       table.portal-responsive-table,
       table.portal-responsive-table tbody,
       table.portal-responsive-table tr,
       table.portal-responsive-table td {
         display: block !important;
+        min-width: 0 !important;
         width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
       }
       table.portal-responsive-table thead {
@@ -649,13 +659,16 @@ function injectPortalTabsStyles() {
       table.portal-responsive-table td {
         display: flex !important;
         justify-content: space-between !important;
-        align-items: center !important;
+        align-items: flex-start !important;
         gap: 10px !important;
-        padding: 6px 0 !important;
+        padding: 7px 0 !important;
         border: 0 !important;
         border-bottom: 1px solid #f1f5f9 !important;
         text-align: right !important;
         font-size: 13px !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
       }
       table.portal-responsive-table td:last-child {
         border-bottom: 0 !important;
@@ -679,7 +692,96 @@ function injectPortalTabsStyles() {
         color: var(--muted, #64748b);
         text-align: left;
         flex: 0 0 auto;
+        white-space: nowrap;
       }
+
+      /* Minhas Solicitacoes / Pendencias Mobile Layout */
+      #view-pending-center .pending-hero-actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+      #view-pending-center .pending-hero-actions .btn {
+        width: 100% !important;
+        min-height: 40px !important;
+        padding: 8px 10px !important;
+        font-size: 13px !important;
+      }
+      #view-pending-center .pending-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin: 12px 0 !important;
+      }
+      #view-pending-center .pending-summary-card {
+        min-height: 64px !important;
+        padding: 10px 12px !important;
+        gap: 10px !important;
+        border-radius: 14px !important;
+      }
+      #view-pending-center .pending-summary-card.is-total {
+        grid-column: 1 / -1 !important;
+        min-height: 48px !important;
+        padding: 9px 14px !important;
+      }
+      #view-pending-center .pending-summary-card.is-total > div {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: baseline !important;
+        gap: 8px !important;
+      }
+      #view-pending-center .pending-summary-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 10px !important;
+        font-size: 14px !important;
+      }
+      #view-pending-center .pending-summary-card strong {
+        font-size: 20px !important;
+      }
+      #view-pending-center .pending-filter-bar {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        gap: 6px !important;
+        padding: 6px !important;
+        margin: 0 0 14px !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      #view-pending-center .pending-filter-btn {
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+        min-height: 34px !important;
+        height: 34px !important;
+        padding: 0 12px !important;
+        font-size: 12px !important;
+        line-height: 1 !important;
+      }
+    }
+    .pending-summary-card.is-vale {
+      --pending-card-color: #10b981;
+    }
+    .pending-category-icon.is-vale {
+      background: rgba(16, 185, 129, 0.14);
+      color: #059669;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .pending-filter-btn em {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      font-style: normal;
+      font-size: 11px;
+      background: rgba(15, 23, 42, 0.08);
+    }
+    .pending-filter-btn.active em {
+      background: rgba(255, 255, 255, 0.24);
+      color: #ffffff;
     }
   `;
   document.head.appendChild(style);
@@ -1743,9 +1845,71 @@ function mountSolicitacoesTabsAndVale() {
   });
 }
 
+function getValeStatusMeta(status) {
+  const statusLower = String(status || "").toLowerCase();
+  const pillCls = statusLower.includes("pago")
+    ? "portal-pill--green"
+    : statusLower.includes("recus")
+      ? "portal-pill--red"
+      : statusLower.includes("validado")
+        ? "portal-pill--blue"
+        : "portal-pill--amber";
+  return { pillCls };
+}
+
+function buildValeActionButtons(v, isManagerUser, isAdminUser) {
+  const actions = [];
+  if (isManagerUser && v.Status === "Solicitado") {
+    actions.push(
+      `<button type="button" class="btn btn-ghost btn-sm" data-vale-action="recusar-gerente" data-vale-id="${v.ValeID}">Recusar</button>`,
+      `<button type="button" class="btn btn-secondary btn-sm" data-vale-action="validar-gerente" data-vale-id="${v.ValeID}">Validar (Gerente)</button>`,
+    );
+  }
+  if (isAdminUser && (v.Status === "Validado pelo Gerente" || v.Status === "Solicitado")) {
+    actions.push(
+      `<button type="button" class="btn btn-primary btn-sm" data-vale-action="pagar-diretoria" data-vale-id="${v.ValeID}">Aprovar e Pagar</button>`,
+    );
+  }
+  return actions;
+}
+
+function bindValeActionButtons(rootEl) {
+  rootEl?.querySelectorAll("[data-vale-action]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const action = btn.getAttribute("data-vale-action");
+      const valeId = btn.getAttribute("data-vale-id");
+      try {
+        if (action === "validar-gerente" || action === "recusar-gerente") {
+          await invokePortal("validarValeGerente", {
+            ValeID: valeId,
+            aprovar: action === "validar-gerente",
+          });
+          showPortalToast("Validação do gerente registrada!", "success");
+        } else if (action === "pagar-diretoria") {
+          const comprovanteUrl = window.prompt(
+            "Informe a URL ou código do comprovante PIX/transferência para liberar o pagamento e gerar o recibo digital:",
+            `comprovante-pix-${valeId.slice(0, 8)}.pdf`,
+          );
+          if (!comprovanteUrl) return;
+          await invokePortal("aprovarPagarValeDiretoria", {
+            ValeID: valeId,
+            aprovar: true,
+            comprovanteUrl,
+          });
+          showPortalToast("Vale pago e recibo enviado para assinatura digital!", "success");
+        }
+        await loadValesList();
+      } catch (err) {
+        showPortalToast(err.message || "Falha ao processar solicitação de vale.", "error");
+      }
+    });
+  });
+}
+
 async function loadValesList() {
   const tbody = document.getElementById("portalValesTableBody");
-  if (!tbody) return;
+  const pendingCardsEl = document.getElementById("valePendingCards");
+  if (!tbody && !pendingCardsEl) return;
   try {
     const res = await invokePortal("listarVales", {
       storeId: window.__selectedPortalStoreId || "",
@@ -1759,80 +1923,70 @@ async function loadValesList() {
     const isAdminUser = isDiretoriaProfile(profile);
     const isManagerUser = isGerenteProfile(profile);
 
-    if (!vales.length) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted);">Nenhuma solicitação de vale registrada no período.</td></tr>`;
-      return;
+    const pendingCount = vales.filter((v) => {
+      if (isAdminUser) return v.Status === "Validado pelo Gerente" || v.Status === "Solicitado";
+      if (isManagerUser) return v.Status === "Solicitado";
+      return v.Status === "Solicitado" || v.Status === "Validado pelo Gerente";
+    }).length;
+    window.__portalValesPendingCount = pendingCount;
+    window.syncPendingCenterSummary?.();
+
+    if (tbody) {
+      if (!vales.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted);">Nenhuma solicitação de vale registrada no período.</td></tr>`;
+      } else {
+        tbody.innerHTML = vales
+          .map((v) => {
+            const actions = buildValeActionButtons(v, isManagerUser, isAdminUser);
+            const { pillCls } = getValeStatusMeta(v.Status);
+            return `
+              <tr>
+                <td data-label="Data">${v.DataDesejada || "-"}</td>
+                <td data-label="Colaborador"><strong>${v.FuncionarioNome || "-"}</strong></td>
+                <td data-label="Unidade">${v.NomeLoja || v.LojaID || "-"}</td>
+                <td data-label="Valor" class="portal-num-col" style="font-weight:700; color:var(--ink);">${formatBRL(v.Valor)}</td>
+                <td data-label="Motivo">${v.Motivo || "-"}</td>
+                <td data-label="Status"><span class="portal-pill ${pillCls}">${v.Status}</span></td>
+                <td data-label="Comprovante">${v.ComprovanteURL ? `<a href="${v.ComprovanteURL}" target="_blank" rel="noopener">Abrir Recibo</a>` : "-"}</td>
+                <td data-label="Ações"><div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">${actions.join("") || "-"}</div></td>
+              </tr>
+            `;
+          })
+          .join("");
+        bindValeActionButtons(tbody);
+      }
     }
 
-    tbody.innerHTML = vales
-      .map((v) => {
-        const actions = [];
-        if (isManagerUser && v.Status === "Solicitado") {
-          actions.push(
-            `<button type="button" class="btn btn-secondary btn-sm" data-vale-action="validar-gerente" data-vale-id="${v.ValeID}">Validar (Gerente)</button>`,
-          );
-          actions.push(
-            `<button type="button" class="btn btn-ghost btn-sm" data-vale-action="recusar-gerente" data-vale-id="${v.ValeID}">Recusar</button>`,
-          );
-        }
-        if (isAdminUser && (v.Status === "Validado pelo Gerente" || v.Status === "Solicitado")) {
-          actions.push(
-            `<button type="button" class="btn btn-primary btn-sm" data-vale-action="pagar-diretoria" data-vale-id="${v.ValeID}">Aprovar e Pagar</button>`,
-          );
-        }
-        const statusLower = String(v.Status || "").toLowerCase();
-        const statusCls = statusLower.includes("pago")
-          ? "portal-pill--green"
-          : statusLower.includes("recus")
-            ? "portal-pill--red"
-            : statusLower.includes("validado")
-              ? "portal-pill--blue"
-              : "portal-pill--amber";
-        return `
-          <tr>
-            <td data-label="Data">${v.DataDesejada || "-"}</td>
-            <td data-label="Colaborador"><strong>${v.FuncionarioNome || "-"}</strong></td>
-            <td data-label="Unidade">${v.NomeLoja || v.LojaID || "-"}</td>
-            <td data-label="Valor" class="portal-num-col" style="font-weight:700; color:var(--ink);">${formatBRL(v.Valor)}</td>
-            <td data-label="Motivo">${v.Motivo || "-"}</td>
-            <td data-label="Status"><span class="portal-pill ${statusCls}">${v.Status}</span></td>
-            <td data-label="Comprovante">${v.ComprovanteURL ? `<a href="${v.ComprovanteURL}" target="_blank" rel="noopener">Abrir Recibo</a>` : "-"}</td>
-            <td data-label="Ações"><div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">${actions.join("") || "-"}</div></td>
-          </tr>
-        `;
-      })
-      .join("");
-
-    tbody.querySelectorAll("[data-vale-action]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const action = btn.getAttribute("data-vale-action");
-        const valeId = btn.getAttribute("data-vale-id");
-        try {
-          if (action === "validar-gerente" || action === "recusar-gerente") {
-            await invokePortal("validarValeGerente", {
-              ValeID: valeId,
-              aprovar: action === "validar-gerente",
-            });
-            showPortalToast("Validação do gerente registrada!", "success");
-          } else if (action === "pagar-diretoria") {
-            const comprovanteUrl = window.prompt(
-              "Informe a URL ou código do comprovante PIX/transferência para liberar o pagamento e gerar o recibo digital:",
-              `comprovante-pix-${valeId.slice(0, 8)}.pdf`,
-            );
-            if (!comprovanteUrl) return;
-            await invokePortal("aprovarPagarValeDiretoria", {
-              ValeID: valeId,
-              aprovar: true,
-              comprovanteUrl,
-            });
-            showPortalToast("Vale pago e recibo enviado para assinatura digital!", "success");
-          }
-          await loadValesList();
-        } catch (err) {
-          showPortalToast(err.message || "Falha ao processar solicitação de vale.", "error");
-        }
-      });
-    });
+    if (pendingCardsEl) {
+      const visibleCards = vales.slice(0, 20);
+      if (!visibleCards.length) {
+        pendingCardsEl.innerHTML = `<div class="panel pending-empty-state"><span>R$</span><strong>Nenhum pedido de vale registrado</strong><p>Use o botão Pedir vale no topo para enviar uma solicitação.</p></div>`;
+      } else {
+        pendingCardsEl.innerHTML = visibleCards
+          .map((v) => {
+            const actions = buildValeActionButtons(v, isManagerUser, isAdminUser);
+            const { pillCls } = getValeStatusMeta(v.Status);
+            return `
+              <article class="request-card pending-unified-card">
+                <div class="request-card-head">
+                  <div class="person-cell"><strong>${v.FuncionarioNome || "Colaborador"}</strong></div>
+                  <span class="portal-pill ${pillCls}">${v.Status}</span>
+                </div>
+                <div class="pending-card-meta">
+                  <span><strong>${formatBRL(v.Valor)}</strong></span>
+                  <span>Para: <strong>${v.DataDesejada || "-"}</strong></span>
+                  <span>${v.NomeLoja || v.LojaID || "-"}</span>
+                </div>
+                <p>${v.Motivo || "Sem motivo informado"}</p>
+                ${v.ComprovanteURL ? `<div style="margin-bottom:8px;"><a href="${v.ComprovanteURL}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Ver Comprovante ↗</a></div>` : ""}
+                ${actions.length ? `<div class="request-card-actions">${actions.join("")}</div>` : ""}
+              </article>
+            `;
+          })
+          .join("");
+        bindValeActionButtons(pendingCardsEl);
+      }
+    }
   } catch {
     // Silencioso
   }
@@ -2722,10 +2876,15 @@ export function initPortalGestao() {
       if (view === "employees") loadEmployeesOverviewSummary();
       if (view === "fichas") loadFichasView();
       if (view === "monthly-closing") loadPayrollClosingTable();
-      if (view === "timeoff") loadValesList();
+      if (view === "timeoff" || view === "pending-center") loadValesList();
       if (view === "communication") loadPopsList();
       if (view === "audit") loadAuditHistoryTable();
     });
+  });
+
+  document.addEventListener("click", (e) => {
+    const targetView = e.target?.closest?.("[data-view-target]")?.getAttribute?.("data-view-target");
+    if (targetView === "timeoff" || targetView === "pending-center") loadValesList();
   });
 
   setTimeout(() => {
@@ -2736,6 +2895,7 @@ export function initPortalGestao() {
 if (typeof window !== "undefined") {
   window.initPortalGestao = initPortalGestao;
   window.refreshPortalViews = refreshPortalViews;
+  window.loadValesList = loadValesList;
   window.renderEmployeeOnboardingState = renderEmployeeOnboardingState;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => initPortalGestao());

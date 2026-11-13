@@ -696,11 +696,12 @@
                   ＋ Pedir folga
                 </button>
                 <button
-                  id="pendingRefreshBtn"
+                  id="pendingNewValeBtn"
                   class="btn btn-secondary"
                   type="button"
+                  data-j-request-vale
                 >
-                  ↻ Atualizar
+                  Pedir vale
                 </button>
               </div>
             </div>
@@ -735,6 +736,12 @@
                 <span class="pending-summary-icon">⇄</span>
                 <div>
                   <strong id="pendingSwapMetric">0</strong><small>Trocas</small>
+                </div>
+              </article>
+              <article class="pending-summary-card is-vale">
+                <span class="pending-summary-icon">R$</span>
+                <div>
+                  <strong id="pendingValeMetric">0</strong><small>Vales</small>
                 </div>
               </article>
             </div>
@@ -772,6 +779,13 @@
               >
                 Trocas <em id="pendingSwapFilterCount">0</em>
               </button>
+              <button
+                class="pending-filter-btn"
+                data-pending-filter="vale"
+                type="button"
+              >
+                Vales <em id="pendingValeFilterCount">0</em>
+              </button>
             </div>
 
             <div class="pending-center-content">
@@ -787,13 +801,6 @@
                       </p>
                     </div>
                   </div>
-                  <button
-                    id="pendingTimeOffAction"
-                    class="btn btn-primary"
-                    type="button"
-                  >
-                    ＋ Pedir folga
-                  </button>
                 </div>
                 <div id="requestCards" class="request-grid"></div>
                 <div class="pending-related-tools permission-manager">
@@ -952,6 +959,22 @@
                   <span><b>3</b> Decisão do gestor</span>
                 </div>
                 <div id="swapCards" class="request-grid swap-grid"></div>
+              </section>
+
+              <section class="pending-category" data-pending-category="vale">
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon is-vale">R$</span>
+                    <div>
+                      <span class="eyebrow">VALES</span>
+                      <h3 id="pendingValeTitle">Pedidos de vale</h3>
+                      <p id="pendingValeDescription">
+                        Acompanhe os pedidos de adiantamento salarial.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div id="valePendingCards" class="request-grid"></div>
               </section>
 
               <section
