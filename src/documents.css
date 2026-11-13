@@ -101,15 +101,15 @@
 
 .doc-tab-btn.active {
   background: var(--surface, #ffffff);
-  color: var(--primary, #6340d8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: var(--primary, #4077ba);
+  box-shadow: var(--shadow-1, 0 1px 2px rgba(16, 24, 40, 0.06));
 }
 
 .doc-tab-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--primary, #6340d8);
+  background: var(--primary, #4077ba);
   color: #fff;
   border-radius: 999px;
   font-size: 11px;
@@ -123,11 +123,15 @@
 
 /* Hero Cards de Documentos */
 .doc-hero-card {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  background-color: #3c70af;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 28px),
+    linear-gradient(150deg, #3c70af 0%, #6f4a86 52%, #9e3f66 100%);
   color: #fff;
-  border-radius: 20px;
+  border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 10px 25px -5px rgba(49, 46, 129, 0.25);
+  box-shadow: var(--shadow-2, 0 10px 24px -8px rgba(16, 24, 40, 0.14));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -145,18 +149,18 @@
 .doc-hero-copy p {
   margin: 0;
   font-size: 0.88rem;
-  color: #c7d2fe;
+  color: rgba(255, 255, 255, 0.88);
   line-height: 1.4;
 }
 
 .doc-hero-action .btn {
   background: #ffffff;
-  color: #312e81;
+  color: var(--brand-ink, #3c70af);
   font-weight: 600;
   border: none;
   padding: 10px 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  box-shadow: var(--shadow-1, 0 4px 12px rgba(16, 24, 40, 0.14));
   cursor: pointer;
 }
 
@@ -169,10 +173,10 @@
 
 .doc-metric-card {
   background: var(--surface, #fff);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 18px;
+  border: 1px solid var(--line, #e5e9f0);
+  border-radius: 16px;
   padding: 1.15rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-1, 0 1px 2px rgba(16, 24, 40, 0.04));
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -187,7 +191,7 @@
   left: 0;
   width: 4px;
   height: 100%;
-  background: var(--metric-color, var(--primary, #6340d8));
+  background: var(--metric-color, var(--primary, #4077ba));
 }
 
 .doc-metric-card span {
@@ -247,8 +251,9 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #ede9fe;
-  color: #6340d8;
+  background: var(--primary-soft, #ebf2f9);
+  color: var(--primary, #4077ba);
+  border: 1px solid var(--brand-border, #c1d4eb);
   font-size: 11.5px;
   font-weight: 700;
   padding: 3px 10px;
@@ -473,7 +478,7 @@ dialog#documentUploadDialog input[type="month"] {
 .doc-modal-eyebrow {
   font-size: 11px;
   font-weight: 700;
-  color: var(--primary, #6340d8);
+  color: var(--primary, #4077ba);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   display: block;
@@ -512,9 +517,9 @@ dialog#documentUploadDialog input[type="month"] {
   font-weight: 600 !important;
   padding: 6px 12px !important;
   border-radius: 10px !important;
-  background: #f1f5f9 !important;
-  color: #1e293b !important;
-  border: 1px solid #cbd5e1 !important;
+  background: var(--surface-2, #f1f3f7) !important;
+  color: var(--ink, #101828) !important;
+  border: 1px solid var(--line-2, #d8dde6) !important;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -707,7 +712,7 @@ dialog#documentUploadDialog input[type="month"] {
   margin-top: 3px;
   width: 16px;
   height: 16px;
-  accent-color: var(--primary, #6340d8);
+  accent-color: var(--primary, #4077ba);
 }
 
 /* Visualizador de Auditoria Pericial */
@@ -715,10 +720,10 @@ dialog#documentUploadDialog input[type="month"] {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 0.85rem;
-  background: #f8fafc;
+  background: var(--surface-2, #f1f3f7);
   padding: 1.15rem;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  border: 1px solid var(--line, #e5e9f0);
   font-size: 12.5px;
 }
 
@@ -741,7 +746,7 @@ dialog#documentUploadDialog input[type="month"] {
     width: 100% !important;
     max-width: 100% !important;
     margin: auto 0 0 0 !important;
-    border-radius: 28px 28px 0 0 !important;
+    border-radius: 22px 22px 0 0 !important;
     max-height: 92vh !important;
     border-left: none !important;
     border-right: none !important;
@@ -989,7 +994,7 @@ dialog#medicalCertificateDialog {
 }
 
 .med-date-block:focus-within {
-  border-color: #6340d8;
+  border-color: #4077ba;
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.12);
 }
@@ -1056,7 +1061,7 @@ dialog#medicalCertificateDialog {
 }
 
 .med-date-field:focus {
-  border-color: #6340d8 !important;
+  border-color: #4077ba !important;
   box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.15) !important;
 }
 
@@ -1085,7 +1090,7 @@ dialog#medicalCertificateDialog {
 }
 
 .med-attachment-card:hover {
-  border-color: #6340d8;
+  border-color: #4077ba;
   background: #faf8ff;
 }
 
@@ -1122,11 +1127,11 @@ dialog#medicalCertificateDialog {
 .med-upload-btn.primary {
   background: #f5f3ff;
   border-color: #ddd6fe;
-  color: #6340d8;
+  color: #4077ba;
 }
 
 .med-upload-btn.primary:hover {
-  background: #ede9fe;
+  background: #ebf2f9;
 }
 
 /* Anexo Confirmado / Prévia */
@@ -1181,7 +1186,7 @@ dialog#medicalCertificateDialog {
   border: none;
   font-size: 12px;
   font-weight: 600;
-  color: #6340d8;
+  color: #4077ba;
   padding: 2px 0;
   cursor: pointer;
   display: flex;
@@ -1441,8 +1446,8 @@ dialog#medicalCertificateDialog {
 }
 
 .med-clean-icon.purple {
-  background: #ede9fe;
-  color: #6340d8;
+  background: #ebf2f9;
+  color: #4077ba;
 }
 
 .med-clean-icon.blue {
@@ -1604,7 +1609,7 @@ dialog#medicalCertificateDialog {
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  background: #6340d8 !important;
+  background: #4077ba !important;
   color: #ffffff !important;
   box-shadow: 0 4px 14px rgba(99, 64, 216, 0.3) !important;
   transition: all 0.15s ease !important;
@@ -1680,7 +1685,7 @@ dialog#medicalCertificateDialog {
 .doc-search-input:focus {
   outline: none;
   background: #ffffff;
-  border-color: #6340d8;
+  border-color: #4077ba;
   box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.12);
 }
 
@@ -1713,7 +1718,7 @@ dialog#medicalCertificateDialog {
 .doc-store-dropdown-icon {
   position: absolute;
   left: 12px;
-  color: #6340d8;
+  color: #4077ba;
   pointer-events: none;
 }
 
@@ -1740,7 +1745,7 @@ dialog#medicalCertificateDialog {
 .doc-store-dropdown:focus {
   outline: none;
   background-color: #ffffff !important;
-  border-color: #6340d8 !important;
+  border-color: #4077ba !important;
   box-shadow: 0 0 0 3px rgba(99, 64, 216, 0.12) !important;
 }
 
@@ -1849,8 +1854,8 @@ dialog#medicalCertificateDialog {
 }
 
 .doc-store-pill.active {
-  background: #6340d8;
-  border-color: #6340d8;
+  background: #4077ba;
+  border-color: #4077ba;
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(99, 64, 216, 0.25);
 }
@@ -1916,8 +1921,8 @@ dialog#medicalCertificateDialog {
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: #ede9fe;
-  color: #6340d8;
+  background: #ebf2f9;
+  color: #4077ba;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1984,8 +1989,8 @@ dialog#medicalCertificateDialog {
 }
 
 .doc-avatar.payroll {
-  background: #ede9fe;
-  color: #6340d8;
+  background: #ebf2f9;
+  color: #4077ba;
   border: 1px solid #ddd6fe;
 }
 
@@ -2033,8 +2038,8 @@ dialog#medicalCertificateDialog {
 }
 
 .doc-clean-tag.payroll {
-  background: #ede9fe;
-  color: #6340d8;
+  background: #ebf2f9;
+  color: #4077ba;
 }
 
 .doc-clean-tag.contract {
@@ -2929,7 +2934,7 @@ dialog#medicalCertificateDialog {
 
 .wb-icon-purple {
   background: #faf5ff;
-  color: #7c3aed;
+  color: #4077ba;
 }
 
 .wb-icon-emerald {
@@ -2947,7 +2952,7 @@ dialog#medicalCertificateDialog {
 }
 
 .wb-val-amber { color: #d97706; }
-.wb-val-purple { color: #7c3aed; }
+.wb-val-purple { color: #4077ba; }
 .wb-val-emerald { color: #059669; }
 
 .wb-kpi-sub {
@@ -3422,7 +3427,7 @@ dialog#medicalCertificateDialog {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6340d8;
+  color: #4077ba;
 }
 
 .doc-landscape-title {

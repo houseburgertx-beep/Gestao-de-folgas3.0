@@ -23,11 +23,11 @@
 }
 
 .copilot-topbar-btn:hover {
-  background: var(--surface-2, #f8fafc);
-  border-color: var(--primary, #3b82f6);
-  color: var(--primary, #3b82f6);
+  background: var(--surface-2, #f1f3f7);
+  border-color: var(--primary, #4077ba);
+  color: var(--primary, #4077ba);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 4px 12px rgba(64, 119, 186, 0.14);
 }
 
 .copilot-topbar-btn svg {
@@ -50,10 +50,10 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #5385c4 0%, #4077ba 100%);
   color: #ffffff;
   border: none;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35), 0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(64, 119, 186, 0.35), 0 2px 6px rgba(16, 24, 40, 0.14);
   display: none;
   align-items: center;
   justify-content: center;
@@ -157,9 +157,9 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  border: 1px solid #bfdbfe;
-  color: #2563eb;
+  background: var(--brand-soft, #ebf2f9);
+  border: 1px solid var(--brand-border, #c1d4eb);
+  color: var(--brand-solid, #4077ba);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,19 +260,19 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--surface-2, #f1f3f7);
+  color: var(--muted, #667085);
 }
 
 .copilot-engine-status--gemini {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--brand-soft, #ebf2f9);
+  color: var(--brand-ink, #3c70af);
 }
 
 .copilot-settings-desc {
   margin: 0;
   font-size: 12px;
-  color: var(--muted, #64748b);
+  color: var(--muted, #667085);
   line-height: 1.4;
 }
 
@@ -285,23 +285,24 @@
 .copilot-settings-label {
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--text, #0f172a);
+  color: var(--text, #101828);
 }
 
 .copilot-settings-select {
   width: 100%;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #cbd5e1);
-  border-radius: 8px;
+  background: var(--surface-2, #f1f3f7);
+  border: 1px solid var(--line-2, #d8dde6);
+  border-radius: 10px;
   padding: 6px 10px;
   font-size: 12.5px;
-  color: var(--text, #0f172a);
+  color: var(--text, #101828);
   outline: none;
   cursor: pointer;
 }
 
 .copilot-settings-select:focus {
-  border-color: #2563eb;
+  border-color: var(--brand-solid, #4077ba);
+  box-shadow: 0 0 0 3px var(--brand-soft, #ebf2f9);
 }
 
 .copilot-settings-input-group {
@@ -311,25 +312,26 @@
 
 .copilot-settings-input {
   flex: 1;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #cbd5e1);
-  border-radius: 8px;
+  background: var(--surface-2, #f1f3f7);
+  border: 1px solid var(--line-2, #d8dde6);
+  border-radius: 10px;
   padding: 6px 10px;
   font-size: 12.5px;
-  color: var(--text, #0f172a);
+  color: var(--text, #101828);
   outline: none;
 }
 
 .copilot-settings-input:focus {
-  border-color: #2563eb;
+  border-color: var(--brand-solid, #4077ba);
+  box-shadow: 0 0 0 3px var(--brand-soft, #ebf2f9);
 }
 
 .copilot-settings-save-btn {
   padding: 6px 12px;
-  background: #2563eb;
+  background: var(--brand-solid, #4077ba);
   color: #ffffff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -337,33 +339,33 @@
 }
 
 .copilot-settings-save-btn:hover {
-  background: #1d4ed8;
+  background: var(--brand-hover, #34639d);
 }
 
 .copilot-settings-clear-btn {
   padding: 6px 10px;
-  background: var(--surface-2, #f1f5f9);
-  color: var(--muted, #64748b);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 8px;
+  background: var(--surface-2, #f1f3f7);
+  color: var(--muted, #667085);
+  border: 1px solid var(--line, #e5e9f0);
+  border-radius: 10px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
 
 .copilot-settings-clear-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fecaca;
+  background: var(--bad-soft, #fcebef);
+  color: var(--bad-ink, #b92a3d);
+  border-color: rgba(217, 75, 91, 0.3);
 }
 
 .copilot-settings-help {
   font-size: 11px;
-  color: var(--muted, #64748b);
+  color: var(--muted, #667085);
 }
 
 .copilot-settings-help a {
-  color: #2563eb;
+  color: var(--brand-solid, #4077ba);
   text-decoration: underline;
 }
 
@@ -378,7 +380,7 @@
   flex-direction: column;
   gap: 16px;
   scroll-behavior: smooth;
-  background: var(--bg, #f8fafc);
+  background: var(--bg, #eef1f6);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -413,16 +415,16 @@
 }
 
 .copilot-message--user .copilot-bubble {
-  background: #2563eb;
+  background: var(--brand-solid, #4077ba);
   color: #ffffff;
   border-bottom-right-radius: 4px;
 }
 
 .copilot-message--assistant .copilot-bubble {
   background: var(--surface, #ffffff);
-  color: var(--text, #0f172a);
-  border: 1px solid var(--line, #e2e8f0);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  color: var(--text, #101828);
+  border: 1px solid var(--line, #e5e9f0);
+  box-shadow: var(--shadow-1, 0 1px 2px rgba(16, 24, 40, 0.05));
   border-bottom-left-radius: 4px;
 }
 
@@ -447,10 +449,10 @@
 .copilot-card {
   margin-top: 10px;
   background: var(--surface, #ffffff);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--brand-border, #c1d4eb);
   border-radius: 14px;
   padding: 14px 16px;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 4px 16px rgba(64, 119, 186, 0.08);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -520,7 +522,7 @@
 }
 
 .copilot-diff-value--new {
-  color: #1d4ed8;
+  color: var(--brand-ink, #3c70af);
   font-weight: 600;
 }
 
@@ -539,7 +541,7 @@
   gap: 6px;
   padding: 9px 14px;
   border-radius: 10px;
-  background: #2563eb;
+  background: var(--brand-solid, #4077ba);
   color: #ffffff;
   border: none;
   font-size: 12.5px;
@@ -549,7 +551,7 @@
 }
 
 .copilot-btn-confirm:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--brand-hover, #34639d);
 }
 
 .copilot-btn-confirm:active:not(:disabled) {
@@ -567,9 +569,9 @@
   justify-content: center;
   padding: 9px 14px;
   border-radius: 10px;
-  background: var(--surface-2, #f1f5f9);
-  color: var(--text, #334155);
-  border: 1px solid var(--line, #e2e8f0);
+  background: var(--surface-2, #f1f3f7);
+  color: var(--text, #101828);
+  border: 1px solid var(--line, #e5e9f0);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -577,7 +579,7 @@
 }
 
 .copilot-btn-cancel:hover:not(:disabled) {
-  background: #e2e8f0;
+  background: var(--surface-3, #e9ecf2);
 }
 
 /* Status Cards (Success / Warning / Error) */
@@ -600,21 +602,21 @@
 }
 
 .copilot-status-card--success {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #166534;
+  background: var(--good-soft, #eaf7f0);
+  border: 1px solid rgba(35, 162, 102, 0.25);
+  color: var(--good-ink, #1d8a55);
 }
 
 .copilot-status-card--warning {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #92400e;
+  background: var(--warn-soft, #fdf3e4);
+  border: 1px solid rgba(234, 154, 61, 0.28);
+  color: var(--warn-ink, #a96314);
 }
 
 .copilot-status-card--error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--bad-soft, #fcebef);
+  border: 1px solid rgba(217, 75, 91, 0.28);
+  color: var(--bad-ink, #b92a3d);
 }
 
 /* Footer & Suggestions */
@@ -672,9 +674,9 @@
 }
 
 .copilot-chip:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1d4ed8;
+  background: var(--brand-soft, #ebf2f9);
+  border-color: var(--brand-border, #c1d4eb);
+  color: var(--brand-ink, #3c70af);
 }
 
 /* Input Form */
@@ -690,8 +692,8 @@
 }
 
 .copilot-input-form:focus-within {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--brand-solid, #4077ba);
+  box-shadow: 0 0 0 3px var(--brand-soft, #ebf2f9);
   background: var(--surface, #ffffff);
 }
 
@@ -718,7 +720,7 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: #2563eb;
+  background: var(--brand-solid, #4077ba);
   border: none;
   color: #ffffff;
   display: flex;
@@ -730,7 +732,7 @@
 }
 
 .copilot-send-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--brand-hover, #34639d);
 }
 
 .copilot-send-btn:active:not(:disabled) {
@@ -1057,7 +1059,7 @@
     display: none;
   }
 
-  /* Botão Flutuante (FAB) Mobile */
+  /* Botao Flutuante (FAB) Mobile */
   .copilot-fab {
     right: 14px;
     bottom: calc(max(14px, env(safe-area-inset-bottom, 14px)) + 76px);
@@ -1080,17 +1082,17 @@
 }
 
 /* ==========================================================================
-   HOUSE AI 2.0 — DASHBOARD GERENCIAL & CARDS DE INSIGHTS PROATIVOS
-   Apple iOS Design System House 190 — Sem Emojis, Toque Min 44px
+   HOUSE AI 2.0 - DASHBOARD GERENCIAL & CARDS DE INSIGHTS PROATIVOS
+   Pliifex Design System - Sem Emojis, Toque Min 44px
    ========================================================================== */
 
 .house-ai-dashboard-section {
   background: var(--surface, #ffffff);
-  border: 1px solid var(--line, #e2e8f0);
-  border-radius: 18px;
+  border: 1px solid var(--line, #e5e9f0);
+  border-radius: 16px;
   padding: 18px 20px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-1, 0 1px 2px rgba(16, 24, 40, 0.05));
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1112,8 +1114,9 @@
 
 .house-ai-pill {
   display: inline-block;
-  background: rgba(99, 102, 241, 0.12);
-  color: #4f46e5;
+  background: var(--brand-soft, #ebf2f9);
+  color: var(--brand-ink, #3c70af);
+  border: 1px solid var(--brand-border, #c1d4eb);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1126,7 +1129,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: var(--text, #0f172a);
+  color: var(--text, #101828);
 }
 
 .house-ai-dash-actions {
@@ -1140,7 +1143,7 @@
   padding: 0 14px;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1155,16 +1158,16 @@
 
 .house-ai-empty {
   padding: 16px;
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
+  background: var(--surface-2, #f1f3f7);
+  border: 1px solid var(--line, #e5e9f0);
   border-radius: 14px;
   text-align: center;
 }
 
 .house-ai-empty-badge {
   display: inline-block;
-  background: rgba(32, 160, 107, 0.12);
-  color: #15803d;
+  background: var(--good-soft, #eaf7f0);
+  color: var(--good-ink, #1d8a55);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 8px;
@@ -1175,13 +1178,13 @@
 .house-ai-empty p {
   margin: 0;
   font-size: 13px;
-  color: var(--muted, #64748b);
+  color: var(--muted, #667085);
 }
 
 .house-ai-card {
-  background: var(--surface-2, #f8fafc);
-  border: 1px solid var(--line, #e2e8f0);
-  border-left: 4px solid var(--primary, #3b82f6);
+  background: var(--surface-2, #f1f3f7);
+  border: 1px solid var(--line, #e5e9f0);
+  border-left: 4px solid var(--primary, #4077ba);
   border-radius: 14px;
   padding: 14px 16px;
   display: flex;
@@ -1192,22 +1195,22 @@
 
 .house-ai-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.06);
 }
 
 .house-ai-card--critica {
-  border-left-color: #ef4444;
-  background: #fef2f2;
+  border-left-color: var(--bad, #d94b5b);
+  background: var(--bad-soft, #fcebef);
 }
 
 .house-ai-card--alta {
-  border-left-color: #f59e0b;
-  background: #fffbeb;
+  border-left-color: var(--warn, #ea9a3d);
+  background: var(--warn-soft, #fdf3e4);
 }
 
 .house-ai-card--media {
-  border-left-color: #6366f1;
-  background: #f5f3ff;
+  border-left-color: var(--brand-solid, #4077ba);
+  background: var(--brand-soft, #ebf2f9);
 }
 
 .house-ai-card-head {
@@ -1226,44 +1229,44 @@
 }
 
 .house-ai-tag.house-ai-card--critica {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--bad-soft, #fcebef);
+  color: var(--bad-ink, #b92a3d);
 }
 
 .house-ai-tag.house-ai-card--alta {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--warn-soft, #fdf3e4);
+  color: var(--warn-ink, #a96314);
 }
 
 .house-ai-tag.house-ai-card--media {
-  background: #ede9fe;
-  color: #6d28d9;
+  background: var(--brand-soft, #ebf2f9);
+  color: var(--brand-ink, #3c70af);
 }
 
 .house-ai-source {
   font-size: 11px;
   font-weight: 600;
-  color: var(--muted, #64748b);
+  color: var(--muted, #667085);
   text-transform: uppercase;
 }
 
 .house-ai-card-title {
   font-size: 14px;
   font-weight: 700;
-  color: var(--text, #0f172a);
+  color: var(--text, #101828);
   line-height: 1.3;
 }
 
 .house-ai-card-desc {
   font-size: 12.5px;
-  color: var(--muted, #475569);
+  color: var(--muted, #475467);
   line-height: 1.4;
   margin: 0;
 }
 
 .house-ai-card-reason {
   font-size: 11.5px;
-  color: var(--muted, #64748b);
+  color: var(--muted, #667085);
   font-style: italic;
   font-variant-numeric: tabular-nums;
 }
@@ -1286,14 +1289,13 @@
 
 .house-ai-loading {
   font-size: 12.5px;
-  color: var(--muted, #64748b);
+  color: var(--muted, #667085);
   padding: 12px;
   text-align: center;
 }
 
-
-/* Dashboard pessoal: leitura curta e ações confortáveis no celular. */
-.house-ai-dashboard-section { border-radius:22px; padding:20px; gap:16px; }
+/* Dashboard pessoal: leitura curta e acoes confortaveis no celular. */
+.house-ai-dashboard-section { border-radius:16px; padding:20px; gap:16px; }
 .house-ai-dash-title-group { min-width:0; flex-direction:column; align-items:flex-start; gap:8px; }
 .house-ai-dash-title-group h3 { font-size:18px; line-height:1.3; letter-spacing:-.025em; }
 .house-ai-dash-actions { flex-shrink:0; }
@@ -1301,18 +1303,211 @@
 .house-ai-personal { display:flex; flex-direction:column; gap:12px; min-width:0; }
 .house-ai-personal > strong { font-size:17px; line-height:1.45; color:var(--text); }
 .house-ai-personal p { margin:0; font-size:14px; line-height:1.6; color:var(--muted); }
-.house-ai-personal-summary { align-self:flex-start; padding:7px 10px; border-radius:10px; background:var(--primary-soft,#eeebff); color:var(--primary,#4f46e5); font-size:12px; font-weight:650; }
+.house-ai-personal-summary { align-self:flex-start; padding:7px 10px; border-radius:10px; background:var(--brand-soft,#ebf2f9); color:var(--brand-ink,#3c70af); font-size:12px; font-weight:650; }
 .house-ai-quick-actions { display:flex; flex-wrap:wrap; gap:8px; }
-.house-ai-quick-actions button { border:1px solid var(--line); background:var(--surface-2); color:var(--text); border-radius:12px; padding:10px 12px; min-height:44px; font:inherit; font-size:12px; cursor:pointer; }
+.house-ai-quick-actions button { border:1px solid var(--line); background:var(--surface-2); color:var(--text); border-radius:10px; padding:10px 12px; min-height:44px; font:inherit; font-size:12px; cursor:pointer; }
 .house-ai-personal > small { color:var(--muted); font-size:11px; line-height:1.5; }
-#docHomeAlertBanner { border-color:var(--line); border-radius:20px; padding:18px; }
+#docHomeAlertBanner { border-color:var(--line); border-radius:16px; padding:18px; }
 #docHomeAlertBanner .incomplete-alert-text p { line-height:1.5; }
 @media(max-width:600px) {
   .house-ai-dash-header { align-items:flex-start; gap:14px; }
   .house-ai-dash-title-group { width:100%; }
   .house-ai-dash-actions { display:grid; grid-template-columns:auto minmax(0,1fr); width:100%; }
-  .house-ai-dash-actions #houseAiOpenChatBtn { background:var(--primary,#6759eb); color:#fff; border:0; }
+  .house-ai-dash-actions #houseAiOpenChatBtn { background:var(--brand-solid,#4077ba); color:#fff; border:0; }
   .house-ai-dashboard-section { padding:18px; margin-bottom:16px; }
   .house-ai-quick-actions button { flex:1 1 auto; }
   #journeyHome { margin-bottom:16px; }
+}
+
+/* ============================================================
+   PLIIFEX DESIGN SYSTEM - CAMADA FINAL DE ACABAMENTO (MASTER)
+   Fidelidade 100% em tipografia, tokens, numerais, scrollbars,
+   elevacao, focus-ring e dark mode sem alterar HTML/JS.
+   ============================================================ */
+
+:root {
+  --brand: #5385c4;
+  --brand-solid: #4077ba;
+  --brand-hover: #34639d;
+  --brand-ink: #3c70af;
+  --brand-soft: #ebf2f9;
+  --brand-border: #c1d4eb;
+  --ai: #e97d9c;
+  --good: #23a266;
+  --good-soft: #eaf7f0;
+  --good-ink: #1d8a55;
+  --warn: #ea9a3d;
+  --warn-soft: #fdf3e4;
+  --warn-ink: #a96314;
+  --bad: #d94b5b;
+  --bad-soft: #fcebef;
+  --bad-ink: #b92a3d;
+  --surface-2: #f1f3f7;
+  --surface-3: #e9ecf2;
+  --line-2: #d8dde6;
+  --ink: #101828;
+  --font-sans: "Inter Digits", "General Sans", "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "General Sans", "Inter", system-ui, sans-serif;
+  --font-num: "Inter Digits", "Inter", system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  --brand: #5385c4;
+  --brand-solid: #5385c4;
+  --brand-hover: #6794cb;
+  --brand-ink: #8bb2e0;
+  --brand-soft: rgba(83, 133, 196, 0.16);
+  --brand-border: rgba(83, 133, 196, 0.34);
+  --good-soft: rgba(35, 162, 102, 0.16);
+  --good-ink: #6ee7b7;
+  --warn-soft: rgba(234, 154, 61, 0.16);
+  --warn-ink: #fcd34d;
+  --bad-soft: rgba(217, 75, 91, 0.18);
+  --bad-ink: #fda4af;
+  --bg: #131419;
+  --surface: #1d1e25;
+  --surface-2: #25262e;
+  --surface-3: #2d2e37;
+  --line: #2a2b33;
+  --line-2: #353740;
+  --ink: #eef1f6;
+  --text: #eef1f6;
+  --muted: #8b8c96;
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+.view-title,
+.topbar-title,
+.panel-head h3,
+.modal-head h3,
+.section-head h2,
+.login-brand-panel h2,
+.doc-hero-copy h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.tnum,
+.w-stat strong,
+.stat-value,
+.kpi-value,
+.kpi-number,
+.clock-digital-time,
+.clock-pill-time,
+.hour-balance-val,
+.time-bank-value,
+.bank-balance,
+.doc-metric-val,
+.doc-tab-badge,
+.table-wrap td.num,
+td.num,
+th.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+
+/* Scrollbar Pliifex discreta */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2, #d8dde6) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-2, #d8dde6);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted, #8b8c96);
+}
+
+/* Focus ring Pliifex */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--brand-soft, #ebf2f9);
+}
+
+/* Cards e containers gerais */
+.panel,
+.card,
+.doc-item-card,
+.doc-metric-card,
+.routine-card,
+.request-card {
+  background: var(--surface, #ffffff);
+  border-color: var(--line, #e5e9f0);
+}
+
+.doc-card,
+.doc-item-card,
+.doc-metric-card {
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.doc-item-card:hover,
+.routine-card:hover {
+  border-color: var(--line-2, #d8dde6);
+}
+
+/* Copilot tags e detalhes */
+.copilot-card-tag {
+  color: var(--brand-solid, #4077ba);
+}
+
+[data-theme="dark"] .copilot-drawer,
+[data-theme="dark"] .copilot-panel,
+[data-theme="dark"] .copilot-header,
+[data-theme="dark"] .copilot-footer,
+[data-theme="dark"] .copilot-message--assistant .copilot-bubble,
+[data-theme="dark"] .copilot-card {
+  background: var(--surface, #1d1e25);
+  border-color: var(--line, #2a2b33);
+  color: var(--ink, #eef1f6);
+}
+
+[data-theme="dark"] .copilot-body {
+  background: var(--bg, #131419);
+}
+
+[data-theme="dark"] .copilot-settings-drawer,
+[data-theme="dark"] .doc-audit-metadata-grid,
+[data-theme="dark"] .doc-btn-fullscreen {
+  background: var(--surface-2, #25262e);
+  border-color: var(--line, #2a2b33);
+  color: var(--ink, #eef1f6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-card,
+  .doc-item-card,
+  .doc-metric-card,
+  .copilot-fab,
+  .copilot-topbar-btn {
+    transition: none !important;
+  }
 }
