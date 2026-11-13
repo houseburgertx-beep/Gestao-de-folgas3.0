@@ -35,9 +35,93 @@ const invokePortal = async (method, payload = {}) => {
   if (!runtime?.invoke) {
     throw new Error("Runtime da aplicação ainda não inicializado.");
   }
-  const response = await runtime.invoke(method, [payload]);
-  return response;
+  return runtime.invoke(method, [payload]);
 };
+
+// ============================================================================
+// SISTEMA UNIFICADO DE ABAS HORIZONTAIS (PLIIFEX DESIGN)
+// ============================================================================
+
+function injectPortalTabsStyles() {
+  if (document.getElementById("portalCleanTabsStyles")) return;
+  const style = document.createElement("style");
+  style.id = "portalCleanTabsStyles";
+  style.textContent = `
+    .portal-tabs-bar {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 18px;
+      background: var(--surface-2, #f1f5f9);
+      border: 1px solid var(--line, #e2e8f0);
+      border-radius: 10px;
+      max-width: 100%;
+    }
+    .portal-tab-btn {
+      appearance: none;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted, #64748b);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.2;
+      padding: 8px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      white-space: nowrap;
+    }
+    .portal-tab-btn:hover {
+      color: var(--ink, #0f172a);
+    }
+    .portal-tab-btn.active {
+      background: var(--surface, #ffffff);
+      color: var(--brand-solid, #4077ba);
+      border-color: var(--line, #e2e8f0);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+    .portal-tab-pane.hidden {
+      display: none !important;
+    }
+    #employeeDialog form#employeeForm {
+      max-width: 820px;
+    }
+    .portal-modal-tabs {
+      width: 100%;
+      margin: 0 0 14px;
+      display: flex;
+      overflow-x: auto;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function bindTabsGroup(groupName) {
+  const bar = document.querySelector(`.portal-tabs-bar[data-tabs-group="${groupName}"]`);
+  if (!bar || bar.dataset.tabsBound === "true") return;
+  bar.dataset.tabsBound = "true";
+
+  const activate = (targetKey) => {
+    bar.querySelectorAll(".portal-tab-btn").forEach((btn) => {
+      const isMatch = btn.getAttribute("data-tab-target") === targetKey;
+      btn.classList.toggle("active", isMatch);
+      btn.setAttribute("aria-selected", isMatch ? "true" : "false");
+    });
+    document.querySelectorAll(`.portal-tab-pane[data-tabs-group="${groupName}"]`).forEach((pane) => {
+      const isMatch = pane.getAttribute("data-tab-pane") === targetKey;
+      pane.classList.toggle("hidden", !isMatch);
+    });
+  };
+
+  bar.addEventListener("click", (e) => {
+    const btn = e.target.closest(".portal-tab-btn");
+    if (!btn) return;
+    const target = btn.getAttribute("data-tab-target");
+    if (target) activate(target);
+  });
+}
 
 // ============================================================================
 // TELA 1: SELETOR DE UNIDADE NO TOPO + RECUPERACAO DE SENHA VIA WHATSAPP
@@ -123,68 +207,69 @@ function mountWhatsAppPasswordRecovery() {
 }
 
 // ============================================================================
-// TELA 2: ONBOARDING 6 ETAPAS, CEP AUTOMATICO, DOSSIE, PDF E AUDITORIA
+// TELA 2: ONBOARDING E CADASTRO ORGANIZADO EM 4 ABAS LIMPAS
 // ============================================================================
 
 function enhanceEmployeeDialog() {
   const form = document.getElementById("employeeForm");
-  if (!form || document.getElementById("portalOnboardingStepperWrap")) return;
+  if (!form || document.getElementById("portalOnboardingTabsWrap")) return;
 
-  const extraContainer = document.createElement("div");
-  extraContainer.id = "portalOnboardingStepperWrap";
-  extraContainer.style.cssText = "margin-top:16px; padding-top:16px; border-top:1px solid var(--line); display:grid; gap:16px;";
-  extraContainer.innerHTML = `
-    <div class="panel" style="padding:14px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-        <div>
-          <span class="eyebrow">FUNIL DE ADMISSÃO (6 ETAPAS)</span>
-          <h4 style="margin:2px 0 0; font-size:15px;">Linha do Tempo de Contratação</h4>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="button" id="btnGerarKitAdmissionalPdf" class="btn btn-secondary permission-manager" style="min-height:34px; font-size:12.5px;">
-            Gerar Contrato / Termo / EPI (PDF)
-          </button>
-          <button type="button" id="btnEmployeeAuditHistory" class="btn btn-secondary permission-admin" style="min-height:34px; font-size:12.5px;">
-            Histórico de Alterações
-          </button>
-        </div>
-      </div>
-      <div id="portalOnboardingStagesBar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:10px;"></div>
-      <div class="form-grid permission-manager" style="align-items:end;">
-        <label>Etapa Atual do Funil
-          <select id="employeeEtapaAdmissao" name="EtapaAdmissao">
-            <option value="1">1. Pré-cadastro / Link enviado</option>
-            <option value="2">2. Documentos enviados e em análise</option>
-            <option value="3">3. Exame Admissional (ASO) agendado/realizado</option>
-            <option value="4">4. Contrato Assinado</option>
-            <option value="5">5. Ativo - Período de Experiência</option>
-            <option value="6">6. Efetivado / Desligado</option>
+  const dialogBody = form.querySelector(".dialog-body") || form;
+  const baseGrid = dialogBody.querySelector(".dialog-grid");
+
+  const tabsWrap = document.createElement("div");
+  tabsWrap.id = "portalOnboardingTabsWrap";
+  tabsWrap.innerHTML = `
+    <div class="portal-tabs-bar portal-modal-tabs" role="tablist" data-tabs-group="employee-modal">
+      <button type="button" class="portal-tab-btn active" data-tab-target="emp-tab-basico" role="tab" aria-selected="true">1. Cadastro &amp; Contrato</button>
+      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-pessoal" role="tab" aria-selected="false">2. Pessoais &amp; Endereço</button>
+      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-funil" role="tab" aria-selected="false">3. Funil (6 Etapas)</button>
+      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-dossie" role="tab" aria-selected="false">4. Dossiê &amp; Termos</button>
+    </div>
+
+    <!-- ABA 1: Cadastro Básico (preserva campos originais) + Jornada / Bancário -->
+    <div class="portal-tab-pane" data-tab-pane="emp-tab-basico" data-tabs-group="employee-modal" id="empTabBasicoPane">
+      <div id="empBaseGridHost"></div>
+      <div class="form-grid" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line);">
+        <label>Setor Operacional
+          <select id="employeeSetor" name="Setor">
+            <option value="Cozinha">Cozinha</option>
+            <option value="Salão">Salão</option>
+            <option value="Caixa">Caixa</option>
+            <option value="Estoque">Estoque</option>
+            <option value="Administrativo">Administrativo</option>
           </select>
         </label>
-        <label>Decisão na Etapa 6
-          <select id="employeeSubstatusEtapa6" name="SubstatusEtapa6">
-            <option value="Efetivado">Efetivado</option>
-            <option value="Desligado">Desligado</option>
+        <label>Período de Experiência
+          <select id="employeePeriodoExperiencia" name="PeriodoExperienciaDias">
+            <option value="45">45 dias</option>
+            <option value="90" selected>90 dias (45 + 45)</option>
           </select>
         </label>
-        <label>Validar Cadastro (Trava Edição do Colaborador)
-          <select id="employeeCadastroValidado" name="CadastroValidado">
-            <option value="false">Em preenchimento (Aberto)</option>
-            <option value="true">Validado pela Gestão (Bloqueado para Colaborador)</option>
-          </select>
+        <label>Horário / Turno de Trabalho
+          <input id="employeeTurnoTrabalho" name="TurnoTrabalho" placeholder="Ex: 16:00 às 00:20 (Noturno)" />
         </label>
-        <button type="button" id="btnAvancarEtapaOnboarding" class="btn btn-primary" style="min-height:40px;">
-          Registrar Etapa com Data
-        </button>
-      </div>
-      <div id="employeeValidationLockBanner" class="hidden" style="margin-top:8px; padding:10px 12px; border-radius:8px; background:rgba(64,119,186,0.1); color:var(--brand-solid); font-size:12.5px; font-weight:600;">
-        Cadastro validado pela gestão. Os dados cadastrais estão bloqueados para edição individual.
+        <label class="permission-admin">Salário Base Mensal (R$)
+          <input id="employeeSalarioBase" name="SalarioBase" type="number" min="0" step="0.01" placeholder="1518.00" />
+        </label>
+        <label>Chave PIX
+          <input id="employeeChavePix" name="ChavePix" placeholder="CPF, Telefone, E-mail ou Aleatória" />
+        </label>
+        <label>Banco
+          <input id="employeeBancoNome" name="BancoNome" placeholder="Ex: Nubank, Itaú, Bradesco" />
+        </label>
+        <label>Agência
+          <input id="employeeBancoAgencia" name="BancoAgencia" placeholder="0001" />
+        </label>
+        <label>Conta e Dígito
+          <input id="employeeBancoConta" name="BancoConta" placeholder="12345-6" />
+        </label>
       </div>
     </div>
 
-    <details class="panel" style="padding:14px; border:1px solid var(--line); border-radius:10px;" open>
-      <summary style="font-weight:700; cursor:pointer; font-size:14px;">Dados Pessoais, Endereço (CEP Automático) e Emergência</summary>
-      <div class="form-grid" style="margin-top:12px;">
+    <!-- ABA 2: Dados Pessoais, CEP Automático & Emergência -->
+    <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-pessoal" data-tabs-group="employee-modal">
+      <div class="form-grid">
         <label>Nome Social
           <input id="employeeNomeSocial" name="NomeSocial" placeholder="Opcional" />
         </label>
@@ -241,53 +326,67 @@ function enhanceEmployeeDialog() {
           <input id="employeeEmergenciaTelefone" name="ContatoEmergenciaTelefone" placeholder="(73) 99999-9999" />
         </label>
       </div>
-    </details>
+    </div>
 
-    <details class="panel" style="padding:14px; border:1px solid var(--line); border-radius:10px;" open>
-      <summary style="font-weight:700; cursor:pointer; font-size:14px;">Dados Contratuais, Jornada, Salário Base, PIX e Dados Bancários</summary>
-      <div class="form-grid" style="margin-top:12px;">
-        <label>Setor Operacional
-          <select id="employeeSetor" name="Setor">
-            <option value="Cozinha">Cozinha</option>
-            <option value="Salão">Salão</option>
-            <option value="Caixa">Caixa</option>
-            <option value="Estoque">Estoque</option>
-            <option value="Administrativo">Administrativo</option>
-          </select>
-        </label>
-        <label>Período de Experiência
-          <select id="employeePeriodoExperiencia" name="PeriodoExperienciaDias">
-            <option value="45">45 dias</option>
-            <option value="90" selected>90 dias (45 + 45)</option>
-          </select>
-        </label>
-        <label>Horário / Turno de Trabalho
-          <input id="employeeTurnoTrabalho" name="TurnoTrabalho" placeholder="Ex: 16:00 às 00:20 (Noturno)" />
-        </label>
-        <label class="permission-admin">Salário Base Mensal (R$)
-          <input id="employeeSalarioBase" name="SalarioBase" type="number" min="0" step="0.01" placeholder="1518.00" />
-        </label>
-        <label>Chave PIX
-          <input id="employeeChavePix" name="ChavePix" placeholder="CPF, Telefone, E-mail ou Aleatória" />
-        </label>
-        <label>Banco
-          <input id="employeeBancoNome" name="BancoNome" placeholder="Ex: Nubank, Itaú, Bradesco" />
-        </label>
-        <label>Agência
-          <input id="employeeBancoAgencia" name="BancoAgencia" placeholder="0001" />
-        </label>
-        <label>Conta e Dígito
-          <input id="employeeBancoConta" name="BancoConta" placeholder="12345-6" />
-        </label>
-        <label>Motivo de Desligamento (se aplicável)
-          <input id="employeeMotivoDesligamento" name="MotivoDesligamento" placeholder="Preenchido apenas em caso de desligamento" />
-        </label>
+    <!-- ABA 3: Funil de Admissão em 6 Etapas -->
+    <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-funil" data-tabs-group="employee-modal">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+        <div>
+          <span class="eyebrow">FUNIL DE ADMISSÃO</span>
+          <h4 style="margin:2px 0 0;">Linha do Tempo de Contratação (6 Etapas)</h4>
+        </div>
+        <button type="button" id="btnEmployeeAuditHistory" class="btn btn-secondary permission-admin" style="min-height:36px; font-size:12.5px;">
+          Histórico de Alterações
+        </button>
       </div>
-    </details>
+      <div id="portalOnboardingStagesBar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:14px;"></div>
+      <div class="form-grid permission-manager" style="align-items:end; padding:12px; background:var(--surface-2); border-radius:10px; border:1px solid var(--line);">
+        <label>Etapa Atual do Funil
+          <select id="employeeEtapaAdmissao" name="EtapaAdmissao">
+            <option value="1">1. Pré-cadastro / Link enviado</option>
+            <option value="2">2. Documentos enviados e em análise</option>
+            <option value="3">3. Exame Admissional (ASO) agendado/realizado</option>
+            <option value="4">4. Contrato Assinado</option>
+            <option value="5">5. Ativo - Período de Experiência</option>
+            <option value="6">6. Efetivado / Desligado</option>
+          </select>
+        </label>
+        <label>Decisão na Etapa 6
+          <select id="employeeSubstatusEtapa6" name="SubstatusEtapa6">
+            <option value="Efetivado">Efetivado</option>
+            <option value="Desligado">Desligado</option>
+          </select>
+        </label>
+        <label>Validação do Cadastro
+          <select id="employeeCadastroValidado" name="CadastroValidado">
+            <option value="false">Em preenchimento (Aberto)</option>
+            <option value="true">Validado (Bloqueado para Colaborador)</option>
+          </select>
+        </label>
+        <label>Motivo Desligamento (se Etapa 6 = Desligado)
+          <input id="employeeMotivoDesligamento" name="MotivoDesligamento" placeholder="Opcional / Obrigatório ao desligar" />
+        </label>
+        <button type="button" id="btnAvancarEtapaOnboarding" class="btn btn-primary" style="min-height:40px;">
+          Registrar Etapa com Data
+        </button>
+      </div>
+      <div id="employeeValidationLockBanner" class="hidden" style="margin-top:10px; padding:10px 12px; border-radius:8px; background:rgba(64,119,186,0.1); color:var(--brand-solid); font-size:12.5px; font-weight:600;">
+        Cadastro validado pela gestão. Os dados cadastrais estão bloqueados para edição individual.
+      </div>
+    </div>
 
-    <details class="panel" style="padding:14px; border:1px solid var(--line); border-radius:10px;">
-      <summary style="font-weight:700; cursor:pointer; font-size:14px;">Arquivo de Documentos Admissionais (Upload PDF / Foto)</summary>
-      <div class="form-grid" style="margin-top:12px; align-items:end;">
+    <!-- ABA 4: Dossiê de Documentos + Geração de Contrato/Termo/EPI PDF -->
+    <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-dossie" data-tabs-group="employee-modal">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+        <div>
+          <span class="eyebrow">DOCUMENTAÇÃO E ASSINATURA</span>
+          <h4 style="margin:2px 0 0;">Dossiê de Documentos e Contrato Digital</h4>
+        </div>
+        <button type="button" id="btnGerarKitAdmissionalPdf" class="btn btn-primary permission-manager" style="min-height:38px; font-size:12.5px;">
+          Gerar Contrato / Termo / EPI (PDF)
+        </button>
+      </div>
+      <div class="form-grid" style="align-items:end; padding:12px; background:var(--surface-2); border-radius:10px; border:1px solid var(--line);">
         <label>Tipo de Documento
           <select id="employeeDocUploadTipo">
             ${REQUIRED_ADMISSION_DOCUMENTS.map((d) => `<option value="${d.codigo}">${d.titulo}</option>`).join("")}
@@ -304,15 +403,18 @@ function enhanceEmployeeDialog() {
         </button>
       </div>
       <div id="employeeDossieChecklist" style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:8px;"></div>
-    </details>
+    </div>
   `;
 
-  const actionsRow = form.querySelector(".dialog-actions");
-  if (actionsRow) {
-    form.insertBefore(extraContainer, actionsRow);
+  if (baseGrid) {
+    baseGrid.parentNode.insertBefore(tabsWrap, baseGrid);
+    const host = tabsWrap.querySelector("#empBaseGridHost");
+    if (host) host.appendChild(baseGrid);
   } else {
-    form.appendChild(extraContainer);
+    dialogBody.prepend(tabsWrap);
   }
+
+  bindTabsGroup("employee-modal");
 
   // ViaCEP Auto-fill
   const cepInput = document.getElementById("employeeCEP");
@@ -352,7 +454,7 @@ function enhanceEmployeeDialog() {
   });
 
   document.getElementById("btnEnviarDocAdmissional")?.addEventListener("click", async () => {
-    const empId = form.elements.FuncionarioID?.value;
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value;
     if (!empId) {
       showPortalToast("Salve o cadastro inicial do colaborador antes de anexar documentos.", "warning");
       return;
@@ -375,7 +477,7 @@ function enhanceEmployeeDialog() {
   });
 
   document.getElementById("btnAvancarEtapaOnboarding")?.addEventListener("click", async () => {
-    const empId = form.elements.FuncionarioID?.value;
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value;
     if (!empId) {
       showPortalToast("Salve o colaborador antes de registrar a etapa.", "warning");
       return;
@@ -400,7 +502,7 @@ function enhanceEmployeeDialog() {
   });
 
   document.getElementById("btnGerarKitAdmissionalPdf")?.addEventListener("click", async () => {
-    const empId = form.elements.FuncionarioID?.value;
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value;
     if (!empId) {
       showPortalToast("Salve o cadastro do colaborador primeiro.", "warning");
       return;
@@ -414,7 +516,7 @@ function enhanceEmployeeDialog() {
   });
 
   document.getElementById("btnEmployeeAuditHistory")?.addEventListener("click", async () => {
-    const empId = form.elements.FuncionarioID?.value;
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value;
     if (!empId) {
       showPortalToast("Selecione um colaborador já salvo para ver o histórico.", "warning");
       return;
@@ -424,9 +526,7 @@ function enhanceEmployeeDialog() {
     const auditNav = document.querySelector('[data-view="audit"]');
     auditNav?.click();
     const empFilter = document.getElementById("auditEmployeeFilter");
-    if (empFilter) {
-      empFilter.value = empId;
-    }
+    if (empFilter) empFilter.value = empId;
     await loadAuditHistoryTable({ employeeId: empId });
   });
 }
@@ -499,18 +599,13 @@ async function loadExperienceAlertsBanner() {
 
     banner.classList.remove("hidden");
     banner.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-        <div>
-          <span class="eyebrow" style="color:#d97706;">ALERTA AUTOMÁTICO DE EXPERIÊNCIA (45 / 90 DIAS)</span>
-          <h4 style="margin:2px 0 4px;">${alertas.length} contrato(s) de experiência próximos do vencimento</h4>
-          <div style="display:grid; gap:4px; font-size:13px;">
-            ${alertas
-              .map(
-                (a) =>
-                  `<div><strong>${a.Nome}</strong> (${a.NomeLoja || "Unidade"}) — ${a.Mensagem}</div>`,
-              )
-              .join("")}
-          </div>
+      <div>
+        <span class="eyebrow" style="color:#d97706;">ALERTA AUTOMÁTICO DE EXPERIÊNCIA (45 / 90 DIAS)</span>
+        <h4 style="margin:2px 0 4px;">${alertas.length} contrato(s) de experiência próximos do vencimento</h4>
+        <div style="display:grid; gap:4px; font-size:13px;">
+          ${alertas
+            .map((a) => `<div><strong>${a.Nome}</strong> (${a.NomeLoja || "Unidade"}) — ${a.Mensagem}</div>`)
+            .join("")}
         </div>
       </div>
     `;
@@ -520,23 +615,83 @@ async function loadExperienceAlertsBanner() {
 }
 
 // ============================================================================
-// TELA 4: SOLICITACOES DE VALE / ADIANTAMENTO
+// TELA 4: SOLICITACOES EM ABAS LIMPAS [FOLGAS | TROCAS DE TURNO | VALES]
 // ============================================================================
 
-function mountValeSection() {
+function mountSolicitacoesTabsAndVale() {
   const timeoffView = document.getElementById("view-timeoff");
-  if (!timeoffView || document.getElementById("portalValeSection")) return;
+  if (!timeoffView || document.getElementById("portalTimeoffTabsBar")) return;
 
-  const section = document.createElement("div");
-  section.id = "portalValeSection";
-  section.className = "panel";
-  section.style.cssText = "margin-top:20px;";
-  section.innerHTML = `
+  const toolbar = timeoffView.querySelector(".section-toolbar");
+  const titleEl = toolbar?.querySelector("h2");
+  if (titleEl) titleEl.textContent = "Solicitações (Folgas, Trocas e Vales)";
+
+  const existingTablePanel = timeoffView.querySelector(".table-panel");
+  const tabsBar = document.createElement("div");
+  tabsBar.id = "portalTimeoffTabsBar";
+  tabsBar.className = "portal-tabs-bar";
+  tabsBar.setAttribute("role", "tablist");
+  tabsBar.setAttribute("data-tabs-group", "solicitacoes");
+  tabsBar.innerHTML = `
+    <button type="button" class="portal-tab-btn active" data-tab-target="sol-folgas" role="tab" aria-selected="true">Folgas</button>
+    <button type="button" class="portal-tab-btn" data-tab-target="sol-trocas" role="tab" aria-selected="false">Trocas de Turno</button>
+    <button type="button" class="portal-tab-btn" data-tab-target="sol-vales" role="tab" aria-selected="false">Vales / Adiantamentos</button>
+  `;
+
+  if (toolbar?.nextSibling) {
+    timeoffView.insertBefore(tabsBar, toolbar.nextSibling);
+  } else {
+    timeoffView.appendChild(tabsBar);
+  }
+
+  // Envolve a tabela de folgas na aba 1
+  if (existingTablePanel) {
+    existingTablePanel.classList.add("portal-tab-pane");
+    existingTablePanel.setAttribute("data-tab-pane", "sol-folgas");
+    existingTablePanel.setAttribute("data-tabs-group", "solicitacoes");
+  }
+
+  // Aba 2: Trocas de Turno limpa e fluida
+  const swapsPane = document.createElement("div");
+  swapsPane.id = "portalTrocasPane";
+  swapsPane.className = "portal-tab-pane panel hidden";
+  swapsPane.setAttribute("data-tab-pane", "sol-trocas");
+  swapsPane.setAttribute("data-tabs-group", "solicitacoes");
+  swapsPane.innerHTML = `
+    <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div>
+        <span class="eyebrow">TELA 4 · TROCA DE TURNO COM COLEGA</span>
+        <h3>Solicitar ou Acompanhar Trocas de Turno</h3>
+        <p style="font-size:13px; color:var(--muted);">Fluxo: Solicitado pelo Colaborador -> Aceite do colega indicado -> Aprovação pelo Gerente.</p>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" id="portalAbrirTrocaTurnoBtn" class="btn btn-primary">+ Nova Troca de Turno</button>
+        <button type="button" class="btn btn-secondary" data-view-target="pending-center">Ver Todas as Trocas</button>
+      </div>
+    </div>
+    <p style="font-size:13px; color:var(--muted); margin:0;">
+      Clique em <strong>+ Nova Troca de Turno</strong> para indicar a data e selecionar o colega disponível da sua loja.
+    </p>
+  `;
+  timeoffView.appendChild(swapsPane);
+
+  swapsPane.querySelector("#portalAbrirTrocaTurnoBtn")?.addEventListener("click", () => {
+    const legacyBtn = document.getElementById("timeOffSwapBtn") || document.getElementById("newSwapBtn");
+    legacyBtn?.click();
+  });
+
+  // Aba 3: Solicitações de Vale / Adiantamento
+  const valePane = document.createElement("div");
+  valePane.id = "portalValeSection";
+  valePane.className = "portal-tab-pane panel hidden";
+  valePane.setAttribute("data-tab-pane", "sol-vales");
+  valePane.setAttribute("data-tabs-group", "solicitacoes");
+  valePane.innerHTML = `
     <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
       <div>
         <span class="eyebrow">TELA 4 · ADIANTAMENTOS E VALES</span>
         <h3>Solicitações de Vale / Adiantamento Salarial</h3>
-        <p style="font-size:13px; color:var(--muted);">Fluxo oficial: Solicitado pelo Colaborador -> Validado pelo Gerente -> Aprovado/Pago pela Diretoria (com recibo digital).</p>
+        <p style="font-size:13px; color:var(--muted);">Fluxo: Solicitado -> Validado pelo Gerente -> Aprovado/Pago pela Diretoria (com recibo digital).</p>
       </div>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span class="badge" id="valeLimiteMaximoBadge">Limite Máx: R$ 1.000,00</span>
@@ -579,7 +734,8 @@ function mountValeSection() {
     </div>
   `;
 
-  timeoffView.appendChild(section);
+  timeoffView.appendChild(valePane);
+  bindTabsGroup("solicitacoes");
 
   const dateInput = document.getElementById("valeDataDesejadaInput");
   if (dateInput && !dateInput.value) dateInput.value = todayIso();
@@ -703,10 +859,12 @@ async function loadValesList() {
 }
 
 // ============================================================================
-// TELA 5: VALOR DE FICHA / PRODUTIVIDADE (HOUSE TX VS FOODPARK TX)
+// TELA 5: VALOR DE FICHA EM ABAS LIMPAS [EXTRATO | LANCAR FICHAS | TABELA]
 // ============================================================================
 
 function bindFichasView() {
+  bindTabsGroup("fichas");
+
   const compInput = document.getElementById("fichasCompetenciaInput");
   if (compInput && !compInput.value) compInput.value = todayIso().slice(0, 7);
   const dataInput = document.getElementById("fichaLancamentoData");
@@ -842,14 +1000,20 @@ async function loadFichasView() {
 }
 
 // ============================================================================
-// TELA 6: COMUNICADOS POR SETOR E POPS / MANUAIS DE TREINAMENTO
+// TELA 6: AVISOS E POPS EM ABAS LIMPAS [MURAL DE AVISOS | POPS E TREINAMENTOS]
 // ============================================================================
 
-function mountPopsSection() {
+function mountCommunicationTabsAndPops() {
   const commView = document.getElementById("view-communication");
-  if (!commView || document.getElementById("portalPopsSection")) return;
+  if (!commView || document.getElementById("portalCommTabsBar")) return;
 
-  // Adiciona seletor de Setor no form de comunicados se existir
+  const toolbar = commView.querySelector(".section-toolbar");
+  const titleEl = toolbar?.querySelector("h2");
+  if (titleEl) titleEl.textContent = "Mural de Avisos e POPs";
+  const descEl = toolbar?.querySelector("p");
+  if (descEl) descEl.textContent = "Comunicados segmentados por setor e treinamentos internos com confirmação de leitura.";
+
+  // Adiciona seletor de Setor no form de comunicados
   const noticeForm = document.getElementById("announcementForm");
   if (noticeForm && !document.getElementById("announcementSector")) {
     const storeSelectLabel = document.getElementById("announcementStore")?.closest("label");
@@ -868,10 +1032,41 @@ function mountPopsSection() {
     }
   }
 
+  const tabsBar = document.createElement("div");
+  tabsBar.id = "portalCommTabsBar";
+  tabsBar.className = "portal-tabs-bar";
+  tabsBar.setAttribute("role", "tablist");
+  tabsBar.setAttribute("data-tabs-group", "communication");
+  tabsBar.innerHTML = `
+    <button type="button" class="portal-tab-btn active" data-tab-target="comm-avisos" role="tab" aria-selected="true">Mural de Avisos</button>
+    <button type="button" class="portal-tab-btn" data-tab-target="comm-pops" role="tab" aria-selected="false">POPs e Treinamentos</button>
+  `;
+
+  if (toolbar?.nextSibling) {
+    commView.insertBefore(tabsBar, toolbar.nextSibling);
+  } else {
+    commView.appendChild(tabsBar);
+  }
+
+  // Envolve os blocos existentes de Avisos na Aba 1
+  const avisosPane = document.createElement("div");
+  avisosPane.className = "portal-tab-pane";
+  avisosPane.setAttribute("data-tab-pane", "comm-avisos");
+  avisosPane.setAttribute("data-tabs-group", "communication");
+  avisosPane.style.cssText = "display:grid; gap:18px;";
+
+  const advancedGrid = commView.querySelector(".advanced-grid");
+  const announcementFeedPanel = document.getElementById("announcementList")?.closest(".panel");
+  tabsBar.after(avisosPane);
+  if (advancedGrid) avisosPane.appendChild(advancedGrid);
+  if (announcementFeedPanel) avisosPane.appendChild(announcementFeedPanel);
+
+  // Aba 2: POPs e Treinamentos
   const popsWrap = document.createElement("div");
   popsWrap.id = "portalPopsSection";
-  popsWrap.className = "panel";
-  popsWrap.style.cssText = "margin-top:20px;";
+  popsWrap.className = "portal-tab-pane panel hidden";
+  popsWrap.setAttribute("data-tab-pane", "comm-pops");
+  popsWrap.setAttribute("data-tabs-group", "communication");
   popsWrap.innerHTML = `
     <div class="panel-head">
       <div>
@@ -910,6 +1105,7 @@ function mountPopsSection() {
   `;
 
   commView.appendChild(popsWrap);
+  bindTabsGroup("communication");
 
   document.getElementById("portalPopForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -986,7 +1182,7 @@ async function loadPopsList() {
 }
 
 // ============================================================================
-// TELA 8: FECHAMENTO DE FOLHA SALARIAL (CONSOLIDACAO AUTOMATICA)
+// TELA 8: FECHAMENTO DE FOLHA SALARIAL LIMPO (SEM HISTORICO ANTIGO DUPLICADO)
 // ============================================================================
 
 function mountPayrollClosingScreen() {
@@ -995,75 +1191,75 @@ function mountPayrollClosingScreen() {
 
   const panel = document.createElement("div");
   panel.id = "portalPayrollConsolidationPanel";
-  panel.style.cssText = "margin-bottom:24px; display:grid; gap:18px;";
+  panel.style.cssText = "display:grid; gap:18px;";
   panel.innerHTML = `
-    <div class="panel">
-      <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-        <div>
-          <span class="eyebrow">TELA 8 · CONSOLIDAÇÃO AUTOMÁTICA DE FOLHA</span>
-          <h3>Fechamento de Folha Salarial (Salário + Fichas House Tx / FoodPark Tx − Vales e Faltas)</h3>
-          <p id="folhaAccessModeNotice" style="font-size:13px; color:var(--muted);">Cruzamento automático de cadastro, ponto eletrônico, vales e fichas de produtividade.</p>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="button" id="btnExportarFolhaXlsx" class="btn btn-secondary">Exportar Excel (.xlsx / CSV)</button>
-          <button type="button" id="btnExportarFolhaPdf" class="btn btn-secondary">Exportar PDF</button>
-          <button type="button" id="btnFecharFolhaMes" class="btn btn-primary permission-admin">Fechar Folha do Mês</button>
-        </div>
+    <div class="section-toolbar">
+      <div>
+        <span class="eyebrow">TELA 8 · CONSOLIDAÇÃO AUTOMÁTICA DE FOLHA</span>
+        <h2>Fechamento de Folha Salarial</h2>
+        <p id="folhaAccessModeNotice" style="font-size:13px; color:var(--muted);">Cruzamento automático de salário, fichas House Tx / FoodPark Tx, ponto e vales.</p>
       </div>
-
-      <div class="form-grid" style="margin:14px 0; align-items:end;">
-        <label>Período de Competência (Mês/Ano)
-          <input id="folhaCompetenciaInput" type="month" />
-        </label>
-        <label>Recorte / Quinzena
-          <select id="folhaQuinzenaSelect">
-            <option value="mensal">Mensal Completo</option>
-            <option value="1">1ª Quinzena (Dias 01 a 15)</option>
-            <option value="2">2ª Quinzena (Dias 16 ao fim)</option>
-          </select>
-        </label>
-        <label>Unidade / Loja
-          <select id="folhaStoreFilter">
-            <option value="">Todas as unidades</option>
-          </select>
-        </label>
-        <label>Status
-          <select id="folhaStatusFilter">
-            <option value="">Todos os status</option>
-            <option value="Em Aberto">Em Aberto</option>
-            <option value="Conferido">Conferido</option>
-            <option value="Pago">Pago</option>
-            <option value="Fechado">Fechado</option>
-          </select>
-        </label>
-        <button type="button" id="btnAtualizarPreviaFolha" class="btn btn-secondary" style="min-height:42px;">
-          Atualizar Consolidação
-        </button>
+      <div class="toolbar-actions">
+        <button type="button" id="btnExportarFolhaXlsx" class="btn btn-secondary">Exportar Excel</button>
+        <button type="button" id="btnExportarFolhaPdf" class="btn btn-secondary">Exportar PDF</button>
+        <button type="button" id="btnFecharFolhaMes" class="btn btn-primary permission-admin">Fechar Folha do Mês</button>
       </div>
+    </div>
 
-      <div id="folhaKpiGrid" class="metric-grid" style="margin-bottom:16px;">
-        <article class="panel metric-card">
-          <span class="eyebrow">SALÁRIOS BASE</span>
-          <strong id="folhaKpiSalarios" style="font-size:20px; font-variant-numeric:tabular-nums;">R$ 0,00</strong>
-        </article>
-        <article class="panel metric-card">
-          <span class="eyebrow">FICHAS HOUSE TX</span>
-          <strong id="folhaKpiHouseTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:var(--brand-solid);">R$ 0,00</strong>
-        </article>
-        <article class="panel metric-card">
-          <span class="eyebrow">FICHAS FOODPARK TX</span>
-          <strong id="folhaKpiFoodParkTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:var(--brand-solid);">R$ 0,00</strong>
-        </article>
-        <article class="panel metric-card">
-          <span class="eyebrow">DESCONTOS (VALES / FALTAS)</span>
-          <strong id="folhaKpiDescontos" style="font-size:20px; font-variant-numeric:tabular-nums; color:#dc2626;">R$ 0,00</strong>
-        </article>
-        <article class="panel metric-card">
-          <span class="eyebrow">LÍQUIDO TOTAL DA FOLHA</span>
-          <strong id="folhaKpiLiquido" style="font-size:22px; font-variant-numeric:tabular-nums; color:#16a34a;">R$ 0,00</strong>
-        </article>
-      </div>
+    <div class="panel form-grid" style="align-items:end;">
+      <label>Competência (Mês/Ano)
+        <input id="folhaCompetenciaInput" type="month" />
+      </label>
+      <label>Recorte / Quinzena
+        <select id="folhaQuinzenaSelect">
+          <option value="mensal">Mensal Completo</option>
+          <option value="1">1ª Quinzena (Dias 01 a 15)</option>
+          <option value="2">2ª Quinzena (Dias 16 ao fim)</option>
+        </select>
+      </label>
+      <label>Unidade / Loja
+        <select id="folhaStoreFilter">
+          <option value="">Todas as unidades</option>
+        </select>
+      </label>
+      <label>Status
+        <select id="folhaStatusFilter">
+          <option value="">Todos os status</option>
+          <option value="Em Aberto">Em Aberto</option>
+          <option value="Conferido">Conferido</option>
+          <option value="Pago">Pago</option>
+          <option value="Fechado">Fechado</option>
+        </select>
+      </label>
+      <button type="button" id="btnAtualizarPreviaFolha" class="btn btn-secondary" style="min-height:42px;">
+        Atualizar Prévia
+      </button>
+    </div>
 
+    <div id="folhaKpiGrid" class="metric-grid">
+      <article class="panel metric-card">
+        <span class="eyebrow">SALÁRIOS BASE</span>
+        <strong id="folhaKpiSalarios" style="font-size:20px; font-variant-numeric:tabular-nums;">R$ 0,00</strong>
+      </article>
+      <article class="panel metric-card">
+        <span class="eyebrow">FICHAS HOUSE TX</span>
+        <strong id="folhaKpiHouseTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:var(--brand-solid);">R$ 0,00</strong>
+      </article>
+      <article class="panel metric-card">
+        <span class="eyebrow">FICHAS FOODPARK TX</span>
+        <strong id="folhaKpiFoodParkTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:var(--brand-solid);">R$ 0,00</strong>
+      </article>
+      <article class="panel metric-card">
+        <span class="eyebrow">DESCONTOS</span>
+        <strong id="folhaKpiDescontos" style="font-size:20px; font-variant-numeric:tabular-nums; color:#dc2626;">R$ 0,00</strong>
+      </article>
+      <article class="panel metric-card">
+        <span class="eyebrow">LÍQUIDO TOTAL</span>
+        <strong id="folhaKpiLiquido" style="font-size:22px; font-variant-numeric:tabular-nums; color:#16a34a;">R$ 0,00</strong>
+      </article>
+    </div>
+
+    <div class="panel table-panel">
       <div class="table-wrap">
         <table>
           <thead>
@@ -1074,13 +1270,13 @@ function mountPayrollClosingScreen() {
               <th>Fichas House Tx</th>
               <th>Fichas FoodPark Tx</th>
               <th>Extras / Bônus</th>
-              <th>Vales / Adiant.</th>
-              <th>Faltas / Atrasos</th>
-              <th>Quebra de Caixa</th>
+              <th>Vales</th>
+              <th>Faltas</th>
+              <th>Quebra Caixa</th>
               <th>Valor Líquido</th>
               <th>Chave PIX</th>
               <th>Status</th>
-              <th class="permission-admin">Ajuste Manual</th>
+              <th class="permission-admin">Ajuste</th>
             </tr>
           </thead>
           <tbody id="portalFolhaSalarialBody"></tbody>
@@ -1176,18 +1372,18 @@ async function loadPayrollClosingTable() {
     const notice = document.getElementById("folhaAccessModeNotice");
     if (notice) {
       if (data.folhaCongelada) {
-        notice.textContent = "FOLHA FECHADA E CONGELADA: Valores imutáveis e espelhos enviados para a Tela 7 (Holerites e Recibos).";
+        notice.textContent = "FOLHA FECHADA E CONGELADA: Valores imutáveis e espelhos enviados para a Tela 7 (Holerites e Docs).";
       } else if (data.somenteLeituraGerente) {
         notice.textContent = "Visualização de Gerente (Somente Leitura da sua unidade). Edição manual e fechamento restritos à Diretoria.";
       } else {
-        notice.textContent = "Modo Diretoria: Qualquer edição manual exige justificativa obrigatória e grava registro imutável no Log de Auditoria.";
+        notice.textContent = "Modo Diretoria: Qualquer edição manual exige justificativa obrigatória e grava registro imutável na Auditoria.";
       }
     }
 
     const fecharBtn = document.getElementById("btnFecharFolhaMes");
     if (fecharBtn) {
       fecharBtn.disabled = Boolean(data.folhaCongelada);
-      fecharBtn.textContent = data.folhaCongelada ? "Folha do Mês Congelada" : "Fechar Folha do Mês";
+      fecharBtn.textContent = data.folhaCongelada ? "Folha Congelada" : "Fechar Folha do Mês";
     }
 
     if (!linhas.length) {
@@ -1209,7 +1405,7 @@ async function loadPayrollClosingTable() {
           <td style="font-variant-numeric:tabular-nums;">${l.QtdFichasFoodParkTx}x (${formatBRL(l.ValorFichasFoodParkTx)})</td>
           <td style="font-variant-numeric:tabular-nums;">${formatBRL(Number(l.HorasExtrasValor || 0) + Number(l.BonusValor || 0))}</td>
           <td style="font-variant-numeric:tabular-nums; color:#dc2626;">- ${formatBRL(l.TotalValesAdiantamentos)}</td>
-          <td style="font-variant-numeric:tabular-nums; color:#dc2626;">${l.FaltasInjustificadas} falta(s) (- ${formatBRL(l.DescontoFaltasAtrasos)})</td>
+          <td style="font-variant-numeric:tabular-nums; color:#dc2626;">${l.FaltasInjustificadas}x (- ${formatBRL(l.DescontoFaltasAtrasos)})</td>
           <td style="font-variant-numeric:tabular-nums; color:#dc2626;">- ${formatBRL(l.QuebraDeCaixaValor)}</td>
           <td style="font-variant-numeric:tabular-nums; font-weight:700; color:#16a34a;">${formatBRL(l.ValorLiquido)}</td>
           <td><code>${l.ChavePix || "-"}</code></td>
@@ -1217,7 +1413,7 @@ async function loadPayrollClosingTable() {
           <td class="permission-admin">
             ${
               data.permissaoEdicao
-                ? `<button type="button" class="btn btn-secondary btn-sm" data-edit-folha-emp="${l.FuncionarioID}">Editar com Justificativa</button>`
+                ? `<button type="button" class="btn btn-secondary btn-sm" data-edit-folha-emp="${l.FuncionarioID}">Editar</button>`
                 : `<small style="color:var(--muted);">Bloqueado</small>`
             }
           </td>
@@ -1267,7 +1463,7 @@ async function loadPayrollClosingTable() {
 }
 
 // ============================================================================
-// TELA DE AUDITORIA (EXCLUSIVA DIRETORIA - FILTROS E DIFFS DETALHADOS)
+// TELA DE AUDITORIA (EXCLUSIVA DIRETORIA)
 // ============================================================================
 
 function enhanceAuditView() {
@@ -1409,16 +1605,16 @@ export async function refreshPortalViews() {
 
 export function initPortalGestao() {
   if (typeof document === "undefined") return;
+  injectPortalTabsStyles();
   mountTopbarStoreSelector();
   mountWhatsAppPasswordRecovery();
   enhanceEmployeeDialog();
-  mountValeSection();
+  mountSolicitacoesTabsAndVale();
   bindFichasView();
-  mountPopsSection();
+  mountCommunicationTabsAndPops();
   mountPayrollClosingScreen();
   enhanceAuditView();
 
-  // Atualiza quando o usuario troca de aba na sidebar
   document.querySelectorAll("[data-view]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const view = btn.getAttribute("data-view");
