@@ -12,6 +12,7 @@ import {
 } from "./utils.js";
 import {
   audit,
+  createNotification,
   dropClientToken,
   isAdmin,
   isManager,
@@ -19,6 +20,13 @@ import {
   requireManager as assertManagerProfile,
   success,
 } from "./api-base.js";
+import { normalizeWhatsAppNumber } from "./api-whatsapp.js";
+import {
+  fetchAllTakeatCredit,
+  loadMappings as loadTakeatMappings,
+  resolveAccountMatch as resolveTakeatAccountMatch,
+} from "./takeat-credit.js";
+import { requestWorker } from "./worker-client.js";
 
 const requireSession = () => runtime.requireProfile();
 const requireAdmin = async () => {
@@ -1525,25 +1533,172 @@ async function registrarEventoDocumento(payload = {}) {
 // 8. TELA 8: FECHAMENTO DE FOLHA SALARIAL (CONSOLIDACAO AUTOMATICA)
 // ============================================================================
 
-async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", storeId = "", statusFilter = "" }) {
+function recalculatePayrollLineNumbers(line = {}) {
+  const salarioBase = Number(line.SalarioBase || 0);
+  const vHouse = Number(line.ValorFichasHouseTx || 0);
+  const vFood = Number(line.ValorFichasFoodParkTx || 0);
+  const taxaServicoValor = Number(
+    line.TaxaServicoValor !== undefined
+      ? line.TaxaServicoValor
+      : Number(line.HorasExtrasValor || 0) + Number(line.BonusValor || 0),
+  );
+  const vVales = Number(line.TotalValesAdiantamentos || 0);
+  const vFaltas = Number(line.DescontoFaltasAtrasos || 0);
+  const vConsumo = Number(line.ConsumoInternoValor || 0);
+  const vQuebra = Number(line.QuebraDeCaixaValor || 0);
+
+  const totalProventos = Number((salarioBase + taxaServicoValor).toFixed(2));
+  const totalDescontos = Number(
+    (vHouse + vFood + vVales + vFaltas + vConsumo + vQuebra).toFixed(2),
+  );
+  const valorLiquido = Number(Math.max(0, totalProventos - totalDescontos).toFixed(2));
+
+  return {
+    SalarioBase: Number(salarioBase.toFixed(2)),
+    ValorFichasHouseTx: Number(vHouse.toFixed(2)),
+    ValorFichasFoodParkTx: Number(vFood.toFixed(2)),
+    TotalFichasValor: Number((vHouse + vFood).toFixed(2)),
+    TaxaServicoValor: Number(taxaServicoValor.toFixed(2)),
+    HorasExtrasValor: 0,
+    BonusValor: Number(taxaServicoValor.toFixed(2)),
+    TotalValesAdiantamentos: Number(vVales.toFixed(2)),
+    DescontoFaltasAtrasos: Number(vFaltas.toFixed(2)),
+    ConsumoInternoValor: Number(vConsumo.toFixed(2)),
+    QuebraDeCaixaValor: Number(vQuebra.toFixed(2)),
+    TotalProventos: totalProventos,
+    TotalDescontos: totalDescontos,
+    ValorLiquido: valorLiquido,
+  };
+}
+
+function buildPayrollStatementText(linha = {}, bounds = {}, extra = {}) {
+  const periodo = bounds.chaveFechamento || linha.AnoMes || linha.Competencia || todayIso().slice(0, 7);
+  const brutoHouse = Number(linha.ValorBrutoHouseTx || 0);
+  const brutoFood = Number(linha.ValorBrutoFoodParkTx || 0);
+  const houseDet = brutoHouse > 0 ? ` (Bruto ${formatCurrencyBRL(brutoHouse)} com -20%)` : " (-20% Takeat)";
+  const foodDet = brutoFood > 0 ? ` (Bruto ${formatCurrencyBRL(brutoFood)} com -20%)` : " (-20% Takeat)";
+
+  const lines = [
+    `${extra.titulo || "DEMONSTRATIVO DE PAGAMENTO DE FOLHA"} - COMPETENCIA ${periodo}`,
+    `Colaborador: ${linha.FuncionarioNome} | CPF: ${linha.CPF || "N/I"}`,
+    `Unidade/Loja: ${linha.NomeLoja || linha.LojaID || "-"} | Cargo: ${linha.Cargo || "Operacional"}`,
+    "----------------------------------------------------------------",
+    "PROVENTOS (ACRESCIMOS):",
+    `  (+) Salario Base: ${formatCurrencyBRL(linha.SalarioBase)}`,
+    `  (+) 10% Taxa de Servico: ${formatCurrencyBRL(linha.TaxaServicoValor ?? linha.BonusValor ?? 0)}`,
+    `  (=) Total Proventos: ${formatCurrencyBRL(linha.TotalProventos)}`,
+    "----------------------------------------------------------------",
+    "DESCONTOS:",
+    `  (-) Fichas Takeat House TX${houseDet}: ${formatCurrencyBRL(linha.ValorFichasHouseTx)}`,
+    `  (-) Fichas Takeat FoodPark${foodDet}: ${formatCurrencyBRL(linha.ValorFichasFoodParkTx)}`,
+    `  (-) Vales / Adiantamentos: ${formatCurrencyBRL(linha.TotalValesAdiantamentos)}`,
+    `  (-) Faltas (${Number(linha.FaltasInjustificadas || 0)} falta(s)): ${formatCurrencyBRL(linha.DescontoFaltasAtrasos)}`,
+    `  (-) Quebra de Caixa: ${formatCurrencyBRL(linha.QuebraDeCaixaValor)}`,
+    ...(Number(linha.ConsumoInternoValor || 0) > 0
+      ? [`  (-) Outros Descontos: ${formatCurrencyBRL(linha.ConsumoInternoValor)}`]
+      : []),
+    `  (=) Total de Descontos: ${formatCurrencyBRL(linha.TotalDescontos)}`,
+    "----------------------------------------------------------------",
+    `VALOR LIQUIDO A RECEBER: ${formatCurrencyBRL(linha.ValorLiquido)}`,
+    `Chave PIX Cadastrada: ${linha.ChavePix || "Nao informada"}`,
+  ];
+
+  if (extra.observacao) {
+    lines.push(`Observacao Financeiro: ${extra.observacao}`);
+  }
+  if (extra.comprovanteNome || extra.comprovanteUrl) {
+    lines.push(`Comprovante Anexo: ${extra.comprovanteNome || "Arquivo enviado junto ao recibo"}`);
+  }
+  if (extra.responsavel && extra.dataHora) {
+    lines.push(`${extra.acaoLabel || "Processado"} por: ${extra.responsavel} em ${extra.dataHora}`);
+  }
+
+  return lines.join("\n");
+}
+
+async function aggregateTakeatCreditsByEmployee(employees = [], providedItems = null, providedMappings = null) {
+  const byEmployee = new Map();
+  let items = Array.isArray(providedItems) ? providedItems : null;
+  let mappings = providedMappings && typeof providedMappings === "object" ? providedMappings : null;
+
+  if (!items && typeof window !== "undefined") {
+    try {
+      const [res, mapData] = await Promise.all([
+        fetchAllTakeatCredit("all").catch(() => ({ items: [] })),
+        mappings ? Promise.resolve(mappings) : loadTakeatMappings().catch(() => ({})),
+      ]);
+      items = res?.items || [];
+      mappings = mapData || {};
+    } catch {
+      items = [];
+    }
+  }
+
+  if (!Array.isArray(items) || !items.length) return byEmployee;
+  const resolvedMappings = mappings || (await loadTakeatMappings().catch(() => ({}))) || {};
+
+  for (const item of items) {
+    const debt = Number(item?.debt || 0);
+    if (debt <= 0) continue;
+
+    let empId = String(item.matchedEmployeeId || item.matchedEmployee?.FuncionarioID || "").trim();
+    if (!empId) {
+      const resolved = resolveTakeatAccountMatch(item, employees, resolvedMappings);
+      if (resolved?.isIgnored || !resolved?.matchedEmployee?.FuncionarioID) continue;
+      empId = String(resolved.matchedEmployee.FuncionarioID);
+    }
+
+    const curr = byEmployee.get(empId) || {
+      brutoHouseTx: 0,
+      liquidoHouseTx: 0,
+      brutoFoodParkTx: 0,
+      liquidoFoodParkTx: 0,
+    };
+
+    const storeKey = String(item.storeKey || "").toLowerCase();
+    const storeName = String(item.storeName || "").toLowerCase();
+    if (storeKey === "foodpark" || storeName.includes("foodpark") || storeName.includes("food park")) {
+      curr.brutoFoodParkTx = Number((curr.brutoFoodParkTx + debt).toFixed(2));
+      curr.liquidoFoodParkTx = Number((curr.brutoFoodParkTx * 0.8).toFixed(2));
+    } else if (storeKey === "teixeira" || storeName.includes("teixeira") || !storeKey) {
+      curr.brutoHouseTx = Number((curr.brutoHouseTx + debt).toFixed(2));
+      curr.liquidoHouseTx = Number((curr.brutoHouseTx * 0.8).toFixed(2));
+    }
+
+    byEmployee.set(empId, curr);
+  }
+
+  return byEmployee;
+}
+
+async function calcularLinhasFolhaPeriodo({
+  competencia,
+  quinzena = "mensal",
+  storeId = "",
+  statusFilter = "",
+  takeatItems = null,
+  takeatMappings = null,
+}) {
   const bounds = resolvePeriodBounds(competencia, quinzena);
   const [
     employees,
-    fichas,
     vales,
     registrosPonto,
     justificativasPonto,
     linhasSalvas,
     fechamentos,
+    pagamentos,
   ] = await Promise.all([
     runtime.list("Funcionarios"),
-    runtime.list("LancamentosFichas"),
     runtime.list("SolicitacoesVale"),
     runtime.list("RegistrosPonto"),
     runtime.list("JustificativasPonto"),
     runtime.list("FolhaLinhas"),
     runtime.list("FechamentosMensais"),
+    runtime.list("FolhaPagamentos").catch(() => []),
   ]);
+
+  const takeatByEmp = await aggregateTakeatCreditsByEmployee(employees, takeatItems, takeatMappings);
 
   const fechamentoAtual = fechamentos.find(
     (f) =>
@@ -1573,40 +1728,28 @@ async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", st
     );
 
     if (folhaCongelada && savedLine) {
-      if (!statusFilter || savedLine.StatusLinha === statusFilter || savedLine.Status === statusFilter) {
-        rows.push(savedLine);
+      const normalizedFrozen = {
+        ...savedLine,
+        ...recalculatePayrollLineNumbers(savedLine),
+      };
+      if (!statusFilter || normalizedFrozen.StatusLinha === statusFilter || normalizedFrozen.Status === statusFilter) {
+        rows.push(normalizedFrozen);
       }
       continue;
     }
 
-    const empFichas = fichas.filter(
-      (f) =>
-        String(f.FuncionarioID || "") === empId &&
-        String(f.Data || "") >= bounds.startDate &&
-        String(f.Data || "") <= bounds.endDate,
-    );
-
-    let qtdFichasHouseTx = 0;
-    let valorFichasHouseTx = 0;
-    let qtdFichasFoodParkTx = 0;
-    let valorFichasFoodParkTx = 0;
-
-    for (const f of empFichas) {
-      const q = Number(f.Quantidade || 0);
-      const v = Number(f.ValorTotal || 0);
-      if (f.Operacao === "FoodPark Tx") {
-        qtdFichasFoodParkTx += q;
-        valorFichasFoodParkTx += v;
-      } else {
-        qtdFichasHouseTx += q;
-        valorFichasHouseTx += v;
-      }
-    }
+    const empTakeat = takeatByEmp.get(String(empId)) || {
+      brutoHouseTx: 0,
+      liquidoHouseTx: 0,
+      brutoFoodParkTx: 0,
+      liquidoFoodParkTx: 0,
+    };
 
     const empVales = vales.filter(
       (v) =>
         String(v.FuncionarioID || "") === empId &&
         v.Status === "Pago" &&
+        !v.DeduzidoFolhaPagamentoID &&
         String(v.DataDesejada || v.Competencia || "").slice(0, 7) === bounds.competencia,
     );
     const sistemaVales = Number(
@@ -1633,13 +1776,17 @@ async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", st
     const diasAtestado = empAtestados.reduce((acc, j) => acc + Number(j.DiasAfastamento || 1), 0);
 
     const salarioBaseSistema = Number(emp.SalarioBase || 0);
+    const hasManualHouse = savedLine?.ValorFichasHouseTxManual !== undefined && savedLine?.ValorFichasHouseTxManual !== null;
+    const hasManualFood = savedLine?.ValorFichasFoodParkTxManual !== undefined && savedLine?.ValorFichasFoodParkTxManual !== null;
+    const hasManualVales = savedLine?.TotalValesAdiantamentosManual !== undefined && savedLine?.TotalValesAdiantamentosManual !== null;
+
     const valoresOriginaisSistema = savedLine?.ValoresOriginaisSistema || {
       SalarioBase: salarioBaseSistema,
-      QtdFichasHouseTx: qtdFichasHouseTx,
-      ValorFichasHouseTx: Number(valorFichasHouseTx.toFixed(2)),
-      QtdFichasFoodParkTx: qtdFichasFoodParkTx,
-      ValorFichasFoodParkTx: Number(valorFichasFoodParkTx.toFixed(2)),
-      HorasExtrasValor: 0,
+      ValorBrutoHouseTx: empTakeat.brutoHouseTx,
+      ValorFichasHouseTx: empTakeat.liquidoHouseTx,
+      ValorBrutoFoodParkTx: empTakeat.brutoFoodParkTx,
+      ValorFichasFoodParkTx: empTakeat.liquidoFoodParkTx,
+      TaxaServicoValor: 0,
       BonusValor: 0,
       TotalValesAdiantamentos: sistemaVales,
       FaltasInjustificadas: Number(savedLine?.ValoresOriginaisSistema?.FaltasInjustificadas || 0),
@@ -1649,33 +1796,43 @@ async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", st
     };
 
     const salarioBase =
-      savedLine?.SalarioBaseManual !== undefined ? Number(savedLine.SalarioBaseManual) : salarioBaseSistema;
-    const vHouse =
-      savedLine?.ValorFichasHouseTxManual !== undefined
-        ? Number(savedLine.ValorFichasHouseTxManual)
-        : Number(valorFichasHouseTx.toFixed(2));
-    const vFoodPark =
-      savedLine?.ValorFichasFoodParkTxManual !== undefined
-        ? Number(savedLine.ValorFichasFoodParkTxManual)
-        : Number(valorFichasFoodParkTx.toFixed(2));
-    const horasExtrasValor = Number(savedLine?.HorasExtrasValor ?? 0);
-    const bonusValor = Number(savedLine?.BonusValor ?? 0);
-    const totalVales =
-      savedLine?.TotalValesAdiantamentosManual !== undefined
-        ? Number(savedLine.TotalValesAdiantamentosManual)
-        : sistemaVales;
+      savedLine?.SalarioBaseManual !== undefined && savedLine?.SalarioBaseManual !== null
+        ? Number(savedLine.SalarioBaseManual)
+        : salarioBaseSistema;
+    const vHouse = hasManualHouse
+      ? Number(savedLine.ValorFichasHouseTxManual)
+      : empTakeat.liquidoHouseTx;
+    const vFoodPark = hasManualFood
+      ? Number(savedLine.ValorFichasFoodParkTxManual)
+      : empTakeat.liquidoFoodParkTx;
+    const taxaServicoValor = Number(
+      savedLine?.TaxaServicoValor !== undefined
+        ? savedLine.TaxaServicoValor
+        : Number(savedLine?.HorasExtrasValor || 0) + Number(savedLine?.BonusValor || 0),
+    );
+    const totalVales = hasManualVales
+      ? Number(savedLine.TotalValesAdiantamentosManual)
+      : sistemaVales;
     const faltasInjustificadas = Number(savedLine?.FaltasInjustificadas ?? 0);
     const descontoFaltas = Number(savedLine?.DescontoFaltasAtrasos ?? 0);
     const consumoInterno = Number(savedLine?.ConsumoInternoValor ?? 0);
     const quebraDeCaixa = Number(savedLine?.QuebraDeCaixaValor ?? 0);
 
-    const totalProventos = Number(
-      (salarioBase + vHouse + vFoodPark + horasExtrasValor + bonusValor).toFixed(2),
-    );
-    const totalDescontos = Number(
-      (totalVales + descontoFaltas + consumoInterno + quebraDeCaixa).toFixed(2),
-    );
-    const valorLiquido = Number(Math.max(0, totalProventos - totalDescontos).toFixed(2));
+    const calc = recalculatePayrollLineNumbers({
+      SalarioBase: salarioBase,
+      ValorFichasHouseTx: vHouse,
+      ValorFichasFoodParkTx: vFoodPark,
+      TaxaServicoValor: taxaServicoValor,
+      TotalValesAdiantamentos: totalVales,
+      DescontoFaltasAtrasos: descontoFaltas,
+      ConsumoInternoValor: consumoInterno,
+      QuebraDeCaixaValor: quebraDeCaixa,
+    });
+
+    const latestPayment = pagamentos
+      .filter((p) => String(p.FuncionarioID || "") === empId && String(p.Competencia || "") === bounds.competencia)
+      .sort((a, b) => String(b.DataPagamento || "").localeCompare(String(a.DataPagamento || "")))[0] || null;
+
     const statusLinha = savedLine?.StatusLinha || savedLine?.Status || "Em Aberto";
 
     const row = {
@@ -1687,35 +1844,30 @@ async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", st
       FuncionarioID: empId,
       FuncionarioNome: emp.Nome,
       CPF: formatCpf(emp.CPF),
+      WhatsApp: emp.WhatsApp || emp.Telefone || emp.Celular || "",
       Cargo: emp.Cargo || "",
       Setor: emp.Setor || "",
       TipoContrato: emp.TipoContrato || "CLT",
       LojaID: emp.LojaID || "",
       NomeLoja: emp.NomeLoja || "",
-      SalarioBase: salarioBase,
-      QtdFichasHouseTx: qtdFichasHouseTx,
-      ValorFichasHouseTx: vHouse,
-      QtdFichasFoodParkTx: qtdFichasFoodParkTx,
-      ValorFichasFoodParkTx: vFoodPark,
-      TotalFichasValor: Number((vHouse + vFoodPark).toFixed(2)),
+      ValorBrutoHouseTx: empTakeat.brutoHouseTx,
+      ValorBrutoFoodParkTx: empTakeat.brutoFoodParkTx,
+      QtdFichasHouseTx: empTakeat.brutoHouseTx > 0 ? 1 : 0,
+      QtdFichasFoodParkTx: empTakeat.brutoFoodParkTx > 0 ? 1 : 0,
       DiasTrabalhados: diasComPonto,
       DiasAtestado: diasAtestado,
       FaltasInjustificadas: faltasInjustificadas,
-      HorasExtrasValor: horasExtrasValor,
-      BonusValor: bonusValor,
-      TotalValesAdiantamentos: totalVales,
-      DescontoFaltasAtrasos: descontoFaltas,
-      ConsumoInternoValor: consumoInterno,
-      QuebraDeCaixaValor: quebraDeCaixa,
-      TotalProventos: totalProventos,
-      TotalDescontos: totalDescontos,
-      ValorLiquido: valorLiquido,
+      ...calc,
       ChavePix: emp.ChavePix || "",
       BancoNome: emp.BancoNome || "",
       BancoAgencia: emp.BancoAgencia || "",
       BancoConta: emp.BancoConta || "",
       StatusLinha: statusLinha,
       Status: statusLinha,
+      UltimoPagamentoID: savedLine?.UltimoPagamentoID || latestPayment?.PagamentoID || "",
+      UltimoPagamentoEm: savedLine?.UltimoPagamentoEm || latestPayment?.DataPagamento || "",
+      UltimoValorPago: savedLine?.UltimoValorPago ?? latestPayment?.ValorLiquido ?? 0,
+      UltimoComprovanteURL: savedLine?.UltimoComprovanteURL || latestPayment?.ComprovanteURL || "",
       EditadoManualmente: Boolean(savedLine?.EditadoManualmente),
       EdicoesManuais: savedLine?.EdicoesManuais || [],
       ValoresOriginaisSistema: valoresOriginaisSistema,
@@ -1734,6 +1886,7 @@ async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", st
       acc.totalSalarios += Number(r.SalarioBase || 0);
       acc.totalHouseTx += Number(r.ValorFichasHouseTx || 0);
       acc.totalFoodParkTx += Number(r.ValorFichasFoodParkTx || 0);
+      acc.totalTaxaServico += Number(r.TaxaServicoValor || 0);
       acc.totalVales += Number(r.TotalValesAdiantamentos || 0);
       acc.totalDescontos += Number(r.TotalDescontos || 0);
       acc.totalLiquido += Number(r.ValorLiquido || 0);
@@ -1744,6 +1897,7 @@ async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", st
       totalSalarios: 0,
       totalHouseTx: 0,
       totalFoodParkTx: 0,
+      totalTaxaServico: 0,
       totalVales: 0,
       totalDescontos: 0,
       totalLiquido: 0,
@@ -1759,6 +1913,7 @@ async function calcularLinhasFolhaPeriodo({ competencia, quinzena = "mensal", st
       totalSalarios: Number(totais.totalSalarios.toFixed(2)),
       totalHouseTx: Number(totais.totalHouseTx.toFixed(2)),
       totalFoodParkTx: Number(totais.totalFoodParkTx.toFixed(2)),
+      totalTaxaServico: Number(totais.totalTaxaServico.toFixed(2)),
       totalVales: Number(totais.totalVales.toFixed(2)),
       totalDescontos: Number(totais.totalDescontos.toFixed(2)),
       totalLiquido: Number(totais.totalLiquido.toFixed(2)),
@@ -1780,6 +1935,8 @@ async function gerarPreviaFolhaSalarial(filters = {}) {
     quinzena,
     storeId,
     statusFilter,
+    takeatItems: filters.takeatItems || null,
+    takeatMappings: filters.takeatMappings || null,
   });
 
   return success({
@@ -1806,6 +1963,8 @@ async function editarLinhaFolhaManual(payload = {}) {
     competencia,
     quinzena,
     storeId: payload.LojaID || "",
+    takeatItems: payload.takeatItems || null,
+    takeatMappings: payload.takeatMappings || null,
   });
   assert(
     !previa.folhaCongelada,
@@ -1815,20 +1974,24 @@ async function editarLinhaFolhaManual(payload = {}) {
   const currentLine = previa.linhas.find((l) => String(l.FuncionarioID) === employeeId);
   assert(currentLine, "Colaborador não localizado na folha do período selecionado.");
 
+  const normalizedPayload = { ...payload };
+  if (normalizedPayload.TaxaServicoValor === undefined && normalizedPayload.BonusValor !== undefined) {
+    normalizedPayload.TaxaServicoValor = normalizedPayload.BonusValor;
+  }
+
   const now = nowIso();
   const edicoes = [...(currentLine.EdicoesManuais || [])];
   const diffsAuditoria = [];
 
   const editableMap = [
     { payloadKey: "SalarioBase", storeKey: "SalarioBaseManual", label: "Salário Base", currentKey: "SalarioBase" },
-    { payloadKey: "ValorFichasHouseTx", storeKey: "ValorFichasHouseTxManual", label: "Fichas House Tx (R$)", currentKey: "ValorFichasHouseTx" },
-    { payloadKey: "ValorFichasFoodParkTx", storeKey: "ValorFichasFoodParkTxManual", label: "Fichas FoodPark Tx (R$)", currentKey: "ValorFichasFoodParkTx" },
-    { payloadKey: "HorasExtrasValor", storeKey: "HorasExtrasValor", label: "Horas Extras (R$)", currentKey: "HorasExtrasValor" },
-    { payloadKey: "BonusValor", storeKey: "BonusValor", label: "Bônus / Premiação (R$)", currentKey: "BonusValor" },
+    { payloadKey: "ValorFichasHouseTx", storeKey: "ValorFichasHouseTxManual", label: "Fichas House TX (-20%)", currentKey: "ValorFichasHouseTx" },
+    { payloadKey: "ValorFichasFoodParkTx", storeKey: "ValorFichasFoodParkTxManual", label: "Fichas FoodPark (-20%)", currentKey: "ValorFichasFoodParkTx" },
+    { payloadKey: "TaxaServicoValor", storeKey: "TaxaServicoValor", label: "10% Taxa de Serviço (R$)", currentKey: "TaxaServicoValor" },
     { payloadKey: "TotalValesAdiantamentos", storeKey: "TotalValesAdiantamentosManual", label: "Desconto de Vales (R$)", currentKey: "TotalValesAdiantamentos" },
     { payloadKey: "FaltasInjustificadas", storeKey: "FaltasInjustificadas", label: "Faltas Injustificadas (Qtd)", currentKey: "FaltasInjustificadas" },
-    { payloadKey: "DescontoFaltasAtrasos", storeKey: "DescontoFaltasAtrasos", label: "Desconto de Faltas/Atrasos (R$)", currentKey: "DescontoFaltasAtrasos" },
-    { payloadKey: "ConsumoInternoValor", storeKey: "ConsumoInternoValor", label: "Consumo Interno (R$)", currentKey: "ConsumoInternoValor" },
+    { payloadKey: "DescontoFaltasAtrasos", storeKey: "DescontoFaltasAtrasos", label: "Desconto de Faltas (R$)", currentKey: "DescontoFaltasAtrasos" },
+    { payloadKey: "ConsumoInternoValor", storeKey: "ConsumoInternoValor", label: "Outros Descontos (R$)", currentKey: "ConsumoInternoValor" },
     { payloadKey: "QuebraDeCaixaValor", storeKey: "QuebraDeCaixaValor", label: "Quebra de Caixa (R$)", currentKey: "QuebraDeCaixaValor" },
     { payloadKey: "StatusLinha", storeKey: "StatusLinha", label: "Status na Folha", currentKey: "StatusLinha" },
   ];
@@ -1836,24 +1999,21 @@ async function editarLinhaFolhaManual(payload = {}) {
   const patchData = { ...currentLine };
 
   for (const item of editableMap) {
-    if (payload[item.payloadKey] !== undefined) {
+    if (normalizedPayload[item.payloadKey] !== undefined) {
       const valOriginalSistema =
         currentLine.ValoresOriginaisSistema?.[item.currentKey] ?? currentLine[item.currentKey];
       const valAnterior = currentLine[item.currentKey];
       const valNovo =
         item.payloadKey === "StatusLinha"
-          ? String(payload[item.payloadKey]).trim()
-          : Number(payload[item.payloadKey] || 0);
+          ? String(normalizedPayload[item.payloadKey]).trim()
+          : Number(normalizedPayload[item.payloadKey] || 0);
 
       if (String(valAnterior) !== String(valNovo)) {
         patchData[item.storeKey] = valNovo;
         patchData[item.currentKey] = valNovo;
-        const fmtAnt = item.payloadKey === "StatusLinha" || item.payloadKey === "FaltasInjustificadas"
-          ? String(valOriginalSistema)
-          : formatCurrencyBRL(valOriginalSistema);
-        const fmtNovo = item.payloadKey === "StatusLinha" || item.payloadKey === "FaltasInjustificadas"
-          ? String(valNovo)
-          : formatCurrencyBRL(valNovo);
+        const isNumericText = item.payloadKey === "StatusLinha" || item.payloadKey === "FaltasInjustificadas";
+        const fmtAnt = isNumericText ? String(valOriginalSistema) : formatCurrencyBRL(valOriginalSistema);
+        const fmtNovo = isNumericText ? String(valNovo) : formatCurrencyBRL(valNovo);
 
         edicoes.push({
           campo: item.label,
@@ -1868,7 +2028,7 @@ async function editarLinhaFolhaManual(payload = {}) {
           campo: item.label,
           valorAnterior: fmtAnt,
           valorNovo: fmtNovo,
-          resumo: `${item.label} alterado manualmente de ${fmtAnt} (sistema) para ${fmtNovo}. Motivo: ${justificativa}`,
+          resumo: `${item.label} alterado manualmente de ${fmtAnt} para ${fmtNovo}. Motivo: ${justificativa}`,
         });
       }
     }
@@ -1876,24 +2036,13 @@ async function editarLinhaFolhaManual(payload = {}) {
 
   assert(diffsAuditoria.length > 0, "Nenhuma alteração de valor foi detectada na linha da folha.");
 
-  const salarioBase = Number(patchData.SalarioBase || 0);
-  const vHouse = Number(patchData.ValorFichasHouseTx || 0);
-  const vFood = Number(patchData.ValorFichasFoodParkTx || 0);
-  const vExtras = Number(patchData.HorasExtrasValor || 0);
-  const vBonus = Number(patchData.BonusValor || 0);
-  const vVales = Number(patchData.TotalValesAdiantamentos || 0);
-  const vFaltas = Number(patchData.DescontoFaltasAtrasos || 0);
-  const vConsumo = Number(patchData.ConsumoInternoValor || 0);
-  const vQuebra = Number(patchData.QuebraDeCaixaValor || 0);
-
-  patchData.TotalFichasValor = Number((vHouse + vFood).toFixed(2));
-  patchData.TotalProventos = Number((salarioBase + vHouse + vFood + vExtras + vBonus).toFixed(2));
-  patchData.TotalDescontos = Number((vVales + vFaltas + vConsumo + vQuebra).toFixed(2));
-  patchData.ValorLiquido = Number(Math.max(0, patchData.TotalProventos - patchData.TotalDescontos).toFixed(2));
-  patchData.EditadoManualmente = true;
-  patchData.EdicoesManuais = edicoes;
-  patchData.UltimaJustificativa = justificativa;
-  patchData.DataAtualizacao = now;
+  const calc = recalculatePayrollLineNumbers(patchData);
+  Object.assign(patchData, calc, {
+    EditadoManualmente: true,
+    EdicoesManuais: edicoes,
+    UltimaJustificativa: justificativa,
+    DataAtualizacao: now,
+  });
 
   const existingSaved = await runtime.getById("FolhaLinhas", currentLine.LinhaID).catch(() => null);
   if (existingSaved) {
@@ -1920,6 +2069,338 @@ async function editarLinhaFolhaManual(payload = {}) {
   return success(patchData, "Ajuste manual registrado na Folha Salarial e gravado no Log de Auditoria.");
 }
 
+async function pagarFolhaColaborador(payload = {}) {
+  const profile = await requireAdmin();
+  const competencia = String(payload.competencia || payload.AnoMes || todayIso().slice(0, 7)).slice(0, 7);
+  const quinzena = String(payload.quinzena || "mensal");
+  const employeeId = String(payload.FuncionarioID || payload.employeeId || "").trim();
+  assert(employeeId, "Colaborador não informado para pagamento.");
+
+  const previa = await calcularLinhasFolhaPeriodo({
+    competencia,
+    quinzena,
+    storeId: payload.LojaID || "",
+    takeatItems: payload.takeatItems || null,
+    takeatMappings: payload.takeatMappings || null,
+  });
+  const baseLine = previa.linhas.find((l) => String(l.FuncionarioID) === employeeId);
+  assert(baseLine, "Colaborador não encontrado na folha do período selecionado.");
+
+  const mergedLine = {
+    ...baseLine,
+    ...(payload.linhaSnapshot && typeof payload.linhaSnapshot === "object" ? payload.linhaSnapshot : {}),
+  };
+  const calc = recalculatePayrollLineNumbers(mergedLine);
+  Object.assign(mergedLine, calc);
+
+  const comprovanteUrl = String(payload.comprovanteUrl || payload.ComprovanteURL || "").trim();
+  const comprovanteNome = String(payload.comprovanteNome || payload.ComprovanteNome || "").trim();
+  const observacao = String(payload.observacao || payload.Observacao || "").trim();
+  if (!payload.permitirSemComprovante) {
+    assert(comprovanteUrl, "Anexe o comprovante de pagamento para concluir o pagamento.");
+  }
+
+  const now = nowIso();
+  const pagamentoId = uuid();
+  const payerName = profile.Nome || profile.Email || "Financeiro";
+  const relatorioTexto = buildPayrollStatementText(mergedLine, previa.bounds, {
+    titulo: "COMPROVANTE DE PAGAMENTO DE FOLHA",
+    observacao,
+    comprovanteNome,
+    comprovanteUrl,
+    responsavel: payerName,
+    dataHora: now,
+    acaoLabel: "Pago",
+  });
+
+  const hashRelatorio = await sha256Hex(relatorioTexto);
+  const docId = `pag-folha-${pagamentoId}`;
+  const isDataUrl = comprovanteUrl.startsWith("data:");
+  const enviarColaborador = payload.enviarParaColaborador !== false;
+
+  if (enviarColaborador) {
+    const docRecord = {
+      DocID: docId,
+      FuncionarioID: mergedLine.FuncionarioID,
+      FuncionarioNome: mergedLine.FuncionarioNome,
+      NomeFuncionario: mergedLine.FuncionarioNome,
+      CPF: mergedLine.CPF || "",
+      CPFFuncionario: mergedLine.CPF || "",
+      LojaID: mergedLine.LojaID,
+      NomeLoja: mergedLine.NomeLoja || mergedLine.LojaID,
+      Tipo: "Holerite",
+      Categoria: "Holerite",
+      SubtipoCodigo: "COMPROVANTE_PAGAMENTO_FOLHA",
+      Titulo: `Comprovante de Pagamento - ${previa.bounds.chaveFechamento}`,
+      Competencia: previa.bounds.competencia,
+      MesReferencia: previa.bounds.competencia,
+      ConteudoTexto: relatorioTexto,
+      ArquivoOriginalBase64: isDataUrl ? comprovanteUrl : "",
+      ArquivoUrl: comprovanteUrl || `data:text/plain;charset=utf-8,${encodeURIComponent(relatorioTexto)}`,
+      ArquivoURL: comprovanteUrl || `data:text/plain;charset=utf-8,${encodeURIComponent(relatorioTexto)}`,
+      ComprovanteURL: comprovanteUrl,
+      ComprovanteNome: comprovanteNome,
+      HashSHA256Original: hashRelatorio,
+      ValorLiquido: mergedLine.ValorLiquido,
+      RequerAssinatura: false,
+      StatusAssinatura: "Pago",
+      Status: "Disponível",
+      CriadoPor: payerName,
+      DataCriacao: now,
+    };
+    await runtime.create("Documentos", docRecord);
+
+    await createNotification({
+      LojaID: mergedLine.LojaID || "",
+      DestinatarioID: mergedLine.FuncionarioID,
+      Tipo: "Documentos",
+      Assunto: `Pagamento realizado (${previa.bounds.competencia})`,
+      Mensagem: `Seu pagamento de ${formatCurrencyBRL(mergedLine.ValorLiquido)} foi realizado. Confira o demonstrativo e comprovante em Holerites & Docs.`,
+      RegistoRelacionadoID: docId,
+    }).catch(() => {});
+  }
+
+  const emp = await runtime.getById("Funcionarios", employeeId).catch(() => null);
+  const rawPhone = mergedLine.WhatsApp || emp?.WhatsApp || emp?.Telefone || emp?.Celular || "";
+  const phone = normalizeWhatsAppNumber(rawPhone);
+  const firstName = String(mergedLine.FuncionarioNome || "Colaborador").trim().split(/\s+/)[0];
+  const waText = [
+    `*GRUPO HOUSE 190 · PAGAMENTO CONFIRMADO*`,
+    ``,
+    `Olá, ${firstName}! Seu pagamento referente a *${previa.bounds.chaveFechamento}* foi efetuado.`,
+    ``,
+    `• Salário Base: ${formatCurrencyBRL(mergedLine.SalarioBase)}`,
+    ...(Number(mergedLine.TaxaServicoValor || 0) > 0
+      ? [`• (+) 10% Taxa de Serviço: ${formatCurrencyBRL(mergedLine.TaxaServicoValor)}`]
+      : []),
+    ...(Number(mergedLine.ValorFichasHouseTx || 0) > 0
+      ? [`• (-) Fichas House TX (-20%): ${formatCurrencyBRL(mergedLine.ValorFichasHouseTx)}`]
+      : []),
+    ...(Number(mergedLine.ValorFichasFoodParkTx || 0) > 0
+      ? [`• (-) Fichas FoodPark (-20%): ${formatCurrencyBRL(mergedLine.ValorFichasFoodParkTx)}`]
+      : []),
+    ...(Number(mergedLine.TotalValesAdiantamentos || 0) > 0
+      ? [`• (-) Vales: ${formatCurrencyBRL(mergedLine.TotalValesAdiantamentos)}`]
+      : []),
+    ...(Number(mergedLine.DescontoFaltasAtrasos || 0) > 0
+      ? [`• (-) Faltas (${Number(mergedLine.FaltasInjustificadas || 0)}x): ${formatCurrencyBRL(mergedLine.DescontoFaltasAtrasos)}`]
+      : []),
+    ...(Number(mergedLine.QuebraDeCaixaValor || 0) > 0
+      ? [`• (-) Quebra de Caixa: ${formatCurrencyBRL(mergedLine.QuebraDeCaixaValor)}`]
+      : []),
+    ``,
+    `*Valor Líquido Pago: ${formatCurrencyBRL(mergedLine.ValorLiquido)}*`,
+    ``,
+    `O relatório detalhado e o comprovante já estão salvos em *Holerites & Docs* no aplicativo.`,
+  ].join("\n");
+
+  const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(waText)}` : "";
+  let waMessageId = "";
+  let waErro = "";
+  if (enviarColaborador && phone && typeof window !== "undefined") {
+    try {
+      const sent = await requestWorker("/wa-send", { phone, text: waText });
+      waMessageId = sent?.messageId || "";
+    } catch (err) {
+      waErro = err?.message || "Gateway WhatsApp indisponível no momento.";
+    }
+  }
+
+  const paymentRecord = {
+    PagamentoID: pagamentoId,
+    LinhaID: mergedLine.LinhaID,
+    AnoMes: previa.bounds.chaveFechamento,
+    Competencia: previa.bounds.competencia,
+    Quinzena: previa.bounds.quinzena,
+    FuncionarioID: mergedLine.FuncionarioID,
+    FuncionarioNome: mergedLine.FuncionarioNome,
+    CPF: mergedLine.CPF || "",
+    LojaID: mergedLine.LojaID || "",
+    NomeLoja: mergedLine.NomeLoja || mergedLine.LojaID || "",
+    Cargo: mergedLine.Cargo || "",
+    SalarioBase: mergedLine.SalarioBase,
+    ValorBrutoHouseTx: Number(mergedLine.ValorBrutoHouseTx || 0),
+    ValorFichasHouseTx: mergedLine.ValorFichasHouseTx,
+    ValorBrutoFoodParkTx: Number(mergedLine.ValorBrutoFoodParkTx || 0),
+    ValorFichasFoodParkTx: mergedLine.ValorFichasFoodParkTx,
+    TaxaServicoValor: mergedLine.TaxaServicoValor,
+    TotalValesAdiantamentos: mergedLine.TotalValesAdiantamentos,
+    FaltasInjustificadas: Number(mergedLine.FaltasInjustificadas || 0),
+    DescontoFaltasAtrasos: mergedLine.DescontoFaltasAtrasos,
+    ConsumoInternoValor: mergedLine.ConsumoInternoValor,
+    QuebraDeCaixaValor: mergedLine.QuebraDeCaixaValor,
+    TotalProventos: mergedLine.TotalProventos,
+    TotalDescontos: mergedLine.TotalDescontos,
+    ValorLiquido: mergedLine.ValorLiquido,
+    ChavePix: mergedLine.ChavePix || "",
+    ComprovanteURL: comprovanteUrl,
+    ComprovanteNome: comprovanteNome,
+    Observacao: observacao,
+    RelatorioTexto: relatorioTexto,
+    HashSHA256: hashRelatorio,
+    DocumentoID: enviarColaborador ? docId : "",
+    WhatsAppPhone: phone,
+    WhatsAppEnviado: Boolean(waMessageId),
+    WhatsAppMessageID: waMessageId,
+    WhatsAppUrl: waUrl,
+    WhatsAppErro: waErro,
+    Status: "Pago",
+    PagoPor: payerName,
+    DataPagamento: now,
+  };
+
+  await runtime.create("FolhaPagamentos", paymentRecord);
+
+  // Marca vales do periodo como deduzidos neste pagamento para não duplicar no mesmo mês
+  const allVales = await runtime.list("SolicitacoesVale").catch(() => []);
+  const valesDeduzidos = allVales.filter(
+    (v) =>
+      String(v.FuncionarioID || "") === employeeId &&
+      v.Status === "Pago" &&
+      !v.DeduzidoFolhaPagamentoID &&
+      String(v.DataDesejada || v.Competencia || "").slice(0, 7) === previa.bounds.competencia,
+  );
+  for (const vale of valesDeduzidos) {
+    await runtime.update("SolicitacoesVale", vale.ValeID, {
+      ...vale,
+      DeduzidoFolhaPagamentoID: pagamentoId,
+      DeduzidoFolhaEm: now,
+    }).catch(() => {});
+  }
+
+  // Zera os lançamentos variáveis do mês após salvar o histórico para o próximo mês iniciar limpo
+  const linhaZeradaPosPagamento = {
+    ...mergedLine,
+    SalarioBaseManual: null,
+    ValorFichasHouseTxManual: null,
+    ValorFichasFoodParkTxManual: null,
+    TotalValesAdiantamentosManual: null,
+    ValorFichasHouseTx: 0,
+    ValorFichasFoodParkTx: 0,
+    TaxaServicoValor: 0,
+    HorasExtrasValor: 0,
+    BonusValor: 0,
+    TotalValesAdiantamentos: 0,
+    FaltasInjustificadas: 0,
+    DescontoFaltasAtrasos: 0,
+    ConsumoInternoValor: 0,
+    QuebraDeCaixaValor: 0,
+    TotalProventos: mergedLine.SalarioBase,
+    TotalDescontos: 0,
+    ValorLiquido: mergedLine.SalarioBase,
+    StatusLinha: "Pago",
+    Status: "Pago",
+    UltimoPagamentoID: pagamentoId,
+    UltimoPagamentoEm: now,
+    UltimoValorPago: mergedLine.ValorLiquido,
+    UltimoComprovanteURL: comprovanteUrl,
+    EditadoManualmente: false,
+    DataAtualizacao: now,
+  };
+
+  const existingSaved = await runtime.getById("FolhaLinhas", mergedLine.LinhaID).catch(() => null);
+  if (existingSaved) {
+    await runtime.update("FolhaLinhas", mergedLine.LinhaID, linhaZeradaPosPagamento);
+  } else {
+    await runtime.create("FolhaLinhas", linhaZeradaPosPagamento);
+  }
+
+  await audit("FOLHA_COLABORADOR_PAGO", "FolhaPagamentos", pagamentoId, {
+    tela: "Tela 8 - Folha Salarial",
+    employeeId: mergedLine.FuncionarioID,
+    employeeName: mergedLine.FuncionarioNome,
+    LojaID: mergedLine.LojaID,
+    campo: "Pagamento",
+    valorAnterior: mergedLine.StatusLinha || "Em Aberto",
+    valorNovo: `Pago (${formatCurrencyBRL(mergedLine.ValorLiquido)})`,
+    resumo: `Pagamento de ${formatCurrencyBRL(mergedLine.ValorLiquido)} realizado para ${mergedLine.FuncionarioNome} (${previa.bounds.chaveFechamento}) com comprovante salvo no histórico.`,
+  });
+
+  return success(
+    {
+      pagamento: paymentRecord,
+      linhaAtualizada: linhaZeradaPosPagamento,
+      whatsapp: {
+        phone,
+        deliveredViaGateway: Boolean(waMessageId),
+        waUrl,
+        error: waErro,
+      },
+    },
+    waMessageId
+      ? `Pagamento de ${formatCurrencyBRL(mergedLine.ValorLiquido)} salvo no histórico e notificado no WhatsApp!`
+      : `Pagamento de ${formatCurrencyBRL(mergedLine.ValorLiquido)} registrado no histórico e enviado para o colaborador.`,
+  );
+}
+
+async function zerarLinhaFolha(payload = {}) {
+  const profile = await requireAdmin();
+  const competencia = String(payload.competencia || payload.AnoMes || todayIso().slice(0, 7)).slice(0, 7);
+  const quinzena = String(payload.quinzena || "mensal");
+  const employeeId = String(payload.FuncionarioID || payload.employeeId || "").trim();
+  assert(employeeId, "Colaborador não informado.");
+
+  const bounds = resolvePeriodBounds(competencia, quinzena);
+  const linhaKey = `${bounds.chaveFechamento}_${employeeId}`;
+  const existing = await runtime.getById("FolhaLinhas", linhaKey).catch(() => null);
+  if (!existing) {
+    return success(null, "Linha já está zerada para preenchimento.");
+  }
+
+  const now = nowIso();
+  const reset = {
+    ...existing,
+    SalarioBaseManual: null,
+    ValorFichasHouseTxManual: null,
+    ValorFichasFoodParkTxManual: null,
+    TotalValesAdiantamentosManual: null,
+    TaxaServicoValor: 0,
+    HorasExtrasValor: 0,
+    BonusValor: 0,
+    FaltasInjustificadas: 0,
+    DescontoFaltasAtrasos: 0,
+    ConsumoInternoValor: 0,
+    QuebraDeCaixaValor: 0,
+    StatusLinha: "Em Aberto",
+    Status: "Em Aberto",
+    EditadoManualmente: false,
+    DataAtualizacao: now,
+  };
+  await runtime.update("FolhaLinhas", linhaKey, reset);
+
+  await audit("FOLHA_LINHA_ZERADA", "FolhaSalarial", linhaKey, {
+    tela: "Tela 8 - Folha Salarial",
+    employeeId,
+    employeeName: existing.FuncionarioNome || "",
+    LojaID: existing.LojaID || "",
+    campo: "StatusLinha",
+    valorAnterior: existing.StatusLinha || "Pago",
+    valorNovo: "Em Aberto (zerada para novo preenchimento)",
+    resumo: `Linha da folha (${bounds.chaveFechamento}) reaberta e zerada por ${profile.Nome || profile.Email}.`,
+  });
+
+  return success(reset, "Linha zerada e liberada para novo preenchimento.");
+}
+
+async function listarPagamentosFolha(filters = {}) {
+  const profile = await requireManager();
+  const competencia = String(filters.competencia || "").trim().slice(0, 7);
+  const storeId = isAdmin(profile) ? String(filters.storeId || "").trim() : String(profile.LojaID || "").trim();
+  const employeeId = String(filters.employeeId || "").trim();
+
+  const rows = await runtime.list("FolhaPagamentos").catch(() => []);
+  const filtered = rows
+    .filter((item) => {
+      if (competencia && String(item.Competencia || "") !== competencia) return false;
+      if (storeId && String(item.LojaID || "") !== storeId) return false;
+      if (employeeId && String(item.FuncionarioID || "") !== employeeId) return false;
+      return true;
+    })
+    .sort((a, b) => String(b.DataPagamento || "").localeCompare(String(a.DataPagamento || "")));
+
+  return success(filtered);
+}
+
 async function fecharFolhaSalarialMes(payload = {}) {
   const profile = await requireAdmin();
   const competencia = String(payload.competencia || payload.AnoMes || todayIso().slice(0, 7)).slice(0, 7);
@@ -1930,6 +2411,8 @@ async function fecharFolhaSalarialMes(payload = {}) {
     competencia,
     quinzena,
     storeId,
+    takeatItems: payload.takeatItems || null,
+    takeatMappings: payload.takeatMappings || null,
   });
 
   assert(!previa.folhaCongelada, "A Folha Salarial deste período já se encontra fechada.");
@@ -1954,29 +2437,12 @@ async function fecharFolhaSalarialMes(payload = {}) {
       await runtime.create("FolhaLinhas", linhaCongelada);
     }
 
-    const espelhoTexto = [
-      `ESPELHO DETALHADO DE FECHAMENTO DE FOLHA - COMPETENCIA ${previa.bounds.chaveFechamento}`,
-      `Colaborador: ${linha.FuncionarioNome} | CPF: ${linha.CPF || "N/I"}`,
-      `Unidade/Loja: ${linha.NomeLoja || linha.LojaID} | Cargo: ${linha.Cargo || "Operacional"}`,
-      "----------------------------------------------------------------",
-      "PROVENTOS (GANHOS):",
-      `  (+) Salario Base: ${formatCurrencyBRL(linha.SalarioBase)}`,
-      `  (+) Fichas House Tx (${linha.QtdFichasHouseTx}x): ${formatCurrencyBRL(linha.ValorFichasHouseTx)}`,
-      `  (+) Fichas FoodPark Tx (${linha.QtdFichasFoodParkTx}x): ${formatCurrencyBRL(linha.ValorFichasFoodParkTx)}`,
-      `  (+) Horas Extras / Bonus: ${formatCurrencyBRL(Number(linha.HorasExtrasValor || 0) + Number(linha.BonusValor || 0))}`,
-      `  (=) Total Bruto: ${formatCurrencyBRL(linha.TotalProventos)}`,
-      "----------------------------------------------------------------",
-      "DESCONTOS:",
-      `  (-) Vales / Adiantamentos: ${formatCurrencyBRL(linha.TotalValesAdiantamentos)}`,
-      `  (-) Faltas / Atrasos (${linha.FaltasInjustificadas} falta(s)): ${formatCurrencyBRL(linha.DescontoFaltasAtrasos)}`,
-      `  (-) Consumo Interno / Outros: ${formatCurrencyBRL(linha.ConsumoInternoValor)}`,
-      `  (-) Quebra de Caixa: ${formatCurrencyBRL(linha.QuebraDeCaixaValor)}`,
-      `  (=) Total de Descontos: ${formatCurrencyBRL(linha.TotalDescontos)}`,
-      "----------------------------------------------------------------",
-      `VALOR LIQUIDO A RECEBER: ${formatCurrencyBRL(linha.ValorLiquido)}`,
-      `Chave PIX Cadastrada: ${linha.ChavePix || "Nao informada"}`,
-      `Fechado por: ${profile.Nome || profile.Email} em ${now}`,
-    ].join("\n");
+    const espelhoTexto = buildPayrollStatementText(linha, previa.bounds, {
+      titulo: "ESPELHO DETALHADO DE FECHAMENTO DE FOLHA",
+      responsavel: profile.Nome || profile.Email,
+      dataHora: now,
+      acaoLabel: "Fechado",
+    });
 
     const hashEspelho = await sha256Hex(espelhoTexto);
     const docId = `espelho-folha-${previa.bounds.chaveFechamento}-${linha.FuncionarioID}`;
@@ -1984,18 +2450,24 @@ async function fecharFolhaSalarialMes(payload = {}) {
       DocID: docId,
       FuncionarioID: linha.FuncionarioID,
       FuncionarioNome: linha.FuncionarioNome,
+      NomeFuncionario: linha.FuncionarioNome,
       CPF: linha.CPF || "",
+      CPFFuncionario: linha.CPF || "",
       LojaID: linha.LojaID,
+      NomeLoja: linha.NomeLoja || linha.LojaID,
       Tipo: "Holerite",
+      Categoria: "Holerite",
       SubtipoCodigo: "ESPELHO_FOLHA_FECHADA",
       Titulo: `Espelho de Folha e Fichas - ${previa.bounds.chaveFechamento}`,
       Competencia: previa.bounds.competencia,
+      MesReferencia: previa.bounds.competencia,
       ConteudoTexto: espelhoTexto,
       ArquivoURL: `data:text/plain;charset=utf-8,${encodeURIComponent(espelhoTexto)}`,
       HashSHA256Original: hashEspelho,
       ValorLiquido: linha.ValorLiquido,
       RequerAssinatura: true,
       StatusAssinatura: "Pendente",
+      Status: "Pendente",
       CriadoPor: profile.Nome || profile.Email,
       DataCriacao: now,
     };
@@ -2055,12 +2527,18 @@ async function fecharFolhaSalarialMes(payload = {}) {
 
 async function exportarFolhaSalarial(filters = {}) {
   const profile = await requireManager();
-  const competencia = String(filters.competencia || filters.AnoMes || todayIso().slice(0, 7)).slice(0, 7);
+  const competencia = String(filters.competencia || filters.anoMes || todayIso().slice(0, 7)).slice(0, 7);
   const quinzena = String(filters.quinzena || "mensal");
   const storeId = isAdmin(profile) ? String(filters.storeId || filters.LojaID || "") : String(profile.LojaID || "");
   const formato = String(filters.formato || "xlsx").toLowerCase();
 
-  const previa = await calcularLinhasFolhaPeriodo({ competencia, quinzena, storeId });
+  const previa = await calcularLinhasFolhaPeriodo({
+    competencia,
+    quinzena,
+    storeId,
+    takeatItems: filters.takeatItems || null,
+    takeatMappings: filters.takeatMappings || null,
+  });
 
   const columns = [
     "Colaborador",
@@ -2068,15 +2546,12 @@ async function exportarFolhaSalarial(filters = {}) {
     "Unidade",
     "Cargo",
     "SalarioBase",
-    "QtdFichasHouseTx",
-    "ValorFichasHouseTx",
-    "QtdFichasFoodParkTx",
-    "ValorFichasFoodParkTx",
-    "HorasExtrasBonus",
-    "TotalBruto",
+    "FichasHouseTxDesconto20",
+    "FichasFoodParkDesconto20",
+    "TaxaServico10PorCento",
+    "TotalProventos",
     "DescontoVales",
     "DescontoFaltas",
-    "ConsumoInterno",
     "QuebraDeCaixa",
     "TotalDescontos",
     "ValorLiquido",
@@ -2090,15 +2565,12 @@ async function exportarFolhaSalarial(filters = {}) {
     Unidade: r.NomeLoja || r.LojaID,
     Cargo: r.Cargo,
     SalarioBase: Number(r.SalarioBase || 0).toFixed(2),
-    QtdFichasHouseTx: r.QtdFichasHouseTx,
-    ValorFichasHouseTx: Number(r.ValorFichasHouseTx || 0).toFixed(2),
-    QtdFichasFoodParkTx: r.QtdFichasFoodParkTx,
-    ValorFichasFoodParkTx: Number(r.ValorFichasFoodParkTx || 0).toFixed(2),
-    HorasExtrasBonus: Number(Number(r.HorasExtrasValor || 0) + Number(r.BonusValor || 0)).toFixed(2),
-    TotalBruto: Number(r.TotalProventos || 0).toFixed(2),
+    FichasHouseTxDesconto20: Number(r.ValorFichasHouseTx || 0).toFixed(2),
+    FichasFoodParkDesconto20: Number(r.ValorFichasFoodParkTx || 0).toFixed(2),
+    TaxaServico10PorCento: Number(r.TaxaServicoValor || 0).toFixed(2),
+    TotalProventos: Number(r.TotalProventos || 0).toFixed(2),
     DescontoVales: Number(r.TotalValesAdiantamentos || 0).toFixed(2),
     DescontoFaltas: Number(r.DescontoFaltasAtrasos || 0).toFixed(2),
-    ConsumoInterno: Number(r.ConsumoInternoValor || 0).toFixed(2),
     QuebraDeCaixa: Number(r.QuebraDeCaixaValor || 0).toFixed(2),
     TotalDescontos: Number(r.TotalDescontos || 0).toFixed(2),
     ValorLiquido: Number(r.ValorLiquido || 0).toFixed(2),
@@ -2166,9 +2638,12 @@ export const createPortalHandlers = () => ({
   // Tela 7: Rastreamento de Visualizacao / Download de Holerites
   registrarEventoDocumento: (args) => registrarEventoDocumento(unpackArg(args)),
 
-  // Tela 8: Fechamento de Folha Salarial
+  // Tela 8: Fechamento de Folha Salarial e Pagamentos
   gerarPreviaFolhaSalarial: (args) => gerarPreviaFolhaSalarial(unpackArg(args)),
   editarLinhaFolhaManual: (args) => editarLinhaFolhaManual(unpackArg(args)),
+  pagarFolhaColaborador: (args) => pagarFolhaColaborador(unpackArg(args)),
+  zerarLinhaFolha: (args) => zerarLinhaFolha(unpackArg(args)),
+  listarPagamentosFolha: (args) => listarPagamentosFolha(unpackArg(args)),
   fecharFolhaSalarialMes: (args) => fecharFolhaSalarialMes(unpackArg(args)),
   exportarFolhaSalarial: (args) => exportarFolhaSalarial(unpackArg(args)),
 });

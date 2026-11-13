@@ -515,18 +515,31 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
       LojaID: "loja-1",
     });
 
-    const previaGerente = await portal.gerarPreviaFolhaSalarial({ competencia: "2026-11" });
+    const takeatSampleItems = [
+      { id: "tk-house-1", storeKey: "teixeira", name: "João Silva", phone: "73999112233", debt: 100 },
+      { id: "tk-food-1", storeKey: "foodpark", name: "João Silva", phone: "73999112233", debt: 50 },
+    ];
+    const takeatSampleMappings = {
+      "teixeira:tk-house-1": "emp-colab-1",
+      "foodpark:tk-food-1": "emp-colab-1",
+    };
+
+    const previaGerente = await portal.gerarPreviaFolhaSalarial({
+      competencia: "2026-11",
+      takeatItems: takeatSampleItems,
+      takeatMappings: takeatSampleMappings,
+    });
     assert.equal(previaGerente.data.somenteLeituraGerente, true);
     assert.equal(previaGerente.data.permissaoEdicao, false);
 
     const linhaJoao = previaGerente.data.linhas.find((l) => l.FuncionarioID === "emp-colab-1");
     assert.ok(linhaJoao);
-    // Salário (1600) + House Tx (54) + FoodPark Tx (44) - Vale Pago (250) = 1448
+    // Salário (1600) - House Tx -20% (80) - FoodPark -20% (40) - Vale Pago (250) = 1230
     assert.equal(linhaJoao.SalarioBase, 1600);
-    assert.equal(linhaJoao.ValorFichasHouseTx, 54);
-    assert.equal(linhaJoao.ValorFichasFoodParkTx, 44);
+    assert.equal(linhaJoao.ValorFichasHouseTx, 80);
+    assert.equal(linhaJoao.ValorFichasFoodParkTx, 40);
     assert.equal(linhaJoao.TotalValesAdiantamentos, 250);
-    assert.equal(linhaJoao.ValorLiquido, 1448);
+    assert.equal(linhaJoao.ValorLiquido, 1230);
 
     // Gerente tenta editar manualmente -> bloqueado
     await assert.rejects(
@@ -536,6 +549,8 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
           FuncionarioID: "emp-colab-1",
           QuebraDeCaixaValor: 30,
           justificativa: "Tentativa gerente",
+          takeatItems: takeatSampleItems,
+          takeatMappings: takeatSampleMappings,
         }),
       /administrador/i,
     );
@@ -557,24 +572,32 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
           FuncionarioID: "emp-colab-1",
           QuebraDeCaixaValor: 48,
           justificativa: "",
+          takeatItems: takeatSampleItems,
+          takeatMappings: takeatSampleMappings,
         }),
       /justificativa obrigatória/i,
     );
 
-    // Diretoria edita com justificativa válida (aplica R$ 48,00 de quebra de caixa -> líquido vai de 1448 para 1400)
+    // Diretoria lança 10% Taxa de Serviço (R$ 200) e Quebra de Caixa (R$ 48): 1600 + 200 - 80 - 40 - 250 - 48 = 1382
     const editRes = await portal.editarLinhaFolhaManual({
       competencia: "2026-11",
       FuncionarioID: "emp-colab-1",
+      TaxaServicoValor: 200,
       QuebraDeCaixaValor: 48,
       justificativa: "Diferença apurada no fechamento de caixa do dia 10/11",
+      takeatItems: takeatSampleItems,
+      takeatMappings: takeatSampleMappings,
     });
-    assert.equal(editRes.data.ValorLiquido, 1400);
+    assert.equal(editRes.data.TaxaServicoValor, 200);
+    assert.equal(editRes.data.ValorLiquido, 1382);
     assert.equal(editRes.data.ValoresOriginaisSistema.QuebraDeCaixaValor, 0);
 
     // Diretoria fecha a Folha do Mês -> congela valores e envia espelho detalhado para Tela 7
     const closeRes = await portal.fecharFolhaSalarialMes({
       competencia: "2026-11",
       storeId: "loja-1",
+      takeatItems: takeatSampleItems,
+      takeatMappings: takeatSampleMappings,
     });
     assert.equal(closeRes.success, true);
     assert.ok(closeRes.data.espelhosEnviados >= 1);
@@ -586,7 +609,7 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
           competencia: "2026-11",
           LojaID: "loja-1",
           FuncionarioID: "emp-colab-1",
-          BonusValor: 100,
+          TaxaServicoValor: 100,
           justificativa: "Tentativa pós fechamento",
         }),
       /já foi fechada e congelada/i,
@@ -597,6 +620,8 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
       competencia: "2026-11",
       storeId: "loja-1",
       formato: "xlsx",
+      takeatItems: takeatSampleItems,
+      takeatMappings: takeatSampleMappings,
     });
     assert.equal(expRes.success, true);
     assert.match(expRes.data.dataUrl, /^data:text\/csv;charset=utf-8,/);
@@ -604,9 +629,10 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
     // Verifica na Tela 7 que o Espelho de Folha foi entregue ao colaborador e registra visualização/download
     const espelhoDoc = await runtime.getById("Documentos", "espelho-folha-2026-11-emp-colab-1");
     assert.ok(espelhoDoc);
-    assert.match(espelhoDoc.ConteudoTexto, /Fichas House Tx \(3x\): R\$ 54,00/);
-    assert.match(espelhoDoc.ConteudoTexto, /Fichas FoodPark Tx \(2x\): R\$ 44,00/);
-    assert.match(espelhoDoc.ConteudoTexto, /VALOR LIQUIDO A RECEBER: R\$ 1400,00/);
+    assert.match(espelhoDoc.ConteudoTexto, /\(\+\) 10% Taxa de Servico: R\$ 200,00/);
+    assert.match(espelhoDoc.ConteudoTexto, /\(-\) Fichas Takeat House TX \(Bruto R\$ 100,00 com -20%\): R\$ 80,00/);
+    assert.match(espelhoDoc.ConteudoTexto, /\(-\) Fichas Takeat FoodPark \(Bruto R\$ 50,00 com -20%\): R\$ 40,00/);
+    assert.match(espelhoDoc.ConteudoTexto, /VALOR LIQUIDO A RECEBER: R\$ 1382,00/);
 
     mock.setProfile({
       UsuarioID: "u-colab-1",
@@ -624,6 +650,133 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
     assert.ok(dlRes.data.VisualizadoEm);
     assert.ok(dlRes.data.BaixadoEm);
     assert.equal(dlRes.data.TotalDownloads, 1);
+  });
+
+  // ==========================================================================
+  // TELA 8 (PAGAMENTO): Comprovante, WhatsApp, Holerite, Histórico & Reset Mensal
+  // ==========================================================================
+  await t.test("Tela 8 (Pagamento): Financeiro ajusta via campos, paga com comprovante, envia ao colaborador/WhatsApp, grava histórico e zera para próximo mês", async () => {
+    mock.setProfile({
+      UsuarioID: "u-fin-1",
+      FuncionarioID: "emp-fin-1",
+      Nome: "Analista Financeiro",
+      Email: "financeiro@house190.com.br",
+      Perfil: "Financeiro",
+      LojaID: "",
+    });
+
+    // Vale pago em 2026-12 (R$ 150) + Takeat House TX R$ 100 bruto (-20% = 80)
+    await runtime.create("SolicitacoesVale", {
+      ValeID: "vale-dez-1",
+      FuncionarioID: "emp-colab-1",
+      FuncionarioNome: "João Silva",
+      LojaID: "loja-1",
+      Valor: 150,
+      DataDesejada: "2026-12-05",
+      Competencia: "2026-12",
+      Status: "Pago",
+    });
+
+    const takeatDez = [
+      { id: "tk-house-1", storeKey: "teixeira", name: "João Silva", phone: "73999112233", debt: 100 },
+    ];
+    const mappingsDez = { "teixeira:tk-house-1": "emp-colab-1" };
+
+    // Financeiro preenche 10% Taxa de Serviço (300), Faltas (2 faltas = 100) e Quebra de Caixa (20)
+    const editFin = await portal.editarLinhaFolhaManual({
+      competencia: "2026-12",
+      FuncionarioID: "emp-colab-1",
+      TaxaServicoValor: 300,
+      FaltasInjustificadas: 2,
+      DescontoFaltasAtrasos: 100,
+      QuebraDeCaixaValor: 20,
+      justificativa: "Lançamento financeiro de dezembro",
+      takeatItems: takeatDez,
+      takeatMappings: mappingsDez,
+    });
+    // 1600 + 300 - 80 (Takeat -20%) - 150 (Vale) - 100 (Faltas) - 20 (Quebra) = 1550
+    assert.equal(editFin.data.ValorLiquido, 1550);
+
+    // Pagar sem comprovante deve exigir anexo
+    await assert.rejects(
+      () =>
+        portal.pagarFolhaColaborador({
+          competencia: "2026-12",
+          FuncionarioID: "emp-colab-1",
+          comprovanteUrl: "",
+          takeatItems: takeatDez,
+          takeatMappings: mappingsDez,
+        }),
+      /comprovante de pagamento/i,
+    );
+
+    // Pagar com comprovante anexado
+    const payRes = await portal.pagarFolhaColaborador({
+      competencia: "2026-12",
+      FuncionarioID: "emp-colab-1",
+      comprovanteUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB",
+      comprovanteNome: "pix-joao-dezembro.png",
+      observacao: "Transferência PIX efetuada",
+      takeatItems: takeatDez,
+      takeatMappings: mappingsDez,
+    });
+    assert.equal(payRes.success, true);
+    assert.equal(payRes.data.pagamento.ValorLiquido, 1550);
+    assert.equal(payRes.data.pagamento.TaxaServicoValor, 300);
+    assert.equal(payRes.data.pagamento.ValorFichasHouseTx, 80);
+    assert.equal(payRes.data.pagamento.TotalValesAdiantamentos, 150);
+    assert.equal(payRes.data.pagamento.DescontoFaltasAtrasos, 100);
+    assert.equal(payRes.data.pagamento.QuebraDeCaixaValor, 20);
+    assert.match(payRes.data.whatsapp.waUrl, /^https:\/\/wa\.me\/5573999112233\?text=/);
+
+    // Verifica documento criado para o colaborador (Holerites & Docs)
+    const docPag = await runtime.getById("Documentos", payRes.data.pagamento.DocumentoID);
+    assert.ok(docPag);
+    assert.equal(docPag.SubtipoCodigo, "COMPROVANTE_PAGAMENTO_FOLHA");
+    assert.equal(docPag.ArquivoUrl, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB");
+    assert.match(docPag.ConteudoTexto, /VALOR LIQUIDO A RECEBER: R\$ 1550,00/);
+
+    // Verifica vale marcado como deduzido neste pagamento
+    const valePos = await runtime.getById("SolicitacoesVale", "vale-dez-1");
+    assert.equal(valePos.DeduzidoFolhaPagamentoID, payRes.data.pagamento.PagamentoID);
+
+    // Verifica que a linha atual foi zerada (StatusLinha: "Pago") para não acumular e liberar próximo preenchimento
+    const posPagPrevia = await portal.gerarPreviaFolhaSalarial({
+      competencia: "2026-12",
+      takeatItems: [],
+      takeatMappings: {},
+    });
+    const linhaPosPag = posPagPrevia.data.linhas.find((l) => l.FuncionarioID === "emp-colab-1");
+    assert.equal(linhaPosPag.StatusLinha, "Pago");
+    assert.equal(linhaPosPag.TaxaServicoValor, 0);
+    assert.equal(linhaPosPag.DescontoFaltasAtrasos, 0);
+    assert.equal(linhaPosPag.QuebraDeCaixaValor, 0);
+    assert.equal(linhaPosPag.TotalValesAdiantamentos, 0);
+    assert.equal(linhaPosPag.ValorLiquido, 1600);
+
+    // Histórico lista o pagamento gravado
+    const histRes = await portal.listarPagamentosFolha({ competencia: "2026-12" });
+    assert.equal(histRes.success, true);
+    assert.equal(histRes.data.length, 1);
+    assert.equal(histRes.data[0].PagamentoID, payRes.data.pagamento.PagamentoID);
+
+    // Zerar / reabrir linha manualmente no mesmo ciclo + validar próximo mês (2027-01) limpo
+    const resetRes = await portal.zerarLinhaFolha({
+      competencia: "2026-12",
+      FuncionarioID: "emp-colab-1",
+    });
+    assert.equal(resetRes.data.StatusLinha, "Em Aberto");
+
+    const janPrevia = await portal.gerarPreviaFolhaSalarial({
+      competencia: "2027-01",
+      takeatItems: [],
+      takeatMappings: {},
+    });
+    const linhaJan = janPrevia.data.linhas.find((l) => l.FuncionarioID === "emp-colab-1");
+    assert.equal(linhaJan.StatusLinha, "Em Aberto");
+    assert.equal(linhaJan.TaxaServicoValor, 0);
+    assert.equal(linhaJan.QuebraDeCaixaValor, 0);
+    assert.equal(linhaJan.ValorLiquido, 1600);
   });
 
   // ==========================================================================

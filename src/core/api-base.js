@@ -62,7 +62,9 @@ const dropClientToken = (args) => {
 
 const role = (profile) => String(profile?.Perfil || "").toLowerCase();
 const isAdmin = (profile) =>
-  role(profile).includes("admin") || role(profile).includes("diretor");
+  role(profile).includes("admin") ||
+  role(profile).includes("diretor") ||
+  role(profile).includes("financeir");
 const isManager = (profile) =>
   isAdmin(profile) ||
   role(profile).includes("respons") ||

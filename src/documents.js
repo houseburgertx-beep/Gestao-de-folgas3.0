@@ -3544,6 +3544,18 @@ export async function openPreviewDialog(docId) {
       }
 
       ${
+        doc.SubtipoCodigo === "COMPROVANTE_PAGAMENTO_FOLHA" &&
+        doc.ConteudoTexto &&
+        (isImage || isPdf || fileUrl)
+          ? `
+        <div class="doc-viewer-container doc-text-viewer" style="margin-bottom:14px;">
+          <div style="white-space:pre-wrap; font-family:inherit;">${esc(doc.ConteudoTexto)}</div>
+        </div>
+      `
+          : ""
+      }
+
+      ${
         isImage
           ? `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">

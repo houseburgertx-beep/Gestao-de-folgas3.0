@@ -1,15 +1,31 @@
 import { runtime } from "./core/runtime.js";
 import { ONBOARDING_STAGES, REQUIRED_ADMISSION_DOCUMENTS } from "./core/api-portal.js";
 import { todayIso } from "./core/utils.js";
+import { fetchAllTakeatCredit, loadMappings as loadTakeatMappings } from "./core/takeat-credit.js";
 
 const formatBRL = (val) => {
   const n = Number(val || 0);
   return `R$ ${n.toFixed(2).replace(".", ",")}`;
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const payrollTakeatCache = {
+  items: null,
+  mappings: null,
+  loadedAt: 0,
+  promise: null,
+};
+
 const isDiretoriaProfile = (profile) => {
   const r = String(profile?.Perfil || profile?.perfil || "").toLowerCase();
-  return r.includes("admin") || r.includes("diretor");
+  return r.includes("admin") || r.includes("diretor") || r.includes("financeir");
 };
 
 const isGerenteProfile = (profile) => {
@@ -976,6 +992,224 @@ function injectPortalTabsStyles() {
     .pending-filter-btn.active em {
       background: rgba(255, 255, 255, 0.24);
       color: #ffffff;
+    }
+
+    /* ---- Folha Salarial: Edição Minimalista, Coluna Fixa & Modais ---- */
+    #portalPayrollConsolidationPanel .folha-table-wrap {
+      overflow-x: auto;
+      position: relative;
+      border-radius: 12px;
+    }
+    #portalPayrollConsolidationPanel .folha-table th,
+    #portalPayrollConsolidationPanel .folha-table td {
+      padding: 10px 10px;
+      font-size: 12.5px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    #portalPayrollConsolidationPanel .folha-table th:first-child,
+    #portalPayrollConsolidationPanel .folha-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--surface, #ffffff);
+      box-shadow: 2px 0 8px -2px rgba(15, 23, 42, 0.08);
+      min-width: 175px;
+      max-width: 225px;
+      white-space: normal;
+    }
+    #portalPayrollConsolidationPanel .folha-table thead th:first-child {
+      z-index: 3;
+      background: var(--surface-2, #f8fafc);
+    }
+    .folha-collab-name {
+      display: block;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--ink, #0f172a);
+      line-height: 1.25;
+    }
+    .folha-collab-meta {
+      display: block;
+      font-size: 11px;
+      color: var(--muted, #64748b);
+      margin-top: 2px;
+      line-height: 1.25;
+    }
+    .folha-collab-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 5px;
+    }
+    .folha-pix-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 1px 6px;
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .folha-cell-edit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      width: 100%;
+    }
+    .folha-cell-val {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      line-height: 1.25;
+      font-variant-numeric: tabular-nums;
+    }
+    .folha-cell-sub {
+      font-size: 10.5px;
+      color: var(--muted, #64748b);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+    .folha-edit-pencil {
+      appearance: none;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #94a3b8;
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      padding: 0;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .folha-edit-pencil:hover,
+    .folha-edit-pencil:focus-visible {
+      background: #eff6ff;
+      color: #2563eb;
+      border-color: #bfdbfe;
+      outline: none;
+    }
+    .folha-row-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .folha-pay-btn {
+      min-height: 30px !important;
+      padding: 4px 12px !important;
+      font-size: 12px !important;
+      font-weight: 700 !important;
+      border-radius: 8px !important;
+    }
+    .folha-mini-btn {
+      min-height: 30px !important;
+      padding: 4px 8px !important;
+      font-size: 11.5px !important;
+      border-radius: 8px !important;
+    }
+    dialog.folha-dialog {
+      width: min(560px, calc(100vw - 24px));
+      border: 1px solid var(--line, #e2e8f0);
+      border-radius: 16px;
+      padding: 0;
+      background: var(--surface, #ffffff);
+      color: var(--ink, #0f172a);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+    }
+    dialog.folha-dialog::backdrop {
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(3px);
+    }
+    .folha-dialog-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--line, #e2e8f0);
+    }
+    .folha-dialog-body {
+      padding: 16px 20px;
+      display: grid;
+      gap: 14px;
+      max-height: 76vh;
+      overflow-y: auto;
+    }
+    .folha-dialog-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--line, #e2e8f0);
+      background: var(--surface-2, #f8fafc);
+    }
+    .folha-report-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 12px 14px;
+      display: grid;
+      gap: 7px;
+      font-size: 13px;
+    }
+    .folha-report-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    .folha-report-row.is-deduct strong {
+      color: #dc2626;
+    }
+    .folha-report-row.is-add strong {
+      color: #0284c7;
+    }
+    .folha-report-row.is-total {
+      padding-top: 8px;
+      margin-top: 4px;
+      border-top: 1px dashed #cbd5e1;
+      font-size: 15px;
+      font-weight: 800;
+      color: #047857;
+    }
+    .folha-pix-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      font-size: 12.5px;
+    }
+    .folha-upload-box {
+      border: 1.5px dashed #94a3b8;
+      border-radius: 12px;
+      padding: 14px;
+      background: #f8fafc;
+      display: grid;
+      gap: 10px;
+    }
+    .folha-upload-preview img {
+      max-width: 100%;
+      max-height: 180px;
+      border-radius: 8px;
+      object-fit: contain;
+      border: 1px solid #cbd5e1;
     }
   `;
   document.head.appendChild(style);
@@ -2521,6 +2755,596 @@ async function loadPopsList() {
 // TELA 8: FECHAMENTO DE FOLHA SALARIAL LIMPO (SEM HISTORICO ANTIGO DUPLICADO)
 // ============================================================================
 
+const PAYROLL_PENCIL_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+
+const PAYROLL_EDITABLE_FIELDS = {
+  SalarioBase: {
+    title: "Salário Base",
+    subtitle: "Valor base mensal considerado na folha (+ soma no líquido).",
+    placeholderReason: "Ex: Ajuste salarial mensal",
+  },
+  ValorFichasHouseTx: {
+    title: "Fichas House TX (-20%)",
+    subtitle: "Consumo Takeat House Burguer TX já com desconto de 20% (- desconta do salário).",
+    placeholderReason: "Ex: Conferência manual Takeat House TX",
+  },
+  ValorFichasFoodParkTx: {
+    title: "Fichas FoodPark (-20%)",
+    subtitle: "Consumo Takeat FoodPark TX já com desconto de 20% (- desconta do salário).",
+    placeholderReason: "Ex: Conferência manual Takeat FoodPark",
+  },
+  TaxaServicoValor: {
+    title: "10% Taxa de Serviço",
+    subtitle: "Valor da taxa de serviço (10%) repassada ao colaborador (+ soma no líquido).",
+    placeholderReason: "Ex: Apuração 10% taxa de serviço do período",
+  },
+  TotalValesAdiantamentos: {
+    title: "Vales / Adiantamentos",
+    subtitle: "Adiantamentos solicitados pelo app no período (- desconta do salário).",
+    placeholderReason: "Ex: Ajuste manual de vale",
+  },
+  Faltas: {
+    title: "Faltas / Atrasos",
+    subtitle: "Quantidade de faltas e valor descontado preenchido pelo Financeiro/Admin (- desconta do salário).",
+    placeholderReason: "Ex: Lançamento de falta sem justificativa",
+  },
+  QuebraDeCaixaValor: {
+    title: "Quebra de Caixa",
+    subtitle: "Diferença de fechamento de caixa preenchida pelo Financeiro (- desconta do salário).",
+    placeholderReason: "Ex: Conferência de quebra de caixa",
+  },
+};
+
+async function getPayrollTakeatSnapshot(forceRefresh = false) {
+  const freshMs = 3 * 60 * 1000;
+  if (
+    !forceRefresh &&
+    Array.isArray(payrollTakeatCache.items) &&
+    Date.now() - payrollTakeatCache.loadedAt < freshMs
+  ) {
+    return {
+      items: payrollTakeatCache.items,
+      mappings: payrollTakeatCache.mappings || {},
+    };
+  }
+  if (!forceRefresh && payrollTakeatCache.promise) {
+    return payrollTakeatCache.promise;
+  }
+
+  payrollTakeatCache.promise = (async () => {
+    try {
+      const [creditRes, mappings] = await Promise.all([
+        fetchAllTakeatCredit("all").catch(() => ({ items: [] })),
+        loadTakeatMappings().catch(() => ({})),
+      ]);
+      payrollTakeatCache.items = Array.isArray(creditRes?.items) ? creditRes.items : [];
+      payrollTakeatCache.mappings = mappings && typeof mappings === "object" ? mappings : {};
+      payrollTakeatCache.loadedAt = Date.now();
+    } catch {
+      payrollTakeatCache.items = payrollTakeatCache.items || [];
+      payrollTakeatCache.mappings = payrollTakeatCache.mappings || {};
+    } finally {
+      payrollTakeatCache.promise = null;
+    }
+    return {
+      items: payrollTakeatCache.items,
+      mappings: payrollTakeatCache.mappings,
+    };
+  })();
+
+  return payrollTakeatCache.promise;
+}
+
+async function compressReceiptFileToDataUrl(file) {
+  if (!file) return "";
+  const isImage = String(file.type || "").startsWith("image/");
+  if (!isImage) {
+    if (file.size > 1.8 * 1024 * 1024) {
+      throw new Error("O arquivo PDF deve ter no máximo 1,8 MB.");
+    }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Falha ao ler arquivo do comprovante."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Falha ao ler imagem do comprovante."));
+    reader.onload = () => {
+      const src = String(reader.result || "");
+      const img = new Image();
+      img.onerror = () => resolve(src);
+      img.onload = () => {
+        try {
+          const maxDim = 1280;
+          const ratio = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round((img.width || 800) * ratio));
+          canvas.height = Math.max(1, Math.round((img.height || 800) * ratio));
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        } catch {
+          resolve(src);
+        }
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function buildPayrollReportRowsHtml(linha) {
+  const brutoHouse = Number(linha.ValorBrutoHouseTx || 0);
+  const brutoFood = Number(linha.ValorBrutoFoodParkTx || 0);
+  const taxaServ = Number(linha.TaxaServicoValor ?? linha.BonusValor ?? 0);
+  return `
+    <div class="folha-report-box">
+      <div class="folha-report-row">
+        <span>(+) Salário Base</span>
+        <strong>${formatBRL(linha.SalarioBase)}</strong>
+      </div>
+      <div class="folha-report-row is-add">
+        <span>(+) 10% Taxa de Serviço</span>
+        <strong>+ ${formatBRL(taxaServ)}</strong>
+      </div>
+      <div class="folha-report-row is-deduct">
+        <span>(-) Fichas House TX (-20%)${brutoHouse > 0 ? ` · Bruto ${formatBRL(brutoHouse)}` : ""}</span>
+        <strong>- ${formatBRL(linha.ValorFichasHouseTx)}</strong>
+      </div>
+      <div class="folha-report-row is-deduct">
+        <span>(-) Fichas FoodPark (-20%)${brutoFood > 0 ? ` · Bruto ${formatBRL(brutoFood)}` : ""}</span>
+        <strong>- ${formatBRL(linha.ValorFichasFoodParkTx)}</strong>
+      </div>
+      <div class="folha-report-row is-deduct">
+        <span>(-) Vales / Adiantamentos</span>
+        <strong>- ${formatBRL(linha.TotalValesAdiantamentos)}</strong>
+      </div>
+      <div class="folha-report-row is-deduct">
+        <span>(-) Faltas (${Number(linha.FaltasInjustificadas || 0)}x)</span>
+        <strong>- ${formatBRL(linha.DescontoFaltasAtrasos)}</strong>
+      </div>
+      <div class="folha-report-row is-deduct">
+        <span>(-) Quebra de Caixa</span>
+        <strong>- ${formatBRL(linha.QuebraDeCaixaValor)}</strong>
+      </div>
+      <div class="folha-report-row is-total">
+        <span>(=) Valor Líquido a Receber</span>
+        <strong>${formatBRL(linha.ValorLiquido)}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function ensurePayrollCampoDialog() {
+  let dlg = document.getElementById("folhaCampoDialog");
+  if (dlg) return dlg;
+  dlg = document.createElement("dialog");
+  dlg.id = "folhaCampoDialog";
+  dlg.className = "folha-dialog";
+  dlg.innerHTML = `
+    <form method="dialog" id="folhaCampoForm">
+      <div class="folha-dialog-head">
+        <div>
+          <span class="eyebrow" style="margin-bottom:2px;">EDIÇÃO RÁPIDA DE FOLHA</span>
+          <h3 id="folhaCampoTitle" style="margin:0; font-size:16px;">Editar Campo</h3>
+          <p id="folhaCampoSubtitle" style="margin:4px 0 0; font-size:12px; color:var(--muted);"></p>
+        </div>
+        <button type="button" id="folhaCampoCloseBtn" class="btn btn-secondary btn-sm">Fechar</button>
+      </div>
+      <div class="folha-dialog-body">
+        <div id="folhaCampoHint" style="display:none; font-size:12px; padding:9px 11px; border-radius:9px; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;"></div>
+        <div id="folhaCampoFaltasQtyWrap" style="display:none;">
+          <label style="display:grid; gap:6px; font-size:12.5px; font-weight:600;">
+            Quantidade de Faltas (dias/ocorrências)
+            <input id="folhaCampoFaltasQty" type="number" min="0" step="1" class="input" />
+          </label>
+        </div>
+        <label style="display:grid; gap:6px; font-size:12.5px; font-weight:600;">
+          <span id="folhaCampoValueLabel">Valor (R$)</span>
+          <input id="folhaCampoValueInput" type="number" min="0" step="0.01" required class="input" />
+        </label>
+        <label style="display:grid; gap:6px; font-size:12.5px; font-weight:600;">
+          Motivo / Justificativa (Auditoria)
+          <input id="folhaCampoReasonInput" type="text" required class="input" placeholder="Ex: Conferência financeira" />
+        </label>
+      </div>
+      <div class="folha-dialog-foot">
+        <button type="button" id="folhaCampoCancelBtn" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" id="folhaCampoSaveBtn" class="btn btn-primary">Salvar Ajuste</button>
+      </div>
+    </form>
+  `;
+  document.body.appendChild(dlg);
+  dlg.querySelector("#folhaCampoCloseBtn")?.addEventListener("click", () => dlg.close());
+  dlg.querySelector("#folhaCampoCancelBtn")?.addEventListener("click", () => dlg.close());
+  return dlg;
+}
+
+function openPayrollFieldEditDialog({ linha, fieldKey, competencia, quinzena, takeatSnapshot }) {
+  const cfg = PAYROLL_EDITABLE_FIELDS[fieldKey];
+  if (!cfg || !linha) return;
+  const dlg = ensurePayrollCampoDialog();
+  const form = dlg.querySelector("#folhaCampoForm");
+
+  dlg.querySelector("#folhaCampoTitle").textContent = `${cfg.title} · ${linha.FuncionarioNome}`;
+  dlg.querySelector("#folhaCampoSubtitle").textContent = cfg.subtitle;
+
+  const hintEl = dlg.querySelector("#folhaCampoHint");
+  const qtyWrap = dlg.querySelector("#folhaCampoFaltasQtyWrap");
+  const qtyInput = dlg.querySelector("#folhaCampoFaltasQty");
+  const valLabel = dlg.querySelector("#folhaCampoValueLabel");
+  const valInput = dlg.querySelector("#folhaCampoValueInput");
+  const reasonInput = dlg.querySelector("#folhaCampoReasonInput");
+
+  qtyWrap.style.display = fieldKey === "Faltas" ? "block" : "none";
+  hintEl.style.display = "none";
+
+  if (fieldKey === "ValorFichasHouseTx" && Number(linha.ValorBrutoHouseTx || 0) > 0) {
+    hintEl.style.display = "block";
+    hintEl.textContent = `Takeat House TX Bruto: ${formatBRL(linha.ValorBrutoHouseTx)} · Com desconto de 20%: ${formatBRL(linha.ValorBrutoHouseTx * 0.8)}`;
+  } else if (fieldKey === "ValorFichasFoodParkTx" && Number(linha.ValorBrutoFoodParkTx || 0) > 0) {
+    hintEl.style.display = "block";
+    hintEl.textContent = `Takeat FoodPark Bruto: ${formatBRL(linha.ValorBrutoFoodParkTx)} · Com desconto de 20%: ${formatBRL(linha.ValorBrutoFoodParkTx * 0.8)}`;
+  }
+
+  if (fieldKey === "Faltas") {
+    valLabel.textContent = "Desconto Total de Faltas (R$)";
+    qtyInput.value = String(Number(linha.FaltasInjustificadas || 0));
+    valInput.value = Number(linha.DescontoFaltasAtrasos || 0).toFixed(2);
+  } else {
+    valLabel.textContent = `${cfg.title} (R$)`;
+    valInput.value = Number(linha[fieldKey] || 0).toFixed(2);
+  }
+
+  reasonInput.value = "";
+  reasonInput.placeholder = cfg.placeholderReason;
+
+  const submitHandler = async (ev) => {
+    ev.preventDefault();
+    const saveBtn = dlg.querySelector("#folhaCampoSaveBtn");
+    const justificativa = reasonInput.value.trim();
+    if (!justificativa) {
+      showPortalToast("Informe um motivo para salvar o ajuste.", "warning");
+      return;
+    }
+    const reqPayload = {
+      competencia,
+      quinzena,
+      FuncionarioID: linha.FuncionarioID,
+      LojaID: linha.LojaID || "",
+      justificativa,
+      takeatItems: takeatSnapshot?.items || null,
+      takeatMappings: takeatSnapshot?.mappings || null,
+    };
+    if (fieldKey === "Faltas") {
+      reqPayload.FaltasInjustificadas = Math.max(0, Math.round(Number(qtyInput.value || 0)));
+      reqPayload.DescontoFaltasAtrasos = Math.max(0, Number(valInput.value || 0));
+    } else {
+      reqPayload[fieldKey] = Math.max(0, Number(valInput.value || 0));
+    }
+
+    try {
+      if (saveBtn) saveBtn.disabled = true;
+      await invokePortal("editarLinhaFolhaManual", reqPayload);
+      dlg.close();
+      showPortalToast(`${cfg.title} atualizado com sucesso.`, "success");
+      await loadPayrollClosingTable();
+    } catch (err) {
+      showPortalToast(err.message || "Erro ao salvar ajuste da folha.", "error");
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  };
+
+  form.onsubmit = submitHandler;
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  setTimeout(() => valInput?.focus(), 60);
+}
+
+function ensurePayrollPagamentoDialog() {
+  let dlg = document.getElementById("folhaPagamentoDialog");
+  if (dlg) return dlg;
+  dlg = document.createElement("dialog");
+  dlg.id = "folhaPagamentoDialog";
+  dlg.className = "folha-dialog";
+  dlg.innerHTML = `
+    <form method="dialog" id="folhaPagamentoForm">
+      <div class="folha-dialog-head">
+        <div>
+          <span class="eyebrow" style="margin-bottom:2px;">RELATÓRIO &amp; PAGAMENTO DE FOLHA</span>
+          <h3 id="folhaPagTitle" style="margin:0; font-size:17px;">Confirmar Pagamento</h3>
+          <p id="folhaPagSubtitle" style="margin:4px 0 0; font-size:12px; color:var(--muted);"></p>
+        </div>
+        <button type="button" id="folhaPagCloseBtn" class="btn btn-secondary btn-sm">Fechar</button>
+      </div>
+      <div class="folha-dialog-body">
+        <div id="folhaPagPixBox" class="folha-pix-banner">
+          <div>
+            <span style="display:block; font-size:10.5px; text-transform:uppercase; font-weight:700; color:#1d4ed8;">Chave PIX do Colaborador</span>
+            <strong id="folhaPagPixValue">-</strong>
+          </div>
+          <button type="button" id="folhaPagCopyPixBtn" class="btn btn-secondary btn-sm">Copiar PIX</button>
+        </div>
+
+        <div>
+          <div style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">
+            Demonstrativo Detalhado do Colaborador
+          </div>
+          <div id="folhaPagBreakdownWrap"></div>
+        </div>
+
+        <div class="folha-upload-box">
+          <div>
+            <strong style="display:block; font-size:13px;">Comprovante de Pagamento (Imagem ou PDF)</strong>
+            <span style="font-size:11.5px; color:var(--muted);">Anexe o comprovante PIX/transferência. Será salvo no histórico e enviado ao colaborador.</span>
+          </div>
+          <input id="folhaPagFileInput" type="file" accept="image/*,.pdf" class="input" />
+          <div id="folhaPagPreview" class="folha-upload-preview" style="display:none;"></div>
+          <label style="display:grid; gap:4px; font-size:12px; font-weight:600;">
+            Ou cole o link do comprovante (opcional se enviou arquivo acima)
+            <input id="folhaPagUrlInput" type="url" class="input" placeholder="https://..." />
+          </label>
+        </div>
+
+        <label style="display:grid; gap:6px; font-size:12.5px; font-weight:600;">
+          Observação no Recibo (opcional)
+          <input id="folhaPagObsInput" type="text" class="input" placeholder="Ex: Pago via PIX Santander" />
+        </label>
+
+        <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; cursor:pointer;">
+          <input id="folhaPagNotifyCheck" type="checkbox" checked style="margin-top:3px;" />
+          <span>Enviar demonstrativo com comprovante para o colaborador (Holerites &amp; Docs) e disparar aviso no WhatsApp, zerando a linha após salvar no histórico.</span>
+        </label>
+      </div>
+      <div class="folha-dialog-foot">
+        <button type="button" id="folhaPagCancelBtn" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" id="folhaPagConfirmBtn" class="btn btn-primary">Confirmar Pagamento e Enviar</button>
+      </div>
+    </form>
+  `;
+  document.body.appendChild(dlg);
+  dlg.querySelector("#folhaPagCloseBtn")?.addEventListener("click", () => dlg.close());
+  dlg.querySelector("#folhaPagCancelBtn")?.addEventListener("click", () => dlg.close());
+  return dlg;
+}
+
+function openPayrollPayDialog({ linha, competencia, quinzena, takeatSnapshot }) {
+  if (!linha) return;
+  const dlg = ensurePayrollPagamentoDialog();
+  const form = dlg.querySelector("#folhaPagamentoForm");
+
+  let uploadedDataUrl = "";
+  let uploadedFileName = "";
+
+  dlg.querySelector("#folhaPagTitle").textContent = `Pagar ${linha.FuncionarioNome}`;
+  dlg.querySelector("#folhaPagSubtitle").textContent = `${linha.NomeLoja || linha.LojaID || "-"} · ${linha.Cargo || "Operação"} · Competência ${competencia}`;
+  dlg.querySelector("#folhaPagPixValue").textContent = linha.ChavePix || "Não cadastrada";
+  dlg.querySelector("#folhaPagBreakdownWrap").innerHTML = buildPayrollReportRowsHtml(linha);
+
+  const fileInput = dlg.querySelector("#folhaPagFileInput");
+  const urlInput = dlg.querySelector("#folhaPagUrlInput");
+  const obsInput = dlg.querySelector("#folhaPagObsInput");
+  const notifyCheck = dlg.querySelector("#folhaPagNotifyCheck");
+  const previewEl = dlg.querySelector("#folhaPagPreview");
+  const copyPixBtn = dlg.querySelector("#folhaPagCopyPixBtn");
+
+  fileInput.value = "";
+  urlInput.value = "";
+  obsInput.value = "";
+  notifyCheck.checked = true;
+  previewEl.style.display = "none";
+  previewEl.innerHTML = "";
+
+  copyPixBtn.disabled = !linha.ChavePix;
+  copyPixBtn.onclick = async () => {
+    if (!linha.ChavePix) return;
+    try {
+      await navigator.clipboard.writeText(String(linha.ChavePix));
+      showPortalToast("Chave PIX copiada!", "success");
+    } catch {
+      showPortalToast(`Chave PIX: ${linha.ChavePix}`, "info");
+    }
+  };
+
+  fileInput.onchange = async () => {
+    const file = fileInput.files?.[0];
+    if (!file) {
+      uploadedDataUrl = "";
+      uploadedFileName = "";
+      previewEl.style.display = "none";
+      previewEl.innerHTML = "";
+      return;
+    }
+    try {
+      uploadedFileName = file.name;
+      uploadedDataUrl = await compressReceiptFileToDataUrl(file);
+      previewEl.style.display = "block";
+      previewEl.innerHTML = String(file.type || "").startsWith("image/")
+        ? `<img src="${uploadedDataUrl}" alt="Prévia do comprovante" /><small style="display:block; margin-top:4px; color:var(--muted);">${escapeHtml(file.name)}</small>`
+        : `<div style="font-size:12.5px; font-weight:600; color:#047857;">PDF anexado: ${escapeHtml(file.name)}</div>`;
+    } catch (err) {
+      uploadedDataUrl = "";
+      uploadedFileName = "";
+      fileInput.value = "";
+      showPortalToast(err.message || "Falha ao processar comprovante.", "error");
+    }
+  };
+
+  form.onsubmit = async (ev) => {
+    ev.preventDefault();
+    const confirmBtn = dlg.querySelector("#folhaPagConfirmBtn");
+    const comprovanteUrl = uploadedDataUrl || urlInput.value.trim();
+    if (!comprovanteUrl) {
+      showPortalToast("Anexe a imagem/PDF do comprovante ou informe o link.", "warning");
+      return;
+    }
+
+    try {
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = "Processando...";
+      }
+      const res = await invokePortal("pagarFolhaColaborador", {
+        competencia,
+        quinzena,
+        FuncionarioID: linha.FuncionarioID,
+        LojaID: linha.LojaID || "",
+        comprovanteUrl,
+        comprovanteNome: uploadedFileName || "Comprovante de Pagamento",
+        observacao: obsInput.value.trim(),
+        enviarParaColaborador: Boolean(notifyCheck.checked),
+        takeatItems: takeatSnapshot?.items || null,
+        takeatMappings: takeatSnapshot?.mappings || null,
+      });
+
+      dlg.close();
+      showPortalToast(res?.message || "Pagamento registrado no histórico!", "success");
+      await Promise.allSettled([loadPayrollClosingTable(), loadPayrollHistoryTable()]);
+
+      const wa = res?.data?.whatsapp;
+      if (notifyCheck.checked && wa && !wa.deliveredViaGateway && wa.waUrl) {
+        openPayrollReceiptModal(res.data.pagamento, { showWaFallbackBanner: true });
+      }
+    } catch (err) {
+      showPortalToast(err.message || "Erro ao registrar pagamento.", "error");
+    } finally {
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Confirmar Pagamento e Enviar";
+      }
+    }
+  };
+
+  if (typeof dlg.showModal === "function") dlg.showModal();
+}
+
+function ensurePayrollReceiptViewDialog() {
+  let dlg = document.getElementById("folhaReciboViewDialog");
+  if (dlg) return dlg;
+  dlg = document.createElement("dialog");
+  dlg.id = "folhaReciboViewDialog";
+  dlg.className = "folha-dialog";
+  dlg.innerHTML = `
+    <div class="folha-dialog-head">
+      <div>
+        <span class="eyebrow" style="margin-bottom:2px;">HISTÓRICO DE PAGAMENTO</span>
+        <h3 id="folhaReciboTitle" style="margin:0; font-size:17px;">Comprovante de Pagamento</h3>
+        <p id="folhaReciboMeta" style="margin:4px 0 0; font-size:12px; color:var(--muted);"></p>
+      </div>
+      <button type="button" id="folhaReciboCloseBtn" class="btn btn-secondary btn-sm">Fechar</button>
+    </div>
+    <div id="folhaReciboBody" class="folha-dialog-body"></div>
+    <div id="folhaReciboFoot" class="folha-dialog-foot"></div>
+  `;
+  document.body.appendChild(dlg);
+  dlg.querySelector("#folhaReciboCloseBtn")?.addEventListener("click", () => dlg.close());
+  return dlg;
+}
+
+function openPayrollReceiptModal(payment, options = {}) {
+  if (!payment) return;
+  const dlg = ensurePayrollReceiptViewDialog();
+  const when = String(payment.DataPagamento || "").replace("T", " ").slice(0, 16);
+  dlg.querySelector("#folhaReciboTitle").textContent = `${payment.FuncionarioNome || "Colaborador"} · ${formatBRL(payment.ValorLiquido)}`;
+  dlg.querySelector("#folhaReciboMeta").textContent = `Pago em ${when} por ${payment.PagoPor || "-"} · Competência ${payment.AnoMes || payment.Competencia || "-"}`;
+
+  const compUrl = String(payment.ComprovanteURL || "").trim();
+  const isImg = compUrl.startsWith("data:image/") || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(compUrl);
+  const isPdf = compUrl.startsWith("data:application/pdf") || /\.pdf(\?|$)/i.test(compUrl);
+
+  const waBanner = options.showWaFallbackBanner && payment.WhatsAppUrl
+    ? `<div style="padding:10px 12px; border-radius:10px; background:#ecfdf5; border:1px solid #a7f3d0; font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+         <span>O pagamento e o relatório já foram salvos. Clique ao lado para abrir a mensagem pronta no WhatsApp:</span>
+         <a href="${escapeHtml(payment.WhatsAppUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="text-decoration:none;">Enviar WhatsApp ↗</a>
+       </div>`
+    : "";
+
+  const mediaHtml = !compUrl
+    ? `<p style="font-size:12.5px; color:var(--muted); margin:0;">Sem anexo de imagem/PDF neste pagamento.</p>`
+    : isImg
+      ? `<img src="${escapeHtml(compUrl)}" alt="Comprovante de Pagamento" style="max-width:100%; max-height:320px; object-fit:contain; border-radius:10px; border:1px solid #cbd5e1;" />`
+      : isPdf
+        ? `<a href="${escapeHtml(compUrl)}" download="${escapeHtml(payment.ComprovanteNome || "comprovante.pdf")}" class="btn btn-secondary btn-sm" style="text-decoration:none;">Baixar Comprovante PDF</a>`
+        : `<a href="${escapeHtml(compUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none;">Abrir Comprovante ↗</a>`;
+
+  dlg.querySelector("#folhaReciboBody").innerHTML = `
+    ${waBanner}
+    <pre style="margin:0; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; font-family:inherit; font-size:12.5px; white-space:pre-wrap; line-height:1.45;">${escapeHtml(payment.RelatorioTexto || "")}</pre>
+    <div>
+      <span style="display:block; font-size:11.5px; font-weight:700; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Comprovante Anexado</span>
+      ${mediaHtml}
+    </div>
+  `;
+
+  dlg.querySelector("#folhaReciboFoot").innerHTML = `
+    ${payment.WhatsAppUrl ? `<a href="${escapeHtml(payment.WhatsAppUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="text-decoration:none;">Abrir WhatsApp</a>` : ""}
+    <button type="button" id="folhaReciboOkBtn" class="btn btn-primary">Fechar</button>
+  `;
+  dlg.querySelector("#folhaReciboOkBtn")?.addEventListener("click", () => dlg.close());
+
+  if (typeof dlg.showModal === "function") dlg.showModal();
+}
+
+async function loadPayrollHistoryTable() {
+  const tbody = document.getElementById("portalFolhaHistoricoBody");
+  const countBadge = document.getElementById("folhaHistoricoCountBadge");
+  if (!tbody) return;
+  try {
+    const competencia = document.getElementById("folhaCompetenciaInput")?.value || "";
+    const storeId = document.getElementById("folhaStoreFilter")?.value || window.__selectedPortalStoreId || "";
+    const res = await invokePortal("listarPagamentosFolha", { competencia, storeId });
+    const rows = Array.isArray(res?.data) ? res.data : [];
+    if (countBadge) countBadge.textContent = String(rows.length);
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:24px;">Nenhum pagamento registrado no histórico para os filtros selecionados.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows
+      .map((p) => {
+        const when = String(p.DataPagamento || "").replace("T", " ").slice(0, 16);
+        const fichasTotal = Number(p.ValorFichasHouseTx || 0) + Number(p.ValorFichasFoodParkTx || 0);
+        const waStatus = p.WhatsAppEnviado
+          ? `<span class="portal-pill portal-pill--green">WhatsApp OK</span>`
+          : p.WhatsAppUrl
+            ? `<a href="${escapeHtml(p.WhatsAppUrl)}" target="_blank" rel="noopener noreferrer" class="portal-pill portal-pill--blue" style="text-decoration:none;">Enviar WhatsApp ↗</a>`
+            : `<span class="portal-pill portal-pill--amber">Sem Telefone</span>`;
+        return `
+          <tr>
+            <td style="white-space:nowrap; font-variant-numeric:tabular-nums;">${escapeHtml(when)}</td>
+            <td>
+              <strong>${escapeHtml(p.FuncionarioNome || "-")}</strong>
+              <small style="display:block; color:var(--muted);">${escapeHtml(p.NomeLoja || p.LojaID || "-")} · ${escapeHtml(p.AnoMes || p.Competencia || "-")}</small>
+            </td>
+            <td class="portal-num-col">${formatBRL(p.SalarioBase)} + ${formatBRL(p.TaxaServicoValor)}</td>
+            <td class="portal-num-col" style="color:#dc2626;">- ${formatBRL(fichasTotal + Number(p.TotalValesAdiantamentos || 0) + Number(p.DescontoFaltasAtrasos || 0) + Number(p.QuebraDeCaixaValor || 0))}</td>
+            <td class="portal-num-col" style="font-weight:700; color:#047857;">${formatBRL(p.ValorLiquido)}</td>
+            <td>${waStatus}</td>
+            <td>
+              <button type="button" class="btn btn-secondary btn-sm" data-view-pag-id="${escapeHtml(p.PagamentoID)}">Relatório / Comprovante</button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    tbody.querySelectorAll("[data-view-pag-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-view-pag-id");
+        const found = rows.find((item) => String(item.PagamentoID) === String(id));
+        if (found) openPayrollReceiptModal(found);
+      });
+    });
+  } catch {
+    // Silencioso para perfis sem permissão de gestão
+  }
+}
+
 function mountPayrollClosingScreen() {
   const closingView = document.getElementById("view-monthly-closing");
   if (!closingView || document.getElementById("portalPayrollConsolidationPanel")) return;
@@ -2532,14 +3356,22 @@ function mountPayrollClosingScreen() {
     <div class="section-toolbar">
       <div>
         <span class="eyebrow">FOLHA DE PAGAMENTO</span>
-        <h2>Fechamento de Folha Salarial</h2>
-        <p id="folhaAccessModeNotice" style="font-size:13px; color:var(--muted);">Consolidação automática de salários, fichas House Tx / FoodPark Tx, ponto e vales.</p>
+        <h2>Fechamento e Pagamento de Folha Salarial</h2>
+        <p id="folhaAccessModeNotice" style="font-size:13px; color:var(--muted);">Salário Base + 10% Taxa de Serviço - Fichas Takeat (-20%) - Vales - Faltas - Quebra de Caixa.</p>
       </div>
       <div class="toolbar-actions">
+        <button type="button" id="btnSincronizarTakeatFolha" class="btn btn-secondary">Sincronizar Takeat</button>
         <button type="button" id="btnExportarFolhaXlsx" class="btn btn-secondary">Exportar Excel</button>
         <button type="button" id="btnExportarFolhaPdf" class="btn btn-secondary">Exportar PDF</button>
         <button type="button" id="btnFecharFolhaMes" class="btn btn-primary permission-admin">Fechar Folha do Mês</button>
       </div>
+    </div>
+
+    <div class="portal-tabs-bar" role="tablist" aria-label="Abas da Folha Salarial">
+      <button type="button" class="portal-tab-btn is-active" data-folha-tab="atual" aria-selected="true">Folha Atual</button>
+      <button type="button" class="portal-tab-btn" data-folha-tab="historico" aria-selected="false">
+        Histórico de Pagamentos <em id="folhaHistoricoCountBadge" style="margin-left:6px; font-style:normal; font-size:11px; padding:1px 7px; border-radius:999px; background:rgba(15,23,42,0.08);">0</em>
+      </button>
     </div>
 
     <div class="panel form-grid" style="align-items:end;">
@@ -2572,51 +3404,72 @@ function mountPayrollClosingScreen() {
       </button>
     </div>
 
-    <div id="folhaKpiGrid" class="metric-grid">
-      <article class="panel metric-card">
-        <span class="eyebrow">SALÁRIOS BASE</span>
-        <strong id="folhaKpiSalarios" style="font-size:20px; font-variant-numeric:tabular-nums;">R$ 0,00</strong>
-      </article>
-      <article class="panel metric-card">
-        <span class="eyebrow">FICHAS HOUSE TX</span>
-        <strong id="folhaKpiHouseTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:var(--brand-solid);">R$ 0,00</strong>
-      </article>
-      <article class="panel metric-card">
-        <span class="eyebrow">FICHAS FOODPARK TX</span>
-        <strong id="folhaKpiFoodParkTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:var(--brand-solid);">R$ 0,00</strong>
-      </article>
-      <article class="panel metric-card">
-        <span class="eyebrow">DESCONTOS</span>
-        <strong id="folhaKpiDescontos" style="font-size:20px; font-variant-numeric:tabular-nums; color:#dc2626;">R$ 0,00</strong>
-      </article>
-      <article class="panel metric-card">
-        <span class="eyebrow">LÍQUIDO TOTAL</span>
-        <strong id="folhaKpiLiquido" style="font-size:22px; font-variant-numeric:tabular-nums; color:#16a34a;">R$ 0,00</strong>
-      </article>
+    <div id="folhaAtualSection" style="display:grid; gap:18px;">
+      <div id="folhaKpiGrid" class="metric-grid">
+        <article class="panel metric-card">
+          <span class="eyebrow">SALÁRIOS BASE</span>
+          <strong id="folhaKpiSalarios" style="font-size:20px; font-variant-numeric:tabular-nums;">R$ 0,00</strong>
+        </article>
+        <article class="panel metric-card">
+          <span class="eyebrow">FICHAS HOUSE TX (-20%)</span>
+          <strong id="folhaKpiHouseTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:#dc2626;">R$ 0,00</strong>
+        </article>
+        <article class="panel metric-card">
+          <span class="eyebrow">FICHAS FOODPARK (-20%)</span>
+          <strong id="folhaKpiFoodParkTx" style="font-size:20px; font-variant-numeric:tabular-nums; color:#dc2626;">R$ 0,00</strong>
+        </article>
+        <article class="panel metric-card">
+          <span class="eyebrow">10% TAXA DE SERVIÇO</span>
+          <strong id="folhaKpiTaxaServico" style="font-size:20px; font-variant-numeric:tabular-nums; color:#0284c7;">R$ 0,00</strong>
+          <small id="folhaKpiDescontos" style="font-size:11px; color:var(--muted);">Descontos: R$ 0,00</small>
+        </article>
+        <article class="panel metric-card">
+          <span class="eyebrow">LÍQUIDO TOTAL</span>
+          <strong id="folhaKpiLiquido" style="font-size:22px; font-variant-numeric:tabular-nums; color:#16a34a;">R$ 0,00</strong>
+        </article>
+      </div>
+
+      <div class="panel table-panel">
+        <div class="table-wrap folha-table-wrap">
+          <table class="folha-table">
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th class="portal-num-col">Salário Base</th>
+                <th class="portal-num-col">House TX (-20%)</th>
+                <th class="portal-num-col">FoodPark (-20%)</th>
+                <th class="portal-num-col">10% Taxa Serv.</th>
+                <th class="portal-num-col">Vales</th>
+                <th class="portal-num-col">Faltas</th>
+                <th class="portal-num-col">Quebra Caixa</th>
+                <th class="portal-num-col">Valor Líquido</th>
+                <th class="permission-admin">Pagamento</th>
+              </tr>
+            </thead>
+            <tbody id="portalFolhaSalarialBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <div class="panel table-panel">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Colaborador</th>
-              <th>Unidade / Cargo</th>
-              <th class="portal-num-col">Salário Base</th>
-              <th class="portal-num-col">Fichas House Tx</th>
-              <th class="portal-num-col">Fichas FoodPark Tx</th>
-              <th class="portal-num-col">Extras / Bônus</th>
-              <th class="portal-num-col">Vales</th>
-              <th class="portal-num-col">Faltas</th>
-              <th class="portal-num-col">Quebra Caixa</th>
-              <th class="portal-num-col">Valor Líquido</th>
-              <th>Chave PIX</th>
-              <th>Status</th>
-              <th class="permission-admin">Ajuste</th>
-            </tr>
-          </thead>
-          <tbody id="portalFolhaSalarialBody"></tbody>
-        </table>
+    <div id="folhaHistoricoSection" style="display:none;">
+      <div class="panel table-panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data Pagamento</th>
+                <th>Colaborador / Competência</th>
+                <th class="portal-num-col">Proventos (Base + 10%)</th>
+                <th class="portal-num-col">Descontos Totais</th>
+                <th class="portal-num-col">Líquido Pago</th>
+                <th>WhatsApp</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="portalFolhaHistoricoBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   `;
@@ -2626,10 +3479,49 @@ function mountPayrollClosingScreen() {
   const compEl = document.getElementById("folhaCompetenciaInput");
   if (compEl && !compEl.value) compEl.value = todayIso().slice(0, 7);
 
-  document.getElementById("btnAtualizarPreviaFolha")?.addEventListener("click", () => loadPayrollClosingTable());
-  compEl?.addEventListener("change", () => loadPayrollClosingTable());
+  panel.querySelectorAll("[data-folha-tab]").forEach((tabBtn) => {
+    tabBtn.addEventListener("click", () => {
+      const target = tabBtn.getAttribute("data-folha-tab");
+      panel.querySelectorAll("[data-folha-tab]").forEach((btn) => {
+        const active = btn.getAttribute("data-folha-tab") === target;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      const atualSec = document.getElementById("folhaAtualSection");
+      const histSec = document.getElementById("folhaHistoricoSection");
+      if (atualSec) atualSec.style.display = target === "atual" ? "grid" : "none";
+      if (histSec) histSec.style.display = target === "historico" ? "block" : "none";
+      if (target === "historico") loadPayrollHistoryTable();
+    });
+  });
+
+  const refreshBoth = () => {
+    loadPayrollClosingTable();
+    loadPayrollHistoryTable();
+  };
+
+  document.getElementById("btnAtualizarPreviaFolha")?.addEventListener("click", refreshBoth);
+  document.getElementById("btnSincronizarTakeatFolha")?.addEventListener("click", async () => {
+    const syncBtn = document.getElementById("btnSincronizarTakeatFolha");
+    try {
+      if (syncBtn) {
+        syncBtn.disabled = true;
+        syncBtn.textContent = "Sincronizando...";
+      }
+      await getPayrollTakeatSnapshot(true);
+      await loadPayrollClosingTable();
+      showPortalToast("Fichas Takeat (House TX e FoodPark -20%) atualizadas!", "success");
+    } finally {
+      if (syncBtn) {
+        syncBtn.disabled = false;
+        syncBtn.textContent = "Sincronizar Takeat";
+      }
+    }
+  });
+
+  compEl?.addEventListener("change", refreshBoth);
   document.getElementById("folhaQuinzenaSelect")?.addEventListener("change", () => loadPayrollClosingTable());
-  document.getElementById("folhaStoreFilter")?.addEventListener("change", () => loadPayrollClosingTable());
+  document.getElementById("folhaStoreFilter")?.addEventListener("change", refreshBoth);
   document.getElementById("folhaStatusFilter")?.addEventListener("change", () => loadPayrollClosingTable());
 
   document.getElementById("btnFecharFolhaMes")?.addEventListener("click", async () => {
@@ -2637,12 +3529,15 @@ function mountPayrollClosingScreen() {
     const quinzena = document.getElementById("folhaQuinzenaSelect")?.value || "mensal";
     const storeId = document.getElementById("folhaStoreFilter")?.value || "";
     try {
+      const takeatSnapshot = await getPayrollTakeatSnapshot(false);
       const res = await invokePortal("fecharFolhaSalarialMes", {
         competencia,
         quinzena,
         storeId,
+        takeatItems: takeatSnapshot.items,
+        takeatMappings: takeatSnapshot.mappings,
       });
-      showPortalToast(res.message || "Folha fechada e espelhos enviados para a Tela 7!", "success");
+      showPortalToast(res.message || "Folha fechada e espelhos enviados para Holerites & Docs!", "success");
       await loadPayrollClosingTable();
     } catch (err) {
       showPortalToast(err.message || "Erro ao fechar folha salarial.", "error");
@@ -2654,11 +3549,14 @@ function mountPayrollClosingScreen() {
     const quinzena = document.getElementById("folhaQuinzenaSelect")?.value || "mensal";
     const storeId = document.getElementById("folhaStoreFilter")?.value || "";
     try {
+      const takeatSnapshot = await getPayrollTakeatSnapshot(false);
       const res = await invokePortal("exportarFolhaSalarial", {
         competencia,
         quinzena,
         storeId,
         formato,
+        takeatItems: takeatSnapshot.items,
+        takeatMappings: takeatSnapshot.mappings,
       });
       if (res.data?.dataUrl) {
         const a = document.createElement("a");
@@ -2685,11 +3583,15 @@ async function loadPayrollClosingTable() {
     const storeId = document.getElementById("folhaStoreFilter")?.value || window.__selectedPortalStoreId || "";
     const status = document.getElementById("folhaStatusFilter")?.value || "";
 
+    const takeatSnapshot = await getPayrollTakeatSnapshot(false);
+
     const res = await invokePortal("gerarPreviaFolhaSalarial", {
       competencia,
       quinzena,
       storeId,
       status,
+      takeatItems: takeatSnapshot.items,
+      takeatMappings: takeatSnapshot.mappings,
     });
     const data = res?.data || {};
     const totais = data.totais || {};
@@ -2702,17 +3604,19 @@ async function loadPayrollClosingTable() {
     setKpi("folhaKpiSalarios", totais.totalSalarios);
     setKpi("folhaKpiHouseTx", totais.totalHouseTx);
     setKpi("folhaKpiFoodParkTx", totais.totalFoodParkTx);
-    setKpi("folhaKpiDescontos", totais.totalDescontos);
+    setKpi("folhaKpiTaxaServico", totais.totalTaxaServico);
     setKpi("folhaKpiLiquido", totais.totalLiquido);
+    const descEl = document.getElementById("folhaKpiDescontos");
+    if (descEl) descEl.textContent = `Descontos: ${formatBRL(totais.totalDescontos || 0)}`;
 
     const notice = document.getElementById("folhaAccessModeNotice");
     if (notice) {
       if (data.folhaCongelada) {
-        notice.textContent = "FOLHA FECHADA E CONGELADA: Valores imutáveis e espelhos enviados para a Tela 7 (Holerites e Docs).";
+        notice.textContent = "FOLHA FECHADA: Valores congelados e espelhos enviados para Holerites & Docs.";
       } else if (data.somenteLeituraGerente) {
-        notice.textContent = "Visualização de Gerente (Somente Leitura da sua unidade). Edição manual e fechamento restritos à Diretoria.";
+        notice.textContent = "Visualização de Gerente (somente leitura da unidade). Edição pelo lápis e pagamento restritos ao Financeiro/Administração.";
       } else {
-        notice.textContent = "Modo Diretoria: Qualquer edição manual exige justificativa obrigatória e grava registro imutável na Auditoria.";
+        notice.textContent = "Clique no lápis em qualquer campo para ajustar e em Pagar para gerar o relatório, anexar o comprovante, notificar no WhatsApp e zerar para o próximo ciclo.";
       }
     }
 
@@ -2723,41 +3627,120 @@ async function loadPayrollClosingTable() {
     }
 
     if (!linhas.length) {
-      tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; color:var(--muted);">Nenhum colaborador ativo para os filtros selecionados.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--muted); padding:24px;">Nenhum colaborador ativo para os filtros selecionados.</td></tr>`;
       return;
     }
+
+    const canEdit = Boolean(data.permissaoEdicao);
+    const renderEditableCell = ({ empId, fieldKey, label, mainHtml, subText = "", color = "" }) => {
+      const pencil = canEdit
+        ? `<button type="button" class="folha-edit-pencil" data-edit-field="${fieldKey}" data-emp-id="${escapeHtml(empId)}" title="Editar ${escapeHtml(label)}" aria-label="Editar ${escapeHtml(label)}">${PAYROLL_PENCIL_SVG}</button>`
+        : "";
+      return `
+        <td class="portal-num-col">
+          <div class="folha-cell-edit">
+            <div class="folha-cell-val" ${color ? `style="color:${color};"` : ""}>
+              <span>${mainHtml}</span>
+              ${subText ? `<span class="folha-cell-sub">${escapeHtml(subText)}</span>` : ""}
+            </div>
+            ${pencil}
+          </div>
+        </td>
+      `;
+    };
 
     tbody.innerHTML = linhas
       .map((l) => {
         const stLower = String(l.StatusLinha || "").toLowerCase();
+        const isPaid = stLower.includes("pago");
         const stCls =
-          stLower.includes("pago") || stLower.includes("fech")
+          isPaid || stLower.includes("fech")
             ? "portal-pill--green"
             : stLower.includes("confer")
               ? "portal-pill--blue"
               : "portal-pill--amber";
+        const taxaServ = Number(l.TaxaServicoValor ?? l.BonusValor ?? 0);
+        const houseSub = Number(l.ValorBrutoHouseTx || 0) > 0 ? `Bruto: ${formatBRL(l.ValorBrutoHouseTx)}` : "";
+        const foodSub = Number(l.ValorBrutoFoodParkTx || 0) > 0 ? `Bruto: ${formatBRL(l.ValorBrutoFoodParkTx)}` : "";
+        const faltasSub = `${Number(l.FaltasInjustificadas || 0)}x`;
+
         return `
         <tr>
           <td>
-            <strong>${l.FuncionarioNome}</strong>
-            ${l.EditadoManualmente ? `<small style="display:block; color:#d97706;">Ajustado manualmente</small>` : ""}
+            <span class="folha-collab-name">${escapeHtml(l.FuncionarioNome)}</span>
+            <span class="folha-collab-meta">${escapeHtml(l.NomeLoja || l.LojaID || "-")} · ${escapeHtml(l.Cargo || "Operação")}</span>
+            <div class="folha-collab-badges">
+              <span class="portal-pill ${stCls}" style="font-size:10.5px; padding:2px 7px;">${escapeHtml(l.StatusLinha || "Em Aberto")}</span>
+              ${l.ChavePix ? `<span class="folha-pix-tag" title="PIX: ${escapeHtml(l.ChavePix)}">PIX: ${escapeHtml(l.ChavePix)}</span>` : ""}
+              ${l.EditadoManualmente ? `<span class="portal-pill portal-pill--amber" style="font-size:10px; padding:2px 6px;">Ajustado</span>` : ""}
+            </div>
           </td>
-          <td>${l.NomeLoja || l.LojaID || "-"} · ${l.Cargo || "Operação"}</td>
-          <td class="portal-num-col">${formatBRL(l.SalarioBase)}</td>
-          <td class="portal-num-col">${l.QtdFichasHouseTx}x (${formatBRL(l.ValorFichasHouseTx)})</td>
-          <td class="portal-num-col">${l.QtdFichasFoodParkTx}x (${formatBRL(l.ValorFichasFoodParkTx)})</td>
-          <td class="portal-num-col">${formatBRL(Number(l.HorasExtrasValor || 0) + Number(l.BonusValor || 0))}</td>
-          <td class="portal-num-col" style="color:#dc2626;">- ${formatBRL(l.TotalValesAdiantamentos)}</td>
-          <td class="portal-num-col" style="color:#dc2626;">${l.FaltasInjustificadas}x (- ${formatBRL(l.DescontoFaltasAtrasos)})</td>
-          <td class="portal-num-col" style="color:#dc2626;">- ${formatBRL(l.QuebraDeCaixaValor)}</td>
-          <td class="portal-num-col" style="font-weight:700; color:#047857;">${formatBRL(l.ValorLiquido)}</td>
-          <td><code>${l.ChavePix || "-"}</code></td>
-          <td><span class="portal-pill ${stCls}">${l.StatusLinha}</span></td>
+          ${renderEditableCell({
+            empId: l.FuncionarioID,
+            fieldKey: "SalarioBase",
+            label: "Salário Base",
+            mainHtml: formatBRL(l.SalarioBase),
+          })}
+          ${renderEditableCell({
+            empId: l.FuncionarioID,
+            fieldKey: "ValorFichasHouseTx",
+            label: "Fichas House TX (-20%)",
+            mainHtml: `- ${formatBRL(l.ValorFichasHouseTx)}`,
+            subText: houseSub,
+            color: Number(l.ValorFichasHouseTx || 0) > 0 ? "#dc2626" : "var(--muted)",
+          })}
+          ${renderEditableCell({
+            empId: l.FuncionarioID,
+            fieldKey: "ValorFichasFoodParkTx",
+            label: "Fichas FoodPark (-20%)",
+            mainHtml: `- ${formatBRL(l.ValorFichasFoodParkTx)}`,
+            subText: foodSub,
+            color: Number(l.ValorFichasFoodParkTx || 0) > 0 ? "#dc2626" : "var(--muted)",
+          })}
+          ${renderEditableCell({
+            empId: l.FuncionarioID,
+            fieldKey: "TaxaServicoValor",
+            label: "10% Taxa de Serviço",
+            mainHtml: `+ ${formatBRL(taxaServ)}`,
+            color: taxaServ > 0 ? "#0284c7" : "var(--muted)",
+          })}
+          ${renderEditableCell({
+            empId: l.FuncionarioID,
+            fieldKey: "TotalValesAdiantamentos",
+            label: "Vales",
+            mainHtml: `- ${formatBRL(l.TotalValesAdiantamentos)}`,
+            color: Number(l.TotalValesAdiantamentos || 0) > 0 ? "#dc2626" : "var(--muted)",
+          })}
+          ${renderEditableCell({
+            empId: l.FuncionarioID,
+            fieldKey: "Faltas",
+            label: "Faltas",
+            mainHtml: `- ${formatBRL(l.DescontoFaltasAtrasos)}`,
+            subText: faltasSub,
+            color: Number(l.DescontoFaltasAtrasos || 0) > 0 ? "#dc2626" : "var(--muted)",
+          })}
+          ${renderEditableCell({
+            empId: l.FuncionarioID,
+            fieldKey: "QuebraDeCaixaValor",
+            label: "Quebra de Caixa",
+            mainHtml: `- ${formatBRL(l.QuebraDeCaixaValor)}`,
+            color: Number(l.QuebraDeCaixaValor || 0) > 0 ? "#dc2626" : "var(--muted)",
+          })}
+          <td class="portal-num-col" style="font-weight:800; font-size:13.5px; color:#047857;">
+            ${formatBRL(l.ValorLiquido)}
+          </td>
           <td class="permission-admin">
             ${
-              data.permissaoEdicao
-                ? `<button type="button" class="btn btn-secondary btn-sm" data-edit-folha-emp="${l.FuncionarioID}">Editar</button>`
-                : `<small style="color:var(--muted);">Bloqueado</small>`
+              canEdit
+                ? `<div class="folha-row-actions">
+                     <button type="button" class="btn btn-primary folha-pay-btn" data-pay-folha-emp="${escapeHtml(l.FuncionarioID)}">Pagar</button>
+                     ${
+                       isPaid
+                         ? `<button type="button" class="btn btn-secondary folha-mini-btn" data-reset-folha-emp="${escapeHtml(l.FuncionarioID)}" title="Zerar linha para novo lançamento neste mês">Novo</button>`
+                         : ""
+                     }
+                   </div>`
+                : `<small style="color:var(--muted);">Somente leitura</small>`
             }
           </td>
         </tr>
@@ -2765,41 +3748,45 @@ async function loadPayrollClosingTable() {
       })
       .join("");
 
-    tbody.querySelectorAll("[data-edit-folha-emp]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const empId = btn.getAttribute("data-edit-folha-emp");
+    tbody.querySelectorAll("[data-edit-field]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const empId = btn.getAttribute("data-emp-id");
+        const fieldKey = btn.getAttribute("data-edit-field");
         const linha = linhas.find((item) => String(item.FuncionarioID) === String(empId));
-        if (!linha) return;
-        const campo = window.prompt(
-          `Editar valor de ${linha.FuncionarioNome}.\nInforme o campo (DescontoFaltasAtrasos, QuebraDeCaixaValor, BonusValor, SalarioBase, StatusLinha):`,
-          "DescontoFaltasAtrasos",
-        );
-        if (!campo) return;
-        const novoValor = window.prompt(`Informe o novo valor para ${campo}:`, String(linha[campo] ?? 0));
-        if (novoValor === null) return;
-        const justificativa = window.prompt(
-          "Obrigatório: Informe o motivo/justificativa desta alteração manual para gravação no Log de Auditoria:",
-          "",
-        );
-        if (!justificativa) {
-          showPortalToast("A justificativa é obrigatória para editar a Folha Salarial.", "warning");
-          return;
-        }
-        try {
-          await invokePortal("editarLinhaFolhaManual", {
-            competencia,
-            quinzena,
-            FuncionarioID: empId,
-            [campo]: campo === "StatusLinha" ? novoValor : Number(novoValor),
-            justificativa,
-          });
-          showPortalToast("Valor atualizado e auditado!", "success");
-          await loadPayrollClosingTable();
-        } catch (err) {
-          showPortalToast(err.message || "Erro ao editar folha.", "error");
+        if (linha) {
+          openPayrollFieldEditDialog({ linha, fieldKey, competencia, quinzena, takeatSnapshot });
         }
       });
     });
+
+    tbody.querySelectorAll("[data-pay-folha-emp]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const empId = btn.getAttribute("data-pay-folha-emp");
+        const linha = linhas.find((item) => String(item.FuncionarioID) === String(empId));
+        if (linha) {
+          openPayrollPayDialog({ linha, competencia, quinzena, takeatSnapshot });
+        }
+      });
+    });
+
+    tbody.querySelectorAll("[data-reset-folha-emp]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const empId = btn.getAttribute("data-reset-folha-emp");
+        try {
+          await invokePortal("zerarLinhaFolha", {
+            competencia,
+            quinzena,
+            FuncionarioID: empId,
+          });
+          showPortalToast("Linha zerada para novo lançamento!", "success");
+          await loadPayrollClosingTable();
+        } catch (err) {
+          showPortalToast(err.message || "Erro ao zerar linha.", "error");
+        }
+      });
+    });
+
+    loadPayrollHistoryTable();
   } catch {
     // Silencioso
   }
