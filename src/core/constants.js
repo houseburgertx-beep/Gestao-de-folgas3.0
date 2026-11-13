@@ -127,6 +127,8 @@ export const PUBLIC_AUTH_TABLES = new Set([
   "RegrasFolga",
   "PontosCatalogo",
   "Tarefas",
+  "TabelaFichas",
+  "POPsTreinamentos",
 ]);
 
 export const STORE_SCOPED_FIELDS = Object.freeze({

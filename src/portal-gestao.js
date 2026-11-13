@@ -665,6 +665,9 @@ function injectPortalTabsStyles() {
         display: block !important;
         text-align: center !important;
         padding: 14px 8px !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.45 !important;
       }
       table.portal-responsive-table td[colspan]::before {
         display: none !important;
@@ -2597,6 +2600,108 @@ export async function refreshPortalViews() {
   ]);
 }
 
+export function mountQuickValeDialog() {
+  if (typeof document === "undefined" || !document.body) return;
+  let dlg = document.getElementById("valeQuickDialog");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "valeQuickDialog";
+    dlg.className = "time-off-dialog";
+    dlg.innerHTML = `
+      <form id="valeQuickForm" novalidate>
+        <div class="dialog-head">
+          <div>
+            <span class="eyebrow">ADIANTAMENTO SALARIAL</span>
+            <h3>Pedir vale</h3>
+          </div>
+          <button type="button" class="icon-btn time-off-close-btn" data-close="valeQuickDialog" aria-label="Fechar modal">✕</button>
+        </div>
+        <div class="dialog-body">
+          <div class="dialog-grid time-off-grid">
+            <label>Valor Solicitado (R$)
+              <input id="valeQuickValorInput" type="number" min="10" step="0.01" placeholder="Ex: 250,00" required />
+            </label>
+            <label>Data Desejada
+              <input id="valeQuickDataInput" type="date" required style="min-inline-size:0; -webkit-appearance:none;" />
+            </label>
+            <label class="full">Motivo do Pedido
+              <input id="valeQuickMotivoInput" type="text" placeholder="Ex: Despesa médica, transporte, emergência" required />
+            </label>
+          </div>
+        </div>
+        <div class="dialog-actions time-off-actions">
+          <button type="button" class="btn btn-secondary time-off-cancel-btn" data-close="valeQuickDialog">Cancelar</button>
+          <button type="submit" id="valeQuickSubmitBtn" class="btn btn-primary time-off-submit-btn">Enviar Pedido de Vale</button>
+        </div>
+      </form>
+    `;
+    document.body.appendChild(dlg);
+
+    const closeModal = () => {
+      if (typeof window.closeDialog === "function") {
+        window.closeDialog("valeQuickDialog");
+      } else {
+        dlg.close?.();
+      }
+    };
+
+    dlg.querySelectorAll('[data-close="valeQuickDialog"]').forEach((btn) => {
+      btn.addEventListener("click", closeModal);
+    });
+    dlg.addEventListener("click", (e) => {
+      if (e.target === dlg) closeModal();
+    });
+
+    dlg.querySelector("#valeQuickForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const valor = Number(document.getElementById("valeQuickValorInput")?.value || 0);
+      const dataDesejada = document.getElementById("valeQuickDataInput")?.value || todayIso();
+      const motivo = String(document.getElementById("valeQuickMotivoInput")?.value || "").trim();
+      if (!(valor > 0)) {
+        toast("Informe um valor válido para o vale.", true);
+        return;
+      }
+      if (motivo.length < 3) {
+        toast("Informe brevemente o motivo do pedido.", true);
+        return;
+      }
+      const submitBtn = document.getElementById("valeQuickSubmitBtn");
+      if (submitBtn) submitBtn.disabled = true;
+      try {
+        const res = await invokePortal("solicitarVale", { valor, dataDesejada, motivo });
+        toast(res?.message || "Solicitação de vale enviada para validação do Gerente.");
+        document.getElementById("valeQuickForm")?.reset();
+        const dt = document.getElementById("valeQuickDataInput");
+        if (dt) dt.value = todayIso();
+        closeModal();
+        loadValesList();
+      } catch (err) {
+        toast(err.message || "Não foi possível enviar a solicitação de vale.", true);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+
+  if (!document.body.dataset.valeQuickBound) {
+    document.body.dataset.valeQuickBound = "1";
+    document.addEventListener("click", (e) => {
+      const trigger = e.target?.closest?.("[data-j-request-vale]");
+      if (!trigger) return;
+      const form = document.getElementById("valeQuickForm");
+      form?.reset();
+      const dt = document.getElementById("valeQuickDataInput");
+      if (dt) dt.value = todayIso();
+      if (typeof window.openDialog === "function") {
+        window.openDialog("valeQuickDialog");
+      } else {
+        dlg.showModal?.();
+      }
+      setTimeout(() => document.getElementById("valeQuickValorInput")?.focus?.(), 60);
+    });
+  }
+}
+
 export function initPortalGestao() {
   if (typeof document === "undefined") return;
   injectPortalTabsStyles();
@@ -2605,6 +2710,7 @@ export function initPortalGestao() {
   mountEmployeesOverviewSummary();
   enhanceEmployeeDialog();
   mountSolicitacoesTabsAndVale();
+  mountQuickValeDialog();
   bindFichasView();
   mountCommunicationTabsAndPops();
   mountPayrollClosingScreen();

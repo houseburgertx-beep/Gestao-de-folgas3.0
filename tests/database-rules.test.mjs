@@ -214,4 +214,30 @@ test('Firebase Database rules enforce roles, privacy, balances and document owne
     denied(await request(`${base}/meta/bootstrapOwner`, { uid: 'second', method: 'PUT', data: 'second' }));
     denied(await request(`${base}/access/second`, { uid: 'second', method: 'PUT', data: profile('second', 'Administrador') }));
   });
+  await t.test('SolicitacoesVale allows employee creation, blocks self-approval/spoofing, and scopes manager validation to own store', async () => {
+    const vale = {
+      ValeID: 'vale-alice-1',
+      FuncionarioID: 'emp-alice',
+      LojaID: 'store-a',
+      Valor: 300,
+      Motivo: 'Despesa médica',
+      DataDesejada: '2026-11-14',
+      Competencia: '2026-11',
+      Status: 'Solicitado',
+    };
+    const valePath = `${base}/tables/SolicitacoesVale/vale-alice-1`;
+    denied(await request(valePath, { uid: 'bob', method: 'PUT', data: vale }));
+    denied(await request(valePath, { uid: 'alice', method: 'PUT', data: { ...vale, LojaID: 'store-b' } }));
+    denied(await request(valePath, { uid: 'alice', method: 'PUT', data: { ...vale, Status: 'Pago' } }));
+    denied(await request(valePath, { uid: 'alice', method: 'PUT', data: { ...vale, Valor: 0 } }));
+    allowed(await request(valePath, { uid: 'alice', method: 'PUT', data: vale }));
+    const ownRead = await request(`${base}/tables/SolicitacoesVale`, { uid: 'alice', query: { orderBy: 'FuncionarioID', equalTo: 'emp-alice' } });
+    allowed(ownRead);
+    assert.ok(JSON.parse(ownRead.body)['vale-alice-1']);
+    denied(await request(valePath, { uid: 'alice', method: 'PATCH', data: { Status: 'Validado pelo Gerente' } }));
+    denied(await request(valePath, { uid: 'othermanager', method: 'PATCH', data: { Status: 'Validado pelo Gerente' } }));
+    denied(await request(valePath, { uid: 'manager', method: 'PATCH', data: { Status: 'Pago' } }));
+    allowed(await request(valePath, { uid: 'manager', method: 'PATCH', data: { Status: 'Validado pelo Gerente', ValidadoGerentePor: 'manager' } }));
+    allowed(await request(valePath, { uid: 'admin', method: 'PATCH', data: { Status: 'Pago' } }));
+  });
 });

@@ -875,16 +875,14 @@ async function validarAtestadoMedico(payload = {}) {
 // ============================================================================
 
 async function obterLimiteMaximoVale(storeId = "") {
-  const configs = await runtime.list("Configuracoes").catch(() => []);
-  const specificKey = storeId ? `LimiteMaximoVale_${storeId}`.toLowerCase() : "";
-  const storeMatch = specificKey
-    ? configs.find((c) => String(c.Chave || "").toLowerCase() === specificKey)
-    : null;
+  const specificKey = storeId ? `LimiteMaximoVale_${storeId}` : "";
+  const [storeMatch, globalMatch] = await Promise.all([
+    specificKey ? runtime.getById("Configuracoes", specificKey).catch(() => null) : Promise.resolve(null),
+    runtime.getById("Configuracoes", "LimiteMaximoVale").catch(() => null),
+  ]);
   if (storeMatch && Number(storeMatch.Valor) > 0) return Number(storeMatch.Valor);
-  const globalMatch = configs.find(
-    (c) => String(c.Chave || "").toLowerCase() === "limitemaximovale",
-  );
-  return globalMatch && Number(globalMatch.Valor) > 0 ? Number(globalMatch.Valor) : 1000;
+  if (globalMatch && Number(globalMatch.Valor) > 0) return Number(globalMatch.Valor);
+  return 1000;
 }
 
 async function configurarLimiteVale(payload = {}) {
