@@ -275,8 +275,19 @@ function injectPortalTabsStyles() {
       white-space: nowrap;
     }
 
+    /* ---- Blindagem de visibilidade por permissao contra display grid/flex ---- */
+    .hidden,
+    .permission-manager.hidden,
+    .permission-team-read.hidden,
+    .permission-admin.hidden,
+    .toolbar-actions.hidden,
+    .section-toolbar.hidden,
+    #globalTopStoreSelectorWrap.hidden {
+      display: none !important;
+    }
+
     /* ---- Topbar seletor de unidade alinhado ---- */
-    #globalTopStoreSelectorWrap {
+    #globalTopStoreSelectorWrap:not(.hidden) {
       display: inline-flex !important;
       align-items: center !important;
       gap: 8px !important;
@@ -285,6 +296,37 @@ function injectPortalTabsStyles() {
       background: var(--surface-2, #f8fafc) !important;
       border: 1px solid var(--line, #e2e8f0) !important;
       border-radius: 999px !important;
+    }
+
+    /* ---- Espelho do ponto (acoes Portaria 671 + navegacao de dia) ---- */
+    .clock-day-picker > .clock-mirror-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .clock-mirror-actions .clock-print-mirror-btn,
+    .clock-mirror-actions .clock-sign-mirror-btn {
+      min-height: 36px !important;
+      padding: 7px 12px !important;
+      border-radius: 10px !important;
+      font-size: 12.5px !important;
+      font-weight: 600 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      line-height: 1.2 !important;
+    }
+    .clock-mirror-actions #clockMirrorSignedBadge:not(.hidden) {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 4px !important;
+      font-size: 11px !important;
+      padding: 5px 10px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
     }
     #globalTopStoreSelectorWrap label {
       font-size: 12px !important;
@@ -557,7 +599,7 @@ function injectPortalTabsStyles() {
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
-      #globalTopStoreSelectorWrap {
+      #globalTopStoreSelectorWrap:not(.hidden) {
         height: 32px !important;
         padding: 0 6px !important;
         max-width: 112px !important;
@@ -571,6 +613,149 @@ function injectPortalTabsStyles() {
         font-size: 11.5px !important;
         height: 26px !important;
         min-height: 26px !important;
+      }
+      #clockMonth,
+      #absencesMonth,
+      #view-timeclock input[type="date"],
+      #view-timeclock input[type="month"],
+      .toolbar-actions select,
+      .toolbar-actions input {
+        min-inline-size: 0 !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      #view-timeclock .table-panel {
+        padding: 14px !important;
+        border-radius: 16px !important;
+      }
+      #view-timeclock .table-wrap {
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+      #view-timeclock #clockHistoryBody tr {
+        background: var(--surface-2, #f8fafc) !important;
+        border: 1px solid var(--line, #e2e8f0) !important;
+        box-shadow: none !important;
+        border-radius: 14px !important;
+        padding: 12px !important;
+      }
+      #view-timeclock #clockHistoryBody td:nth-child(3),
+      #view-timeclock #clockHistoryBody td:nth-child(4),
+      #view-timeclock #clockHistoryBody td:nth-child(5),
+      #view-timeclock #clockHistoryBody td:nth-child(6) {
+        background: var(--surface, #ffffff) !important;
+      }
+      #view-timeclock .clock-history-head {
+        gap: 12px !important;
+        margin-bottom: 12px !important;
+      }
+      #view-timeclock .clock-day-picker > .clock-mirror-actions {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        width: 100% !important;
+        margin-bottom: 12px !important;
+      }
+      #view-timeclock .clock-mirror-actions .clock-print-mirror-btn,
+      #view-timeclock .clock-mirror-actions .clock-sign-mirror-btn {
+        width: 100% !important;
+        min-height: 40px !important;
+        height: auto !important;
+        padding: 8px 10px !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        white-space: normal !important;
+        text-align: center !important;
+        border-radius: 10px !important;
+      }
+      #view-timeclock .clock-mirror-actions #clockMirrorSignedBadge:not(.hidden) {
+        grid-column: 1 / -1 !important;
+        justify-content: center !important;
+      }
+      #view-timeclock .clock-day-picker > label {
+        margin-bottom: 6px !important;
+      }
+      #view-timeclock .clock-day-picker > .clock-day-nav {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+      #view-timeclock .clock-day-nav .clock-nav-day-btn {
+        min-width: 38px !important;
+        width: 38px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        border-radius: 10px !important;
+      }
+      #view-timeclock .clock-day-nav input#clockDayFilter {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        font-size: 13.5px !important;
+        padding: 0 8px !important;
+        border-radius: 10px !important;
+      }
+      #view-timeclock .clock-day-nav .clock-today-btn {
+        min-width: 60px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        padding: 0 12px !important;
+        font-size: 12.5px !important;
+        border-radius: 10px !important;
+      }
+      #view-timeclock .clock-timeline {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+      #view-timeclock .clock-mark {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+        padding: 10px 12px !important;
+        border-radius: 12px !important;
+        background: var(--surface-2, #f8fafc) !important;
+        border: 1px solid var(--line, #e2e8f0) !important;
+        box-sizing: border-box !important;
+      }
+      #view-timeclock .clock-mark > div {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 2px !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+      }
+      #view-timeclock .clock-mark strong {
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        line-height: 1.25 !important;
+      }
+      #view-timeclock .clock-mark span {
+        font-size: 12px !important;
+        margin-top: 0 !important;
+      }
+      #view-timeclock .clock-mark .btn-ghost {
+        flex-shrink: 0 !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        background: var(--surface, #ffffff) !important;
+        border: 1px solid var(--line, #e2e8f0) !important;
       }
       #view-timeoff .section-toolbar {
         margin-bottom: 10px !important;
@@ -824,7 +1009,13 @@ function mountTopbarStoreSelector() {
 
   const wrap = document.createElement("div");
   wrap.id = "globalTopStoreSelectorWrap";
-  wrap.className = "permission-manager";
+  const navMgr = document.querySelector(".nav-item.permission-manager");
+  const managerVisible =
+    document.getElementById("app") &&
+    !document.getElementById("app").classList.contains("hidden") &&
+    navMgr &&
+    !navMgr.classList.contains("hidden");
+  wrap.className = managerVisible ? "permission-manager" : "permission-manager hidden";
   wrap.innerHTML = `
     <label for="globalTopStoreSelector">Unidade:</label>
     <select id="globalTopStoreSelector">

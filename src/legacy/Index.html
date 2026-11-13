@@ -1046,7 +1046,7 @@
             </div>
           </section>
           <section id="view-timeclock" class="view">
-            <div class="section-toolbar">
+            <div class="section-toolbar permission-team-read">
               <div>
                 <span class="eyebrow">JORNADA</span>
                 <h2>Controle de ponto</h2>
@@ -1140,27 +1140,28 @@
                   <p id="clockDaySummary">Mostrando somente o dia selecionado.</p>
                 </div>
                 <div class="clock-day-picker" aria-label="Selecionar dia do ponto">
-                  <button
-                    id="clockDownloadMirrorPdfBtn"
-                    class="btn btn-secondary clock-print-mirror-btn"
-                    type="button"
-                    style="font-size:12.5px; padding:6px 12px; border-radius:10px; display:inline-flex; align-items:center; gap:6px;"
-                    title="Baixar ou imprimir o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
-                  >
-                    📄 Espelho de Ponto (Portaria 671)
-                  </button>
-                  <button
-                    id="clockSignMirrorBtn"
-                    class="btn btn-primary clock-sign-mirror-btn"
-                    type="button"
-                    style="font-size:12.5px; padding:6px 14px; border-radius:10px; display:inline-flex; align-items:center; gap:6px; font-weight:600;"
-                    title="Conferir e assinar digitalmente o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
-                  >
-                    Assinar espelho digitalmente
-                  </button>
-                  <span id="clockMirrorSignedBadge" class="badge badge-success hidden" style="font-size:11px; padding:5px 9px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; font-weight:600;"></span>
+                  <div class="clock-mirror-actions">
+                    <button
+                      id="clockDownloadMirrorPdfBtn"
+                      class="btn btn-secondary clock-print-mirror-btn"
+                      type="button"
+                      title="Baixar ou imprimir o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                      <span>Espelho Portaria 671</span>
+                    </button>
+                    <button
+                      id="clockSignMirrorBtn"
+                      class="btn btn-primary clock-sign-mirror-btn"
+                      type="button"
+                      title="Conferir e assinar digitalmente o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
+                    >
+                      Assinar espelho digitalmente
+                    </button>
+                    <span id="clockMirrorSignedBadge" class="badge badge-success hidden"></span>
+                  </div>
                   <label for="clockDayFilter">Dia exibido</label>
-                  <div>
+                  <div class="clock-day-nav">
                     <button
                       id="clockPrevDayBtn"
                       class="btn btn-secondary clock-nav-day-btn"
