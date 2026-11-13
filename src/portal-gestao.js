@@ -413,27 +413,33 @@ function injectPortalTabsStyles() {
       box-sizing: border-box !important;
     }
     .portal-mobile-form-grid label {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
+      display: block !important;
       font-size: 12.5px;
       font-weight: 600;
       color: #334155;
       margin: 0 !important;
+      overflow: hidden;
     }
     .portal-mobile-form-grid input,
     .portal-mobile-form-grid select,
     .portal-mobile-form-grid textarea,
     .portal-folgas-toolbar input,
     .portal-folgas-toolbar select {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      display: block !important;
       width: 100% !important;
       max-width: 100% !important;
       min-width: 0 !important;
+      min-inline-size: 0 !important;
       box-sizing: border-box !important;
       height: 42px !important;
       min-height: 42px !important;
+      margin-top: 5px !important;
+      padding: 0 12px !important;
       border-radius: 10px !important;
       font-size: 14px !important;
+      text-align: left !important;
     }
     .portal-folgas-toolbar {
       display: flex;
@@ -1648,20 +1654,15 @@ function mountSolicitacoesTabsAndVale() {
   valePane.setAttribute("data-tab-pane", "sol-vales");
   valePane.setAttribute("data-tabs-group", "solicitacoes");
   valePane.innerHTML = `
-    <div style="margin-bottom: 8px;">
-      <span class="eyebrow">ADIANTAMENTO SALARIAL</span>
-      <h3 style="margin: 2px 0 4px;">Pedir Vale</h3>
-      <p style="font-size: 13px; color: var(--muted); margin: 0;">Seu pedido passa pela conferência do gerente e pagamento pela diretoria.</p>
-    </div>
-
-    <div class="portal-limit-banner">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom: 14px;">
       <div>
-        <span class="portal-limit-banner-label">Limite máximo por adiantamento</span>
-        <strong class="portal-limit-banner-value" id="valeLimiteMaximoBadge">R$ 1.000,00</strong>
+        <span class="eyebrow">ADIANTAMENTO SALARIAL</span>
+        <h3 style="margin: 2px 0 4px;">Pedir Vale</h3>
+        <p style="font-size: 13px; color: var(--muted); margin: 0;">Seu pedido passa pela conferência do gerente e pagamento pela diretoria.</p>
       </div>
       <div class="permission-admin" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
-        <input id="valeNovoLimiteInput" type="number" min="50" step="10" placeholder="Novo limite (R$)" style="width:140px !important; min-height:36px !important; height:36px !important;" />
-        <button type="button" id="btnSalvarLimiteVale" class="btn btn-secondary" style="min-height:36px; height:36px;">Definir Limite</button>
+        <input id="valeNovoLimiteInput" type="number" min="50" step="10" placeholder="Teto limite (R$)" style="width:136px !important; min-height:36px !important; height:36px !important;" />
+        <button type="button" id="btnSalvarLimiteVale" class="btn btn-secondary" style="min-height:36px; height:36px;">Definir Teto</button>
       </div>
     </div>
 
