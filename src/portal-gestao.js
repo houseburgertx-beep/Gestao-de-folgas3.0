@@ -396,6 +396,282 @@ function injectPortalTabsStyles() {
       background: #f8fafc;
       font-size: 12.5px;
     }
+
+    /* ---- Mobile-First Employee UX (Solicitacoes, Vales, Trocas, Fichas, Topbar) ---- */
+    .portal-mobile-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      align-items: end;
+      width: 100%;
+    }
+    .portal-mobile-form-grid > *,
+    .portal-mobile-form-grid label {
+      min-width: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .portal-mobile-form-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #334155;
+      margin: 0 !important;
+    }
+    .portal-mobile-form-grid input,
+    .portal-mobile-form-grid select,
+    .portal-mobile-form-grid textarea,
+    .portal-folgas-toolbar input,
+    .portal-folgas-toolbar select {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+      height: 42px !important;
+      min-height: 42px !important;
+      border-radius: 10px !important;
+      font-size: 14px !important;
+    }
+    .portal-folgas-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .portal-folgas-toolbar #timeOffSearch {
+      flex: 1 1 200px;
+    }
+    .portal-folgas-toolbar #timeOffStatusFilter {
+      flex: 0 1 180px;
+    }
+    .portal-folgas-toolbar #timeOffSwapBtn {
+      display: none !important;
+    }
+    .portal-limit-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      margin: 12px 0 16px;
+    }
+    .portal-limit-banner-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e40af;
+      display: block;
+    }
+    .portal-limit-banner-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1d4ed8;
+      font-variant-numeric: tabular-nums;
+    }
+    .portal-step-chips {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin: 12px 0 16px;
+    }
+    .portal-step-chip {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      font-size: 12.5px;
+      color: #334155;
+      line-height: 1.35;
+    }
+    .portal-step-chip strong {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--brand-solid, #4077ba);
+      margin-bottom: 2px;
+    }
+    .portal-action-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 768px) {
+      .topbar {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 45 !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+        padding-top: max(10px, env(safe-area-inset-top)) !important;
+        padding-bottom: 10px !important;
+      }
+      .topbar .topbar-title {
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+      }
+      .topbar .topbar-title h1 {
+        font-size: 16px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .topbar .icon-btn {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+      }
+      .topbar #refreshBtn {
+        display: none !important;
+      }
+      .content {
+        padding-top: 12px !important;
+        padding-bottom: calc(108px + env(safe-area-inset-bottom)) !important;
+      }
+      .form-grid,
+      .portal-mobile-form-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .form-grid > *,
+      .form-grid label,
+      .form-grid input,
+      .form-grid select,
+      .form-grid textarea {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      #globalTopStoreSelectorWrap {
+        height: 32px !important;
+        padding: 0 6px !important;
+        max-width: 112px !important;
+        margin-right: 2px !important;
+      }
+      #globalTopStoreSelectorWrap label {
+        display: none !important;
+      }
+      #globalTopStoreSelector {
+        max-width: 100px !important;
+        font-size: 11.5px !important;
+        height: 26px !important;
+        min-height: 26px !important;
+      }
+      #view-timeoff .section-toolbar {
+        margin-bottom: 10px !important;
+      }
+      .portal-tabs-bar {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        scrollbar-width: none;
+        margin-bottom: 14px !important;
+      }
+      .portal-tabs-bar::-webkit-scrollbar {
+        display: none;
+      }
+      #app .portal-tabs-bar .portal-tab-btn {
+        flex: 1 0 auto !important;
+        text-align: center !important;
+        font-size: 12.5px !important;
+        padding: 8px 10px !important;
+      }
+      .portal-folgas-toolbar {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+      .portal-folgas-toolbar #timeOffRefreshBtn {
+        grid-column: 1 / 2;
+        height: 40px !important;
+        min-height: 40px !important;
+      }
+      .portal-folgas-toolbar #newTimeOffBtn {
+        grid-column: 2 / 3;
+        height: 40px !important;
+        min-height: 40px !important;
+      }
+      .portal-mobile-form-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .portal-mobile-form-grid button[type="submit"] {
+        width: 100% !important;
+        height: 44px !important;
+      }
+      .portal-panel-clean {
+        padding: 14px !important;
+        border-radius: 14px !important;
+      }
+      .portal-action-row > .btn {
+        flex: 1 1 140px;
+      }
+      .portal-step-chips {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Cartoes responsivos automaticos no celular para tabelas de Vale e Fichas */
+      table.portal-responsive-table,
+      table.portal-responsive-table tbody,
+      table.portal-responsive-table tr,
+      table.portal-responsive-table td {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      table.portal-responsive-table thead {
+        display: none !important;
+      }
+      table.portal-responsive-table tr {
+        background: var(--surface, #ffffff) !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        padding: 10px 12px !important;
+        margin-bottom: 10px !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+      }
+      table.portal-responsive-table td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 6px 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        text-align: right !important;
+        font-size: 13px !important;
+      }
+      table.portal-responsive-table td:last-child {
+        border-bottom: 0 !important;
+        padding-bottom: 2px !important;
+      }
+      table.portal-responsive-table td[colspan] {
+        display: block !important;
+        text-align: center !important;
+        padding: 14px 8px !important;
+      }
+      table.portal-responsive-table td[colspan]::before {
+        display: none !important;
+      }
+      table.portal-responsive-table td::before {
+        content: attr(data-label);
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--muted, #64748b);
+        text-align: left;
+        flex: 0 0 auto;
+      }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -1297,10 +1573,9 @@ function mountSolicitacoesTabsAndVale() {
   if (!timeoffView || document.getElementById("portalTimeoffTabsBar")) return;
 
   const toolbar = timeoffView.querySelector(".section-toolbar");
-  const titleEl = toolbar?.querySelector("h2");
-  if (titleEl) titleEl.textContent = "Solicitações (Folgas, Trocas e Vales)";
-
+  const toolbarActions = toolbar?.querySelector(".toolbar-actions");
   const existingTablePanel = timeoffView.querySelector(".table-panel");
+
   const tabsBar = document.createElement("div");
   tabsBar.id = "portalTimeoffTabsBar";
   tabsBar.className = "portal-tabs-bar";
@@ -1309,7 +1584,7 @@ function mountSolicitacoesTabsAndVale() {
   tabsBar.innerHTML = `
     <button type="button" class="portal-tab-btn active" data-tab-target="sol-folgas" role="tab" aria-selected="true">Folgas</button>
     <button type="button" class="portal-tab-btn" data-tab-target="sol-trocas" role="tab" aria-selected="false">Trocas de Turno</button>
-    <button type="button" class="portal-tab-btn" data-tab-target="sol-vales" role="tab" aria-selected="false">Vales / Adiantamentos</button>
+    <button type="button" class="portal-tab-btn" data-tab-target="sol-vales" role="tab" aria-selected="false">Vales</button>
   `;
 
   if (toolbar?.nextSibling) {
@@ -1318,34 +1593,46 @@ function mountSolicitacoesTabsAndVale() {
     timeoffView.appendChild(tabsBar);
   }
 
-  // Envolve a tabela de folgas na aba 1
+  // Aba 1: Envolve toolbar de filtros/acoes + tabela de folgas dentro da aba Folgas
+  const folgasPane = document.createElement("div");
+  folgasPane.id = "portalFolgasPane";
+  folgasPane.className = "portal-tab-pane";
+  folgasPane.setAttribute("data-tab-pane", "sol-folgas");
+  folgasPane.setAttribute("data-tabs-group", "solicitacoes");
+  tabsBar.after(folgasPane);
+
+  if (toolbarActions) {
+    toolbarActions.classList.remove("toolbar-actions");
+    toolbarActions.classList.add("portal-folgas-toolbar");
+    folgasPane.appendChild(toolbarActions);
+  }
   if (existingTablePanel) {
-    existingTablePanel.classList.add("portal-tab-pane");
-    existingTablePanel.setAttribute("data-tab-pane", "sol-folgas");
-    existingTablePanel.setAttribute("data-tabs-group", "solicitacoes");
+    folgasPane.appendChild(existingTablePanel);
   }
 
-  // Aba 2: Trocas de Turno limpa e fluida
+  // Aba 2: Trocas de Turno otimizada para o colaborador
   const swapsPane = document.createElement("div");
   swapsPane.id = "portalTrocasPane";
-  swapsPane.className = "portal-tab-pane panel hidden";
+  swapsPane.className = "portal-tab-pane panel portal-panel-clean hidden";
   swapsPane.setAttribute("data-tab-pane", "sol-trocas");
   swapsPane.setAttribute("data-tabs-group", "solicitacoes");
   swapsPane.innerHTML = `
-    <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-      <div>
-        <span class="eyebrow">TELA 4 · TROCA DE TURNO COM COLEGA</span>
-        <h3>Solicitar ou Acompanhar Trocas de Turno</h3>
-        <p style="font-size:13px; color:var(--muted);">Fluxo: Solicitado pelo Colaborador -> Aceite do colega indicado -> Aprovação pelo Gerente.</p>
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" id="portalAbrirTrocaTurnoBtn" class="btn btn-primary">+ Nova Troca de Turno</button>
-        <button type="button" class="btn btn-secondary" data-view-target="pending-center">Ver Todas as Trocas</button>
-      </div>
+    <div style="margin-bottom: 12px;">
+      <span class="eyebrow">ESCALA COMPARTILHADA</span>
+      <h3 style="margin: 2px 0 4px;">Trocar Turno com Colega</h3>
+      <p style="font-size: 13px; color: var(--muted); margin: 0;">Precisa ajustar seu dia de trabalho? Combine com um colega da sua loja em 3 passos simples:</p>
     </div>
-    <p style="font-size:13px; color:var(--muted); margin:0;">
-      Clique em <strong>+ Nova Troca de Turno</strong> para indicar a data e selecionar o colega disponível da sua loja.
-    </p>
+
+    <div class="portal-step-chips">
+      <div class="portal-step-chip"><strong>1. Você solicita</strong>Escolha a data e indique o colega disponível</div>
+      <div class="portal-step-chip"><strong>2. Colega aceita</strong>O colega confirma a troca pelo app</div>
+      <div class="portal-step-chip"><strong>3. Gerência aprova</strong>A escala atualiza automaticamente</div>
+    </div>
+
+    <div class="portal-action-row">
+      <button type="button" id="portalAbrirTrocaTurnoBtn" class="btn btn-primary">+ Solicitar Troca</button>
+      <button type="button" class="btn btn-secondary" data-view-target="pending-center">Ver Minhas Trocas</button>
+    </div>
   `;
   timeoffView.appendChild(swapsPane);
 
@@ -1354,52 +1641,59 @@ function mountSolicitacoesTabsAndVale() {
     legacyBtn?.click();
   });
 
-  // Aba 3: Solicitações de Vale / Adiantamento
+  // Aba 3: Solicitações de Vale / Adiantamento (Mobile-First e sem vazamento de data)
   const valePane = document.createElement("div");
   valePane.id = "portalValeSection";
-  valePane.className = "portal-tab-pane panel hidden";
+  valePane.className = "portal-tab-pane panel portal-panel-clean hidden";
   valePane.setAttribute("data-tab-pane", "sol-vales");
   valePane.setAttribute("data-tabs-group", "solicitacoes");
   valePane.innerHTML = `
-    <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div style="margin-bottom: 8px;">
+      <span class="eyebrow">ADIANTAMENTO SALARIAL</span>
+      <h3 style="margin: 2px 0 4px;">Pedir Vale</h3>
+      <p style="font-size: 13px; color: var(--muted); margin: 0;">Seu pedido passa pela conferência do gerente e pagamento pela diretoria.</p>
+    </div>
+
+    <div class="portal-limit-banner">
       <div>
-        <span class="eyebrow">TELA 4 · ADIANTAMENTOS E VALES</span>
-        <h3>Solicitações de Vale / Adiantamento Salarial</h3>
-        <p style="font-size:13px; color:var(--muted);">Fluxo: Solicitado -> Validado pelo Gerente -> Aprovado/Pago pela Diretoria (com recibo digital).</p>
+        <span class="portal-limit-banner-label">Limite máximo por adiantamento</span>
+        <strong class="portal-limit-banner-value" id="valeLimiteMaximoBadge">R$ 1.000,00</strong>
       </div>
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <span class="badge" id="valeLimiteMaximoBadge">Limite Máx: R$ 1.000,00</span>
-        <div class="permission-admin" style="display:inline-flex; gap:6px; align-items:center;">
-          <input id="valeNovoLimiteInput" type="number" min="50" step="10" placeholder="Novo limite (R$)" style="width:150px; min-height:36px;" />
-          <button type="button" id="btnSalvarLimiteVale" class="btn btn-secondary" style="min-height:36px;">Definir Limite</button>
-        </div>
+      <div class="permission-admin" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        <input id="valeNovoLimiteInput" type="number" min="50" step="10" placeholder="Novo limite (R$)" style="width:140px !important; min-height:36px !important; height:36px !important;" />
+        <button type="button" id="btnSalvarLimiteVale" class="btn btn-secondary" style="min-height:36px; height:36px;">Definir Limite</button>
       </div>
     </div>
 
-    <form id="portalSolicitarValeForm" class="form-grid" style="margin:14px 0; align-items:end; padding:14px; background:var(--surface-2); border-radius:10px; border:1px solid var(--line);">
+    <form id="portalSolicitarValeForm" class="portal-mobile-form-grid" style="margin: 0 0 18px;">
       <label>Valor Solicitado (R$)
-        <input id="valeValorInput" type="number" min="10" step="0.01" placeholder="Ex: 250.00" required />
+        <input id="valeValorInput" type="number" min="10" step="0.01" placeholder="Ex: 250,00" required />
       </label>
       <label>Data Desejada
         <input id="valeDataDesejadaInput" type="date" required />
       </label>
-      <label>Motivo da Solicitação
-        <input id="valeMotivoInput" type="text" placeholder="Informe brevemente o motivo" required />
+      <label style="grid-column: 1 / -1;">Motivo do Pedido
+        <input id="valeMotivoInput" type="text" placeholder="Ex: Despesa médica, transporte, emergência" required />
       </label>
-      <button type="submit" class="btn btn-primary" style="min-height:42px;">Solicitar Vale</button>
+      <div style="grid-column: 1 / -1;">
+        <button type="submit" class="btn btn-primary" style="min-height:44px; width:100%;">Enviar Pedido de Vale</button>
+      </div>
     </form>
 
+    <div style="margin-bottom: 10px;">
+      <h4 style="margin: 0; font-size: 14px; color: var(--ink);">Meus Pedidos de Vale</h4>
+    </div>
     <div class="table-wrap">
-      <table>
+      <table class="portal-responsive-table">
         <thead>
           <tr>
-            <th>Data Desejada</th>
+            <th>Data</th>
             <th>Colaborador</th>
             <th>Unidade</th>
-            <th>Valor</th>
+            <th class="portal-num-col">Valor</th>
             <th>Motivo</th>
             <th>Status</th>
-            <th>Comprovante / Recibo</th>
+            <th>Comprovante</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -1455,7 +1749,7 @@ async function loadValesList() {
     const { limiteMaximo, vales = [] } = res.data || {};
     const badge = document.getElementById("valeLimiteMaximoBadge");
     if (badge && limiteMaximo) {
-      badge.textContent = `Limite Máx: ${formatBRL(limiteMaximo)}`;
+      badge.textContent = formatBRL(limiteMaximo);
     }
     const profile = runtime?.profile;
     const isAdminUser = isDiretoriaProfile(profile);
@@ -1479,7 +1773,7 @@ async function loadValesList() {
         }
         if (isAdminUser && (v.Status === "Validado pelo Gerente" || v.Status === "Solicitado")) {
           actions.push(
-            `<button type="button" class="btn btn-primary btn-sm" data-vale-action="pagar-diretoria" data-vale-id="${v.ValeID}">Aprovar e Pagar (Diretoria)</button>`,
+            `<button type="button" class="btn btn-primary btn-sm" data-vale-action="pagar-diretoria" data-vale-id="${v.ValeID}">Aprovar e Pagar</button>`,
           );
         }
         const statusLower = String(v.Status || "").toLowerCase();
@@ -1492,14 +1786,14 @@ async function loadValesList() {
               : "portal-pill--amber";
         return `
           <tr>
-            <td>${v.DataDesejada || "-"}</td>
-            <td><strong>${v.FuncionarioNome || "-"}</strong></td>
-            <td>${v.NomeLoja || v.LojaID || "-"}</td>
-            <td class="portal-num-col" style="font-weight:700;">${formatBRL(v.Valor)}</td>
-            <td>${v.Motivo || "-"}</td>
-            <td><span class="portal-pill ${statusCls}">${v.Status}</span></td>
-            <td>${v.ComprovanteURL ? `<a href="${v.ComprovanteURL}" target="_blank" rel="noopener">Ver Comprovante</a>` : "-"}</td>
-            <td><div style="display:flex; gap:6px; flex-wrap:wrap;">${actions.join("") || "-"}</div></td>
+            <td data-label="Data">${v.DataDesejada || "-"}</td>
+            <td data-label="Colaborador"><strong>${v.FuncionarioNome || "-"}</strong></td>
+            <td data-label="Unidade">${v.NomeLoja || v.LojaID || "-"}</td>
+            <td data-label="Valor" class="portal-num-col" style="font-weight:700; color:var(--ink);">${formatBRL(v.Valor)}</td>
+            <td data-label="Motivo">${v.Motivo || "-"}</td>
+            <td data-label="Status"><span class="portal-pill ${statusCls}">${v.Status}</span></td>
+            <td data-label="Comprovante">${v.ComprovanteURL ? `<a href="${v.ComprovanteURL}" target="_blank" rel="noopener">Abrir Recibo</a>` : "-"}</td>
+            <td data-label="Ações"><div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">${actions.join("") || "-"}</div></td>
           </tr>
         `;
       })
@@ -1665,15 +1959,15 @@ async function loadFichasView() {
         const isFood = op.toLowerCase().includes("food");
         return `
         <tr>
-          <td>${l.Data || "-"}</td>
-          <td><strong>${l.FuncionarioNome || "-"}</strong></td>
-          <td>${l.NomeLoja || l.LojaID || "-"}</td>
-          <td><span class="portal-pill ${isFood ? "portal-pill--amber" : "portal-pill--blue"}">${op}</span></td>
-          <td>${l.Funcao || "-"} / ${l.Turno || "Geral"}</td>
-          <td class="portal-num-col">${l.Quantidade}</td>
-          <td class="portal-num-col">${formatBRL(l.ValorUnitario)}</td>
-          <td class="portal-num-col" style="font-weight:700;">${formatBRL(l.ValorTotal)}</td>
-          <td>${l.LancadoPor || "-"}</td>
+          <td data-label="Data">${l.Data || "-"}</td>
+          <td data-label="Colaborador"><strong>${l.FuncionarioNome || "-"}</strong></td>
+          <td data-label="Unidade">${l.NomeLoja || l.LojaID || "-"}</td>
+          <td data-label="Operação"><span class="portal-pill ${isFood ? "portal-pill--amber" : "portal-pill--blue"}">${op}</span></td>
+          <td data-label="Função / Turno">${l.Funcao || "-"} / ${l.Turno || "Geral"}</td>
+          <td data-label="Quantidade" class="portal-num-col">${l.Quantidade}</td>
+          <td data-label="Valor Unit." class="portal-num-col">${formatBRL(l.ValorUnitario)}</td>
+          <td data-label="Total" class="portal-num-col" style="font-weight:700; color:#047857;">${formatBRL(l.ValorTotal)}</td>
+          <td data-label="Lançado por">${l.LancadoPor || "-"}</td>
         </tr>
       `;
       })
@@ -1754,13 +2048,13 @@ function mountCommunicationTabsAndPops() {
   popsWrap.innerHTML = `
     <div class="panel-head">
       <div>
-        <span class="eyebrow">TELA 6 · INTEGRAÇÃO E PROCEDIMENTOS INTERNOS</span>
+        <span class="eyebrow">TREINAMENTOS E PADRÕES</span>
         <h3>POPs e Manuais de Treinamento (Vídeos e PDFs)</h3>
-        <p style="font-size:13px; color:var(--muted);">Procedimentos Operacionais Padrão com confirmação obrigatória de leitura por colaborador.</p>
+        <p style="font-size:13px; color:var(--muted);">Procedimentos operacionais com confirmação de leitura pela equipe.</p>
       </div>
     </div>
 
-    <form id="portalPopForm" class="form-grid permission-manager" style="margin:14px 0; padding:14px; background:var(--surface-2); border-radius:10px; border:1px solid var(--line); align-items:end;">
+    <form id="portalPopForm" class="portal-mobile-form-grid permission-manager" style="margin:14px 0; padding:14px; background:var(--surface-2); border-radius:12px; border:1px solid var(--line);">
       <label>Título do POP / Treinamento
         <input id="popTituloInput" type="text" placeholder="Ex: POP 01 - Higienização e Segurança na Chapa" required />
       </label>
@@ -1879,9 +2173,9 @@ function mountPayrollClosingScreen() {
   panel.innerHTML = `
     <div class="section-toolbar">
       <div>
-        <span class="eyebrow">TELA 8 · CONSOLIDAÇÃO AUTOMÁTICA DE FOLHA</span>
+        <span class="eyebrow">FOLHA DE PAGAMENTO</span>
         <h2>Fechamento de Folha Salarial</h2>
-        <p id="folhaAccessModeNotice" style="font-size:13px; color:var(--muted);">Cruzamento automático de salário, fichas House Tx / FoodPark Tx, ponto e vales.</p>
+        <p id="folhaAccessModeNotice" style="font-size:13px; color:var(--muted);">Consolidação automática de salários, fichas House Tx / FoodPark Tx, ponto e vales.</p>
       </div>
       <div class="toolbar-actions">
         <button type="button" id="btnExportarFolhaXlsx" class="btn btn-secondary">Exportar Excel</button>
