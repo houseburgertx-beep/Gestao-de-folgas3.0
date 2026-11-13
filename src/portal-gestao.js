@@ -308,7 +308,7 @@ function injectPortalTabsStyles() {
     }
     .clock-mirror-actions .clock-print-mirror-btn,
     .clock-mirror-actions .clock-sign-mirror-btn {
-      min-height: 36px !important;
+      min-height: 40px !important;
       padding: 7px 12px !important;
       border-radius: 10px !important;
       font-size: 12.5px !important;
@@ -318,6 +318,10 @@ function injectPortalTabsStyles() {
       justify-content: center !important;
       gap: 6px !important;
       line-height: 1.2 !important;
+      background: transparent !important;
+      color: var(--ink, #101828) !important;
+      border: 1px solid var(--line-2, #d8dde6) !important;
+      box-shadow: none !important;
     }
     .clock-mirror-actions #clockMirrorSignedBadge:not(.hidden) {
       display: inline-flex !important;
@@ -665,14 +669,19 @@ function injectPortalTabsStyles() {
       #view-timeclock .clock-mirror-actions .clock-print-mirror-btn,
       #view-timeclock .clock-mirror-actions .clock-sign-mirror-btn {
         width: 100% !important;
-        min-height: 40px !important;
-        height: auto !important;
-        padding: 8px 10px !important;
+        min-height: 44px !important;
+        height: 44px !important;
+        margin: 0 !important;
+        padding: 4px 10px !important;
         font-size: 12px !important;
-        line-height: 1.25 !important;
+        line-height: 1.2 !important;
         white-space: normal !important;
         text-align: center !important;
         border-radius: 10px !important;
+        background: transparent !important;
+        color: var(--ink, #101828) !important;
+        border: 1px solid var(--line-2, #d8dde6) !important;
+        box-shadow: none !important;
       }
       #view-timeclock .clock-mirror-actions #clockMirrorSignedBadge:not(.hidden) {
         grid-column: 1 / -1 !important;
