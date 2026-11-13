@@ -3,6 +3,7 @@ export const APP = Object.freeze({
   version: "6.10.0-firebase-github",
   profiles: {
     admin: "Administrador",
+    diretoria: "Diretoria",
     manager: "Responsável de loja",
     kitchen: "Chefe de cozinha",
     employee: "Funcionário",
@@ -36,6 +37,7 @@ const MANAGER_PERMISSIONS = [
 
 export const PERMISSIONS = Object.freeze({
   Administrador: ["*"],
+  Diretoria: ["*"],
   "Responsável de loja": MANAGER_PERMISSIONS,
   Gerente: MANAGER_PERMISSIONS,
   "Chefe de cozinha": [
@@ -112,6 +114,11 @@ export const ID_FIELDS = Object.freeze({
   WhatsAppSessions: "SessionID",
   Denuncias: "DenunciaID",
   DenunciasMensagens: "MensagemID",
+  SolicitacoesVale: "ValeID",
+  TabelaFichas: "FichaConfigID",
+  LancamentosFichas: "LancamentoFichaID",
+  POPsTreinamentos: "PopID",
+  POPsLeituras: "PopLeituraID",
 });
 
 export const PUBLIC_AUTH_TABLES = new Set([
@@ -152,6 +159,11 @@ export const STORE_SCOPED_FIELDS = Object.freeze({
   Tarefas: "LojaID",
   TarefasTemplates: "LojaID",
   Reconhecimentos: "LojaID",
+  SolicitacoesVale: "LojaID",
+  TabelaFichas: "LojaID",
+  LancamentosFichas: "LojaID",
+  POPsTreinamentos: "LojaID",
+  POPsLeituras: "LojaID",
 });
 
 export const EMPLOYEE_SCOPED_FIELDS = Object.freeze({
@@ -175,6 +187,9 @@ export const EMPLOYEE_SCOPED_FIELDS = Object.freeze({
   Notificacoes: "DestinatarioID",
   Tarefas: "FuncionarioID",
   Reconhecimentos: "FuncionarioID",
+  SolicitacoesVale: "FuncionarioID",
+  LancamentosFichas: "FuncionarioID",
+  POPsLeituras: "FuncionarioID",
 });
 
 export const DEFAULT_CONFIG = [

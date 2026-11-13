@@ -6,6 +6,7 @@ import { createDocumentsHandlers } from "./api-documents.js";
 import { createWhatsAppHandlers } from "./api-whatsapp.js";
 import { createWhistleblowerHandlers } from "./api-whistleblower.js";
 import { createHouseAIHandlers } from "./api-house-ai.js";
+import { createPortalHandlers } from "./api-portal.js";
 import { runtime } from "./runtime.js";
 
 export function createApi() {
@@ -18,6 +19,7 @@ export function createApi() {
     ...createWhatsAppHandlers(),
     ...createWhistleblowerHandlers(),
     ...createHouseAIHandlers(),
+    ...createPortalHandlers(),
   };
 
   const api = {

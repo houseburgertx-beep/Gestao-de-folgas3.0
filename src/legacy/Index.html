@@ -105,14 +105,14 @@
               Escala, folgas, ponto e tarefas do seu turno.
             </p>
             <label for="loginEmail" class="form-label-wrap">
-              <span>E-mail</span>
+              <span>CPF ou E-mail</span>
               <div class="input-icon">
                 <span class="material-symbols-rounded">mail</span>
                 <input
                   id="loginEmail"
-                  type="email"
+                  type="text"
                   autocomplete="username"
-                  placeholder="seuemail@exemplo.com"
+                  placeholder="CPF (000.000.000-00) ou seuemail@exemplo.com"
                   required />
               </div>
             </label>
@@ -289,6 +289,7 @@
           <details class="nav-group permission-manager" open>
             <summary><span>♙</span>Pessoas</summary>
             <button class="nav-item permission-manager" data-view="employees"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><b>Funcionários</b></button>
+            <button class="nav-item" data-view="fichas"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span><b>Valor de Ficha</b></button>
             <button class="nav-item permission-admin" data-view="hour-balances"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6h5"/></svg></span><b>Banco de horas</b></button>
             <button class="nav-item" data-view-target="pending-center" data-open-vacations="true"><span>☀</span><b>Férias</b></button>
           </details>
@@ -2397,6 +2398,143 @@
                     </button>
                   </form>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TELA 5: VALOR DE FICHA / PRODUTIVIDADE (HOUSE TX VS FOODPARK TX) -->
+          <section id="view-fichas" class="view">
+            <div class="section-toolbar">
+              <div>
+                <span class="eyebrow">TELA 5 · PRODUTIVIDADE E DIÁRIAS</span>
+                <h2>Valor de Ficha e Produtividade</h2>
+                <p>Lançamento diário por operação (House Tx / FoodPark Tx), tabela de valores da Diretoria e extrato transparente do colaborador.</p>
+              </div>
+              <div class="toolbar-actions">
+                <label>Competência
+                  <input id="fichasCompetenciaInput" type="month" />
+                </label>
+                <label class="permission-manager">Unidade/Loja
+                  <select id="fichasStoreFilter">
+                    <option value="">Todas as unidades</option>
+                  </select>
+                </label>
+                <button type="button" id="fichasRefreshBtn" class="btn btn-secondary">Atualizar extrato</button>
+              </div>
+            </div>
+
+            <div id="fichasSummaryCards" class="metric-grid" style="margin-bottom: 18px;">
+              <article class="panel metric-card">
+                <span class="eyebrow">OPERAÇÃO HOUSE TX</span>
+                <strong id="fichasTotalHouseQtd" style="font-size: 24px; font-variant-numeric: tabular-nums;">0 fichas</strong>
+                <span id="fichasTotalHouseValor" style="color: var(--brand-solid); font-weight: 700;">R$ 0,00</span>
+              </article>
+              <article class="panel metric-card">
+                <span class="eyebrow">OPERAÇÃO FOODPARK TX</span>
+                <strong id="fichasTotalFoodParkQtd" style="font-size: 24px; font-variant-numeric: tabular-nums;">0 fichas</strong>
+                <span id="fichasTotalFoodParkValor" style="color: var(--brand-solid); font-weight: 700;">R$ 0,00</span>
+              </article>
+              <article class="panel metric-card">
+                <span class="eyebrow">TOTAL ACUMULADO NO PERÍODO</span>
+                <strong id="fichasSaldoTotalReceber" style="font-size: 24px; color: #16a34a; font-variant-numeric: tabular-nums;">R$ 0,00</strong>
+                <span id="fichasQuantidadeTotalText">0 fichas lançadas</span>
+              </article>
+            </div>
+
+            <div class="advanced-grid" style="margin-bottom: 18px;">
+              <!-- Lançamento Diário (Gerente e Diretoria) -->
+              <form id="fichaLancamentoForm" class="panel feature-panel permission-manager">
+                <span class="eyebrow">GERÊNCIA DE UNIDADE</span>
+                <h3>Lançamento Diário de Fichas</h3>
+                <p>Especifique se a ficha pertence à operação <strong>House Tx</strong> ou <strong>FoodPark Tx</strong>.</p>
+                <div class="form-grid">
+                  <label>Colaborador
+                    <select id="fichaLancamentoEmployee" required></select>
+                  </label>
+                  <label>Operação
+                    <select id="fichaLancamentoOperacao" required>
+                      <option value="House Tx">House Tx</option>
+                      <option value="FoodPark Tx">FoodPark Tx</option>
+                    </select>
+                  </label>
+                  <label>Data da Ficha
+                    <input id="fichaLancamentoData" type="date" required />
+                  </label>
+                  <label>Quantidade de Fichas
+                    <input id="fichaLancamentoQtd" type="number" min="0.5" step="0.5" value="1" required />
+                  </label>
+                  <label>Função / Cargo
+                    <input id="fichaLancamentoFuncao" type="text" placeholder="Ex: Chapeiro, Caixa, Salão" />
+                  </label>
+                  <label>Turno
+                    <select id="fichaLancamentoTurno">
+                      <option value="Geral">Geral</option>
+                      <option value="Diurno">Diurno</option>
+                      <option value="Noturno">Noturno</option>
+                    </select>
+                  </label>
+                </div>
+                <label>Observação operacional
+                  <input id="fichaLancamentoObs" type="text" placeholder="Opcional: evento, dobra ou cobertura" />
+                </label>
+                <button type="submit" class="btn btn-primary">Lançar Ficha Diária</button>
+              </form>
+
+              <!-- Configuração da Tabela de Valores (Exclusivo Diretoria) -->
+              <form id="fichaTabelaConfigForm" class="panel feature-panel permission-admin">
+                <span class="eyebrow">EXCLUSIVO DIRETORIA</span>
+                <h3>Tabela de Valores Unitários de Ficha</h3>
+                <p>Defina valores independentes para <strong>House Tx</strong> e <strong>FoodPark Tx</strong> por função e turno.</p>
+                <div class="form-grid">
+                  <label>Operação
+                    <select id="fichaConfigOperacao" required>
+                      <option value="House Tx">House Tx</option>
+                      <option value="FoodPark Tx">FoodPark Tx</option>
+                    </select>
+                  </label>
+                  <label>Função / Cargo
+                    <input id="fichaConfigFuncao" type="text" placeholder="Ex: Chapeiro, Cozinha, Motoboy" required />
+                  </label>
+                  <label>Turno
+                    <select id="fichaConfigTurno">
+                      <option value="Geral">Geral</option>
+                      <option value="Diurno">Diurno</option>
+                      <option value="Noturno">Noturno</option>
+                    </select>
+                  </label>
+                  <label>Valor Unitário (R$)
+                    <input id="fichaConfigValor" type="number" min="1" step="0.01" placeholder="18.00" required />
+                  </label>
+                </div>
+                <button type="submit" class="btn btn-primary">Salvar Valor na Tabela</button>
+                <div id="fichaTabelaConfigList" style="margin-top: 12px;"></div>
+              </form>
+            </div>
+
+            <div class="panel table-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">TRANSPARÊNCIA</span>
+                  <h3>Extrato Detalhado de Fichas</h3>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Colaborador</th>
+                      <th>Unidade</th>
+                      <th>Operação</th>
+                      <th>Função / Turno</th>
+                      <th>Qtd</th>
+                      <th>Valor Unit.</th>
+                      <th>Total</th>
+                      <th>Lançado por</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fichasExtratoBody"></tbody>
+                </table>
               </div>
             </div>
           </section>

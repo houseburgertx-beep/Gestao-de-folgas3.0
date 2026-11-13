@@ -61,7 +61,8 @@ const dropClientToken = (args) => {
 };
 
 const role = (profile) => String(profile?.Perfil || "").toLowerCase();
-const isAdmin = (profile) => role(profile).includes("admin");
+const isAdmin = (profile) =>
+  role(profile).includes("admin") || role(profile).includes("diretor");
 const isManager = (profile) =>
   isAdmin(profile) ||
   role(profile).includes("respons") ||
@@ -653,27 +654,110 @@ const reconcilePendingTimeOffBalances = async (profile, records) => {
   return recovered;
 };
 
+export function computeAuditDiffs(beforeObj, afterObj) {
+  if (!beforeObj || !afterObj || typeof beforeObj !== "object" || typeof afterObj !== "object") {
+    return [];
+  }
+  const ignoredKeys = new Set(["AtualizadoEm", "AtualizadoPor", "CriadoEm", "CriadoPor", "HistoricoAlteracoes"]);
+  const keys = new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)]);
+  const diffs = [];
+  for (const key of keys) {
+    if (ignoredKeys.has(key)) continue;
+    const prevVal = beforeObj[key];
+    const nextVal = afterObj[key];
+    const prevStr = prevVal === undefined || prevVal === null ? "" : typeof prevVal === "object" ? JSON.stringify(prevVal) : String(prevVal);
+    const nextStr = nextVal === undefined || nextVal === null ? "" : typeof nextVal === "object" ? JSON.stringify(nextVal) : String(nextVal);
+    if (prevStr !== nextStr) {
+      diffs.push({
+        campo: key,
+        valorAnterior: prevStr,
+        valorNovo: nextStr,
+        resumo: `${key} alterado de "${prevStr || "vazio"}" para "${nextStr || "vazio"}"`,
+      });
+    }
+  }
+  return diffs;
+}
+
 export async function audit(action, module, recordId, details = {}) {
   const profile = await runtime.requireProfile();
+  const diffs = Array.isArray(details.diffs)
+    ? details.diffs
+    : computeAuditDiffs(details.before, details.after);
+  const firstDiff = diffs[0] || null;
+  const campoAlterado = details.campo || details.field || (firstDiff ? firstDiff.campo : "");
+  const valorAnterior =
+    details.valorAnterior !== undefined
+      ? String(details.valorAnterior)
+      : firstDiff
+        ? firstDiff.valorAnterior
+        : typeof details.before === "string"
+          ? details.before
+          : "";
+  const valorNovo =
+    details.valorNovo !== undefined
+      ? String(details.valorNovo)
+      : firstDiff
+        ? firstDiff.valorNovo
+        : typeof details.after === "string"
+          ? details.after
+          : "";
+  const resumoAlteracao =
+    details.resumo ||
+    details.message ||
+    (diffs.length ? diffs.map((d) => d.resumo).join("; ") : `${action} em ${module}`);
+  const now = nowIso();
+  const deviceInfo =
+    details.device ||
+    details.dispositivo ||
+    (typeof navigator !== "undefined" && navigator.userAgent ? navigator.userAgent : "Aplicação Web / Servidor");
+  const ipOrigin = details.ip || details.origemIp || "Sessão Autenticada";
   const entry = {
     AuditoriaID: uuid(),
-    DataHora: nowIso(),
+    DataHora: now,
+    Quando: now,
+    QuemID: profile.UsuarioID || profile.FuncionarioID || profile.Email || "",
+    QuemNome: profile.Nome || "",
+    QuemPerfil: profile.Perfil || "",
     EmailUtilizador: profile.Email,
     NomeUtilizador: profile.Nome,
-    LojaID: profile.LojaID || details.LojaID || "",
+    LojaID: details.LojaID || profile.LojaID || (details.after && details.after.LojaID) || (details.before && details.before.LojaID) || "",
     FuncionarioID: profile.FuncionarioID || "",
+    ColaboradorAfetadoID:
+      details.employeeId ||
+      details.FuncionarioID ||
+      (details.after && details.after.FuncionarioID) ||
+      (details.before && details.before.FuncionarioID) ||
+      recordId ||
+      "",
+    ColaboradorAfetadoNome:
+      details.employeeName ||
+      (details.after && (details.after.NomeCompleto || details.after.FuncionarioNome || details.after.Nome)) ||
+      (details.before && (details.before.NomeCompleto || details.before.FuncionarioNome || details.before.Nome)) ||
+      "",
     Acao: action,
     Modulo: module,
+    OndeModulo: module,
+    OndeTela: details.tela || module,
     RegistoID: recordId || "",
+    CampoAlterado: campoAlterado,
+    ValorAnterior: valorAnterior,
+    ValorNovo: valorNovo,
+    ResumoAlteracao: resumoAlteracao,
+    Justificativa: details.justificativa || details.reason || "",
+    Diffs: diffs,
     DadosAnteriores: details.before || "",
     DadosNovos: details.after || details,
-    EnderecoOuOrigem: "Aplicação Firebase",
+    OrigemIP: ipOrigin,
+    OrigemDispositivo: deviceInfo,
+    EnderecoOuOrigem: `${ipOrigin} | ${deviceInfo}`,
     Resultado: "Sucesso",
-    Mensagem: details.message || "",
+    Mensagem: resumoAlteracao,
   };
   await runtime.create("Auditoria", entry).catch((error) => {
     console.warn("Auditoria não gravada:", error.message);
   });
+  return entry;
 }
 
 // Delivery is authorized and deduplicated by the Worker against the saved notice.
@@ -927,31 +1011,82 @@ const normalizeEmployee = async (payload, current, profile) => {
   const store = payload.LojaID
     ? await runtime.getById("Lojas", payload.LojaID)
     : null;
+  const etapaAtual = Number(payload.EtapaAdmissao ?? current?.EtapaAdmissao ?? 1) || 1;
+  const historicoEtapas = {
+    ...(current?.HistoricoEtapasAdmissao || {}),
+    ...(payload.HistoricoEtapasAdmissao || {}),
+  };
+  if (!historicoEtapas["1"]) {
+    historicoEtapas["1"] = {
+      etapa: 1,
+      titulo: "Pré-cadastro / Link enviado",
+      data: current?.DataCriacao || nowIso(),
+      responsavel: current?.CriadoPor || profile?.Email || "Sistema",
+    };
+  }
   return {
     ...(current || {}),
     ...payload,
     FuncionarioID: current?.FuncionarioID || payload.FuncionarioID || uuid(),
-    Nome: String(payload.Nome || "").trim(),
-    Email: normalizeEmail(payload.Email),
-    Telefone: String(payload.Telefone || "").trim(),
-    LojaID: String(payload.LojaID || ""),
-    NomeLoja: store?.NomeLoja || payload.NomeLoja || "",
-    Cargo: String(payload.Cargo || "").trim(),
-    Perfil: payload.Perfil || APP.profiles.employee,
+    Nome: String(payload.Nome ?? current?.Nome ?? "").trim(),
+    NomeSocial: String(payload.NomeSocial ?? current?.NomeSocial ?? "").trim(),
+    Email: normalizeEmail(payload.Email ?? current?.Email ?? ""),
+    Telefone: String(payload.Telefone ?? current?.Telefone ?? "").trim(),
+    WhatsApp: String(payload.WhatsApp ?? payload.Telefone ?? current?.WhatsApp ?? current?.Telefone ?? "").trim(),
+    CPF: String(payload.CPF ?? current?.CPF ?? "").trim(),
+    RG: String(payload.RG ?? current?.RG ?? "").trim(),
+    DataNascimento: String(payload.DataNascimento ?? current?.DataNascimento ?? "").trim(),
+    EstadoCivil: String(payload.EstadoCivil ?? current?.EstadoCivil ?? "").trim(),
+    NomeMae: String(payload.NomeMae ?? current?.NomeMae ?? "").trim(),
+    NomePai: String(payload.NomePai ?? current?.NomePai ?? "").trim(),
+    CEP: String(payload.CEP ?? current?.CEP ?? "").trim(),
+    Endereco: String(payload.Endereco ?? current?.Endereco ?? "").trim(),
+    NumeroEndereco: String(payload.NumeroEndereco ?? current?.NumeroEndereco ?? "").trim(),
+    Complemento: String(payload.Complemento ?? current?.Complemento ?? "").trim(),
+    Bairro: String(payload.Bairro ?? current?.Bairro ?? "").trim(),
+    Cidade: String(payload.Cidade ?? current?.Cidade ?? "").trim(),
+    UF: String(payload.UF ?? current?.UF ?? "").trim(),
+    ContatoEmergenciaNome: String(payload.ContatoEmergenciaNome ?? current?.ContatoEmergenciaNome ?? "").trim(),
+    ContatoEmergenciaParentesco: String(payload.ContatoEmergenciaParentesco ?? current?.ContatoEmergenciaParentesco ?? "").trim(),
+    ContatoEmergenciaTelefone: String(payload.ContatoEmergenciaTelefone ?? current?.ContatoEmergenciaTelefone ?? "").trim(),
+    LojaID: String(payload.LojaID ?? current?.LojaID ?? ""),
+    NomeLoja: store?.NomeLoja || payload.NomeLoja || current?.NomeLoja || "",
+    Cargo: String(payload.Cargo ?? current?.Cargo ?? "").trim(),
+    Setor: String(payload.Setor ?? current?.Setor ?? "").trim(),
+    Perfil: payload.Perfil || current?.Perfil || APP.profiles.employee,
     AvatarID: /^avatar-(0[0-9]|1[01])$/.test(String(payload.AvatarID || ""))
       ? String(payload.AvatarID)
       : current?.AvatarID || "avatar-00",
-    DataAdmissao: payload.DataAdmissao || "",
-    TipoContrato: payload.TipoContrato || "",
-    DiasTrabalhoSemana: payload.DiasTrabalhoSemana || "",
-    DiaFolgaPreferencial: payload.DiaFolgaPreferencial || "",
-    SegundoDiaFolgaPreferencial: payload.SegundoDiaFolgaPreferencial || "",
-    SaldoFolgas: Number(payload.SaldoFolgas || 0),
-    Ativo: payload.Ativo !== false,
+    DataAdmissao: payload.DataAdmissao ?? current?.DataAdmissao ?? "",
+    TipoContrato: payload.TipoContrato ?? current?.TipoContrato ?? "",
+    PeriodoExperienciaDias: Number(payload.PeriodoExperienciaDias ?? current?.PeriodoExperienciaDias ?? 90) || 90,
+    TurnoTrabalho: String(payload.TurnoTrabalho ?? current?.TurnoTrabalho ?? "").trim(),
+    SalarioBase: Number(payload.SalarioBase ?? current?.SalarioBase ?? 0) || 0,
+    ChavePix: String(payload.ChavePix ?? current?.ChavePix ?? "").trim(),
+    BancoNome: String(payload.BancoNome ?? current?.BancoNome ?? "").trim(),
+    BancoAgencia: String(payload.BancoAgencia ?? current?.BancoAgencia ?? "").trim(),
+    BancoConta: String(payload.BancoConta ?? current?.BancoConta ?? "").trim(),
+    BancoTipoConta: String(payload.BancoTipoConta ?? current?.BancoTipoConta ?? "").trim(),
+    DiasTrabalhoSemana: payload.DiasTrabalhoSemana ?? current?.DiasTrabalhoSemana ?? "",
+    DiaFolgaPreferencial: payload.DiaFolgaPreferencial ?? current?.DiaFolgaPreferencial ?? "",
+    SegundoDiaFolgaPreferencial: payload.SegundoDiaFolgaPreferencial ?? current?.SegundoDiaFolgaPreferencial ?? "",
+    SaldoFolgas: Number(payload.SaldoFolgas ?? current?.SaldoFolgas ?? 0),
+    EtapaAdmissao: etapaAtual,
+    HistoricoEtapasAdmissao: historicoEtapas,
+    CadastroValidado: Boolean(payload.CadastroValidado ?? current?.CadastroValidado ?? false),
+    ValidadoPor: String(payload.ValidadoPor ?? current?.ValidadoPor ?? ""),
+    ValidadoEm: String(payload.ValidadoEm ?? current?.ValidadoEm ?? ""),
+    DataEfetivacao: String(payload.DataEfetivacao ?? current?.DataEfetivacao ?? ""),
+    DataDesligamento: String(payload.DataDesligamento ?? current?.DataDesligamento ?? ""),
+    MotivoDesligamento: String(payload.MotivoDesligamento ?? current?.MotivoDesligamento ?? ""),
+    DossieDocumentos: {
+      ...(current?.DossieDocumentos || {}),
+      ...(payload.DossieDocumentos || {}),
+    },
+    Ativo: payload.Ativo !== undefined ? payload.Ativo !== false : current?.Ativo !== false,
     DataCriacao: current?.DataCriacao || nowIso(),
     CriadoPor: current?.CriadoPor || profile.Email,
     DataAtualizacao: nowIso(),
-    CPF: String(payload.CPF || "").trim(),
   };
 };
 

@@ -60,7 +60,8 @@ import {
 const roleName = (profile) =>
   String(profile?.Perfil || profile?.perfil || "").toLowerCase();
 
-const isAdminProfile = (profile) => roleName(profile).includes("admin");
+const isAdminProfile = (profile) =>
+  roleName(profile).includes("admin") || roleName(profile).includes("diretor");
 // Perfis que podem consultar dados da própria loja. Isso inclui o chefe de
 // cozinha, mas não concede as ações de gestão protegidas por requireManager.
 const isStoreReaderProfile = (profile) =>
@@ -68,7 +69,8 @@ const isStoreReaderProfile = (profile) =>
   roleName(profile).includes("gerente") ||
   roleName(profile).includes("chefe de cozinha");
 const isEmployeeProfile = (profile) =>
-  roleName(profile).includes("funcion");
+  roleName(profile).includes("funcion") ||
+  roleName(profile).includes("colaborador");
 
 const PERIOD_INDEXED_TABLES = new Set(["RegistrosPonto", "AjustesPonto"]);
 const PERIOD_INDEX_MIGRATION = "timeClockPeriodIndexesV1";
@@ -429,6 +431,7 @@ export class FirebaseRuntime {
   }
 
   async login(email, password, remember = true) {
+    email = await this.resolveLoginEmail(email);
     await setPersistence(
       this.auth,
       remember !== false ? browserLocalPersistence : browserSessionPersistence,
@@ -756,8 +759,51 @@ export class FirebaseRuntime {
     await signOut(this.auth);
   }
 
-  async sendPasswordReset(email) {
-    await sendPasswordResetEmail(this.auth, normalizeEmail(email));
+  async resolveLoginEmail(identifier) {
+    const raw = String(identifier || "").trim();
+    if (!raw) throw new Error("Informe seu CPF ou e-mail.");
+    if (raw.includes("@")) return normalizeEmail(raw);
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 11) {
+      return normalizeEmail(raw);
+    }
+    const formattedCpf = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+    try {
+      const cpfIndexSnap = await get(this.appRef(`cpfIndex/${digits}`));
+      const indexedEmail = cpfIndexSnap.val();
+      if (indexedEmail && String(indexedEmail).includes("@")) {
+        return normalizeEmail(indexedEmail);
+      }
+    } catch {}
+    try {
+      let snap = await get(
+        query(this.appRef("tables/Funcionarios"), orderByChild("CPF"), equalTo(digits)),
+      );
+      let list = snapshotList(snap);
+      if (!list.length) {
+        snap = await get(
+          query(this.appRef("tables/Funcionarios"), orderByChild("CPF"), equalTo(formattedCpf)),
+        );
+        list = snapshotList(snap);
+      }
+      if (!list.length) {
+        const allSnap = await get(this.appRef("tables/Funcionarios"));
+        list = snapshotList(allSnap).filter(
+          (emp) => String(emp.CPF || "").replace(/\D/g, "") === digits,
+        );
+      }
+      const match = list.find((emp) => emp.Ativo !== false && emp.Email) || list[0];
+      if (match?.Email) {
+        return normalizeEmail(match.Email);
+      }
+    } catch {}
+    throw new Error("CPF não localizado ou sem e-mail vinculado. Solicite o vínculo ao seu gestor.");
+  }
+
+  async sendPasswordReset(emailOrCpf) {
+    const resolvedEmail = await this.resolveLoginEmail(emailOrCpf);
+    await sendPasswordResetEmail(this.auth, normalizeEmail(resolvedEmail));
+    return { email: resolvedEmail };
   }
 
   async setupInitialAdmin({ name, email, password, company }) {
