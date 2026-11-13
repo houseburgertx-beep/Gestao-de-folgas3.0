@@ -203,17 +203,6 @@ test('Firebase Database rules enforce roles, privacy, balances and document owne
     allowed(await request(`${base}/tables/WhatsAppMagicTokens/magic-managed`, { uid: 'manager', method: 'PUT', data: managedToken }));
     denied(await request(`${base}/tables/WhatsAppMagicTokens/magic-cross-store`, { uid: 'othermanager', method: 'PUT', data: { ...token, TokenID: 'magic-cross-store', Token: 'magic-cross-store', LojaID: 'store-b' } }));
   });
-  await t.test('initial administrator setup requires a unique bootstrap owner and closes after initialization', async () => {
-    allowed(await request(base, { admin: true, method: 'PUT', data: {} }));
-    allowed(await request(`${base}/meta/bootstrapOwner`, { uid: 'first', method: 'PUT', data: 'first' }));
-    denied(await request(`${base}/meta/bootstrapOwner`, { uid: 'second', method: 'PUT', data: 'second' }));
-    denied(await request(`${base}/access/second`, { uid: 'second', method: 'PUT', data: profile('second', 'Administrador') }));
-    allowed(await request(`${base}/access/first`, { uid: 'first', method: 'PUT', data: profile('first', 'Administrador') }));
-    allowed(await request(`${base}/tables/Lojas/initial`, { uid: 'first', method: 'PUT', data: { LojaID: 'initial' } }));
-    allowed(await request(`${base}/meta/initialized`, { uid: 'first', method: 'PUT', data: true }));
-    denied(await request(`${base}/meta/bootstrapOwner`, { uid: 'second', method: 'PUT', data: 'second' }));
-    denied(await request(`${base}/access/second`, { uid: 'second', method: 'PUT', data: profile('second', 'Administrador') }));
-  });
   await t.test('SolicitacoesVale allows employee creation, blocks self-approval/spoofing, and scopes manager validation to own store', async () => {
     const vale = {
       ValeID: 'vale-alice-1',
@@ -239,5 +228,16 @@ test('Firebase Database rules enforce roles, privacy, balances and document owne
     denied(await request(valePath, { uid: 'manager', method: 'PATCH', data: { Status: 'Pago' } }));
     allowed(await request(valePath, { uid: 'manager', method: 'PATCH', data: { Status: 'Validado pelo Gerente', ValidadoGerentePor: 'manager' } }));
     allowed(await request(valePath, { uid: 'admin', method: 'PATCH', data: { Status: 'Pago' } }));
+  });
+  await t.test('initial administrator setup requires a unique bootstrap owner and closes after initialization', async () => {
+    allowed(await request(base, { admin: true, method: 'PUT', data: {} }));
+    allowed(await request(`${base}/meta/bootstrapOwner`, { uid: 'first', method: 'PUT', data: 'first' }));
+    denied(await request(`${base}/meta/bootstrapOwner`, { uid: 'second', method: 'PUT', data: 'second' }));
+    denied(await request(`${base}/access/second`, { uid: 'second', method: 'PUT', data: profile('second', 'Administrador') }));
+    allowed(await request(`${base}/access/first`, { uid: 'first', method: 'PUT', data: profile('first', 'Administrador') }));
+    allowed(await request(`${base}/tables/Lojas/initial`, { uid: 'first', method: 'PUT', data: { LojaID: 'initial' } }));
+    allowed(await request(`${base}/meta/initialized`, { uid: 'first', method: 'PUT', data: true }));
+    denied(await request(`${base}/meta/bootstrapOwner`, { uid: 'second', method: 'PUT', data: 'second' }));
+    denied(await request(`${base}/access/second`, { uid: 'second', method: 'PUT', data: profile('second', 'Administrador') }));
   });
 });
