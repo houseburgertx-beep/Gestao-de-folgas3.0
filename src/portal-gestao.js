@@ -47,55 +47,371 @@ function injectPortalTabsStyles() {
   const style = document.createElement("style");
   style.id = "portalCleanTabsStyles";
   style.textContent = `
+    /* ---- Abas horizontais Pliifex (blindadas contra CSS legado) ---- */
     .portal-tabs-bar {
       display: inline-flex;
       flex-wrap: wrap;
+      align-items: center;
       gap: 4px;
       padding: 4px;
       margin-bottom: 18px;
-      background: var(--surface-2, #f1f5f9);
-      border: 1px solid var(--line, #e2e8f0);
-      border-radius: 10px;
+      background: var(--surface-2, #f1f5f9) !important;
+      border: 1px solid var(--line, #e2e8f0) !important;
+      border-radius: 10px !important;
       max-width: 100%;
     }
-    .portal-tab-btn {
-      appearance: none;
-      border: 1px solid transparent;
-      background: transparent;
-      color: var(--muted, #64748b);
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 600;
-      line-height: 1.2;
-      padding: 8px 14px;
-      border-radius: 7px;
-      cursor: pointer;
-      transition: all 0.16s ease;
-      white-space: nowrap;
+    #app .portal-tabs-bar .portal-tab-btn,
+    dialog .portal-tabs-bar .portal-tab-btn {
+      appearance: none !important;
+      border: 1px solid transparent !important;
+      background: transparent !important;
+      color: var(--muted, #64748b) !important;
+      font-family: inherit !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      line-height: 1.25 !important;
+      padding: 8px 14px !important;
+      border-radius: 7px !important;
+      cursor: pointer !important;
+      box-shadow: none !important;
+      transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease !important;
+      white-space: nowrap !important;
+      min-height: auto !important;
+      height: auto !important;
     }
-    .portal-tab-btn:hover {
-      color: var(--ink, #0f172a);
+    #app .portal-tabs-bar .portal-tab-btn:not(.active):hover,
+    #app .portal-tabs-bar .portal-tab-btn:not(.active):focus,
+    dialog .portal-tabs-bar .portal-tab-btn:not(.active):hover,
+    dialog .portal-tabs-bar .portal-tab-btn:not(.active):focus {
+      background: rgba(255, 255, 255, 0.55) !important;
+      color: var(--ink, #0f172a) !important;
+      border-color: transparent !important;
+      box-shadow: none !important;
+      outline: none !important;
     }
-    .portal-tab-btn.active {
-      background: var(--surface, #ffffff);
-      color: var(--brand-solid, #4077ba);
-      border-color: var(--line, #e2e8f0);
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    #app .portal-tabs-bar .portal-tab-btn.active,
+    dialog .portal-tabs-bar .portal-tab-btn.active {
+      background: var(--surface, #ffffff) !important;
+      color: var(--brand-solid, #4077ba) !important;
+      font-weight: 600 !important;
+      border-color: var(--line, #e2e8f0) !important;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
     }
     .portal-tab-pane.hidden {
       display: none !important;
     }
-    #employeeDialog form#employeeForm {
-      max-width: 820px;
+
+    /* ---- Modal #employeeDialog reestruturado ---- */
+    dialog#employeeDialog {
+      width: min(920px, 95vw) !important;
+      max-width: 920px !important;
+      border-radius: 16px !important;
+      border: 1px solid var(--line, #e2e8f0) !important;
+      padding: 0 !important;
+    }
+    dialog#employeeDialog form#employeeForm {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    dialog#employeeDialog .dialog-head {
+      padding: 18px 24px !important;
+      border-bottom: 1px solid var(--line, #e2e8f0) !important;
+      background: var(--surface, #ffffff) !important;
+    }
+    dialog#employeeDialog .dialog-body {
+      padding: 18px 24px !important;
+      max-height: min(76vh, 720px) !important;
+      overflow-y: auto !important;
+      background: var(--surface-2, #f8fafc) !important;
+    }
+    dialog#employeeDialog .dialog-actions {
+      padding: 14px 24px !important;
+      border-top: 1px solid var(--line, #e2e8f0) !important;
+      background: var(--surface, #ffffff) !important;
     }
     .portal-modal-tabs {
       width: 100%;
-      margin: 0 0 14px;
-      display: flex;
+      margin: 0 0 16px !important;
+      display: flex !important;
+      flex-wrap: nowrap !important;
       overflow-x: auto;
+      gap: 4px !important;
+    }
+    dialog#employeeDialog .portal-modal-tabs .portal-tab-btn {
+      font-size: 12.5px !important;
+      padding: 7px 12px !important;
+      flex: 0 0 auto;
+    }
+
+    /* ---- Cards de secoes limpas (.portal-field-card) ---- */
+    .portal-field-card {
+      background: var(--surface, #ffffff);
+      border: 1px solid #e5eaf2;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+    .portal-field-card:last-child {
+      margin-bottom: 0;
+    }
+    .portal-field-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .portal-field-card-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--brand-solid, #4077ba);
+      margin: 0;
+    }
+    .portal-field-card-sub {
+      font-size: 12px;
+      color: var(--muted, #64748b);
+    }
+    dialog#employeeDialog .dialog-grid {
+      gap: 14px !important;
+    }
+    dialog#employeeDialog label.field span {
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      color: #334155 !important;
+      margin-bottom: 5px !important;
+    }
+    dialog#employeeDialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+    dialog#employeeDialog select,
+    dialog#employeeDialog textarea {
+      min-height: 40px !important;
+      box-sizing: border-box !important;
+      font-size: 13.5px !important;
+      border-radius: 8px !important;
+    }
+    dialog#employeeDialog h4.dialog-section-title {
+      display: none !important;
+    }
+
+    /* ---- Avatar Picker compacto dentro da Tab 1 ---- */
+    dialog#employeeDialog .avatar-picker-section {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px !important;
+      margin: 0 0 14px !important;
+    }
+    dialog#employeeDialog .avatar-picker-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    dialog#employeeDialog .avatar-picker-head strong {
+      font-size: 13px !important;
+    }
+    dialog#employeeDialog .avatar-grid {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+      grid-template-columns: none !important;
+    }
+    dialog#employeeDialog .avatar-option {
+      width: 42px !important;
+      height: 42px !important;
+      min-width: 42px !important;
+      min-height: 42px !important;
+      border-radius: 10px !important;
+      padding: 2px !important;
+    }
+    dialog#employeeDialog .avatar-option img {
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 8px !important;
+      object-fit: cover !important;
+    }
+
+    /* ---- Upload customizado sem input nativo feio ---- */
+    .portal-file-upload-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .portal-file-input-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    .portal-file-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px dashed var(--brand-solid, #4077ba);
+      background: #eff6ff;
+      color: var(--brand-solid, #4077ba);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .portal-file-upload-btn:hover {
+      background: #dbeafe;
+    }
+    .portal-file-name-label {
+      font-size: 12.5px;
+      color: var(--muted, #64748b);
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ---- Topbar seletor de unidade alinhado ---- */
+    #globalTopStoreSelectorWrap {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      height: 36px !important;
+      padding: 0 10px !important;
+      background: var(--surface-2, #f8fafc) !important;
+      border: 1px solid var(--line, #e2e8f0) !important;
+      border-radius: 999px !important;
+    }
+    #globalTopStoreSelectorWrap label {
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      color: var(--muted, #64748b) !important;
+      margin: 0 !important;
+    }
+    #globalTopStoreSelector {
+      height: 28px !important;
+      min-height: 28px !important;
+      border: none !important;
+      background: transparent !important;
+      font-size: 12.5px !important;
+      font-weight: 600 !important;
+      color: var(--ink, #0f172a) !important;
+      padding: 0 4px !important;
+      outline: none !important;
+    }
+
+    /* ---- KPI Strip Equipe + Badges de Status + Colunas Numericas ---- */
+    .portal-kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .portal-kpi-card {
+      background: var(--surface, #ffffff);
+      border: 1px solid #e5eaf2;
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+    .portal-kpi-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--muted, #64748b);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .portal-kpi-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink, #0f172a);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+    }
+    .portal-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+    .portal-pill--blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .portal-pill--amber { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .portal-pill--green { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .portal-pill--red { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .portal-pill--neutral { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+    .portal-num-col {
+      text-align: right !important;
+      font-variant-numeric: tabular-nums !important;
+      white-space: nowrap !important;
+    }
+    .portal-timeline-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .portal-timeline-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 12.5px;
+    }
+    .portal-timeline-step.is-done {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+    }
+    .portal-timeline-step.is-current {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
+    .portal-doc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 8px;
+    }
+    .portal-doc-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 12.5px;
     }
   `;
   document.head.appendChild(style);
+}
+
+function activatePortalTab(groupName, targetKey) {
+  const bar = document.querySelector(`.portal-tabs-bar[data-tabs-group="${groupName}"]`);
+  if (!bar) return;
+  bar.querySelectorAll(".portal-tab-btn").forEach((btn) => {
+    const isMatch = btn.getAttribute("data-tab-target") === targetKey;
+    btn.classList.toggle("active", isMatch);
+    btn.setAttribute("aria-selected", isMatch ? "true" : "false");
+  });
+  document.querySelectorAll(`.portal-tab-pane[data-tabs-group="${groupName}"]`).forEach((pane) => {
+    const isMatch = pane.getAttribute("data-tab-pane") === targetKey;
+    pane.classList.toggle("hidden", !isMatch);
+  });
 }
 
 function bindTabsGroup(groupName) {
@@ -103,23 +419,11 @@ function bindTabsGroup(groupName) {
   if (!bar || bar.dataset.tabsBound === "true") return;
   bar.dataset.tabsBound = "true";
 
-  const activate = (targetKey) => {
-    bar.querySelectorAll(".portal-tab-btn").forEach((btn) => {
-      const isMatch = btn.getAttribute("data-tab-target") === targetKey;
-      btn.classList.toggle("active", isMatch);
-      btn.setAttribute("aria-selected", isMatch ? "true" : "false");
-    });
-    document.querySelectorAll(`.portal-tab-pane[data-tabs-group="${groupName}"]`).forEach((pane) => {
-      const isMatch = pane.getAttribute("data-tab-pane") === targetKey;
-      pane.classList.toggle("hidden", !isMatch);
-    });
-  };
-
   bar.addEventListener("click", (e) => {
     const btn = e.target.closest(".portal-tab-btn");
     if (!btn) return;
     const target = btn.getAttribute("data-tab-target");
-    if (target) activate(target);
+    if (target) activatePortalTab(groupName, target);
   });
 }
 
@@ -134,14 +438,11 @@ function mountTopbarStoreSelector() {
   const wrap = document.createElement("div");
   wrap.id = "globalTopStoreSelectorWrap";
   wrap.className = "permission-manager";
-  wrap.style.cssText = "display:inline-flex; align-items:center; gap:6px; margin-right:4px;";
   wrap.innerHTML = `
-    <label for="globalTopStoreSelector" style="margin:0; font-size:12px; color:var(--muted); font-weight:600; display:inline-flex; align-items:center; gap:6px;">
-      <span>Unidade:</span>
-      <select id="globalTopStoreSelector" style="min-height:36px; border-radius:8px; padding:0 10px; font-size:13px; border:1px solid var(--line); background:var(--surface); color:var(--ink);">
-        <option value="">Todas as unidades</option>
-      </select>
-    </label>
+    <label for="globalTopStoreSelector">Unidade:</label>
+    <select id="globalTopStoreSelector">
+      <option value="">Todas as unidades</option>
+    </select>
   `;
   topbarActions.insertBefore(wrap, topbarActions.firstChild);
 
@@ -210,211 +511,444 @@ function mountWhatsAppPasswordRecovery() {
 // TELA 2: ONBOARDING E CADASTRO ORGANIZADO EM 4 ABAS LIMPAS
 // ============================================================================
 
+function populateExtendedEmployeeFields(emp = {}) {
+  const setVal = (id, val, fallback = "") => {
+    const el = document.getElementById(id);
+    if (el) el.value = val ?? fallback;
+  };
+  setVal("employeeSetor", emp.Setor || "Cozinha", "Cozinha");
+  setVal("employeePeriodoExperiencia", String(emp.PeriodoExperienciaDias || 90), "90");
+  setVal("employeeTurnoTrabalho", emp.TurnoTrabalho || "");
+  setVal("employeeSalarioBase", emp.SalarioBase ?? "");
+  setVal("employeeChavePix", emp.ChavePix || "");
+  setVal("employeeBancoNome", emp.BancoNome || "");
+  setVal("employeeBancoAgencia", emp.BancoAgencia || "");
+  setVal("employeeBancoConta", emp.BancoConta || "");
+  setVal("employeeNomeSocial", emp.NomeSocial || "");
+  setVal("employeeRG", emp.RG || "");
+  setVal("employeeDataNascimento", emp.DataNascimento ? String(emp.DataNascimento).slice(0, 10) : "");
+  setVal("employeeEstadoCivil", emp.EstadoCivil || "");
+  setVal("employeeNomeMae", emp.NomeMae || "");
+  setVal("employeeNomePai", emp.NomePai || "");
+  setVal("employeeCEP", emp.CEP || "");
+  setVal("employeeEndereco", emp.Endereco || "");
+  setVal("employeeNumeroEndereco", emp.NumeroEndereco || "");
+  setVal("employeeComplemento", emp.Complemento || "");
+  setVal("employeeBairro", emp.Bairro || "");
+  setVal("employeeCidade", emp.Cidade || "");
+  setVal("employeeUF", emp.UF || "");
+  setVal("employeeEmergenciaNome", emp.ContatoEmergenciaNome || "");
+  setVal("employeeEmergenciaParentesco", emp.ContatoEmergenciaParentesco || "");
+  setVal("employeeEmergenciaTelefone", emp.ContatoEmergenciaTelefone || "");
+  setVal("employeeEtapaAdmissao", String(emp.EtapaAdmissao || 1), "1");
+  setVal("employeeSubstatusEtapa6", emp.SubstatusEtapa6 || "Efetivado", "Efetivado");
+  setVal("employeeCadastroValidado", emp.CadastroValidado ? "true" : "false", "false");
+  setVal("employeeMotivoDesligamento", emp.MotivoDesligamento || "");
+}
+
 function enhanceEmployeeDialog() {
   const form = document.getElementById("employeeForm");
   if (!form || document.getElementById("portalOnboardingTabsWrap")) return;
 
+  const dialog = document.getElementById("employeeDialog");
   const dialogBody = form.querySelector(".dialog-body") || form;
-  const baseGrid = dialogBody.querySelector(".dialog-grid");
+  const avatarSection = dialogBody.querySelector("section.avatar-picker-section");
+  const allGrids = Array.from(dialogBody.querySelectorAll(":scope > .dialog-grid"));
+  const baseGrid = allGrids[0] || null;
+  const jornadaGrid = allGrids[1] || null;
+  const lgpdGrid = allGrids[2] || null;
+  const lgpdAckBlock = document.getElementById("employeePrivacyPolicyAckBlock");
+  const sectionTitles = Array.from(dialogBody.querySelectorAll(":scope > h4.dialog-section-title"));
 
   const tabsWrap = document.createElement("div");
   tabsWrap.id = "portalOnboardingTabsWrap";
   tabsWrap.innerHTML = `
     <div class="portal-tabs-bar portal-modal-tabs" role="tablist" data-tabs-group="employee-modal">
-      <button type="button" class="portal-tab-btn active" data-tab-target="emp-tab-basico" role="tab" aria-selected="true">1. Cadastro &amp; Contrato</button>
+      <button type="button" class="portal-tab-btn active" data-tab-target="emp-tab-basico" role="tab" aria-selected="true">1. Dados Básicos</button>
       <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-pessoal" role="tab" aria-selected="false">2. Pessoais &amp; Endereço</button>
-      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-funil" role="tab" aria-selected="false">3. Funil (6 Etapas)</button>
-      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-dossie" role="tab" aria-selected="false">4. Dossiê &amp; Termos</button>
+      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-jornada" role="tab" aria-selected="false">3. Jornada &amp; Ponto</button>
+      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-funil" role="tab" aria-selected="false">4. Funil (6 Etapas)</button>
+      <button type="button" class="portal-tab-btn" data-tab-target="emp-tab-dossie" role="tab" aria-selected="false">5. Dossiê &amp; Contratos</button>
     </div>
 
-    <!-- ABA 1: Cadastro Básico (preserva campos originais) + Jornada / Bancário -->
+    <!-- ABA 1: Dados Básicos, Avatar Compacto, Vínculo e Bancário -->
     <div class="portal-tab-pane" data-tab-pane="emp-tab-basico" data-tabs-group="employee-modal" id="empTabBasicoPane">
-      <div id="empBaseGridHost"></div>
-      <div class="form-grid" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line);">
-        <label>Setor Operacional
-          <select id="employeeSetor" name="Setor">
-            <option value="Cozinha">Cozinha</option>
-            <option value="Salão">Salão</option>
-            <option value="Caixa">Caixa</option>
-            <option value="Estoque">Estoque</option>
-            <option value="Administrativo">Administrativo</option>
-          </select>
-        </label>
-        <label>Período de Experiência
-          <select id="employeePeriodoExperiencia" name="PeriodoExperienciaDias">
-            <option value="45">45 dias</option>
-            <option value="90" selected>90 dias (45 + 45)</option>
-          </select>
-        </label>
-        <label>Horário / Turno de Trabalho
-          <input id="employeeTurnoTrabalho" name="TurnoTrabalho" placeholder="Ex: 16:00 às 00:20 (Noturno)" />
-        </label>
-        <label class="permission-admin">Salário Base Mensal (R$)
-          <input id="employeeSalarioBase" name="SalarioBase" type="number" min="0" step="0.01" placeholder="1518.00" />
-        </label>
-        <label>Chave PIX
-          <input id="employeeChavePix" name="ChavePix" placeholder="CPF, Telefone, E-mail ou Aleatória" />
-        </label>
-        <label>Banco
-          <input id="employeeBancoNome" name="BancoNome" placeholder="Ex: Nubank, Itaú, Bradesco" />
-        </label>
-        <label>Agência
-          <input id="employeeBancoAgencia" name="BancoAgencia" placeholder="0001" />
-        </label>
-        <label>Conta e Dígito
-          <input id="employeeBancoConta" name="BancoConta" placeholder="12345-6" />
-        </label>
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Identificação &amp; Vínculo</h4>
+          <span class="portal-field-card-sub">Dados principais do colaborador na unidade</span>
+        </div>
+        <div id="empAvatarHost"></div>
+        <div id="empBaseGridHost"></div>
+      </div>
+
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Alocação, Experiência &amp; Pagamento</h4>
+          <span class="portal-field-card-sub">Setor operacional, salário base e conta PIX</span>
+        </div>
+        <div class="dialog-grid">
+          <label class="field">
+            <span>Setor Operacional</span>
+            <select id="employeeSetor" name="Setor">
+              <option value="Cozinha">Cozinha</option>
+              <option value="Salão">Salão</option>
+              <option value="Caixa">Caixa</option>
+              <option value="Estoque">Estoque</option>
+              <option value="Administrativo">Administrativo</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Período de Experiência</span>
+            <select id="employeePeriodoExperiencia" name="PeriodoExperienciaDias">
+              <option value="45">45 dias</option>
+              <option value="90" selected>90 dias (45 + 45)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Horário / Turno de Trabalho</span>
+            <input id="employeeTurnoTrabalho" name="TurnoTrabalho" placeholder="Ex: 16:00 às 00:20 (Noturno)" />
+          </label>
+          <label class="field permission-admin">
+            <span>Salário Base Mensal (R$)</span>
+            <input id="employeeSalarioBase" name="SalarioBase" type="number" min="0" step="0.01" placeholder="1518.00" />
+          </label>
+          <label class="field">
+            <span>Chave PIX</span>
+            <input id="employeeChavePix" name="ChavePix" placeholder="CPF, Telefone, E-mail ou Aleatória" />
+          </label>
+          <label class="field">
+            <span>Banco</span>
+            <input id="employeeBancoNome" name="BancoNome" placeholder="Ex: Nubank, Itaú, Bradesco" />
+          </label>
+          <label class="field">
+            <span>Agência</span>
+            <input id="employeeBancoAgencia" name="BancoAgencia" placeholder="0001" />
+          </label>
+          <label class="field">
+            <span>Conta e Dígito</span>
+            <input id="employeeBancoConta" name="BancoConta" placeholder="12345-6" />
+          </label>
+        </div>
       </div>
     </div>
 
-    <!-- ABA 2: Dados Pessoais, CEP Automático & Emergência -->
+    <!-- ABA 2: Dados Pessoais, CEP Automático & Contato de Emergência -->
     <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-pessoal" data-tabs-group="employee-modal">
-      <div class="form-grid">
-        <label>Nome Social
-          <input id="employeeNomeSocial" name="NomeSocial" placeholder="Opcional" />
-        </label>
-        <label>RG
-          <input id="employeeRG" name="RG" placeholder="00.000.000-0" />
-        </label>
-        <label>Data de Nascimento
-          <input id="employeeDataNascimento" name="DataNascimento" type="date" />
-        </label>
-        <label>Estado Civil
-          <select id="employeeEstadoCivil" name="EstadoCivil">
-            <option value="">Selecione</option>
-            <option value="Solteiro(a)">Solteiro(a)</option>
-            <option value="Casado(a)">Casado(a)</option>
-            <option value="União Estável">União Estável</option>
-            <option value="Divorciado(a)">Divorciado(a)</option>
-            <option value="Viúvo(a)">Viúvo(a)</option>
-          </select>
-        </label>
-        <label>Nome da Mãe
-          <input id="employeeNomeMae" name="NomeMae" />
-        </label>
-        <label>Nome do Pai
-          <input id="employeeNomePai" name="NomePai" />
-        </label>
-        <label>CEP (Busca Automática)
-          <input id="employeeCEP" name="CEP" placeholder="00000-000" maxlength="9" />
-        </label>
-        <label>Endereço / Logradouro
-          <input id="employeeEndereco" name="Endereco" />
-        </label>
-        <label>Número
-          <input id="employeeNumeroEndereco" name="NumeroEndereco" />
-        </label>
-        <label>Complemento
-          <input id="employeeComplemento" name="Complemento" />
-        </label>
-        <label>Bairro
-          <input id="employeeBairro" name="Bairro" />
-        </label>
-        <label>Cidade
-          <input id="employeeCidade" name="Cidade" />
-        </label>
-        <label>UF
-          <input id="employeeUF" name="UF" maxlength="2" placeholder="BA" />
-        </label>
-        <label>Contato de Emergência (Nome)
-          <input id="employeeEmergenciaNome" name="ContatoEmergenciaNome" />
-        </label>
-        <label>Parentesco
-          <input id="employeeEmergenciaParentesco" name="ContatoEmergenciaParentesco" placeholder="Ex: Mãe, Cônjuge" />
-        </label>
-        <label>Telefone de Emergência
-          <input id="employeeEmergenciaTelefone" name="ContatoEmergenciaTelefone" placeholder="(73) 99999-9999" />
-        </label>
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Documentos &amp; Filiação</h4>
+          <span class="portal-field-card-sub">Dados civis para ficha de registro</span>
+        </div>
+        <div class="dialog-grid">
+          <label class="field">
+            <span>Nome Social</span>
+            <input id="employeeNomeSocial" name="NomeSocial" placeholder="Opcional" />
+          </label>
+          <label class="field">
+            <span>RG</span>
+            <input id="employeeRG" name="RG" placeholder="00.000.000-0" />
+          </label>
+          <label class="field">
+            <span>Data de Nascimento</span>
+            <input id="employeeDataNascimento" name="DataNascimento" type="date" />
+          </label>
+          <label class="field">
+            <span>Estado Civil</span>
+            <select id="employeeEstadoCivil" name="EstadoCivil">
+              <option value="">Selecione</option>
+              <option value="Solteiro(a)">Solteiro(a)</option>
+              <option value="Casado(a)">Casado(a)</option>
+              <option value="União Estável">União Estável</option>
+              <option value="Divorciado(a)">Divorciado(a)</option>
+              <option value="Viúvo(a)">Viúvo(a)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Nome da Mãe</span>
+            <input id="employeeNomeMae" name="NomeMae" />
+          </label>
+          <label class="field">
+            <span>Nome do Pai</span>
+            <input id="employeeNomePai" name="NomePai" />
+          </label>
+        </div>
+      </div>
+
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Endereço Residencial</h4>
+          <span class="portal-field-card-sub">Digite o CEP e saia do campo para preencher automaticamente</span>
+        </div>
+        <div class="dialog-grid">
+          <label class="field">
+            <span>CEP</span>
+            <input id="employeeCEP" name="CEP" placeholder="00000-000" maxlength="9" />
+          </label>
+          <label class="field">
+            <span>Logradouro / Rua</span>
+            <input id="employeeEndereco" name="Endereco" />
+          </label>
+          <label class="field">
+            <span>Número</span>
+            <input id="employeeNumeroEndereco" name="NumeroEndereco" />
+          </label>
+          <label class="field">
+            <span>Complemento</span>
+            <input id="employeeComplemento" name="Complemento" />
+          </label>
+          <label class="field">
+            <span>Bairro</span>
+            <input id="employeeBairro" name="Bairro" />
+          </label>
+          <label class="field">
+            <span>Cidade</span>
+            <input id="employeeCidade" name="Cidade" />
+          </label>
+          <label class="field">
+            <span>UF</span>
+            <input id="employeeUF" name="UF" maxlength="2" placeholder="BA" />
+          </label>
+        </div>
+      </div>
+
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Contato de Emergência</h4>
+          <span class="portal-field-card-sub">Pessoa de referência em caso de urgência</span>
+        </div>
+        <div class="dialog-grid">
+          <label class="field">
+            <span>Nome do Contato</span>
+            <input id="employeeEmergenciaNome" name="ContatoEmergenciaNome" />
+          </label>
+          <label class="field">
+            <span>Parentesco</span>
+            <input id="employeeEmergenciaParentesco" name="ContatoEmergenciaParentesco" placeholder="Ex: Mãe, Cônjuge" />
+          </label>
+          <label class="field">
+            <span>Telefone de Emergência</span>
+            <input id="employeeEmergenciaTelefone" name="ContatoEmergenciaTelefone" placeholder="(73) 99999-9999" />
+          </label>
+        </div>
       </div>
     </div>
 
-    <!-- ABA 3: Funil de Admissão em 6 Etapas -->
+    <!-- ABA 3: Jornada e Ponto (realoca campos legados com 100% de compatibilidade) -->
+    <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-jornada" data-tabs-group="employee-modal">
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Jornada de Trabalho &amp; Regras de Ponto</h4>
+          <span class="portal-field-card-sub">Turnos, tolerância de atrasos, banco de horas e situação ativa</span>
+        </div>
+        <div id="empJornadaHost"></div>
+      </div>
+    </div>
+
+    <!-- ABA 4: Funil de Admissão em 6 Etapas -->
     <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-funil" data-tabs-group="employee-modal">
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-        <div>
-          <span class="eyebrow">FUNIL DE ADMISSÃO</span>
-          <h4 style="margin:2px 0 0;">Linha do Tempo de Contratação (6 Etapas)</h4>
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <div>
+            <h4 class="portal-field-card-title">Linha do Tempo de Contratação (6 Etapas)</h4>
+            <span class="portal-field-card-sub">Registro automático da data em cada transição</span>
+          </div>
+          <button type="button" id="btnEmployeeAuditHistory" class="btn btn-secondary permission-admin" style="min-height:36px; font-size:12.5px;">
+            Histórico de Alterações
+          </button>
         </div>
-        <button type="button" id="btnEmployeeAuditHistory" class="btn btn-secondary permission-admin" style="min-height:36px; font-size:12.5px;">
-          Histórico de Alterações
-        </button>
+        <div id="portalOnboardingStagesBar" class="portal-timeline-list"></div>
       </div>
-      <div id="portalOnboardingStagesBar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:14px;"></div>
-      <div class="form-grid permission-manager" style="align-items:end; padding:12px; background:var(--surface-2); border-radius:10px; border:1px solid var(--line);">
-        <label>Etapa Atual do Funil
-          <select id="employeeEtapaAdmissao" name="EtapaAdmissao">
-            <option value="1">1. Pré-cadastro / Link enviado</option>
-            <option value="2">2. Documentos enviados e em análise</option>
-            <option value="3">3. Exame Admissional (ASO) agendado/realizado</option>
-            <option value="4">4. Contrato Assinado</option>
-            <option value="5">5. Ativo - Período de Experiência</option>
-            <option value="6">6. Efetivado / Desligado</option>
-          </select>
-        </label>
-        <label>Decisão na Etapa 6
-          <select id="employeeSubstatusEtapa6" name="SubstatusEtapa6">
-            <option value="Efetivado">Efetivado</option>
-            <option value="Desligado">Desligado</option>
-          </select>
-        </label>
-        <label>Validação do Cadastro
-          <select id="employeeCadastroValidado" name="CadastroValidado">
-            <option value="false">Em preenchimento (Aberto)</option>
-            <option value="true">Validado (Bloqueado para Colaborador)</option>
-          </select>
-        </label>
-        <label>Motivo Desligamento (se Etapa 6 = Desligado)
-          <input id="employeeMotivoDesligamento" name="MotivoDesligamento" placeholder="Opcional / Obrigatório ao desligar" />
-        </label>
-        <button type="button" id="btnAvancarEtapaOnboarding" class="btn btn-primary" style="min-height:40px;">
-          Registrar Etapa com Data
-        </button>
-      </div>
-      <div id="employeeValidationLockBanner" class="hidden" style="margin-top:10px; padding:10px 12px; border-radius:8px; background:rgba(64,119,186,0.1); color:var(--brand-solid); font-size:12.5px; font-weight:600;">
-        Cadastro validado pela gestão. Os dados cadastrais estão bloqueados para edição individual.
+
+      <div class="portal-field-card permission-manager">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Atualizar Etapa &amp; Validação</h4>
+          <span class="portal-field-card-sub">Bloqueie a edição individual após conferência dos dados</span>
+        </div>
+        <div class="dialog-grid" style="align-items:end;">
+          <label class="field">
+            <span>Etapa Atual do Funil</span>
+            <select id="employeeEtapaAdmissao" name="EtapaAdmissao">
+              <option value="1">1. Pré-cadastro / Link enviado</option>
+              <option value="2">2. Documentos enviados e em análise</option>
+              <option value="3">3. Exame Admissional (ASO) agendado/realizado</option>
+              <option value="4">4. Contrato Assinado</option>
+              <option value="5">5. Ativo - Período de Experiência</option>
+              <option value="6">6. Efetivado / Desligado</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Decisão na Etapa 6</span>
+            <select id="employeeSubstatusEtapa6" name="SubstatusEtapa6">
+              <option value="Efetivado">Efetivado</option>
+              <option value="Desligado">Desligado</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Validação do Cadastro</span>
+            <select id="employeeCadastroValidado" name="CadastroValidado">
+              <option value="false">Em preenchimento (Aberto)</option>
+              <option value="true">Validado (Bloqueado p/ Colaborador)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Motivo Desligamento (se Etapa 6 = Desligado)</span>
+            <input id="employeeMotivoDesligamento" name="MotivoDesligamento" placeholder="Opcional / Obrigatório ao desligar" />
+          </label>
+          <div>
+            <button type="button" id="btnAvancarEtapaOnboarding" class="btn btn-primary" style="width:100%; min-height:40px;">
+              Registrar Etapa com Data
+            </button>
+          </div>
+        </div>
+        <div id="employeeValidationLockBanner" class="hidden" style="margin-top:12px; padding:10px 12px; border-radius:8px; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; font-size:12.5px; font-weight:600;">
+          Cadastro validado pela gestão. Os dados cadastrais estão bloqueados para edição individual.
+        </div>
       </div>
     </div>
 
-    <!-- ABA 4: Dossiê de Documentos + Geração de Contrato/Termo/EPI PDF -->
+    <!-- ABA 5: Dossiê de Documentos + Contrato/Termo/EPI PDF + Conformidade LGPD -->
     <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-dossie" data-tabs-group="employee-modal">
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-        <div>
-          <span class="eyebrow">DOCUMENTAÇÃO E ASSINATURA</span>
-          <h4 style="margin:2px 0 0;">Dossiê de Documentos e Contrato Digital</h4>
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <div>
+            <h4 class="portal-field-card-title">Dossiê Admissional &amp; Contrato Digital</h4>
+            <span class="portal-field-card-sub">Anexe documentos (PDF/Imagem) e gere o kit admissional</span>
+          </div>
+          <button type="button" id="btnGerarKitAdmissionalPdf" class="btn btn-primary permission-manager" style="min-height:36px; font-size:12.5px;">
+            Gerar Contrato / Termo / EPI (PDF)
+          </button>
         </div>
-        <button type="button" id="btnGerarKitAdmissionalPdf" class="btn btn-primary permission-manager" style="min-height:38px; font-size:12.5px;">
-          Gerar Contrato / Termo / EPI (PDF)
-        </button>
+
+        <div class="dialog-grid" style="align-items:end; margin-bottom:14px;">
+          <label class="field">
+            <span>Tipo de Documento</span>
+            <select id="employeeDocUploadTipo">
+              ${REQUIRED_ADMISSION_DOCUMENTS.map((d) => `<option value="${d.codigo}">${d.titulo}</option>`).join("")}
+            </select>
+          </label>
+          <label class="field">
+            <span>URL do Arquivo (ou carregado abaixo)</span>
+            <input id="employeeDocUploadUrl" type="text" placeholder="Cole URL ou selecione arquivo abaixo" />
+          </label>
+          <div class="field" style="grid-column: 1 / -1;">
+            <span>Arquivo do Aparelho (PDF ou Foto)</span>
+            <div class="portal-file-upload-row">
+              <label for="employeeDocUploadFile" class="portal-file-upload-btn">
+                Selecionar Arquivo (PDF / Foto)
+              </label>
+              <input id="employeeDocUploadFile" class="portal-file-input-hidden" type="file" accept=".pdf,image/*" />
+              <span id="employeeDocUploadFileName" class="portal-file-name-label">Nenhum arquivo selecionado</span>
+              <button type="button" id="btnEnviarDocAdmissional" class="btn btn-secondary" style="min-height:38px; margin-left:auto;">
+                Anexar ao Dossiê
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="employeeDossieChecklist" class="portal-doc-grid"></div>
       </div>
-      <div class="form-grid" style="align-items:end; padding:12px; background:var(--surface-2); border-radius:10px; border:1px solid var(--line);">
-        <label>Tipo de Documento
-          <select id="employeeDocUploadTipo">
-            ${REQUIRED_ADMISSION_DOCUMENTS.map((d) => `<option value="${d.codigo}">${d.titulo}</option>`).join("")}
-          </select>
-        </label>
-        <label>Link ou Arquivo (PDF / Imagem)
-          <input id="employeeDocUploadUrl" type="text" placeholder="Cole URL ou selecione arquivo abaixo" />
-        </label>
-        <label>Selecionar do aparelho
-          <input id="employeeDocUploadFile" type="file" accept=".pdf,image/*" />
-        </label>
-        <button type="button" id="btnEnviarDocAdmissional" class="btn btn-secondary" style="min-height:40px;">
-          Anexar ao Dossiê
-        </button>
+
+      <div class="portal-field-card">
+        <div class="portal-field-card-head">
+          <h4 class="portal-field-card-title">Conformidade LGPD &amp; Política de Privacidade</h4>
+          <span class="portal-field-card-sub">Termo digital assinado e consentimento físico</span>
+        </div>
+        <div id="empLgpdHost"></div>
       </div>
-      <div id="employeeDossieChecklist" style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:8px;"></div>
     </div>
   `;
 
-  if (baseGrid) {
-    baseGrid.parentNode.insertBefore(tabsWrap, baseGrid);
-    const host = tabsWrap.querySelector("#empBaseGridHost");
-    if (host) host.appendChild(baseGrid);
-  } else {
-    dialogBody.prepend(tabsWrap);
+  dialogBody.prepend(tabsWrap);
+  if (avatarSection) {
+    const avatarHost = tabsWrap.querySelector("#empAvatarHost");
+    avatarHost?.appendChild(avatarSection);
   }
+  if (baseGrid) {
+    tabsWrap.querySelector("#empBaseGridHost")?.appendChild(baseGrid);
+  }
+  if (jornadaGrid) {
+    tabsWrap.querySelector("#empJornadaHost")?.appendChild(jornadaGrid);
+  }
+  const lgpdHost = tabsWrap.querySelector("#empLgpdHost");
+  if (lgpdHost) {
+    if (lgpdAckBlock) lgpdHost.appendChild(lgpdAckBlock);
+    if (lgpdGrid) lgpdHost.appendChild(lgpdGrid);
+  }
+  sectionTitles.forEach((h) => {
+    h.style.display = "none";
+  });
 
   bindTabsGroup("employee-modal");
+
+  // Reset automatico para Aba 1 + preenchimento de campos extras ao abrir o modal
+  if (dialog && dialog.dataset.portalOpenObserver !== "true") {
+    dialog.dataset.portalOpenObserver = "true";
+    const syncOnOpen = async () => {
+      if (!dialog.hasAttribute("open")) return;
+      activatePortalTab("employee-modal", "emp-tab-basico");
+      const empId = document.getElementById("employeeId")?.value || "";
+      if (!empId) {
+        populateExtendedEmployeeFields({});
+        renderEmployeeOnboardingState({});
+        return;
+      }
+      try {
+        const emps = await runtime.list("Funcionarios").catch(() => []);
+        const match = emps.find((e) => String(e.FuncionarioID) === String(empId));
+        if (match) {
+          populateExtendedEmployeeFields(match);
+          renderEmployeeOnboardingState(match);
+        }
+      } catch {
+        // Silencioso
+      }
+    };
+    const obs = new MutationObserver(() => syncOnOpen());
+    obs.observe(dialog, { attributes: true, attributeFilter: ["open"] });
+  }
+
+  // Salva campos complementares automaticamente apos salvar formulario
+  if (form.dataset.portalExtendedSaveBound !== "true") {
+    form.dataset.portalExtendedSaveBound = "true";
+    form.addEventListener("submit", () => {
+      setTimeout(async () => {
+        const empId = document.getElementById("employeeId")?.value || "";
+        if (!empId) return;
+        try {
+          await invokePortal("salvarPreCadastroColaborador", {
+            FuncionarioID: empId,
+            Setor: document.getElementById("employeeSetor")?.value || "Cozinha",
+            PeriodoExperienciaDias: Number(document.getElementById("employeePeriodoExperiencia")?.value || 90),
+            TurnoTrabalho: document.getElementById("employeeTurnoTrabalho")?.value || "",
+            SalarioBase: document.getElementById("employeeSalarioBase")?.value || 0,
+            ChavePix: document.getElementById("employeeChavePix")?.value || "",
+            BancoNome: document.getElementById("employeeBancoNome")?.value || "",
+            BancoAgencia: document.getElementById("employeeBancoAgencia")?.value || "",
+            BancoConta: document.getElementById("employeeBancoConta")?.value || "",
+            NomeSocial: document.getElementById("employeeNomeSocial")?.value || "",
+            RG: document.getElementById("employeeRG")?.value || "",
+            DataNascimento: document.getElementById("employeeDataNascimento")?.value || "",
+            EstadoCivil: document.getElementById("employeeEstadoCivil")?.value || "",
+            NomeMae: document.getElementById("employeeNomeMae")?.value || "",
+            NomePai: document.getElementById("employeeNomePai")?.value || "",
+            CEP: document.getElementById("employeeCEP")?.value || "",
+            Endereco: document.getElementById("employeeEndereco")?.value || "",
+            NumeroEndereco: document.getElementById("employeeNumeroEndereco")?.value || "",
+            Complemento: document.getElementById("employeeComplemento")?.value || "",
+            Bairro: document.getElementById("employeeBairro")?.value || "",
+            Cidade: document.getElementById("employeeCidade")?.value || "",
+            UF: document.getElementById("employeeUF")?.value || "",
+            ContatoEmergenciaNome: document.getElementById("employeeEmergenciaNome")?.value || "",
+            ContatoEmergenciaParentesco: document.getElementById("employeeEmergenciaParentesco")?.value || "",
+            ContatoEmergenciaTelefone: document.getElementById("employeeEmergenciaTelefone")?.value || "",
+          });
+        } catch {
+          // Silencioso caso bloqueado para colaborador validado
+        }
+      }, 650);
+    });
+  }
 
   // ViaCEP Auto-fill
   const cepInput = document.getElementById("employeeCEP");
@@ -440,11 +974,16 @@ function enhanceEmployeeDialog() {
     }
   });
 
-  // Upload file reader helper
+  // Upload file reader helper com nome amigavel
   const fileInput = document.getElementById("employeeDocUploadFile");
+  const fileNameLabel = document.getElementById("employeeDocUploadFileName");
   fileInput?.addEventListener("change", () => {
     const file = fileInput.files?.[0];
-    if (!file) return;
+    if (!file) {
+      if (fileNameLabel) fileNameLabel.textContent = "Nenhum arquivo selecionado";
+      return;
+    }
+    if (fileNameLabel) fileNameLabel.textContent = file.name;
     const reader = new FileReader();
     reader.onload = () => {
       const urlInput = document.getElementById("employeeDocUploadUrl");
@@ -521,8 +1060,8 @@ function enhanceEmployeeDialog() {
       showPortalToast("Selecione um colaborador já salvo para ver o histórico.", "warning");
       return;
     }
-    const dialog = document.getElementById("employeeDialog");
-    dialog?.close();
+    const dlg = document.getElementById("employeeDialog");
+    dlg?.close();
     const auditNav = document.querySelector('[data-view="audit"]');
     auditNav?.click();
     const empFilter = document.getElementById("auditEmployeeFilter");
@@ -538,12 +1077,19 @@ export function renderEmployeeOnboardingState(emp = {}) {
     const hist = emp?.HistoricoEtapasAdmissao || {};
     stagesBar.innerHTML = ONBOARDING_STAGES.map((st) => {
       const info = hist[String(st.etapa)];
-      const done = st.etapa <= etapaAtual;
+      const done = st.etapa < etapaAtual;
+      const current = st.etapa === etapaAtual;
       const dateStr = info?.data ? String(info.data).slice(0, 10) : "Pendente";
+      const cls = done ? "is-done" : current ? "is-current" : "";
+      const pillCls = done ? "portal-pill--green" : current ? "portal-pill--blue" : "portal-pill--neutral";
+      const pillLabel = done ? "Concluída" : current ? "Atual" : "Pendente";
       return `
-        <div style="padding:8px 10px; border-radius:8px; border:1px solid ${done ? "var(--brand-solid)" : "var(--line)"}; background:${done ? "rgba(64,119,186,0.08)" : "var(--surface)"}; font-size:12px;">
-          <strong style="display:block; color:${done ? "var(--brand-solid)" : "var(--ink)"};">${st.titulo}</strong>
-          <small style="color:var(--muted);">Data: ${dateStr}</small>
+        <div class="portal-timeline-step ${cls}">
+          <div>
+            <strong style="display:block; color:var(--ink); font-size:12.5px;">${st.titulo}</strong>
+            <small style="color:var(--muted);">Data: ${dateStr}</small>
+          </div>
+          <span class="portal-pill ${pillCls}">${pillLabel}</span>
         </div>
       `;
     }).join("");
@@ -555,9 +1101,9 @@ export function renderEmployeeOnboardingState(emp = {}) {
     checklist.innerHTML = REQUIRED_ADMISSION_DOCUMENTS.map((doc) => {
       const item = dossie[doc.codigo];
       return `
-        <div style="padding:8px 10px; border-radius:8px; border:1px solid ${item ? "#16a34a" : "var(--line)"}; background:var(--surface); font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div class="portal-doc-item">
           <span>${doc.titulo}</span>
-          <strong style="color:${item ? "#16a34a" : "var(--muted)"};">${item ? "Enviado" : "Pendente"}</strong>
+          <span class="portal-pill ${item ? "portal-pill--green" : "portal-pill--neutral"}">${item ? "Enviado" : "Pendente"}</span>
         </div>
       `;
     }).join("");
@@ -611,6 +1157,134 @@ async function loadExperienceAlertsBanner() {
     `;
   } catch {
     // Silencioso caso sessão ainda não pronta
+  }
+}
+
+// ============================================================================
+// TELA 2B: RESUMO KPI DE EQUIPE E FILTRO POR ETAPA DE ONBOARDING
+// ============================================================================
+
+function applyEmployeeStageRowFilter() {
+  const stageFilter = document.getElementById("employeeStageFilter")?.value || "";
+  const tbody = document.getElementById("employeeBody");
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const emailStageMap = window.__portalEmpStageByEmail || {};
+  rows.forEach((tr) => {
+    if (!stageFilter) {
+      tr.style.display = "";
+      return;
+    }
+    const text = String(tr.textContent || "").toLowerCase();
+    const matched = Object.entries(emailStageMap).find(([email]) => email && text.includes(email));
+    if (!matched) {
+      tr.style.display = stageFilter === "1" ? "" : "none";
+      return;
+    }
+    tr.style.display = String(matched[1]) === String(stageFilter) ? "" : "none";
+  });
+}
+
+function mountEmployeesOverviewSummary() {
+  const view = document.getElementById("view-employees");
+  if (!view || document.getElementById("portalEmployeesKpiStrip")) return;
+
+  const toolbar = view.querySelector(".section-toolbar");
+  const titleEl = toolbar?.querySelector("h2");
+  if (titleEl) titleEl.textContent = "Onboarding & Equipe";
+
+  const actions = toolbar?.querySelector(".toolbar-actions");
+  if (actions && !document.getElementById("employeeStageFilter")) {
+    const sel = document.createElement("select");
+    sel.id = "employeeStageFilter";
+    sel.title = "Filtrar por etapa do funil de admissão";
+    sel.innerHTML = `
+      <option value="">Todas as etapas</option>
+      ${ONBOARDING_STAGES.map((st) => `<option value="${st.etapa}">${st.titulo}</option>`).join("")}
+    `;
+    const newBtn = document.getElementById("newEmployeeBtn");
+    if (newBtn) {
+      actions.insertBefore(sel, newBtn);
+    } else {
+      actions.appendChild(sel);
+    }
+    sel.addEventListener("change", applyEmployeeStageRowFilter);
+  }
+
+  const kpiStrip = document.createElement("div");
+  kpiStrip.id = "portalEmployeesKpiStrip";
+  kpiStrip.className = "portal-kpi-strip";
+  kpiStrip.innerHTML = `
+    <article class="portal-kpi-card">
+      <span class="portal-kpi-label">Equipe Ativa</span>
+      <strong id="empKpiAtivos" class="portal-kpi-value">0</strong>
+    </article>
+    <article class="portal-kpi-card">
+      <span class="portal-kpi-label">Em Onboarding (Etapas 1-4)</span>
+      <strong id="empKpiOnboarding" class="portal-kpi-value" style="color:var(--brand-solid, #4077ba);">0</strong>
+    </article>
+    <article class="portal-kpi-card">
+      <span class="portal-kpi-label">Experiência Vencendo (&lt;= 5d)</span>
+      <strong id="empKpiExperiencia" class="portal-kpi-value" style="color:#d97706;">0</strong>
+    </article>
+    <article class="portal-kpi-card">
+      <span class="portal-kpi-label">Cadastros Validados</span>
+      <strong id="empKpiValidados" class="portal-kpi-value" style="color:#047857;">0</strong>
+    </article>
+  `;
+
+  if (toolbar?.nextSibling) {
+    view.insertBefore(kpiStrip, toolbar.nextSibling);
+  } else {
+    view.appendChild(kpiStrip);
+  }
+
+  const tbody = document.getElementById("employeeBody");
+  if (tbody && tbody.dataset.stageFilterObserver !== "true") {
+    tbody.dataset.stageFilterObserver = "true";
+    const obs = new MutationObserver(() => applyEmployeeStageRowFilter());
+    obs.observe(tbody, { childList: true });
+  }
+}
+
+async function loadEmployeesOverviewSummary() {
+  try {
+    const storeId = window.__selectedPortalStoreId || "";
+    const [employees, alertsRes] = await Promise.all([
+      runtime.list("Funcionarios").catch(() => []),
+      invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })),
+    ]);
+
+    const filtered = storeId
+      ? employees.filter((e) => String(e.LojaID || "") === String(storeId))
+      : employees;
+
+    const stageMap = {};
+    let ativos = 0;
+    let onboarding = 0;
+    let validados = 0;
+    filtered.forEach((e) => {
+      const email = String(e.Email || "").trim().toLowerCase();
+      const etapa = Number(e.EtapaAdmissao || 1);
+      if (email) stageMap[email] = etapa;
+      if (e.Ativo !== false) ativos += 1;
+      if (etapa >= 1 && etapa <= 4 && e.Ativo !== false) onboarding += 1;
+      if (e.CadastroValidado) validados += 1;
+    });
+    window.__portalEmpStageByEmail = stageMap;
+
+    const alertas = (alertsRes?.data || []).filter((a) => !storeId || String(a.LojaID || "") === String(storeId));
+    const setKpi = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(val);
+    };
+    setKpi("empKpiAtivos", ativos);
+    setKpi("empKpiOnboarding", onboarding);
+    setKpi("empKpiExperiencia", alertas.length);
+    setKpi("empKpiValidados", validados);
+    applyEmployeeStageRowFilter();
+  } catch {
+    // Silencioso
   }
 }
 
@@ -808,14 +1482,22 @@ async function loadValesList() {
             `<button type="button" class="btn btn-primary btn-sm" data-vale-action="pagar-diretoria" data-vale-id="${v.ValeID}">Aprovar e Pagar (Diretoria)</button>`,
           );
         }
+        const statusLower = String(v.Status || "").toLowerCase();
+        const statusCls = statusLower.includes("pago")
+          ? "portal-pill--green"
+          : statusLower.includes("recus")
+            ? "portal-pill--red"
+            : statusLower.includes("validado")
+              ? "portal-pill--blue"
+              : "portal-pill--amber";
         return `
           <tr>
             <td>${v.DataDesejada || "-"}</td>
             <td><strong>${v.FuncionarioNome || "-"}</strong></td>
             <td>${v.NomeLoja || v.LojaID || "-"}</td>
-            <td style="font-variant-numeric:tabular-nums; font-weight:700;">${formatBRL(v.Valor)}</td>
+            <td class="portal-num-col" style="font-weight:700;">${formatBRL(v.Valor)}</td>
             <td>${v.Motivo || "-"}</td>
-            <td><span class="badge">${v.Status}</span></td>
+            <td><span class="portal-pill ${statusCls}">${v.Status}</span></td>
             <td>${v.ComprovanteURL ? `<a href="${v.ComprovanteURL}" target="_blank" rel="noopener">Ver Comprovante</a>` : "-"}</td>
             <td><div style="display:flex; gap:6px; flex-wrap:wrap;">${actions.join("") || "-"}</div></td>
           </tr>
@@ -964,10 +1646,10 @@ async function loadFichasView() {
     if (configListEl) {
       configListEl.innerHTML = configs.length
         ? `<div style="display:flex; gap:8px; flex-wrap:wrap;">${configs
-            .map(
-              (c) =>
-                `<span class="badge" style="background:var(--surface-2); border:1px solid var(--line); color:var(--ink);">${c.Operacao} · ${c.Funcao} (${c.Turno}): <strong>${formatBRL(c.ValorUnitario)}</strong></span>`,
-            )
+            .map((c) => {
+              const isFood = String(c.Operacao || "").toLowerCase().includes("food");
+              return `<span class="portal-pill ${isFood ? "portal-pill--amber" : "portal-pill--blue"}">${c.Operacao} · ${c.Funcao} (${c.Turno}): <strong style="margin-left:4px;">${formatBRL(c.ValorUnitario)}</strong></span>`;
+            })
             .join("")}</div>`
         : `<small style="color:var(--muted);">Nenhum valor configurado ainda.</small>`;
     }
@@ -978,21 +1660,23 @@ async function loadFichasView() {
     }
 
     tbody.innerHTML = lancamentos
-      .map(
-        (l) => `
+      .map((l) => {
+        const op = l.Operacao || "House Tx";
+        const isFood = op.toLowerCase().includes("food");
+        return `
         <tr>
           <td>${l.Data || "-"}</td>
           <td><strong>${l.FuncionarioNome || "-"}</strong></td>
           <td>${l.NomeLoja || l.LojaID || "-"}</td>
-          <td><span class="badge">${l.Operacao || "House Tx"}</span></td>
+          <td><span class="portal-pill ${isFood ? "portal-pill--amber" : "portal-pill--blue"}">${op}</span></td>
           <td>${l.Funcao || "-"} / ${l.Turno || "Geral"}</td>
-          <td style="font-variant-numeric:tabular-nums;">${l.Quantidade}</td>
-          <td style="font-variant-numeric:tabular-nums;">${formatBRL(l.ValorUnitario)}</td>
-          <td style="font-variant-numeric:tabular-nums; font-weight:700;">${formatBRL(l.ValorTotal)}</td>
+          <td class="portal-num-col">${l.Quantidade}</td>
+          <td class="portal-num-col">${formatBRL(l.ValorUnitario)}</td>
+          <td class="portal-num-col" style="font-weight:700;">${formatBRL(l.ValorTotal)}</td>
           <td>${l.LancadoPor || "-"}</td>
         </tr>
-      `,
-      )
+      `;
+      })
       .join("");
   } catch {
     // Silencioso
@@ -1266,14 +1950,14 @@ function mountPayrollClosingScreen() {
             <tr>
               <th>Colaborador</th>
               <th>Unidade / Cargo</th>
-              <th>Salário Base</th>
-              <th>Fichas House Tx</th>
-              <th>Fichas FoodPark Tx</th>
-              <th>Extras / Bônus</th>
-              <th>Vales</th>
-              <th>Faltas</th>
-              <th>Quebra Caixa</th>
-              <th>Valor Líquido</th>
+              <th class="portal-num-col">Salário Base</th>
+              <th class="portal-num-col">Fichas House Tx</th>
+              <th class="portal-num-col">Fichas FoodPark Tx</th>
+              <th class="portal-num-col">Extras / Bônus</th>
+              <th class="portal-num-col">Vales</th>
+              <th class="portal-num-col">Faltas</th>
+              <th class="portal-num-col">Quebra Caixa</th>
+              <th class="portal-num-col">Valor Líquido</th>
               <th>Chave PIX</th>
               <th>Status</th>
               <th class="permission-admin">Ajuste</th>
@@ -1392,24 +2076,31 @@ async function loadPayrollClosingTable() {
     }
 
     tbody.innerHTML = linhas
-      .map(
-        (l) => `
+      .map((l) => {
+        const stLower = String(l.StatusLinha || "").toLowerCase();
+        const stCls =
+          stLower.includes("pago") || stLower.includes("fech")
+            ? "portal-pill--green"
+            : stLower.includes("confer")
+              ? "portal-pill--blue"
+              : "portal-pill--amber";
+        return `
         <tr>
           <td>
             <strong>${l.FuncionarioNome}</strong>
             ${l.EditadoManualmente ? `<small style="display:block; color:#d97706;">Ajustado manualmente</small>` : ""}
           </td>
           <td>${l.NomeLoja || l.LojaID || "-"} · ${l.Cargo || "Operação"}</td>
-          <td style="font-variant-numeric:tabular-nums;">${formatBRL(l.SalarioBase)}</td>
-          <td style="font-variant-numeric:tabular-nums;">${l.QtdFichasHouseTx}x (${formatBRL(l.ValorFichasHouseTx)})</td>
-          <td style="font-variant-numeric:tabular-nums;">${l.QtdFichasFoodParkTx}x (${formatBRL(l.ValorFichasFoodParkTx)})</td>
-          <td style="font-variant-numeric:tabular-nums;">${formatBRL(Number(l.HorasExtrasValor || 0) + Number(l.BonusValor || 0))}</td>
-          <td style="font-variant-numeric:tabular-nums; color:#dc2626;">- ${formatBRL(l.TotalValesAdiantamentos)}</td>
-          <td style="font-variant-numeric:tabular-nums; color:#dc2626;">${l.FaltasInjustificadas}x (- ${formatBRL(l.DescontoFaltasAtrasos)})</td>
-          <td style="font-variant-numeric:tabular-nums; color:#dc2626;">- ${formatBRL(l.QuebraDeCaixaValor)}</td>
-          <td style="font-variant-numeric:tabular-nums; font-weight:700; color:#16a34a;">${formatBRL(l.ValorLiquido)}</td>
+          <td class="portal-num-col">${formatBRL(l.SalarioBase)}</td>
+          <td class="portal-num-col">${l.QtdFichasHouseTx}x (${formatBRL(l.ValorFichasHouseTx)})</td>
+          <td class="portal-num-col">${l.QtdFichasFoodParkTx}x (${formatBRL(l.ValorFichasFoodParkTx)})</td>
+          <td class="portal-num-col">${formatBRL(Number(l.HorasExtrasValor || 0) + Number(l.BonusValor || 0))}</td>
+          <td class="portal-num-col" style="color:#dc2626;">- ${formatBRL(l.TotalValesAdiantamentos)}</td>
+          <td class="portal-num-col" style="color:#dc2626;">${l.FaltasInjustificadas}x (- ${formatBRL(l.DescontoFaltasAtrasos)})</td>
+          <td class="portal-num-col" style="color:#dc2626;">- ${formatBRL(l.QuebraDeCaixaValor)}</td>
+          <td class="portal-num-col" style="font-weight:700; color:#047857;">${formatBRL(l.ValorLiquido)}</td>
           <td><code>${l.ChavePix || "-"}</code></td>
-          <td><span class="badge">${l.StatusLinha}</span></td>
+          <td><span class="portal-pill ${stCls}">${l.StatusLinha}</span></td>
           <td class="permission-admin">
             ${
               data.permissaoEdicao
@@ -1418,8 +2109,8 @@ async function loadPayrollClosingTable() {
             }
           </td>
         </tr>
-      `,
-      )
+      `;
+      })
       .join("");
 
     tbody.querySelectorAll("[data-edit-folha-emp]").forEach((btn) => {
@@ -1543,11 +2234,18 @@ async function loadAuditHistoryTable(overrideFilters = {}) {
             ? `<strong>${l.CampoAlterado || l.Acao}:</strong> de "${l.ValorAnterior || "vazio"}" para "${l.ValorNovo || "vazio"}" ${l.Justificativa ? `(Motivo: ${l.Justificativa})` : ""}`
             : l.ResumoAlteracao || l.Mensagem || l.Acao;
         const origem = `${l.OrigemIP || "Sessão"} | ${String(l.OrigemDispositivo || "").slice(0, 48)}`;
+        const acaoLower = String(l.Acao || "").toLowerCase();
+        const acaoCls =
+          acaoLower.includes("exclu") || acaoLower.includes("delet") || acaoLower.includes("recus")
+            ? "portal-pill--red"
+            : acaoLower.includes("cria") || acaoLower.includes("aprov") || acaoLower.includes("fech")
+              ? "portal-pill--green"
+              : "portal-pill--blue";
         return `
           <tr>
-            <td style="font-variant-numeric:tabular-nums;">${quando}</td>
+            <td style="font-variant-numeric:tabular-nums; white-space:nowrap;">${quando}</td>
             <td>${quem}</td>
-            <td><span class="badge">${l.Acao}</span></td>
+            <td><span class="portal-pill ${acaoCls}">${l.Acao}</span></td>
             <td>${onde}</td>
             <td>${oQue}</td>
             <td><small style="color:var(--muted);">${origem}</small></td>
@@ -1596,6 +2294,7 @@ export async function refreshPortalViews() {
   await syncStoreAndEmployeeDropdowns();
   await Promise.allSettled([
     loadExperienceAlertsBanner(),
+    loadEmployeesOverviewSummary(),
     loadValesList(),
     loadFichasView(),
     loadPopsList(),
@@ -1608,6 +2307,7 @@ export function initPortalGestao() {
   injectPortalTabsStyles();
   mountTopbarStoreSelector();
   mountWhatsAppPasswordRecovery();
+  mountEmployeesOverviewSummary();
   enhanceEmployeeDialog();
   mountSolicitacoesTabsAndVale();
   bindFichasView();
@@ -1618,6 +2318,7 @@ export function initPortalGestao() {
   document.querySelectorAll("[data-view]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const view = btn.getAttribute("data-view");
+      if (view === "employees") loadEmployeesOverviewSummary();
       if (view === "fichas") loadFichasView();
       if (view === "monthly-closing") loadPayrollClosingTable();
       if (view === "timeoff") loadValesList();
