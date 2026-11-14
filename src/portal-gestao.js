@@ -172,32 +172,44 @@ function injectPortalTabsStyles() {
       display: none !important;
     }
 
-    /* ---- Modal #employeeDialog reestruturado ---- */
+    /* ---- Modal #employeeDialog reestruturado (Pliifex) ---- */
     dialog#employeeDialog {
       width: min(920px, 95vw) !important;
       max-width: 920px !important;
-      border-radius: 16px !important;
-      border: 1px solid var(--line, #e2e8f0) !important;
+      max-height: 92vh !important;
+      border-radius: var(--radius-lg, 16px) !important;
+      border: 1px solid var(--line, #e4e7ec) !important;
       padding: 0 !important;
+      overflow: hidden !important;
+      box-shadow: var(--sh-lg, 0 24px 56px -16px rgba(16, 24, 40, 0.22)) !important;
     }
     dialog#employeeDialog form#employeeForm {
       width: 100% !important;
       max-width: 100% !important;
+      max-height: 92vh !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+      margin: 0 !important;
     }
     dialog#employeeDialog .dialog-head {
-      padding: 18px 24px !important;
-      border-bottom: 1px solid var(--line, #e2e8f0) !important;
+      flex: 0 0 auto !important;
+      padding: 16px 24px !important;
+      border-bottom: 1px solid var(--line, #e4e7ec) !important;
       background: var(--surface, #ffffff) !important;
     }
     dialog#employeeDialog .dialog-body {
-      padding: 18px 24px !important;
-      max-height: min(76vh, 720px) !important;
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      padding: 18px 24px 28px !important;
       overflow-y: auto !important;
-      background: var(--surface-2, #f8fafc) !important;
+      background: var(--surface-2, #f1f4f8) !important;
     }
     dialog#employeeDialog .dialog-actions {
+      flex: 0 0 auto !important;
       padding: 14px 24px !important;
-      border-top: 1px solid var(--line, #e2e8f0) !important;
+      border-top: 1px solid var(--line, #e4e7ec) !important;
       background: var(--surface, #ffffff) !important;
     }
     .portal-modal-tabs {
@@ -1466,18 +1478,22 @@ function injectPortalTabsStyles() {
     #onboardingSelfScreen {
       min-height: 100vh;
       width: 100%;
+      max-width: 100vw;
       padding: 20px 14px calc(48px + env(safe-area-inset-bottom));
       background: linear-gradient(180deg, #f3f5fa 0%, #eaedf5 100%);
       display: flex;
       justify-content: center;
       align-items: flex-start;
       overflow-x: hidden;
+      overflow-x: clip;
       font-family: var(--font-sans, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
     }
     .onb-self-shell {
       width: 100%;
       max-width: 720px;
+      min-width: 0;
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 14px;
       margin: 0 auto;
     }
@@ -1488,13 +1504,17 @@ function injectPortalTabsStyles() {
       padding: 16px 18px;
       box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-width: 0;
       gap: 10px;
     }
     .onb-self-hero-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
     }
     .onb-self-hero-brand {
       display: flex;
@@ -1623,6 +1643,8 @@ function injectPortalTabsStyles() {
       padding: 18px 20px;
       box-shadow: 0 1px 4px rgba(15, 23, 42, 0.03);
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-width: 0;
       gap: 14px;
     }
     .onb-self-card-head {
@@ -1631,8 +1653,13 @@ function injectPortalTabsStyles() {
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
+      min-width: 0;
       padding-bottom: 10px;
       border-bottom: 1px solid #f1f5f9;
+    }
+    .onb-self-card-head > div {
+      min-width: 0;
+      flex: 1 1 220px;
     }
     .onb-self-card-title {
       margin: 0;
@@ -1695,6 +1722,8 @@ function injectPortalTabsStyles() {
     }
     .onb-self-progress-wrap {
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-width: 0;
       gap: 6px;
     }
     .onb-self-progress-track {
@@ -1712,6 +1741,8 @@ function injectPortalTabsStyles() {
     }
     .onb-self-doc-list {
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-width: 0;
       gap: 10px;
     }
     .onb-self-doc-card {
@@ -1719,10 +1750,12 @@ function injectPortalTabsStyles() {
       border-radius: 12px;
       padding: 13px 14px;
       background: #ffffff;
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 10px 12px;
+      min-width: 0;
+      width: 100%;
       transition: border-color 0.15s ease, background 0.15s ease;
     }
     .onb-self-doc-card.is-uploaded {
@@ -1731,34 +1764,37 @@ function injectPortalTabsStyles() {
     }
     .onb-self-doc-info {
       min-width: 0;
-      flex: 1;
       display: grid;
-      gap: 3px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 4px;
     }
     .onb-self-doc-top {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+      min-width: 0;
     }
     .onb-self-doc-title {
       font-size: 14px;
       font-weight: 700;
       color: #0f172a;
       line-height: 1.3;
+      overflow-wrap: anywhere;
     }
     .onb-self-doc-sub {
       font-size: 12.5px;
       color: #64748b;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      line-height: 1.4;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     .onb-self-doc-actions {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .onb-self-upload-btn {
       display: inline-flex !important;
@@ -1863,6 +1899,17 @@ function injectPortalTabsStyles() {
         padding: 15px 14px;
         border-radius: 14px;
       }
+      .onb-self-card-head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .onb-self-card-head > div {
+        flex: none;
+      }
+      .onb-self-card-head .btn {
+        align-self: flex-start;
+      }
       .onb-self-grid {
         grid-template-columns: 1fr;
       }
@@ -1881,7 +1928,7 @@ function injectPortalTabsStyles() {
         font-size: 10px;
       }
       .onb-self-doc-card {
-        flex-direction: column;
+        grid-template-columns: minmax(0, 1fr);
         align-items: stretch;
         gap: 10px;
       }
@@ -1889,7 +1936,8 @@ function injectPortalTabsStyles() {
         width: 100%;
       }
       .onb-self-upload-btn {
-        flex: 1;
+        flex: 1 1 auto;
+        min-width: 0;
       }
       .onb-self-actions {
         flex-direction: column-reverse;
@@ -1988,13 +2036,12 @@ function injectPortalTabsStyles() {
       }
     }
     /* ---- Lista de múltiplos arquivos (RG/CNH) ---- */
-    .onb-self-doc-card {
-      flex-wrap: wrap;
-    }
     .onb-self-doc-files {
+      grid-column: 1 / -1;
       width: 100%;
-      flex-basis: 100%;
+      min-width: 0;
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 6px;
       padding-top: 8px;
       border-top: 1px dashed #cbd5e1;
@@ -2005,6 +2052,8 @@ function injectPortalTabsStyles() {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      min-width: 0;
+      width: 100%;
       padding: 6px 10px;
       border-radius: 9px;
       background: #ffffff;
@@ -2637,46 +2686,50 @@ function enhanceEmployeeDialog() {
 
         <div style="display:grid; gap:10px;">
           <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <input id="portalOnboardingLinkInput" type="text" readonly placeholder="Clique em Gerar Link para criar o convite do novato..." style="flex:1; min-width:220px; background:#f8fafc; font-size:12.5px;" />
-            <button type="button" id="btnGerarLinkOnboarding" class="btn btn-primary btn-sm" style="min-height:38px;">
-              Gerar Link
-            </button>
+            <input id="portalOnboardingLinkInput" type="text" readonly placeholder="Clique em Gerar Link para criar o convite do novato..." style="flex:1 1 320px; min-width:0; background:var(--surface-2, #f1f4f8); font-size:12.5px;" />
             <button type="button" id="btnCopiarLinkOnboarding" class="btn btn-secondary btn-sm hidden" style="min-height:38px;">
               Copiar Link
             </button>
-            <a id="btnWhatsAppLinkOnboarding" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm hidden" style="min-height:38px; text-decoration:none;">
-              Enviar no WhatsApp
-            </a>
-            <button type="button" id="btnRegenerarLinkOnboarding" class="btn btn-secondary btn-sm hidden" style="min-height:38px;">
-              Novo Link
-            </button>
           </div>
-          <small id="portalOnboardingLinkHint" style="color:var(--muted); font-size:12px;">
-            Mesmo antes de preencher e-mail ou documentos completos, você pode gerar o link agora e enviar para o candidato.
-          </small>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <small id="portalOnboardingLinkHint" style="color:var(--muted, #667085); font-size:12px; flex:1 1 240px;">
+              Mesmo antes de preencher e-mail ou documentos completos, você pode gerar o link agora e enviar para o candidato.
+            </small>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <button type="button" id="btnGerarLinkOnboarding" class="btn btn-primary btn-sm" style="min-height:36px;">
+                Gerar Link
+              </button>
+              <a id="btnWhatsAppLinkOnboarding" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm hidden" style="min-height:36px; text-decoration:none;">
+                Enviar no WhatsApp
+              </a>
+              <button type="button" id="btnRegenerarLinkOnboarding" class="btn btn-secondary btn-sm hidden" style="min-height:36px;">
+                Novo Link
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="portal-field-card permission-manager hidden" id="portalOnboardingReviewCard" style="border-left:4px solid #7c3aed; background:#faf5ff;">
-        <div class="portal-field-card-head">
+      <div class="portal-field-card permission-manager hidden" id="portalOnboardingReviewCard" style="border:1px solid var(--brand-border, #c1d4eb); box-shadow:inset 3px 0 0 var(--brand-solid, #4077ba), var(--sh-sm, 0 1px 2px rgba(16, 24, 40, 0.04)); background:var(--surface, #ffffff);">
+        <div class="portal-field-card-head" style="padding-bottom:12px; border-bottom:1px solid var(--line, #e4e7ec); margin-bottom:14px;">
           <div>
-            <h4 class="portal-field-card-title" style="color:#5b21b6;">Conferência &amp; Formalização do Colaborador</h4>
+            <h4 class="portal-field-card-title">Conferência &amp; Formalização do Colaborador</h4>
             <span id="portalOnboardingReviewSub" class="portal-field-card-sub">Confira os dados e documentos enviados pelo novato e clique abaixo para aceitar, formalizar o cadastro e liberar o acesso.</span>
           </div>
           <span class="portal-pill portal-pill--amber">Aguardando Conferência</span>
         </div>
         <div id="portalOnboardingReviewSummary" class="portal-onb-review-summary hidden"></div>
-        <div class="dialog-grid" style="align-items:end; margin-bottom:10px;">
-          <label class="field">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px 14px; align-items:end; margin-bottom:16px;">
+          <label class="field" style="margin:0;">
             <span>E-mail de Acesso</span>
             <input id="portalOnboardingLoginEmail" type="email" placeholder="email@colaborador.com" />
           </label>
-          <label class="field permission-admin">
-            <span>Senha Provisória (opcional — deixa vazio para gerar automática)</span>
-            <input id="portalOnboardingProvisionalPass" type="text" minlength="10" placeholder="Mín. 10 caracteres ou automática" />
+          <label class="field permission-admin" style="margin:0;">
+            <span>Senha Provisória (opcional)</span>
+            <input id="portalOnboardingProvisionalPass" type="text" minlength="10" placeholder="Mín. 10 chars ou automática" />
           </label>
-          <label class="field">
-            <span>Avançar para Etapa após Aprovar</span>
+          <label class="field" style="margin:0;">
+            <span>Etapa após Aprovar</span>
             <select id="portalOnboardingApproveStage">
               <option value="3" selected>3. Exame Admissional (ASO)</option>
               <option value="4">4. Contrato Assinado</option>
@@ -2684,15 +2737,15 @@ function enhanceEmployeeDialog() {
             </select>
           </label>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <button type="button" id="btnLiberarAcessoOnboarding" class="btn btn-primary" style="min-height:40px;">
-            Conferir, Aprovar &amp; Liberar Acesso
-          </button>
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; padding-top:14px; border-top:1px solid var(--line, #e4e7ec);">
           <button type="button" id="btnSolicitarCorrecaoOnboarding" class="btn btn-secondary" style="min-height:40px;">
             Solicitar Correção ao Novato
           </button>
+          <button type="button" id="btnLiberarAcessoOnboarding" class="btn btn-primary" style="min-height:40px;">
+            Conferir, Aprovar &amp; Liberar Acesso
+          </button>
         </div>
-        <div id="portalOnboardingCredResult" class="hidden" style="margin-top:12px; padding:12px; border-radius:10px; background:#ecfdf5; border:1px solid #a7f3d0; font-size:13px;"></div>
+        <div id="portalOnboardingCredResult" class="hidden" style="margin-top:12px; padding:12px; border-radius:10px; background:var(--good-soft, #e4f6ee); border:1px solid #a7f3d0; font-size:13px;"></div>
       </div>
 
       <div class="portal-field-card">
@@ -3364,10 +3417,11 @@ export function renderEmployeeOnboardingState(emp = {}, linkData = null) {
         const dossieDocs = emp?.DossieDocumentos || {};
         const attachedDocs = Object.values(dossieDocs).filter((d) => normalizeDocItemFiles(d).length > 0);
         const endFull = [emp?.Endereco, emp?.NumeroEndereco, emp?.Bairro, emp?.Cidade, emp?.UF].filter(Boolean).join(", ");
+        const clipSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
         const docButtons = attachedDocs
           .map((d) => {
             const files = normalizeDocItemFiles(d);
-            return `<button type="button" class="btn btn-secondary btn-sm" data-review-doc-preview="${escapeHtml(d.codigo)}" style="min-height:28px; padding:2px 8px; font-size:11.5px;">Ver ${escapeHtml(d.titulo || d.codigo)}${files.length > 1 ? ` (${files.length})` : ""}</button>`;
+            return `<button type="button" class="portal-onb-doc-chip" data-review-doc-preview="${escapeHtml(d.codigo)}">${clipSvg}<span>${escapeHtml(d.titulo || d.codigo)}${files.length > 1 ? ` (${files.length})` : ""}</span></button>`;
           })
           .join("");
         reviewSummary.innerHTML = `
@@ -3379,7 +3433,7 @@ export function renderEmployeeOnboardingState(emp = {}, linkData = null) {
           <div><span>Chave PIX</span><strong>${escapeHtml(emp?.ChavePix || "—")}</strong></div>
           ${
             docButtons
-              ? `<div style="grid-column:1 / -1;"><span>Documentos Enviados pelo Novato (${attachedDocs.length})</span><div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">${docButtons}</div></div>`
+              ? `<div style="grid-column:1 / -1; padding-top:8px; margin-top:2px; border-top:1px solid var(--line, #e4e7ec);"><span>Documentos Enviados pelo Novato (${attachedDocs.length})</span><div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">${docButtons}</div></div>`
               : ""
           }
         `;
