@@ -3684,7 +3684,15 @@ async function renderOnboardingSolicitationsPanel(employees = []) {
 async function loadEmployeesOverviewSummary() {
   try {
     const storeId = window.__selectedPortalStoreId || "";
-    await invokePortal("sincronizarConvitesOnboarding", {}).catch(() => null);
+    const syncRes = await invokePortal("sincronizarConvitesOnboarding", {}).catch((err) => {
+      console.warn("[onboarding] sync warning:", err);
+      return { __syncError: err };
+    });
+    if (syncRes?.__syncError) {
+      showPortalToast(`Aviso ao sincronizar pré-cadastros: ${syncRes.__syncError?.message || "falha de sincronização."}`, "warn");
+    } else if (Number(syncRes?.data?.syncedCount || 0) > 0) {
+      showPortalToast(`${syncRes.data.syncedCount} solicitação(ões) de pré-cadastro sincronizada(s) para conferência.`, "info");
+    }
     const [employees, alertsRes] = await Promise.all([
       runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => [])),
       invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })),

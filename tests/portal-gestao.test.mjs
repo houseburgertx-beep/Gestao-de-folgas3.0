@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runtime } from "../src/core/runtime.js";
+import { FirebaseRuntime, runtime } from "../src/core/runtime.js";
 import { createPortalHandlers } from "../src/core/api-portal.js";
 import { ID_FIELDS } from "../src/core/constants.js";
 
@@ -1141,5 +1141,18 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
     assert.equal(empFinal.EtapaAdmissao, 6);
     assert.equal(empFinal.SubstatusEtapa6, "Efetivado");
     assert.ok(empFinal.DataEfetivacao);
+  });
+
+  await t.test("FirebaseRuntime expõe método update() delegando para patch()", async () => {
+    assert.equal(typeof FirebaseRuntime.prototype.update, "function");
+    const calls = [];
+    const instance = new FirebaseRuntime();
+    instance.patch = async (table, id, changes) => {
+      calls.push({ table, id, changes });
+      return { FuncionarioID: id, ...changes };
+    };
+    const res = await instance.update("Funcionarios", "EMP-1", { Nome: "Maria" });
+    assert.deepEqual(calls, [{ table: "Funcionarios", id: "EMP-1", changes: { Nome: "Maria" } }]);
+    assert.equal(res.Nome, "Maria");
   });
 });

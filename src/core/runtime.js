@@ -1617,6 +1617,10 @@ export class FirebaseRuntime {
     return clone(normalized);
   }
 
+  async update(table, id, changes) {
+    return this.patch(table, id, changes);
+  }
+
   async patch(table, id, changes) {
     const current = await this.getById(table, id);
     if (!current) throw new Error("Registro não encontrado.");

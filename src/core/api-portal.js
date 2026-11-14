@@ -1089,7 +1089,7 @@ async function sincronizarConvitesOnboarding(payload = {}) {
   const targetId = String(payload.FuncionarioID || payload.funcionarioId || "").trim();
   const candidates = targetId
     ? [await runtime.getById("Funcionarios", targetId)].filter(Boolean)
-    : (await runtime.list("Funcionarios").catch(() => [])).filter((e) => {
+    : (await runtime.list("Funcionarios", { forceRefresh: true }).catch(() => [])).filter((e) => {
         if (!e?.OnboardingToken || e.CadastroValidado) return false;
         if (!isAdmin(profile) && String(e.LojaID || "") !== String(profile.LojaID || "")) return false;
         return e.StatusOnboarding !== "Aprovado";
@@ -1098,18 +1098,22 @@ async function sincronizarConvitesOnboarding(payload = {}) {
   const updatedEmployees = [];
   for (const emp of candidates) {
     if (!emp?.OnboardingToken || !ONBOARDING_TOKEN_REGEX.test(String(emp.OnboardingToken))) continue;
-    const convite = await runtime.readPath(`onboardingConvites/${emp.OnboardingToken}`).catch(() => null);
-    if (!convite?.Submissao?.Dados) continue;
-    const subUpdated = String(convite.Submissao.AtualizadoEm || convite.EnviadoEm || "");
-    const alreadySynced =
-      !convite.TokenSyncPendente &&
-      subUpdated &&
-      subUpdated === String(emp.OnboardingUltimoSyncEm || "") &&
-      convite.Status === emp.StatusOnboarding;
-    if (alreadySynced) continue;
+    try {
+      const convite = await runtime.readPath(`onboardingConvites/${emp.OnboardingToken}`).catch(() => null);
+      if (!convite?.Submissao?.Dados) continue;
+      const subUpdated = String(convite.Submissao.AtualizadoEm || convite.EnviadoEm || "");
+      const alreadySynced =
+        !convite.TokenSyncPendente &&
+        subUpdated &&
+        subUpdated === String(emp.OnboardingUltimoSyncEm || "") &&
+        convite.Status === emp.StatusOnboarding;
+      if (alreadySynced) continue;
 
-    const synced = await applyOnboardingSubmissionToEmployee(emp, convite, nowIso());
-    if (synced) updatedEmployees.push(synced);
+      const synced = await applyOnboardingSubmissionToEmployee(emp, convite, nowIso());
+      if (synced) updatedEmployees.push(synced);
+    } catch (err) {
+      console.warn(`[onboarding] falha ao sincronizar convite ${emp.OnboardingToken}:`, err);
+    }
   }
 
   return success(
