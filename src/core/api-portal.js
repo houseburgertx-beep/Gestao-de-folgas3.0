@@ -624,6 +624,33 @@ function buildOnboardingWhatsAppUrl(phoneRaw, nome, url, cargo = "") {
   return `https://wa.me/${phoneIntl}?text=${text}`;
 }
 
+function normalizeSubmittedDocFiles(item, fallbackCode = "DOC", fallbackNow = nowIso()) {
+  if (!item || typeof item !== "object") return { files: [], arquivoUrl: "", nomeArquivo: "" };
+  const rawList = Array.isArray(item.arquivos) && item.arquivos.length
+    ? item.arquivos
+    : item.arquivoUrl
+      ? [{ arquivoUrl: item.arquivoUrl, nomeArquivo: item.nomeArquivo, enviadoEm: item.enviadoEm }]
+      : [];
+  const files = rawList
+    .filter((f) => f && String(f.arquivoUrl || "").trim())
+    .slice(0, 5)
+    .map((f, idx) => ({
+      arquivoUrl: String(f.arquivoUrl).trim(),
+      nomeArquivo: String(f.nomeArquivo || `${fallbackCode}_${idx + 1}.pdf`).trim(),
+      enviadoEm: f.enviadoEm || item.enviadoEm || fallbackNow,
+    }));
+  if (!files.length) return { files: [], arquivoUrl: "", nomeArquivo: "" };
+  const summaryName =
+    files.length > 1
+      ? `${files.length} arquivos (${files.map((f) => f.nomeArquivo).join(", ")})`
+      : files[0].nomeArquivo;
+  return {
+    files,
+    arquivoUrl: files[0].arquivoUrl,
+    nomeArquivo: summaryName,
+  };
+}
+
 async function applyOnboardingSubmissionToEmployee(emp, convite, now = nowIso()) {
   if (!emp || !convite?.Submissao?.Dados) return null;
   const subDados = sanitizeCandidatePersonalFields(convite.Submissao.Dados, emp);
@@ -634,7 +661,8 @@ async function applyOnboardingSubmissionToEmployee(emp, convite, now = nowIso())
   const mergedDossie = { ...(emp.DossieDocumentos || {}) };
   for (const [rawCode, item] of Object.entries(subDocs)) {
     const code = String(item?.codigo || rawCode).trim().toUpperCase();
-    if (!code || !item?.arquivoUrl) continue;
+    const norm = normalizeSubmittedDocFiles(item, code, now);
+    if (!code || !norm.files.length) continue;
     const meta = REQUIRED_ADMISSION_DOCUMENTS.find((d) => d.codigo === code) || {
       codigo: code,
       titulo: item.titulo || "Documento Admissional",
@@ -651,24 +679,26 @@ async function applyOnboardingSubmissionToEmployee(emp, convite, now = nowIso())
       SubtipoCodigo: code,
       Titulo: `${meta.titulo} - ${subDados.Nome || emp.Nome || "Colaborador"}`,
       Competencia: todayIso().slice(0, 7),
-      ArquivoURL: item.arquivoUrl,
-      NomeArquivo: String(item.nomeArquivo || `${code}.pdf`),
+      ArquivoURL: norm.arquivoUrl,
+      NomeArquivo: norm.nomeArquivo,
+      Arquivos: norm.files,
       RequerAssinatura: false,
       Status: "Pendente",
       StatusAssinatura: "Pendente de Conferência",
       StatusValidacao: "Em Análise",
       OrigemTipo: "AUTOCADASTRO_ONBOARDING",
       EnviadoPor: subDados.Nome || subDados.Email || "Candidato",
-      DataCriacao: item.enviadoEm || now,
+      DataCriacao: norm.files[0].enviadoEm || now,
     };
     await runtime.upsert("Documentos", docEntry).catch(() => null);
     mergedDossie[code] = {
       docId,
       codigo: code,
       titulo: meta.titulo,
-      arquivoUrl: item.arquivoUrl,
-      nomeArquivo: docEntry.NomeArquivo,
-      enviadoEm: item.enviadoEm || now,
+      arquivoUrl: norm.arquivoUrl,
+      nomeArquivo: norm.nomeArquivo,
+      arquivos: norm.files,
+      enviadoEm: norm.files[0].enviadoEm || now,
       enviadoPor: subDados.Nome || "Candidato",
       status: "Em Análise",
     };
@@ -956,6 +986,7 @@ async function consultarConviteOnboarding(payload = {}) {
     ).map((d) => ({
       ...d,
       obrigatorioAutocadastro: SELF_ONBOARDING_REQUIRED_DOC_CODES.includes(d.codigo),
+      multiplosArquivos: d.codigo === "RG_CNH",
     })),
   });
 }
@@ -977,15 +1008,17 @@ async function salvarAutocadastroOnboarding(payload = {}) {
 
   const sanitizedDocs = {};
   for (const [key, doc] of Object.entries(rawDocs)) {
-    if (!doc || !doc.arquivoUrl) continue;
-    const code = String(doc.codigo || key).trim().toUpperCase();
+    const code = String(doc?.codigo || key).trim().toUpperCase();
+    const norm = normalizeSubmittedDocFiles(doc, code, now);
+    if (!norm.files.length) continue;
     const meta = REQUIRED_ADMISSION_DOCUMENTS.find((d) => d.codigo === code);
     sanitizedDocs[code] = {
       codigo: code,
       titulo: meta?.titulo || String(doc.titulo || "Documento"),
-      arquivoUrl: String(doc.arquivoUrl).trim(),
-      nomeArquivo: String(doc.nomeArquivo || `${code}.pdf`).trim(),
-      enviadoEm: doc.enviadoEm || now,
+      arquivoUrl: norm.arquivoUrl,
+      nomeArquivo: norm.nomeArquivo,
+      arquivos: norm.files,
+      enviadoEm: norm.files[0].enviadoEm || now,
     };
   }
 
@@ -1174,6 +1207,27 @@ async function conferirLiberarAcessoOnboarding(payload = {}) {
     observacao: "Cadastro conferido e acesso liberado pela Administração",
   };
 
+  const resolvedLojaId =
+    isAdmin(profile) && payload.LojaID ? String(payload.LojaID).trim() : String(current.LojaID || "").trim();
+  let resolvedNomeLoja = String(payload.NomeLoja || current.NomeLoja || "").trim();
+  if (resolvedLojaId && (!resolvedNomeLoja || resolvedLojaId !== String(current.LojaID || ""))) {
+    const stores = await runtime.list("Lojas").catch(() => []);
+    const storeObj = stores.find((s) => String(s.LojaID) === String(resolvedLojaId));
+    if (storeObj?.NomeLoja) resolvedNomeLoja = storeObj.NomeLoja;
+  }
+
+  const formalizedNome = String(payload.Nome || current.Nome || "Colaborador").trim();
+  const formalizedCargo = String(payload.Cargo || current.Cargo || "Colaborador").trim();
+  const formalizedSetor = String(payload.Setor || current.Setor || "Cozinha").trim();
+  const formalizedContract = String(payload.TipoContrato || current.TipoContrato || "CLT").trim();
+  const formalizedPerfil = String(payload.Perfil || current.Perfil || APP.profiles.employee).trim();
+  const formalizedAdmission = String(payload.DataAdmissao || current.DataAdmissao || todayIso()).trim();
+  const formalizedTurno = String(payload.TurnoTrabalho ?? current.TurnoTrabalho ?? "").trim();
+  const formalizedSalario =
+    payload.SalarioBase !== undefined && payload.SalarioBase !== ""
+      ? Number(payload.SalarioBase || 0)
+      : Number(current.SalarioBase || 0);
+
   let authUid = current.AuthUID || "";
   let loginCriado = false;
   let senhaProvisoria = "";
@@ -1188,12 +1242,12 @@ async function conferirLiberarAcessoOnboarding(payload = {}) {
           const accessRecord = {
             UsuarioID: createdUid,
             FuncionarioID: employeeId,
-            Nome: current.Nome || "Colaborador",
+            Nome: formalizedNome,
             Email: targetEmail,
-            Perfil: current.Perfil || APP.profiles.employee,
-            LojaID: current.LojaID || "",
-            NomeLoja: current.NomeLoja || "",
-            Cargo: current.Cargo || "Colaborador",
+            Perfil: formalizedPerfil,
+            LojaID: resolvedLojaId,
+            NomeLoja: resolvedNomeLoja,
+            Cargo: formalizedCargo,
             PrimeiroAcesso: true,
             Ativo: true,
             DataCriacao: now,
@@ -1217,8 +1271,11 @@ async function conferirLiberarAcessoOnboarding(payload = {}) {
         await runtime.saveAccess(authUid, {
           ...existingAccess,
           Ativo: true,
-          Perfil: current.Perfil || existingAccess.Perfil || APP.profiles.employee,
-          LojaID: current.LojaID || existingAccess.LojaID || "",
+          Nome: formalizedNome,
+          Cargo: formalizedCargo,
+          Perfil: formalizedPerfil || existingAccess.Perfil || APP.profiles.employee,
+          LojaID: resolvedLojaId || existingAccess.LojaID || "",
+          NomeLoja: resolvedNomeLoja || existingAccess.NomeLoja || "",
           DataAtualizacao: now,
         }).catch(() => null);
       }
@@ -1227,10 +1284,38 @@ async function conferirLiberarAcessoOnboarding(payload = {}) {
     }
   }
 
+  const nextDossie = { ...(current.DossieDocumentos || {}) };
+  for (const [docCode, docMeta] of Object.entries(nextDossie)) {
+    if (!docMeta || typeof docMeta !== "object") continue;
+    nextDossie[docCode] = { ...docMeta, status: "Validado" };
+    if (docMeta.docId) {
+      await runtime
+        .update("Documentos", docMeta.docId, {
+          FuncionarioNome: formalizedNome,
+          LojaID: resolvedLojaId,
+          Status: "Validado",
+          StatusValidacao: "Validado",
+          StatusAssinatura: "Validado",
+        })
+        .catch(() => null);
+    }
+  }
+
   const updated = {
     ...current,
+    Nome: formalizedNome,
+    LojaID: resolvedLojaId,
+    NomeLoja: resolvedNomeLoja,
+    Cargo: formalizedCargo,
+    Setor: formalizedSetor,
+    TipoContrato: formalizedContract,
+    Perfil: formalizedPerfil,
+    DataAdmissao: formalizedAdmission,
+    TurnoTrabalho: formalizedTurno,
+    SalarioBase: formalizedSalario,
     Email: targetEmail,
     ...(authUid ? { AuthUID: authUid } : {}),
+    DossieDocumentos: nextDossie,
     EtapaAdmissao: Math.max(Number(current.EtapaAdmissao || 1), targetStage),
     HistoricoEtapasAdmissao: historico,
     CadastroValidado: true,

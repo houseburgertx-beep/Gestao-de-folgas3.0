@@ -970,9 +970,18 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
       /documentos obrigatórios/i,
     );
 
-    // 5. Envia ficha completa + 3 documentos obrigatórios (sem CPF, Título, Reservista ou Certidão)
+    // 5. Envia ficha completa + 3 documentos obrigatórios (RG com frente e verso em 2 arquivos)
+    const rgMeta = consultRes.data.documentosExigidos.find((d) => d.codigo === "RG_CNH");
+    assert.equal(rgMeta?.multiplosArquivos, true);
+
     const docsPayload = {
-      RG_CNH: { codigo: "RG_CNH", arquivoUrl: "data:image/png;base64,AAA", nomeArquivo: "rg.png" },
+      RG_CNH: {
+        codigo: "RG_CNH",
+        arquivos: [
+          { arquivoUrl: "data:image/png;base64,RG_FRENTE", nomeArquivo: "rg-frente.png" },
+          { arquivoUrl: "data:image/png;base64,RG_VERSO", nomeArquivo: "rg-verso.png" },
+        ],
+      },
       COMPROVANTE_RESIDENCIA: { codigo: "COMPROVANTE_RESIDENCIA", arquivoUrl: "data:application/pdf;base64,CCC", nomeArquivo: "residencia.pdf" },
       CTPS_DIGITAL: { codigo: "CTPS_DIGITAL", arquivoUrl: "data:application/pdf;base64,EEE", nomeArquivo: "ctps.pdf" },
     };
@@ -1034,9 +1043,12 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
     assert.equal(empSynced.EtapaAdmissao, 2);
     assert.equal(empSynced.Ativo, false);
     assert.ok(empSynced.DossieDocumentos.CTPS_DIGITAL);
+    assert.equal(empSynced.DossieDocumentos.RG_CNH.arquivos.length, 2);
+    assert.equal(empSynced.DossieDocumentos.RG_CNH.arquivos[1].nomeArquivo, "rg-verso.png");
     const rgDocSynced = await runtime.getById("Documentos", `ONB_${preEmp.FuncionarioID}_RG_CNH`);
     assert.ok(rgDocSynced);
     assert.equal(rgDocSynced.StatusValidacao, "Em Análise");
+    assert.equal(rgDocSynced.Arquivos.length, 2);
 
     // 7. Administração pede correção primeiro -> volta para Em Preenchimento / Correção Solicitada
     const corrRes = await portal.conferirLiberarAcessoOnboarding({
@@ -1073,15 +1085,19 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
       FuncionarioID: preEmp.FuncionarioID,
       aprovar: true,
       etapa: 3,
+      Cargo: "Chapeira Líder",
     });
     assert.equal(approveRes.success, true);
     assert.equal(approveRes.data.colaborador.Ativo, true);
     assert.equal(approveRes.data.colaborador.CadastroValidado, true);
     assert.equal(approveRes.data.colaborador.StatusOnboarding, "Aprovado");
+    assert.equal(approveRes.data.colaborador.Cargo, "Chapeira Líder");
     assert.equal(approveRes.data.colaborador.EtapaAdmissao, 3);
     assert.equal(approveRes.data.loginCriado, true);
     assert.ok(approveRes.data.senhaProvisoria && approveRes.data.senhaProvisoria.length >= 10);
     assert.match(approveRes.data.waUrl, /wa\.me\/5573999887766/);
+    const rgDocApproved = await runtime.getById("Documentos", `ONB_${preEmp.FuncionarioID}_RG_CNH`);
+    assert.equal(rgDocApproved?.StatusValidacao, "Validado");
 
     // Verifica access/${authUid} gravado para o colaborador
     const createdAuthUid = approveRes.data.colaborador.AuthUID;

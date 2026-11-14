@@ -42,18 +42,64 @@ const isGerenteProfile = (profile) => {
   return isDiretoriaProfile(profile) || r.includes("respons") || r.includes("gerente");
 };
 
+const isOnboardingOnlyPending = (emp) => {
+  if (!emp) return false;
+  if (emp.CadastroValidado === true || emp.CadastroValidado === "true") return false;
+  if (emp.Ativo === true) return false;
+  return Boolean(emp.OnboardingToken || emp.StatusOnboarding);
+};
+
+const isOnboardingReadyForReview = (emp) => {
+  if (!isOnboardingOnlyPending(emp)) return false;
+  return (
+    emp.StatusOnboarding === "Aguardando Conferência" ||
+    Boolean(emp.OnboardingEnviadoEm) ||
+    Boolean(emp.Email && emp.CPF)
+  );
+};
+
 const showPortalToast = (message, type = "info") => {
-  if (typeof window.showToast === "function") {
-    window.showToast(message, type);
-    return;
+  if (typeof document === "undefined") return;
+  let container = document.getElementById("toastContainer");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toastContainer";
+    container.className = "toast-container";
+    container.setAttribute("aria-live", "polite");
+    document.body.appendChild(container);
   }
-  const container = document.getElementById("toastContainer");
-  if (!container) return;
+  const normalizedType = ["error", "warning", "success", "info"].includes(type) ? type : "info";
   const item = document.createElement("div");
-  item.className = `toast ${type}`;
-  item.textContent = message;
+  item.className = `toast ${normalizedType}`;
+  const icon = document.createElement("span");
+  icon.className = "toast-icon";
+  icon.textContent = normalizedType === "error" || normalizedType === "warning" ? "!" : "✓";
+  const copy = document.createElement("div");
+  copy.className = "toast-copy";
+  const title = document.createElement("strong");
+  title.textContent =
+    normalizedType === "error"
+      ? "Atenção"
+      : normalizedType === "warning"
+        ? "Confira"
+        : normalizedType === "success"
+          ? "Concluído"
+          : "Aviso";
+  const text = document.createElement("span");
+  text.textContent = String(message || "");
+  copy.append(title, text);
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.setAttribute("aria-label", "Fechar aviso");
+  close.textContent = "×";
+  close.onclick = () => item.remove();
+  item.append(icon, copy, close);
   container.appendChild(item);
-  setTimeout(() => item.remove(), 4200);
+  setTimeout(() => {
+    item.classList.add("toast-out");
+    setTimeout(() => item.remove(), 220);
+  }, 4200);
 };
 
 const invokePortal = async (method, payload = {}) => {
@@ -1817,6 +1863,228 @@ function injectPortalTabsStyles() {
         width: 100%;
       }
     }
+    /* ---- Notificações Toast compactas (Pliifex Mobile & Desktop) ---- */
+    #toastContainer.toast-container {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      right: 14px;
+      z-index: 9999;
+      display: grid;
+      gap: 8px;
+      pointer-events: none;
+    }
+    #toastContainer .toast {
+      pointer-events: auto;
+      display: grid !important;
+      grid-template-columns: 28px minmax(0, 1fr) 24px !important;
+      align-items: center !important;
+      gap: 10px !important;
+      width: min(370px, calc(100vw - 24px)) !important;
+      padding: 10px 12px !important;
+      border-radius: 13px !important;
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      border: 1px solid rgba(148, 163, 184, 0.25) !important;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24) !important;
+    }
+    #toastContainer .toast.error {
+      border-color: rgba(248, 113, 113, 0.45) !important;
+    }
+    #toastContainer .toast.warning {
+      border-color: rgba(251, 191, 36, 0.45) !important;
+    }
+    #toastContainer .toast-icon {
+      width: 28px !important;
+      height: 28px !important;
+      border-radius: 9px !important;
+      display: grid !important;
+      place-items: center !important;
+      font-size: 13px !important;
+      font-weight: 800 !important;
+      background: rgba(16, 185, 129, 0.18) !important;
+      color: #34d399 !important;
+    }
+    #toastContainer .toast.error .toast-icon {
+      background: rgba(239, 68, 68, 0.18) !important;
+      color: #f87171 !important;
+    }
+    #toastContainer .toast.warning .toast-icon {
+      background: rgba(245, 158, 11, 0.18) !important;
+      color: #fbbf24 !important;
+    }
+    #toastContainer .toast-copy {
+      min-width: 0 !important;
+      display: grid !important;
+      gap: 1px !important;
+    }
+    #toastContainer .toast-copy strong {
+      font-size: 12.5px !important;
+      font-weight: 700 !important;
+      line-height: 1.25 !important;
+      color: #ffffff !important;
+    }
+    #toastContainer .toast-copy span {
+      font-size: 12px !important;
+      line-height: 1.35 !important;
+      color: #cbd5e1 !important;
+      word-break: break-word !important;
+    }
+    #toastContainer .toast-close {
+      width: 24px !important;
+      height: 24px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      color: #94a3b8 !important;
+      font-size: 16px !important;
+      line-height: 1 !important;
+      cursor: pointer !important;
+    }
+    @media (max-width: 640px) {
+      #toastContainer.toast-container {
+        left: 12px !important;
+        right: 12px !important;
+        justify-items: center;
+      }
+      #toastContainer .toast {
+        width: 100% !important;
+        max-width: 400px !important;
+      }
+    }
+    /* ---- Lista de múltiplos arquivos (RG/CNH) ---- */
+    .onb-self-doc-card {
+      flex-wrap: wrap;
+    }
+    .onb-self-doc-files {
+      width: 100%;
+      flex-basis: 100%;
+      display: grid;
+      gap: 6px;
+      padding-top: 8px;
+      border-top: 1px dashed #cbd5e1;
+      margin-top: 2px;
+    }
+    .onb-self-file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 9px;
+      background: #ffffff;
+      border: 1px solid #d1fae5;
+      font-size: 12px;
+    }
+    .onb-self-file-name {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .onb-self-file-btns {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    /* ---- Painel Solicitações de Admissão em Pessoas & Docs ---- */
+    .portal-onb-sol-panel {
+      background: #ffffff;
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+      display: grid;
+      gap: 12px;
+    }
+    .portal-onb-sol-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .portal-onb-sol-list {
+      display: grid;
+      gap: 10px;
+    }
+    .portal-onb-sol-card {
+      border: 1px solid #ddd6fe;
+      border-left: 4px solid #7c3aed;
+      background: linear-gradient(135deg, #faf5ff 0%, #ffffff 100%);
+      border-radius: 13px;
+      padding: 14px 16px;
+      display: grid;
+      gap: 10px;
+    }
+    .portal-onb-sol-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      font-size: 12.5px;
+      color: #475569;
+    }
+    .portal-onb-sol-docs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .portal-onb-sol-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .portal-onb-drafts-details {
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+    }
+    .portal-onb-drafts-details summary {
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #475569;
+      list-style: none;
+    }
+    .portal-onb-draft-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 8px 0;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12.5px;
+    }
+    .portal-onb-review-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 8px 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid #e9d5ff;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .portal-onb-review-summary div span {
+      display: block;
+      color: #64748b;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .portal-onb-review-summary div strong {
+      color: #0f172a;
+      word-break: break-word;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -2217,11 +2485,12 @@ function enhanceEmployeeDialog() {
       <div class="portal-field-card permission-manager hidden" id="portalOnboardingReviewCard" style="border-left:4px solid #7c3aed; background:#faf5ff;">
         <div class="portal-field-card-head">
           <div>
-            <h4 class="portal-field-card-title" style="color:#5b21b6;">Conferência &amp; Liberação de Acesso</h4>
-            <span id="portalOnboardingReviewSub" class="portal-field-card-sub">O formulário já foi preenchido com os dados enviados pelo colaborador. Confira os dados e os documentos na aba 5 e libere o acesso.</span>
+            <h4 class="portal-field-card-title" style="color:#5b21b6;">Conferência &amp; Formalização do Colaborador</h4>
+            <span id="portalOnboardingReviewSub" class="portal-field-card-sub">Confira os dados e documentos enviados pelo novato e clique abaixo para aceitar, formalizar o cadastro e liberar o acesso.</span>
           </div>
           <span class="portal-pill portal-pill--amber">Aguardando Conferência</span>
         </div>
+        <div id="portalOnboardingReviewSummary" class="portal-onb-review-summary hidden"></div>
         <div class="dialog-grid" style="align-items:end; margin-bottom:10px;">
           <label class="field">
             <span>E-mail de Acesso</span>
@@ -2520,6 +2789,15 @@ function enhanceEmployeeDialog() {
         email,
         senhaProvisoria,
         etapa,
+        Nome: document.getElementById("employeeName")?.value || "",
+        LojaID: document.getElementById("employeeStore")?.value || "",
+        Cargo: document.getElementById("employeeRole")?.value || "",
+        Setor: document.getElementById("employeeSetor")?.value || "",
+        Perfil: document.getElementById("employeeProfile")?.value || "",
+        TipoContrato: document.getElementById("employeeContract")?.value || "",
+        DataAdmissao: document.getElementById("employeeAdmission")?.value || "",
+        TurnoTrabalho: document.getElementById("employeeTurnoTrabalho")?.value || "",
+        SalarioBase: document.getElementById("employeeSalarioBase")?.value || "",
         origin: `${window.location.origin}${window.location.pathname}`,
       });
       const updated = res.data?.colaborador;
@@ -2536,7 +2814,7 @@ function enhanceEmployeeDialog() {
           ? `<small style="display:block; color:#b45309; margin-top:6px;">${escapeHtml(res.data.avisos.join(" "))}</small>`
           : "";
         credBox.innerHTML = `
-          <strong style="display:block; color:#047857; margin-bottom:4px;">Cadastro conferido e acesso liberado!</strong>
+          <strong style="display:block; color:#047857; margin-bottom:4px;">Cadastro formalizado e acesso liberado!</strong>
           <div><strong>E-mail de acesso:</strong> ${escapeHtml(res.data?.emailLogin || email)}</div>
           ${pwdLine}
           ${notes}
@@ -2544,11 +2822,11 @@ function enhanceEmployeeDialog() {
         `;
         credBox.classList.remove("hidden");
       }
-      showPortalToast(res.message || "Acesso liberado!", "success");
-      loadEmployeesOverviewSummary();
-      loadUnifiedPendingHrItems();
-      if (typeof window.loadApplication === "function") {
-        window.loadApplication(true).catch(() => null);
+      showPortalToast(res.message || "Colaborador formalizado e acesso liberado!", "success");
+      await loadEmployeesOverviewSummary();
+      await loadUnifiedPendingHrItems();
+      if (typeof window.__GESTAO_REFRESH_APP__ === "function") {
+        window.__GESTAO_REFRESH_APP__({ silent: true }).catch(() => null);
       }
     } catch (err) {
       showPortalToast(err.message || "Não foi possível liberar o acesso.", "error");
@@ -2775,8 +3053,24 @@ function enhanceEmployeeDialog() {
   });
 }
 
-function openOnboardingFilePreview(title, fileUrl) {
-  if (!fileUrl) return;
+function normalizeDocItemFiles(docItem) {
+  if (!docItem) return [];
+  if (Array.isArray(docItem.arquivos) && docItem.arquivos.length) {
+    return docItem.arquivos.filter((f) => f && f.arquivoUrl);
+  }
+  if (docItem.arquivoUrl) {
+    return [{ arquivoUrl: docItem.arquivoUrl, nomeArquivo: docItem.nomeArquivo || docItem.titulo || "Documento", enviadoEm: docItem.enviadoEm }];
+  }
+  return [];
+}
+
+function openOnboardingFilePreview(title, fileUrlOrList) {
+  const files = Array.isArray(fileUrlOrList)
+    ? fileUrlOrList.filter((f) => f && f.arquivoUrl)
+    : fileUrlOrList
+      ? [{ arquivoUrl: String(fileUrlOrList), nomeArquivo: title || "Documento" }]
+      : [];
+  if (!files.length) return;
   let dlg = document.getElementById("portalOnboardingPreviewDialog");
   if (!dlg) {
     dlg = document.createElement("dialog");
@@ -2790,20 +3084,33 @@ function openOnboardingFilePreview(title, fileUrl) {
         </div>
         <button type="button" class="btn btn-secondary btn-sm" id="onbPrevClose">Fechar</button>
       </div>
-      <div id="onbPrevBody" style="padding:14px; text-align:center; max-height:72vh; overflow:auto;"></div>
+      <div id="onbPrevBody" style="padding:14px; text-align:center; max-height:72vh; overflow:auto; display:grid; gap:14px;"></div>
     `;
     document.body.appendChild(dlg);
     dlg.querySelector("#onbPrevClose")?.addEventListener("click", () => dlg.close());
   }
   const titleEl = dlg.querySelector("#onbPrevTitle");
   const bodyEl = dlg.querySelector("#onbPrevBody");
-  if (titleEl) titleEl.textContent = title || "Documento";
-  const safeUrl = String(fileUrl);
-  const isPdf = safeUrl.startsWith("data:application/pdf") || /\.pdf($|\?)/i.test(safeUrl);
+  if (titleEl) {
+    titleEl.textContent = files.length > 1 ? `${title || "Documento"} (${files.length} arquivos)` : title || "Documento";
+  }
   if (bodyEl) {
-    bodyEl.innerHTML = isPdf
-      ? `<iframe src="${escapeHtml(safeUrl)}" style="width:100%; height:62vh; border:1px solid #e2e8f0; border-radius:8px;"></iframe><div style="margin-top:10px;"><a href="${escapeHtml(safeUrl)}" download="${escapeHtml(title || "documento")}.pdf" class="btn btn-primary btn-sm" style="text-decoration:none;">Baixar PDF</a></div>`
-      : `<img src="${escapeHtml(safeUrl)}" alt="${escapeHtml(title || "Documento")}" style="max-width:100%; max-height:62vh; border-radius:8px; object-fit:contain; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />`;
+    bodyEl.innerHTML = files
+      .map((f, idx) => {
+        const safeUrl = String(f.arquivoUrl);
+        const label = f.nomeArquivo || `${title || "Documento"} ${idx + 1}`;
+        const isPdf = safeUrl.startsWith("data:application/pdf") || /\.pdf($|\?)/i.test(safeUrl);
+        const mediaHtml = isPdf
+          ? `<iframe src="${escapeHtml(safeUrl)}" style="width:100%; height:56vh; border:1px solid #e2e8f0; border-radius:8px;"></iframe><div style="margin-top:8px;"><a href="${escapeHtml(safeUrl)}" download="${escapeHtml(label)}.pdf" class="btn btn-primary btn-sm" style="text-decoration:none;">Baixar PDF</a></div>`
+          : `<img src="${escapeHtml(safeUrl)}" alt="${escapeHtml(label)}" style="max-width:100%; max-height:58vh; border-radius:8px; object-fit:contain; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />`;
+        return `
+          <div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px; background:#f8fafc;">
+            ${files.length > 1 ? `<div style="font-size:12px; font-weight:700; color:#334155; margin-bottom:8px; text-align:left;">Arquivo ${idx + 1}: ${escapeHtml(label)}</div>` : ""}
+            ${mediaHtml}
+          </div>
+        `;
+      })
+      .join("");
   }
   if (typeof dlg.showModal === "function") dlg.showModal();
   else dlg.setAttribute("open", "");
@@ -2876,6 +3183,45 @@ export function renderEmployeeOnboardingState(emp = {}, linkData = null) {
       !emp?.CadastroValidado &&
       (emp?.StatusOnboarding === "Aguardando Conferência" || Boolean(emp?.OnboardingEnviadoEm) || Boolean(emp?.Email));
     reviewCard.classList.toggle("hidden", !showReview);
+    const reviewSummary = document.getElementById("portalOnboardingReviewSummary");
+    if (reviewSummary) {
+      if (showReview) {
+        const dossieDocs = emp?.DossieDocumentos || {};
+        const attachedDocs = Object.values(dossieDocs).filter((d) => normalizeDocItemFiles(d).length > 0);
+        const endFull = [emp?.Endereco, emp?.NumeroEndereco, emp?.Bairro, emp?.Cidade, emp?.UF].filter(Boolean).join(", ");
+        const docButtons = attachedDocs
+          .map((d) => {
+            const files = normalizeDocItemFiles(d);
+            return `<button type="button" class="btn btn-secondary btn-sm" data-review-doc-preview="${escapeHtml(d.codigo)}" style="min-height:28px; padding:2px 8px; font-size:11.5px;">Ver ${escapeHtml(d.titulo || d.codigo)}${files.length > 1 ? ` (${files.length})` : ""}</button>`;
+          })
+          .join("");
+        reviewSummary.innerHTML = `
+          <div><span>Nome Completo</span><strong>${escapeHtml(emp?.Nome || "—")}</strong></div>
+          <div><span>CPF / RG</span><strong>${escapeHtml([emp?.CPF, emp?.RG].filter(Boolean).join(" · ") || "—")}</strong></div>
+          <div><span>WhatsApp</span><strong>${escapeHtml(emp?.WhatsApp || emp?.Telefone || "—")}</strong></div>
+          <div><span>E-mail</span><strong>${escapeHtml(emp?.Email || "—")}</strong></div>
+          <div><span>Endereço</span><strong>${escapeHtml(endFull || "—")}</strong></div>
+          <div><span>Chave PIX</span><strong>${escapeHtml(emp?.ChavePix || "—")}</strong></div>
+          ${
+            docButtons
+              ? `<div style="grid-column:1 / -1;"><span>Documentos Enviados pelo Novato (${attachedDocs.length})</span><div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">${docButtons}</div></div>`
+              : ""
+          }
+        `;
+        reviewSummary.querySelectorAll("[data-review-doc-preview]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const code = btn.getAttribute("data-review-doc-preview");
+            const docItem = dossieDocs[code];
+            const files = normalizeDocItemFiles(docItem);
+            if (files.length) openOnboardingFilePreview(docItem.titulo || code, files);
+          });
+        });
+        reviewSummary.classList.remove("hidden");
+      } else {
+        reviewSummary.innerHTML = "";
+        reviewSummary.classList.add("hidden");
+      }
+    }
     if (loginEmailInput && !loginEmailInput.value && emp?.Email) {
       loginEmailInput.value = emp.Email;
     } else if (loginEmailInput && emp?.Email) {
@@ -2912,15 +3258,17 @@ export function renderEmployeeOnboardingState(emp = {}, linkData = null) {
     const dossie = emp?.DossieDocumentos || {};
     checklist.innerHTML = REQUIRED_ADMISSION_DOCUMENTS.map((doc) => {
       const item = dossie[doc.codigo];
-      const previewBtn = item?.arquivoUrl
-        ? `<button type="button" class="btn btn-secondary btn-sm" data-onb-preview-doc="${escapeHtml(doc.codigo)}" style="min-height:28px; padding:2px 8px; font-size:11.5px;">Ver</button>`
+      const files = normalizeDocItemFiles(item);
+      const countLabel = files.length > 1 ? ` (${files.length})` : "";
+      const previewBtn = files.length
+        ? `<button type="button" class="btn btn-secondary btn-sm" data-onb-preview-doc="${escapeHtml(doc.codigo)}" style="min-height:28px; padding:2px 8px; font-size:11.5px;">Ver${countLabel}</button>`
         : "";
       return `
         <div class="portal-doc-item">
           <span>${doc.titulo}</span>
           <div style="display:flex; align-items:center; gap:6px;">
             ${previewBtn}
-            <span class="portal-pill ${item ? "portal-pill--green" : "portal-pill--neutral"}">${item ? "Enviado" : "Pendente"}</span>
+            <span class="portal-pill ${files.length ? "portal-pill--green" : "portal-pill--neutral"}">${files.length ? `Enviado${countLabel}` : "Pendente"}</span>
           </div>
         </div>
       `;
@@ -2929,8 +3277,9 @@ export function renderEmployeeOnboardingState(emp = {}, linkData = null) {
       btn.addEventListener("click", () => {
         const code = btn.getAttribute("data-onb-preview-doc");
         const docItem = dossie[code];
-        if (docItem?.arquivoUrl) {
-          openOnboardingFilePreview(docItem.titulo || code, docItem.arquivoUrl);
+        const files = normalizeDocItemFiles(docItem);
+        if (files.length) {
+          openOnboardingFilePreview(docItem.titulo || code, files);
         }
       });
     });
@@ -3066,12 +3415,270 @@ function mountEmployeesOverviewSummary() {
     view.appendChild(kpiStrip);
   }
 
+  const solPanel = document.createElement("div");
+  solPanel.id = "portalOnboardingSolicitationsPanel";
+  solPanel.className = "portal-onb-sol-panel permission-manager";
+  kpiStrip.after(solPanel);
+
   const tbody = document.getElementById("employeeBody");
   if (tbody && tbody.dataset.stageFilterObserver !== "true") {
     tbody.dataset.stageFilterObserver = "true";
     const obs = new MutationObserver(() => applyEmployeeStageRowFilter());
     obs.observe(tbody, { childList: true });
   }
+}
+
+async function renderOnboardingSolicitationsPanel(employees = []) {
+  const panel = document.getElementById("portalOnboardingSolicitationsPanel");
+  if (!panel) return;
+  const profile = runtime?.profile;
+  if (!isGerenteProfile(profile)) {
+    panel.classList.add("hidden");
+    return;
+  }
+  panel.classList.remove("hidden");
+
+  const storeId = window.__selectedPortalStoreId || "";
+  const storeFiltered = storeId
+    ? employees.filter((e) => !e.LojaID || String(e.LojaID) === String(storeId))
+    : employees;
+
+  const pendingAll = storeFiltered.filter((e) => isOnboardingOnlyPending(e));
+  const awaitingReview = pendingAll.filter((e) => isOnboardingReadyForReview(e));
+  const pendingDrafts = pendingAll.filter((e) => !isOnboardingReadyForReview(e));
+
+  window.__portalOnboardingPendingCount = awaitingReview.length;
+  if (typeof window.syncPendingCenterSummary === "function") {
+    window.syncPendingCenterSummary();
+  }
+
+  const stores = await runtime.list("Lojas").catch(() => []);
+  const activeStores = stores.filter((s) => s.Ativo !== false);
+
+  const awaitingHtml = awaitingReview.length
+    ? awaitingReview
+        .map((e) => {
+          const dossie = e.DossieDocumentos || {};
+          const docList = Object.values(dossie).filter((d) => normalizeDocItemFiles(d).length > 0);
+          const sentAt = e.OnboardingEnviadoEm ? String(e.OnboardingEnviadoEm).slice(0, 16).replace("T", " às ") : "Recentemente";
+          const cityStr = [e.Cidade, e.UF].filter(Boolean).join("/");
+          const docButtons = docList
+            .map((d) => {
+              const files = normalizeDocItemFiles(d);
+              return `<button type="button" class="btn btn-secondary btn-sm" data-sol-preview-emp="${escapeHtml(e.FuncionarioID)}" data-sol-preview-code="${escapeHtml(d.codigo)}" style="min-height:28px; padding:2px 8px; font-size:11.5px;">Ver ${escapeHtml(d.titulo || d.codigo)}${files.length > 1 ? ` (${files.length})` : ""}</button>`;
+            })
+            .join("");
+
+          return `
+            <article class="portal-onb-sol-card">
+              <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div>
+                  <strong style="font-size:15px; color:#0f172a;">${escapeHtml(e.Nome || "Novo Colaborador")}</strong>
+                  <small style="display:block; color:#64748b; margin-top:2px;">
+                    ${escapeHtml(e.NomeLoja || e.LojaID || "Unidade a definir")} · ${escapeHtml(e.Cargo || "Colaborador")} (${escapeHtml(e.TipoContrato || "CLT")}) · Enviado em ${escapeHtml(sentAt)}
+                  </small>
+                </div>
+                <span class="portal-pill portal-pill--amber">Aguardando Conferência</span>
+              </div>
+              <div class="portal-onb-sol-meta">
+                <span><strong>E-mail:</strong> ${escapeHtml(e.Email || "—")}</span>
+                <span><strong>WhatsApp:</strong> ${escapeHtml(e.WhatsApp || e.Telefone || "—")}</span>
+                <span><strong>CPF:</strong> ${escapeHtml(e.CPF || "—")}</span>
+                ${cityStr ? `<span><strong>Cidade:</strong> ${escapeHtml(cityStr)}</span>` : ""}
+                ${e.ChavePix ? `<span><strong>PIX:</strong> ${escapeHtml(e.ChavePix)}</span>` : ""}
+              </div>
+              <div class="portal-onb-sol-docs">
+                <span style="font-size:12px; font-weight:600; color:#475569;">Anexos (${docList.length}):</span>
+                ${docButtons || '<span style="font-size:12px; color:#64748b;">Nenhum anexo listado</span>'}
+              </div>
+              <div class="portal-onb-sol-actions">
+                <button type="button" class="btn btn-primary btn-sm" data-sol-conferir-emp="${escapeHtml(e.FuncionarioID)}">
+                  Conferir Dados &amp; Formalizar
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-sol-ficha-emp="${escapeHtml(e.FuncionarioID)}">
+                  Editar Ficha / Docs
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-sol-delete-emp="${escapeHtml(e.FuncionarioID)}" data-sol-delete-name="${escapeHtml(e.Nome || "Novo Colaborador")}" style="color:#b91c1c;">
+                  Excluir
+                </button>
+              </div>
+            </article>
+          `;
+        })
+        .join("")
+    : `<div style="font-size:13px; color:#64748b; padding:4px 0;">Nenhuma solicitação preenchida aguardando conferência no momento.</div>`;
+
+  const draftsHtml = pendingDrafts.length
+    ? `
+      <details class="portal-onb-drafts-details">
+        <summary>Links gerados aguardando preenchimento pelo novato (${pendingDrafts.length}) ▾</summary>
+        <div style="display:grid; margin-top:8px;">
+          ${pendingDrafts
+            .map((e) => {
+              const linkUrl =
+                e.OnboardingLinkUrl ||
+                (e.OnboardingToken
+                  ? `${window.location.origin}${window.location.pathname}?onboarding_token=${encodeURIComponent(e.OnboardingToken)}`
+                  : "");
+              const isGeneric = !e.Nome || e.Nome === "Novo Colaborador";
+              const label = isGeneric ? "Convite por Link (aguardando novato preencher nome e dados)" : e.Nome;
+              const createdStr = e.OnboardingLinkGeradoEm || e.DataCriacao ? String(e.OnboardingLinkGeradoEm || e.DataCriacao).slice(0, 10) : "-";
+              return `
+                <div class="portal-onb-draft-row">
+                  <div style="min-width:0; flex:1;">
+                    <strong style="color:#0f172a;">${escapeHtml(label)}</strong>
+                    <small style="display:block; color:#64748b;">${escapeHtml(e.NomeLoja || e.LojaID || "Todas / A definir")} · Criado em ${escapeHtml(createdStr)}</small>
+                  </div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                    ${linkUrl ? `<button type="button" class="btn btn-secondary btn-sm" data-sol-copy-link="${escapeHtml(linkUrl)}">Copiar Link</button>` : ""}
+                    <button type="button" class="btn btn-secondary btn-sm" data-sol-delete-emp="${escapeHtml(e.FuncionarioID)}" data-sol-delete-name="${escapeHtml(label)}" style="color:#b91c1c;">Excluir Link</button>
+                  </div>
+                </div>
+              `;
+            })
+            .join("")}
+        </div>
+      </details>
+    `
+    : "";
+
+  panel.innerHTML = `
+    <div class="portal-onb-sol-head">
+      <div>
+        <span class="eyebrow" style="margin-bottom:2px; color:#5b21b6;">ADMISSÃO DIGITAL · LINK DE PRÉ-CADASTRO</span>
+        <h3 style="margin:0; font-size:16px; color:#0f172a;">
+          Solicitações de Novos Colaboradores
+          ${awaitingReview.length ? `<span class="portal-pill portal-pill--amber" style="margin-left:6px;">${awaitingReview.length} para conferir</span>` : ""}
+        </h3>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button type="button" id="btnToggleQuickOnboardingLink" class="btn btn-primary btn-sm">+ Gerar Link para Novato</button>
+      </div>
+    </div>
+
+    <div id="portalQuickOnboardingGenerator" class="hidden" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:12px; display:grid; gap:10px;">
+      <div class="dialog-grid" style="align-items:end;">
+        <label class="field">
+          <span>Unidade</span>
+          <select id="quickOnbStoreSelect">
+            ${activeStores.map((s) => `<option value="${escapeHtml(s.LojaID)}" ${String(s.LojaID) === String(storeId || profile?.LojaID || "") ? "selected" : ""}>${escapeHtml(s.NomeLoja)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>Cargo (opcional)</span>
+          <input id="quickOnbRoleInput" type="text" placeholder="Ex.: Chapeiro, Atendente..." />
+        </label>
+        <div style="display:flex; gap:8px;">
+          <button type="button" id="btnConfirmQuickOnboardingLink" class="btn btn-primary btn-sm" style="min-height:38px;">Gerar &amp; Copiar Link</button>
+        </div>
+      </div>
+      <div id="quickOnbLinkResultBox" class="hidden" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input id="quickOnbLinkResultInput" type="text" readonly style="flex:1; min-width:220px; background:#ffffff; font-size:12.5px;" />
+        <a id="quickOnbLinkWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm hidden" style="text-decoration:none;">WhatsApp ↗</a>
+      </div>
+    </div>
+
+    <div class="portal-onb-sol-list">${awaitingHtml}</div>
+    ${draftsHtml}
+  `;
+
+  panel.querySelector("#btnToggleQuickOnboardingLink")?.addEventListener("click", () => {
+    panel.querySelector("#portalQuickOnboardingGenerator")?.classList.toggle("hidden");
+  });
+
+  panel.querySelector("#btnConfirmQuickOnboardingLink")?.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    try {
+      const selectedStore = panel.querySelector("#quickOnbStoreSelect")?.value || profile?.LojaID || "";
+      const role = panel.querySelector("#quickOnbRoleInput")?.value || "Colaborador";
+      const res = await invokePortal("gerarLinkOnboarding", {
+        LojaID: selectedStore,
+        Cargo: role,
+        origin: `${window.location.origin}${window.location.pathname}`,
+      });
+      const url = res?.data?.url || "";
+      const resultBox = panel.querySelector("#quickOnbLinkResultBox");
+      const resultInput = panel.querySelector("#quickOnbLinkResultInput");
+      if (resultInput) resultInput.value = url;
+      resultBox?.classList.remove("hidden");
+      if (url && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url).catch(() => null);
+      }
+      showPortalToast("Link gerado e copiado! Envie para o novato preencher.", "success");
+      await loadEmployeesOverviewSummary();
+    } catch (err) {
+      showPortalToast(err.message || "Não foi possível gerar o link.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  panel.querySelectorAll("[data-sol-preview-emp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const empId = btn.getAttribute("data-sol-preview-emp");
+      const code = btn.getAttribute("data-sol-preview-code");
+      const emp = employees.find((x) => String(x.FuncionarioID) === String(empId));
+      const docItem = emp?.DossieDocumentos?.[code];
+      const files = normalizeDocItemFiles(docItem);
+      if (files.length) openOnboardingFilePreview(docItem.titulo || code, files);
+    });
+  });
+
+  panel.querySelectorAll("[data-sol-conferir-emp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const empId = btn.getAttribute("data-sol-conferir-emp");
+      if (!empId) return;
+      window.__PORTAL_OPEN_EMP_TAB__ = "emp-tab-funil";
+      if (typeof window.editEmployee === "function") {
+        window.editEmployee(empId);
+      } else {
+        openEmployee360Dossier(empId);
+      }
+    });
+  });
+
+  panel.querySelectorAll("[data-sol-ficha-emp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const empId = btn.getAttribute("data-sol-ficha-emp");
+      if (!empId) return;
+      window.__PORTAL_OPEN_EMP_TAB__ = "emp-tab-basico";
+      if (typeof window.editEmployee === "function") {
+        window.editEmployee(empId);
+      }
+    });
+  });
+
+  panel.querySelectorAll("[data-sol-copy-link]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const url = btn.getAttribute("data-sol-copy-link");
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        showPortalToast("Link copiado para a área de transferência!", "success");
+      } catch {
+        window.prompt("Copie o link abaixo:", url);
+      }
+    });
+  });
+
+  panel.querySelectorAll("[data-sol-delete-emp]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const empId = btn.getAttribute("data-sol-delete-emp");
+      const empName = btn.getAttribute("data-sol-delete-name") || "este convite";
+      if (!empId) return;
+      if (!window.confirm(`Deseja remover permanentemente "${empName}"?`)) return;
+      btn.disabled = true;
+      try {
+        await runtime.invoke("deleteEmployee", [empId]);
+        showPortalToast("Convite/rascunho removido!", "success");
+        await loadEmployeesOverviewSummary();
+      } catch (err) {
+        showPortalToast(err.message || "Não foi possível excluir.", "error");
+        btn.disabled = false;
+      }
+    });
+  });
 }
 
 async function loadEmployeesOverviewSummary() {
@@ -3082,6 +3689,15 @@ async function loadEmployeesOverviewSummary() {
       runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => [])),
       invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })),
     ]);
+
+    if (window.__GESTAO_STATE__) {
+      window.__GESTAO_STATE__.employees = employees;
+      if (typeof window.__GESTAO_RENDER_EMPLOYEES__ === "function") {
+        window.__GESTAO_RENDER_EMPLOYEES__();
+      }
+    }
+
+    await renderOnboardingSolicitationsPanel(employees);
 
     const filtered = storeId
       ? employees.filter((e) => String(e.LojaID || "") === String(storeId))
@@ -3095,8 +3711,8 @@ async function loadEmployeesOverviewSummary() {
       const email = String(e.Email || "").trim().toLowerCase();
       const etapa = Number(e.EtapaAdmissao || 1);
       if (email) stageMap[email] = etapa;
-      if (e.Ativo !== false) ativos += 1;
-      if (etapa >= 1 && etapa <= 4 && e.Ativo !== false) onboarding += 1;
+      if (!isOnboardingOnlyPending(e) && e.Ativo !== false) ativos += 1;
+      if (isOnboardingReadyForReview(e) || (!isOnboardingOnlyPending(e) && etapa >= 1 && etapa <= 4 && e.Ativo !== false)) onboarding += 1;
       if (e.CadastroValidado) validados += 1;
     });
     window.__portalEmpStageByEmail = stageMap;
@@ -5408,12 +6024,16 @@ async function loadUnifiedPendingHrItems() {
     if (onboardingContainer && isManagerUser) {
       const awaitingReview = employees.filter((e) => {
         if (storeId && String(e.LojaID || "") !== String(storeId)) return false;
-        return !e.CadastroValidado && (e.StatusOnboarding === "Aguardando Conferência" || (e.OnboardingToken && e.OnboardingEnviadoEm));
+        return isOnboardingReadyForReview(e);
       });
+      window.__portalOnboardingPendingCount = awaitingReview.length;
+      if (typeof window.syncPendingCenterSummary === "function") {
+        window.syncPendingCenterSummary();
+      }
       const inOnboarding = employees.filter((e) => {
         if (storeId && String(e.LojaID || "") !== String(storeId)) return false;
         if (awaitingReview.some((r) => String(r.FuncionarioID) === String(e.FuncionarioID))) return false;
-        if (e.Ativo === false && !e.OnboardingToken) return false;
+        if (isOnboardingOnlyPending(e) || e.Ativo === false) return false;
         return Number(e.EtapaAdmissao || 1) < 5;
       });
       const alerts = Array.isArray(alertsRes?.data)
@@ -5865,6 +6485,9 @@ export function initPortalGestao() {
   window.addEventListener("gestao-user-hydrated", () => {
     syncWorkspaceHubBars();
     loadUnifiedPendingHrItems();
+    if (isGerenteProfile(runtime?.profile)) {
+      loadEmployeesOverviewSummary();
+    }
   });
 
   setTimeout(() => {
@@ -6075,7 +6698,11 @@ export async function mountOnboardingSelfPortal(token) {
         </div>
       `;
     } else if (awaiting) {
-      const uploadedCount = docsMetaList.filter((d) => docsDraft[d.codigo]?.arquivoUrl).length;
+      const uploadedDocsCount = docsMetaList.filter((d) => normalizeDocItemFiles(docsDraft[d.codigo]).length > 0).length;
+      const uploadedFilesCount = docsMetaList.reduce(
+        (sum, d) => sum + normalizeDocItemFiles(docsDraft[d.codigo]).length,
+        0,
+      );
       bodyHtml = `
         <div class="onb-self-card">
           <div class="onb-self-card-head">
@@ -6087,13 +6714,13 @@ export async function mountOnboardingSelfPortal(token) {
           <div style="display:grid; gap:6px;">
             <h2 style="margin:0; font-size:19px; color:#0f172a;">Ficha e documentos enviados!</h2>
             <p style="margin:0; font-size:13.5px; color:#475569; line-height:1.5;">
-              Obrigado, <strong>${escapeHtml(draft.Nome || "colaborador(a)")}</strong>. A Administração já recebeu seus dados cadastrais e ${uploadedCount} documento(s) para conferência. Assim que validarmos tudo, seu acesso ao aplicativo será liberado.
+              Obrigado, <strong>${escapeHtml(draft.Nome || "colaborador(a)")}</strong>. A Administração já recebeu seus dados cadastrais e ${uploadedDocsCount} documento(s) (${uploadedFilesCount} arquivo(s)) para conferência. Assim que validarmos tudo, seu acesso ao aplicativo será liberado.
             </p>
           </div>
           <div style="display:grid; gap:8px; padding:14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; color:#1e293b;">
             <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span style="color:#64748b;">E-mail de acesso</span><strong>${escapeHtml(draft.Email || "-")}</strong></div>
             <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span style="color:#64748b;">WhatsApp</span><strong>${escapeHtml(draft.Telefone || "-")}</strong></div>
-            <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span style="color:#64748b;">Documentos anexados</span><strong>${uploadedCount} arquivo(s)</strong></div>
+            <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span style="color:#64748b;">Documentos anexados</span><strong>${uploadedFilesCount} arquivo(s)</strong></div>
           </div>
           <div class="onb-self-actions" style="justify-content:flex-start;">
             <button type="button" id="btnOnbSelfEditAgain" class="btn btn-secondary">
@@ -6221,34 +6848,70 @@ export async function mountOnboardingSelfPortal(token) {
               ${docsMetaList
                 .map((d) => {
                   const uploaded = docsDraft[d.codigo];
-                  const badge = uploaded
-                    ? `<span class="portal-pill portal-pill--green">Anexado ✓</span>`
+                  const files = normalizeDocItemFiles(uploaded);
+                  const allowMulti = Boolean(d.multiplosArquivos || d.codigo === "RG_CNH");
+                  const isUploaded = files.length > 0;
+                  const badge = isUploaded
+                    ? `<span class="portal-pill portal-pill--green">${files.length > 1 ? `${files.length} arquivos ✓` : "Anexado ✓"}</span>`
                     : d.obrigatorioAutocadastro
                       ? `<span class="portal-pill portal-pill--amber">Obrigatório</span>`
                       : `<span class="portal-pill portal-pill--neutral">Opcional</span>`;
+                  const filesListHtml =
+                    allowMulti && files.length
+                      ? `
+                        <div class="onb-self-doc-files">
+                          ${files
+                            .map(
+                              (f, idx) => `
+                              <div class="onb-self-file-row">
+                                <span class="onb-self-file-name">${idx + 1}. ${escapeHtml(f.nomeArquivo || "Arquivo")}</span>
+                                <div class="onb-self-file-btns">
+                                  <button type="button" class="btn btn-secondary btn-sm" style="min-height:30px; padding:2px 8px; font-size:11.5px;" data-self-preview-doc="${escapeHtml(d.codigo)}" data-self-file-idx="${idx}">Ver</button>
+                                  <button type="button" class="btn btn-secondary btn-sm" style="min-height:30px; padding:2px 8px; font-size:11.5px; color:#b91c1c;" data-self-remove-doc="${escapeHtml(d.codigo)}" data-self-file-idx="${idx}" aria-label="Remover arquivo">×</button>
+                                </div>
+                              </div>
+                            `,
+                            )
+                            .join("")}
+                        </div>
+                      `
+                      : "";
+                  const btnLabel = allowMulti
+                    ? isUploaded
+                      ? "+ Adicionar Arquivo"
+                      : "Enviar Frente / Verso"
+                    : isUploaded
+                      ? "Trocar"
+                      : "Enviar Foto / PDF";
+                  const subHint = isUploaded
+                    ? allowMulti
+                      ? `${files.length} arquivo(s) anexado(s) — você pode enviar frente, verso ou mais páginas`
+                      : escapeHtml(uploaded.nomeArquivo || "Arquivo anexado")
+                    : allowMulti
+                      ? "Envie frente e verso separadamente (ou PDF) — pode enviar mais de 1 arquivo"
+                      : "Foto legível (frente e verso) ou arquivo PDF";
                   return `
-                    <div class="onb-self-doc-card ${uploaded ? "is-uploaded" : ""}">
+                    <div class="onb-self-doc-card ${isUploaded ? "is-uploaded" : ""}">
                       <div class="onb-self-doc-info">
                         <div class="onb-self-doc-top">
                           <span class="onb-self-doc-title">${escapeHtml(d.titulo)}</span>
                           ${badge}
                         </div>
-                        <span class="onb-self-doc-sub">
-                          ${uploaded ? escapeHtml(uploaded.nomeArquivo || "Arquivo anexado") : "Foto legível (frente e verso) ou arquivo PDF"}
-                        </span>
+                        <span class="onb-self-doc-sub">${subHint}</span>
                       </div>
                       <div class="onb-self-doc-actions">
                         ${
-                          uploaded?.arquivoUrl
+                          !allowMulti && isUploaded
                             ? `<button type="button" class="btn btn-secondary btn-sm" style="min-height:40px;" data-self-preview-doc="${escapeHtml(d.codigo)}">Ver</button>`
                             : ""
                         }
                         <label class="onb-self-upload-btn">
                           ${uploadIcon}
-                          <span>${uploaded ? "Trocar" : "Enviar Foto / PDF"}</span>
-                          <input type="file" accept="image/*,.pdf" class="portal-file-input-hidden" data-self-doc-input="${escapeHtml(d.codigo)}" />
+                          <span>${btnLabel}</span>
+                          <input type="file" accept="image/*,.pdf" ${allowMulti ? "multiple" : ""} class="portal-file-input-hidden" data-self-doc-input="${escapeHtml(d.codigo)}" />
                         </label>
                       </div>
+                      ${filesListHtml}
                     </div>
                   `;
                 })
@@ -6395,22 +7058,42 @@ export async function mountOnboardingSelfPortal(token) {
 
     root.querySelectorAll("[data-self-doc-input]").forEach((input) => {
       input.addEventListener("change", async () => {
-        const file = input.files?.[0];
-        if (!file) return;
+        const selectedFiles = Array.from(input.files || []);
+        if (!selectedFiles.length) return;
         const code = input.getAttribute("data-self-doc-input");
         const meta = docsMetaList.find((d) => d.codigo === code);
+        const allowMulti = Boolean(meta?.multiplosArquivos || code === "RG_CNH");
         try {
-          const dataUrl = await readAttachmentFileAsDataUrl(file);
-          if (dataUrl.length > 3500000) {
-            showPortalToast("Arquivo muito grande. Envie uma foto menor ou PDF de até 2,5 MB.", "error");
-            return;
+          const existingFiles = allowMulti ? normalizeDocItemFiles(docsDraft[code]) : [];
+          const nextFiles = [...existingFiles];
+          for (const file of selectedFiles) {
+            if (allowMulti && nextFiles.length >= 5) {
+              showPortalToast("Limite de 5 arquivos por documento atingido.", "warning");
+              break;
+            }
+            const dataUrl = await readAttachmentFileAsDataUrl(file);
+            if (dataUrl.length > 3500000) {
+              showPortalToast(`Arquivo "${file.name}" muito grande. Máx. 2,5 MB.`, "error");
+              continue;
+            }
+            nextFiles.push({
+              arquivoUrl: dataUrl,
+              nomeArquivo: file.name,
+              enviadoEm: new Date().toISOString(),
+            });
           }
+          if (!nextFiles.length) return;
+          const summaryName =
+            nextFiles.length > 1
+              ? `${nextFiles.length} arquivos (${nextFiles.map((f) => f.nomeArquivo).join(", ")})`
+              : nextFiles[0].nomeArquivo;
           docsDraft[code] = {
             codigo: code,
             titulo: meta?.titulo || code,
-            arquivoUrl: dataUrl,
-            nomeArquivo: file.name,
-            enviadoEm: new Date().toISOString(),
+            arquivoUrl: nextFiles[0].arquivoUrl,
+            nomeArquivo: summaryName,
+            arquivos: nextFiles,
+            enviadoEm: nextFiles[0].enviadoEm,
           };
           await persistDraft(false);
           showPortalToast(`${meta?.titulo || code} anexado!`, "success");
@@ -6424,10 +7107,40 @@ export async function mountOnboardingSelfPortal(token) {
     root.querySelectorAll("[data-self-preview-doc]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const code = btn.getAttribute("data-self-preview-doc");
+        const idxAttr = btn.getAttribute("data-self-file-idx");
         const docItem = docsDraft[code];
-        if (docItem?.arquivoUrl) {
-          openOnboardingFilePreview(docItem.titulo || code, docItem.arquivoUrl);
+        const files = normalizeDocItemFiles(docItem);
+        if (!files.length) return;
+        if (idxAttr !== null && idxAttr !== undefined) {
+          const fileObj = files[Number(idxAttr)];
+          if (fileObj) openOnboardingFilePreview(fileObj.nomeArquivo || docItem.titulo || code, [fileObj]);
+          return;
         }
+        openOnboardingFilePreview(docItem.titulo || code, files);
+      });
+    });
+
+    root.querySelectorAll("[data-self-remove-doc]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const code = btn.getAttribute("data-self-remove-doc");
+        const idx = Number(btn.getAttribute("data-self-file-idx"));
+        const files = normalizeDocItemFiles(docsDraft[code]);
+        const nextFiles = files.filter((_, i) => i !== idx);
+        if (nextFiles.length) {
+          docsDraft[code] = {
+            ...docsDraft[code],
+            arquivoUrl: nextFiles[0].arquivoUrl,
+            nomeArquivo:
+              nextFiles.length > 1
+                ? `${nextFiles.length} arquivos (${nextFiles.map((f) => f.nomeArquivo).join(", ")})`
+                : nextFiles[0].nomeArquivo,
+            arquivos: nextFiles,
+          };
+        } else {
+          delete docsDraft[code];
+        }
+        await persistDraft(false).catch(() => null);
+        renderSelfPortal();
       });
     });
 

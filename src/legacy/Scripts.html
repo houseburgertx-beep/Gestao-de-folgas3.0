@@ -4490,13 +4490,26 @@
       }).length;
     const vales = Number(window.__portalValesPendingCount || 0);
     const atestados = Number(window.__portalAtestadosPendingCount || 0);
+    const onboarding = Math.max(
+      Number(window.__portalOnboardingPendingCount || 0),
+      isManager()
+        ? arr(state.employees).filter(
+            (e) =>
+              isOnboardingOnlyPending_(e) &&
+              (String(val(e, "StatusOnboarding", "statusOnboarding") || "") ===
+                "Aguardando Conferência" ||
+                Boolean(val(e, "OnboardingEnviadoEm", "onboardingEnviadoEm"))),
+          ).length
+        : 0,
+    );
     return {
       timeOff: timeOff,
       clock: clock,
       swaps: swaps,
       vales: vales,
       atestados: atestados,
-      total: timeOff + clock + swaps + vales + atestados,
+      onboarding: onboarding,
+      total: timeOff + clock + swaps + vales + atestados + onboarding,
     };
   }
 
@@ -4589,6 +4602,15 @@
     }
   }
 
+  function isOnboardingOnlyPending_(x) {
+    if (!x) return false;
+    const validated = bool(val(x, "CadastroValidado", "cadastroValidado"));
+    const active = bool(val(x, "Ativo", "ativo"));
+    if (validated || active) return false;
+    const onbStatus = String(val(x, "StatusOnboarding", "statusOnboarding") || "");
+    const onbToken = String(val(x, "OnboardingToken", "onboardingToken") || "");
+    return Boolean(onbToken || onbStatus);
+  }
   function renderEmployees() {
     if (!state.takeatCredit?.loaded && !state.takeatCredit?.loading && typeof loadTakeatCreditData === "function") {
       loadTakeatCreditData(false, true).catch(() => {});
@@ -4597,6 +4619,7 @@
       store = $("#employeeStoreFilter").value;
     const rows = state.employees.filter(
       (x) =>
+        !isOnboardingOnlyPending_(x) &&
         (!q ||
           (val(x, "Nome", "nome") + " " + val(x, "Email", "email"))
             .toLowerCase()
@@ -4689,6 +4712,7 @@
         })
         .join("") || empty(8);
   }
+  window.__GESTAO_RENDER_EMPLOYEES__ = renderEmployees;
 
   function closeEmployeeActionDropdown() {
     const existing = document.getElementById("employeeActionDropdown");
