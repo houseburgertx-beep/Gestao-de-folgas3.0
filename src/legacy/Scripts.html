@@ -566,6 +566,24 @@
       bindUI();
       installStartupSafety_();
 
+      const initialUrlParams = new URLSearchParams(location.search);
+      const onboardingToken = initialUrlParams.get("onboarding_token");
+      if (onboardingToken) {
+        $("#loadingOverlay")?.classList.remove("hidden");
+        $("#loginScreen")?.classList.add("hidden");
+        $("#app")?.classList.add("hidden");
+        await waitForPortalApi_();
+        const firebaseRuntime = window.__GESTAO_FIREBASE__?.runtime;
+        if (firebaseRuntime) {
+          await firebaseRuntime.ready().catch(() => {});
+        }
+        setLoading(false);
+        if (typeof window.mountOnboardingSelfPortal === "function") {
+          await window.mountOnboardingSelfPortal(onboardingToken);
+          return;
+        }
+      }
+
       // Força limpeza de cache obsoleto quando a versão do sistema é atualizada
       const APP_CLIENT_VERSION_ = "6.16.37";
       const storedVersion = localStorage.getItem("gf_app_version");
@@ -4626,6 +4644,16 @@
             ? `<span class="badge" style="background:#f0fdf4; color:#166534; font-size:10px; padding:2px 6px; border:1px solid #bbf7d0;" title="Política de Privacidade assinada digitalmente com rubrica">Política OK</span>`
             : `<span class="badge" style="background:#fffbeb; color:#92400e; font-size:10px; padding:2px 6px; border:1px solid #fde68a;" title="Ciência da Política de Privacidade pendente de assinatura">Política Pend.</span>`;
 
+          const onbStatus = String(val(x, "StatusOnboarding", "statusOnboarding") || "");
+          const isValidated = bool(val(x, "CadastroValidado", "cadastroValidado"));
+          const onbBadge = !isValidated && onbStatus === "Aguardando Conferência"
+            ? `<span class="badge" style="background:#fef3c7; color:#b45309; font-size:10px; padding:2px 6px; border:1px solid #fcd34d;">Aguardando Conferência</span>`
+            : !isValidated && onbStatus === "Link Enviado"
+              ? `<span class="badge" style="background:#eff6ff; color:#1d4ed8; font-size:10px; padding:2px 6px; border:1px solid #bfdbfe;">Link Enviado</span>`
+              : !isValidated && onbStatus === "Correção Solicitada"
+                ? `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:10px; padding:2px 6px; border:1px solid #fecaca;">Correção Solicitada</span>`
+                : "";
+
           const personCell = `
             <div class="person-cell" style="display: flex; align-items: center; gap: 10px;">
               ${avatarMarkup_(x || empName, "", empEmail)}
@@ -4648,7 +4676,7 @@
             <td data-label="Perfil">${esc(val(x, "Perfil", "perfil"))}</td>
             <td data-label="Folgas extras" style="text-align: center;"><b>${esc(val(x, "SaldoFolgas", "saldoFolgas") || 0)}</b></td>
             <td data-label="Folga fixa">${esc(fixed)}</td>
-            <td data-label="Situação"><div class="status-cell-wrap">${badge(active ? "Ativo" : "Inativo")}${googleIcon}${privacyBadge}</div></td>
+            <td data-label="Situação"><div class="status-cell-wrap">${badge(active ? "Ativo" : "Inativo")}${onbBadge}${googleIcon}${privacyBadge}</div></td>
             <td data-label="Ações" class="employee-actions-cell">
               <div class="row-actions" style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px;">
                 <button type="button" class="btn-quick-edit" data-action="edit-employee" data-id="${esc(id)}" title="Editar cadastro" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color, #e2e8f0); background: #ffffff; color: var(--primary, #6340d8); cursor: pointer;">Editar</button>
@@ -5570,6 +5598,7 @@
         toast(error.message || "Não foi possível carregar a jornada.", true),
       );
   }
+  window.editEmployee = editEmployee;
   function validateScheduleBeforeEmployeeSave(schedule) {
     const minutes = (value) => {
       const match = String(value || "").match(/^(\d{1,2}):(\d{2})$/);

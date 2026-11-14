@@ -6,6 +6,9 @@ import { ID_FIELDS } from "../src/core/constants.js";
 
 function createInMemoryRuntimeMock() {
   const db = {};
+  const paths = new Map();
+  const accessMap = new Map();
+  const authUsers = [];
   let activeProfile = {
     UsuarioID: "u-dir-1",
     FuncionarioID: "emp-dir-1",
@@ -23,10 +26,33 @@ function createInMemoryRuntimeMock() {
 
   const idFieldFor = (table) => ID_FIELDS[table] || "id";
 
+  const clone = (val) => (val === undefined ? null : JSON.parse(JSON.stringify(val)));
+  const getPathPrefixMatches = (relPath) => {
+    const clean = String(relPath || "").replace(/^\/+|\/+$/g, "");
+    if (!clean) return Object.fromEntries(paths.entries());
+    if (paths.has(clean)) return clone(paths.get(clean));
+    const prefix = `${clean}/`;
+    const out = {};
+    let found = false;
+    for (const [k, v] of paths.entries()) {
+      if (k.startsWith(prefix)) {
+        const subKey = k.slice(prefix.length).split("/")[0];
+        if (!subKey.includes("/")) {
+          out[subKey] = clone(v);
+          found = true;
+        }
+      }
+    }
+    return found ? out : null;
+  };
+
   return {
     db,
+    paths,
+    accessMap,
+    authUsers,
     setProfile(profile) {
-      activeProfile = { ...profile };
+      activeProfile = profile ? { ...profile } : null;
     },
     getProfile() {
       return activeProfile;
@@ -40,26 +66,35 @@ function createInMemoryRuntimeMock() {
         update: runtime.update,
         patch: runtime.patch,
         upsert: runtime.upsert,
+        readPath: runtime.readPath,
+        writePath: runtime.writePath,
+        patchPath: runtime.patchPath,
+        createAuthUser: runtime.createAuthUser,
+        saveAccess: runtime.saveAccess,
+        getAccess: runtime.getAccess,
       };
 
-      runtime.requireProfile = async () => ({ ...activeProfile });
+      runtime.requireProfile = async () => {
+        if (!activeProfile) throw new Error("Sessão inválida ou não autenticada.");
+        return { ...activeProfile };
+      };
       runtime.list = async (table) =>
-        Array.from(getTable(table).values()).map((r) => JSON.parse(JSON.stringify(r)));
+        Array.from(getTable(table).values()).map((r) => clone(r));
       runtime.getById = async (table, id) => {
         const item = getTable(table).get(String(id));
-        return item ? JSON.parse(JSON.stringify(item)) : null;
+        return item ? clone(item) : null;
       };
       runtime.create = async (table, record) => {
         const keyField = idFieldFor(table);
         const key = String(record[keyField] || record.id || `${Date.now()}-${Math.random()}`);
-        const copy = JSON.parse(JSON.stringify({ ...record, [keyField]: key }));
+        const copy = clone({ ...record, [keyField]: key });
         getTable(table).set(key, copy);
         return copy;
       };
       runtime.update = async (table, id, record) => {
         const keyField = idFieldFor(table);
         const existing = getTable(table).get(String(id)) || {};
-        const merged = JSON.parse(JSON.stringify({ ...existing, ...record, [keyField]: String(id) }));
+        const merged = clone({ ...existing, ...record, [keyField]: String(id) });
         getTable(table).set(String(id), merged);
         return merged;
       };
@@ -69,6 +104,37 @@ function createInMemoryRuntimeMock() {
         const key = String(record[keyField] || record.id);
         return runtime.update(table, key, record);
       };
+      runtime.readPath = async (relPath) => getPathPrefixMatches(relPath);
+      runtime.writePath = async (relPath, value) => {
+        const clean = String(relPath || "").replace(/^\/+|\/+$/g, "");
+        if (value == null) paths.delete(clean);
+        else paths.set(clean, clone(value));
+        return value;
+      };
+      runtime.patchPath = async (relPath, updates) => {
+        const clean = String(relPath || "").replace(/^\/+|\/+$/g, "");
+        const prev = paths.get(clean);
+        const baseObj = prev && typeof prev === "object" ? { ...prev } : {};
+        for (const [k, v] of Object.entries(updates || {})) {
+          if (v == null) delete baseObj[k];
+          else baseObj[k] = clone(v);
+        }
+        paths.set(clean, baseObj);
+        return updates;
+      };
+      runtime.createAuthUser = async (email, password, onCreated) => {
+        const uid = `auth-${authUsers.length + 1}`;
+        authUsers.push({ uid, email, password });
+        if (typeof onCreated === "function") {
+          await onCreated(uid);
+        }
+        return uid;
+      };
+      runtime.saveAccess = async (uid, data) => {
+        accessMap.set(String(uid), clone(data));
+        return data;
+      };
+      runtime.getAccess = async (uid) => clone(accessMap.get(String(uid)) || null);
 
       return () => {
         Object.assign(runtime, orig);
@@ -818,5 +884,246 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
     const empLogs = await portal.getEmployeeAuditHistory("emp-colab-1");
     assert.ok(empLogs.data.logs.length >= 5);
     assert.ok(empLogs.data.logs.some((l) => l.Acao === "FOLHA_EDICAO_MANUAL" && l.Justificativa.includes("Diferença apurada")));
+  });
+
+  // ==========================================================================
+  // LINK PÚBLICO DE AUTOCADASTRO DO NOVATO, CONFERÊNCIA E LIBERAÇÃO DE ACESSO
+  // ==========================================================================
+  await t.test("Onboarding Público: Link sem login, preenchimento completo pelo novato, conferência, liberação e funil até Etapa 6", async () => {
+    mock.setProfile({
+      UsuarioID: "u-dir-1",
+      FuncionarioID: "emp-dir-1",
+      Nome: "Diretora Geral",
+      Email: "diretoria@house190.com.br",
+      Perfil: "Diretoria",
+      LojaID: "",
+    });
+
+    // 1. Diretoria gera link para um funcionário novato ainda sem cadastro completo
+    const linkRes = await portal.gerarLinkOnboarding({
+      Nome: "Carla Novata",
+      Telefone: "73999887766",
+      Cargo: "Atendente",
+      Setor: "Salão",
+      LojaID: "loja-1",
+      TipoContrato: "CLT",
+      DataAdmissao: "2026-11-20",
+      origin: "https://house190.github.io/Gestao-de-folgas3.0/",
+    });
+    assert.equal(linkRes.success, true);
+    const { token, url, colaborador: preEmp } = linkRes.data;
+    assert.match(token, /^onb_[A-Za-z0-9_-]{24,96}$/);
+    assert.ok(url.includes(`onboarding_token=${encodeURIComponent(token)}`));
+    assert.equal(preEmp.Ativo, false);
+    assert.equal(preEmp.EtapaAdmissao, 1);
+    assert.equal(preEmp.StatusOnboarding, "Link Enviado");
+
+    // 2. Novato abre o link SEM estar logado (profile = null)
+    mock.setProfile(null);
+    await assert.rejects(
+      () => portal.consultarConviteOnboarding({ token: "token-invalido" }),
+      /inválido ou malformado/i,
+    );
+
+    const consultRes = await portal.consultarConviteOnboarding({ token });
+    assert.equal(consultRes.success, true);
+    assert.equal(consultRes.data.convite.Status, "Pendente");
+    assert.equal(consultRes.data.convite.NomeLoja, "House 190 Matriz");
+
+    // 3. Salva rascunho parcial sem erro
+    const draftRes = await portal.salvarAutocadastroOnboarding({
+      token,
+      finalizar: false,
+      dados: { Nome: "Carla Oliveira Novata", Telefone: "73999887766" },
+    });
+    assert.equal(draftRes.success, true);
+    assert.equal(draftRes.data.Status, "Em Preenchimento");
+
+    // 4. Tenta finalizar sem documentos obrigatórios -> deve validar e rejeitar
+    await assert.rejects(
+      () =>
+        portal.salvarAutocadastroOnboarding({
+          token,
+          finalizar: true,
+          dados: {
+            Nome: "Carla Oliveira Novata",
+            CPF: "98765432100",
+            RG: "15.888.999-0",
+            DataNascimento: "2001-05-14",
+            Telefone: "73999887766",
+            Email: "carla.novata@house190.com.br",
+            CEP: "45990-000",
+            Endereco: "Rua Bahia",
+            NumeroEndereco: "42",
+            Bairro: "Centro",
+            Cidade: "Teixeira de Freitas",
+            UF: "BA",
+            ContatoEmergenciaNome: "Rosa Oliveira",
+            ContatoEmergenciaParentesco: "Mãe",
+            ContatoEmergenciaTelefone: "73999110022",
+            ChavePix: "98765432100",
+          },
+          documentos: {},
+        }),
+      /documentos obrigatórios/i,
+    );
+
+    // 5. Envia ficha completa + 5 documentos obrigatórios
+    const docsPayload = {
+      RG_CNH: { codigo: "RG_CNH", arquivoUrl: "data:image/png;base64,AAA", nomeArquivo: "rg.png" },
+      CPF: { codigo: "CPF", arquivoUrl: "data:image/png;base64,BBB", nomeArquivo: "cpf.png" },
+      COMPROVANTE_RESIDENCIA: { codigo: "COMPROVANTE_RESIDENCIA", arquivoUrl: "data:application/pdf;base64,CCC", nomeArquivo: "residencia.pdf" },
+      CERTIDAO: { codigo: "CERTIDAO", arquivoUrl: "data:image/png;base64,DDD", nomeArquivo: "certidao.png" },
+      CTPS_DIGITAL: { codigo: "CTPS_DIGITAL", arquivoUrl: "data:application/pdf;base64,EEE", nomeArquivo: "ctps.pdf" },
+    };
+
+    const submitRes = await portal.salvarAutocadastroOnboarding({
+      token,
+      finalizar: true,
+      dados: {
+        Nome: "Carla Oliveira Novata",
+        NomeSocial: "Carla",
+        CPF: "98765432100",
+        RG: "15.888.999-0",
+        DataNascimento: "2001-05-14",
+        EstadoCivil: "Solteiro(a)",
+        NomeMae: "Rosa Oliveira",
+        Telefone: "73999887766",
+        WhatsApp: "73999887766",
+        Email: "carla.novata@house190.com.br",
+        CEP: "45990-000",
+        Endereco: "Rua Bahia",
+        NumeroEndereco: "42",
+        Bairro: "Centro",
+        Cidade: "Teixeira de Freitas",
+        UF: "BA",
+        ContatoEmergenciaNome: "Rosa Oliveira",
+        ContatoEmergenciaParentesco: "Mãe",
+        ContatoEmergenciaTelefone: "73999110022",
+        ChavePix: "98765432100",
+        BancoNome: "Nubank",
+      },
+      documentos: docsPayload,
+    });
+    assert.equal(submitRes.success, true);
+    assert.equal(submitRes.data.Status, "Aguardando Conferência");
+    assert.equal(submitRes.data.EtapaAdmissao, 2);
+
+    // 6. Administração sincroniza e vê todo o formulário já preenchido automaticamente
+    mock.setProfile({
+      UsuarioID: "u-dir-1",
+      FuncionarioID: "emp-dir-1",
+      Nome: "Diretora Geral",
+      Email: "diretoria@house190.com.br",
+      Perfil: "Diretoria",
+      LojaID: "",
+    });
+
+    const syncRes = await portal.sincronizarConvitesOnboarding({ FuncionarioID: preEmp.FuncionarioID });
+    assert.equal(syncRes.success, true);
+    assert.equal(syncRes.data.syncedCount, 1);
+
+    const empSynced = await runtime.getById("Funcionarios", preEmp.FuncionarioID);
+    assert.equal(empSynced.Nome, "Carla Oliveira Novata");
+    assert.equal(empSynced.CPF, "987.654.321-00");
+    assert.equal(empSynced.Email, "carla.novata@house190.com.br");
+    assert.equal(empSynced.Cidade, "Teixeira de Freitas");
+    assert.equal(empSynced.ChavePix, "98765432100");
+    assert.equal(empSynced.StatusOnboarding, "Aguardando Conferência");
+    assert.equal(empSynced.StatusAcesso, "Aguardando Conferência");
+    assert.equal(empSynced.EtapaAdmissao, 2);
+    assert.equal(empSynced.Ativo, false);
+    assert.ok(empSynced.DossieDocumentos.CTPS_DIGITAL);
+    const rgDocSynced = await runtime.getById("Documentos", `ONB_${preEmp.FuncionarioID}_RG_CNH`);
+    assert.ok(rgDocSynced);
+    assert.equal(rgDocSynced.StatusValidacao, "Em Análise");
+
+    // 7. Administração pede correção primeiro -> volta para Em Preenchimento / Correção Solicitada
+    const corrRes = await portal.conferirLiberarAcessoOnboarding({
+      FuncionarioID: preEmp.FuncionarioID,
+      aprovar: false,
+      motivo: "Foto do RG está cortada",
+    });
+    assert.equal(corrRes.success, true);
+    assert.equal(corrRes.data.colaborador.StatusOnboarding, "Correção Solicitada");
+
+    // Novato reenvia corrigido pelo mesmo link (sem login)
+    mock.setProfile(null);
+    const resubmitRes = await portal.salvarAutocadastroOnboarding({
+      token,
+      finalizar: true,
+      dados: { Nome: "Carla Oliveira Novata" },
+      documentos: {
+        ...docsPayload,
+        RG_CNH: { codigo: "RG_CNH", arquivoUrl: "data:image/png;base64,RG_NITIDA", nomeArquivo: "rg-nitida.png" },
+      },
+    });
+    assert.equal(resubmitRes.data.Status, "Aguardando Conferência");
+
+    // 8. Diretoria confere, aprova e libera o acesso (cria Auth + access + limpa PII do nó público)
+    mock.setProfile({
+      UsuarioID: "u-dir-1",
+      FuncionarioID: "emp-dir-1",
+      Nome: "Diretora Geral",
+      Email: "diretoria@house190.com.br",
+      Perfil: "Diretoria",
+      LojaID: "",
+    });
+    const approveRes = await portal.conferirLiberarAcessoOnboarding({
+      FuncionarioID: preEmp.FuncionarioID,
+      aprovar: true,
+      etapa: 3,
+    });
+    assert.equal(approveRes.success, true);
+    assert.equal(approveRes.data.colaborador.Ativo, true);
+    assert.equal(approveRes.data.colaborador.CadastroValidado, true);
+    assert.equal(approveRes.data.colaborador.StatusOnboarding, "Aprovado");
+    assert.equal(approveRes.data.colaborador.EtapaAdmissao, 3);
+    assert.equal(approveRes.data.loginCriado, true);
+    assert.ok(approveRes.data.senhaProvisoria && approveRes.data.senhaProvisoria.length >= 10);
+    assert.match(approveRes.data.waUrl, /wa\.me\/5573999887766/);
+
+    // Verifica access/${authUid} gravado para o colaborador
+    const createdAuthUid = approveRes.data.colaborador.AuthUID;
+    assert.ok(createdAuthUid);
+    const accessCreated = await runtime.getAccess(createdAuthUid);
+    assert.equal(accessCreated.Ativo, true);
+    assert.equal(accessCreated.FuncionarioID, preEmp.FuncionarioID);
+    assert.equal(accessCreated.Email, "carla.novata@house190.com.br");
+
+    // Verifica que PII do nó público onboardingConvites/$token foi limpa após aprovação
+    const inviteAfter = await runtime.readPath(`onboardingConvites/${token}`);
+    assert.equal(inviteAfter.Status, "Aprovado");
+    assert.equal(inviteAfter.CadastroValidado, true);
+    assert.equal(inviteAfter.Submissao, undefined);
+
+    // 9. Tentativa de alterar pelo link público após aprovação -> BLOQUEADA
+    mock.setProfile(null);
+    await assert.rejects(
+      () => portal.salvarAutocadastroOnboarding({ token, finalizar: false, dados: { Nome: "Invasor" } }),
+      /já foi conferido e validado/i,
+    );
+
+    // 10. Continua passando pelas etapas 4, 5 e 6 até Efetivado
+    mock.setProfile({
+      UsuarioID: "u-dir-1",
+      FuncionarioID: "emp-dir-1",
+      Nome: "Diretora Geral",
+      Email: "diretoria@house190.com.br",
+      Perfil: "Diretoria",
+      LojaID: "",
+    });
+    for (const st of [4, 5, 6]) {
+      const nextRes = await portal.avancarEtapaOnboarding({
+        FuncionarioID: preEmp.FuncionarioID,
+        etapa: st,
+        ...(st === 6 ? { substatus: "Efetivado" } : {}),
+      });
+      assert.equal(nextRes.data.EtapaAdmissao, st);
+    }
+    const empFinal = await runtime.getById("Funcionarios", preEmp.FuncionarioID);
+    assert.equal(empFinal.EtapaAdmissao, 6);
+    assert.equal(empFinal.SubstatusEtapa6, "Efetivado");
+    assert.ok(empFinal.DataEfetivacao);
   });
 });

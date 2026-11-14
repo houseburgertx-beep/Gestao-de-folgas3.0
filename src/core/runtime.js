@@ -982,6 +982,24 @@ export class FirebaseRuntime {
     if (this.auth.currentUser?.uid === uid) this.profile = null;
   }
 
+  async readPath(relativePath) {
+    const snapshot = await get(this.appRef(relativePath));
+    return snapshot.exists() ? clone(snapshot.val()) : null;
+  }
+
+  async writePath(relativePath, value) {
+    await set(
+      this.appRef(relativePath),
+      value === null ? null : cleanObject(value),
+    );
+    return value === null ? null : clone(value);
+  }
+
+  async patchPath(relativePath, updates) {
+    await update(this.appRef(relativePath), cleanObject(updates));
+    return clone(updates);
+  }
+
   recordCacheKey(table, id) {
     return `${table}:${String(id || "")}`;
   }

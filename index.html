@@ -38,7 +38,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
     <meta name="app-version" content="6.17.13-firebase-github" />
     <title>Gestão de Folgas</title>
-    <link rel="stylesheet" href="./generated/legacy-styles-20342b46d005.css">
+    <link rel="stylesheet" href="./generated/legacy-styles-94a0c9d319cc.css">
   </head>
   <body>
     <div id="loadingOverlay" class="loading-overlay">
@@ -481,16 +481,6 @@
               </div>
               <button type="button" id="incompletePunchesActionBtn" class="incomplete-alert-btn">Ajustar agora</button>
             </div>
-            <div id="docHomeAlertBanner" class="incomplete-punches-alert hidden" style="border-left-color: #6366f1; background: rgba(99, 102, 241, 0.08);">
-              <div class="incomplete-alert-content">
-                <span class="incomplete-alert-icon" style="color: #6366f1;"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
-                <div class="incomplete-alert-text">
-                  <strong id="docHomeAlertTitle" style="color: #4338ca;">Documentos aguardando assinatura</strong>
-                  <p id="docHomeAlertDesc">Consulte e assine seus documentos pelo celular com segurança jurídica.</p>
-                </div>
-              </div>
-              <button type="button" class="incomplete-alert-btn" style="background: #4f46e5; color: #fff;" data-view-target="documents">Assinar agora</button>
-            </div>
             <!-- Seção Inteligente: HOUSE AI 2.0 (oculta para interface limpa) -->
             <section id="houseAiDashboardSection" class="house-ai-dashboard-section hidden" style="display:none !important;">
               <div class="house-ai-dash-header">
@@ -690,11 +680,12 @@
                   ＋ Pedir folga
                 </button>
                 <button
-                  id="pendingRefreshBtn"
+                  id="pendingNewValeBtn"
                   class="btn btn-secondary"
                   type="button"
+                  data-j-request-vale
                 >
-                  ↻ Atualizar
+                  Pedir vale
                 </button>
               </div>
             </div>
@@ -729,6 +720,12 @@
                 <span class="pending-summary-icon">⇄</span>
                 <div>
                   <strong id="pendingSwapMetric">0</strong><small>Trocas</small>
+                </div>
+              </article>
+              <article class="pending-summary-card is-vale">
+                <span class="pending-summary-icon">R$</span>
+                <div>
+                  <strong id="pendingValeMetric">0</strong><small>Vales</small>
                 </div>
               </article>
             </div>
@@ -766,6 +763,13 @@
               >
                 Trocas <em id="pendingSwapFilterCount">0</em>
               </button>
+              <button
+                class="pending-filter-btn"
+                data-pending-filter="vale"
+                type="button"
+              >
+                Vales <em id="pendingValeFilterCount">0</em>
+              </button>
             </div>
 
             <div class="pending-center-content">
@@ -781,13 +785,6 @@
                       </p>
                     </div>
                   </div>
-                  <button
-                    id="pendingTimeOffAction"
-                    class="btn btn-primary"
-                    type="button"
-                  >
-                    ＋ Pedir folga
-                  </button>
                 </div>
                 <div id="requestCards" class="request-grid"></div>
                 <div class="pending-related-tools permission-manager">
@@ -948,6 +945,22 @@
                 <div id="swapCards" class="request-grid swap-grid"></div>
               </section>
 
+              <section class="pending-category" data-pending-category="vale">
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon is-vale">R$</span>
+                    <div>
+                      <span class="eyebrow">VALES</span>
+                      <h3 id="pendingValeTitle">Pedidos de vale</h3>
+                      <p id="pendingValeDescription">
+                        Acompanhe os pedidos de adiantamento salarial.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div id="valePendingCards" class="request-grid"></div>
+              </section>
+
               <section
                 class="pending-category"
                 data-pending-category="onboarding"
@@ -1017,7 +1030,7 @@
             </div>
           </section>
           <section id="view-timeclock" class="view">
-            <div class="section-toolbar">
+            <div class="section-toolbar permission-team-read">
               <div>
                 <span class="eyebrow">JORNADA</span>
                 <h2>Controle de ponto</h2>
@@ -1111,27 +1124,28 @@
                   <p id="clockDaySummary">Mostrando somente o dia selecionado.</p>
                 </div>
                 <div class="clock-day-picker" aria-label="Selecionar dia do ponto">
-                  <button
-                    id="clockDownloadMirrorPdfBtn"
-                    class="btn btn-secondary clock-print-mirror-btn"
-                    type="button"
-                    style="font-size:12.5px; padding:6px 12px; border-radius:10px; display:inline-flex; align-items:center; gap:6px;"
-                    title="Baixar ou imprimir o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
-                  >
-                    📄 Espelho de Ponto (Portaria 671)
-                  </button>
-                  <button
-                    id="clockSignMirrorBtn"
-                    class="btn btn-primary clock-sign-mirror-btn"
-                    type="button"
-                    style="font-size:12.5px; padding:6px 14px; border-radius:10px; display:inline-flex; align-items:center; gap:6px; font-weight:600;"
-                    title="Conferir e assinar digitalmente o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
-                  >
-                    Assinar espelho digitalmente
-                  </button>
-                  <span id="clockMirrorSignedBadge" class="badge badge-success hidden" style="font-size:11px; padding:5px 9px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; font-weight:600;"></span>
+                  <div class="clock-mirror-actions">
+                    <button
+                      id="clockDownloadMirrorPdfBtn"
+                      class="btn btn-secondary clock-print-mirror-btn"
+                      type="button"
+                      title="Baixar ou imprimir o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                      <span>Espelho Portaria 671</span>
+                    </button>
+                    <button
+                      id="clockSignMirrorBtn"
+                      class="btn btn-secondary clock-sign-mirror-btn"
+                      type="button"
+                      title="Conferir e assinar digitalmente o Espelho de Ponto Oficial deste mês (Portaria MTP nº 671/2021)"
+                    >
+                      Assinar espelho digitalmente
+                    </button>
+                    <span id="clockMirrorSignedBadge" class="badge badge-success hidden"></span>
+                  </div>
                   <label for="clockDayFilter">Dia exibido</label>
-                  <div>
+                  <div class="clock-day-nav">
                     <button
                       id="clockPrevDayBtn"
                       class="btn btn-secondary clock-nav-day-btn"
@@ -4723,6 +4737,6 @@
 </script>
 <!-- PDF.js (./vendor/pdfjs/pdf.min.js) is loaded on demand by documents.js. -->
 <script type="module" src="./src/main.js?v=6.17.13"></script>
-<script defer src="./generated/legacy-client-03ea5607afbe.js"></script>
+<script defer src="./generated/legacy-client-0b11f2d66884.js"></script>
   </body>
 </html>

@@ -1,5 +1,9 @@
 import { runtime } from "./core/runtime.js";
-import { ONBOARDING_STAGES, REQUIRED_ADMISSION_DOCUMENTS } from "./core/api-portal.js";
+import {
+  ONBOARDING_STAGES,
+  REQUIRED_ADMISSION_DOCUMENTS,
+  SELF_ONBOARDING_REQUIRED_DOC_CODES,
+} from "./core/api-portal.js";
 import { todayIso } from "./core/utils.js";
 import {
   fetchAllTakeatCredit,
@@ -1611,6 +1615,15 @@ function enhanceEmployeeDialog() {
           </label>
         </div>
       </div>
+      <div class="portal-field-card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:#f8fafc;">
+        <div>
+          <strong style="font-size:13px; color:#0f172a;">Quer que o novato preencha tudo sozinho?</strong>
+          <small style="display:block; color:var(--muted);">Gere o link de pré-cadastro na aba 4 e envie no WhatsApp do candidato.</small>
+        </div>
+        <button type="button" id="btnShortcutGoOnboardingLink" class="btn btn-secondary btn-sm permission-manager">
+          Gerar Link p/ Novato →
+        </button>
+      </div>
     </div>
 
     <!-- ABA 2: Dados Pessoais, CEP Automático & Contato de Emergência -->
@@ -1727,15 +1740,88 @@ function enhanceEmployeeDialog() {
 
     <!-- ABA 4: Funil de Admissão em 6 Etapas -->
     <div class="portal-tab-pane hidden" data-tab-pane="emp-tab-funil" data-tabs-group="employee-modal">
+      <div class="portal-field-card permission-manager" id="portalOnboardingLinkCard">
+        <div class="portal-field-card-head">
+          <div>
+            <h4 class="portal-field-card-title">Link de Pré-Cadastro do Funcionário Novato</h4>
+            <span class="portal-field-card-sub">O novato preenche seus dados e envia documentos; depois você confere e libera o acesso.</span>
+          </div>
+          <span id="portalOnboardingStatusBadge" class="portal-pill portal-pill--neutral">Sem link gerado</span>
+        </div>
+
+        <div style="display:grid; gap:10px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input id="portalOnboardingLinkInput" type="text" readonly placeholder="Clique em Gerar Link para criar o convite do novato..." style="flex:1; min-width:220px; background:#f8fafc; font-size:12.5px;" />
+            <button type="button" id="btnGerarLinkOnboarding" class="btn btn-primary btn-sm" style="min-height:38px;">
+              Gerar Link
+            </button>
+            <button type="button" id="btnCopiarLinkOnboarding" class="btn btn-secondary btn-sm hidden" style="min-height:38px;">
+              Copiar Link
+            </button>
+            <a id="btnWhatsAppLinkOnboarding" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm hidden" style="min-height:38px; text-decoration:none;">
+              Enviar no WhatsApp
+            </a>
+            <button type="button" id="btnRegenerarLinkOnboarding" class="btn btn-secondary btn-sm hidden" style="min-height:38px;">
+              Novo Link
+            </button>
+          </div>
+          <small id="portalOnboardingLinkHint" style="color:var(--muted); font-size:12px;">
+            Mesmo antes de preencher e-mail ou documentos completos, você pode gerar o link agora e enviar para o candidato.
+          </small>
+        </div>
+      </div>
+
+      <div class="portal-field-card permission-manager hidden" id="portalOnboardingReviewCard" style="border-left:4px solid #7c3aed; background:#faf5ff;">
+        <div class="portal-field-card-head">
+          <div>
+            <h4 class="portal-field-card-title" style="color:#5b21b6;">Conferência &amp; Liberação de Acesso</h4>
+            <span id="portalOnboardingReviewSub" class="portal-field-card-sub">O formulário já foi preenchido com os dados enviados pelo colaborador. Confira os dados e os documentos na aba 5 e libere o acesso.</span>
+          </div>
+          <span class="portal-pill portal-pill--amber">Aguardando Conferência</span>
+        </div>
+        <div class="dialog-grid" style="align-items:end; margin-bottom:10px;">
+          <label class="field">
+            <span>E-mail de Acesso</span>
+            <input id="portalOnboardingLoginEmail" type="email" placeholder="email@colaborador.com" />
+          </label>
+          <label class="field permission-admin">
+            <span>Senha Provisória (opcional — deixa vazio para gerar automática)</span>
+            <input id="portalOnboardingProvisionalPass" type="text" minlength="10" placeholder="Mín. 10 caracteres ou automática" />
+          </label>
+          <label class="field">
+            <span>Avançar para Etapa após Aprovar</span>
+            <select id="portalOnboardingApproveStage">
+              <option value="3" selected>3. Exame Admissional (ASO)</option>
+              <option value="4">4. Contrato Assinado</option>
+              <option value="5">5. Ativo - Período de Experiência</option>
+            </select>
+          </label>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button type="button" id="btnLiberarAcessoOnboarding" class="btn btn-primary" style="min-height:40px;">
+            Conferir, Aprovar &amp; Liberar Acesso
+          </button>
+          <button type="button" id="btnSolicitarCorrecaoOnboarding" class="btn btn-secondary" style="min-height:40px;">
+            Solicitar Correção ao Novato
+          </button>
+        </div>
+        <div id="portalOnboardingCredResult" class="hidden" style="margin-top:12px; padding:12px; border-radius:10px; background:#ecfdf5; border:1px solid #a7f3d0; font-size:13px;"></div>
+      </div>
+
       <div class="portal-field-card">
         <div class="portal-field-card-head">
           <div>
             <h4 class="portal-field-card-title">Linha do Tempo de Contratação (6 Etapas)</h4>
             <span class="portal-field-card-sub">Registro automático da data em cada transição</span>
           </div>
-          <button type="button" id="btnEmployeeAuditHistory" class="btn btn-secondary permission-admin" style="min-height:36px; font-size:12.5px;">
-            Histórico de Alterações
-          </button>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" id="btnAvancarProximaEtapaQuick" class="btn btn-primary btn-sm permission-manager" style="min-height:36px; font-size:12.5px;">
+              Avançar Próxima Etapa →
+            </button>
+            <button type="button" id="btnEmployeeAuditHistory" class="btn btn-secondary permission-admin" style="min-height:36px; font-size:12.5px;">
+              Histórico de Alterações
+            </button>
+          </div>
         </div>
         <div id="portalOnboardingStagesBar" class="portal-timeline-list"></div>
       </div>
@@ -1861,12 +1947,41 @@ function enhanceEmployeeDialog() {
 
   bindTabsGroup("employee-modal");
 
-  // Reset automatico para Aba 1 + preenchimento de campos extras ao abrir o modal
+  // Helper compartilhado para preencher todos os campos do modal (legados + estendidos) com os dados sincronizados do colaborador
+  const hydrateAllEmployeeFormInputs = (emp) => {
+    if (!emp) return;
+    const setLegacy = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null && val !== "") el.value = String(val);
+    };
+    setLegacy("employeeName", emp.Nome);
+    setLegacy("employeeEmail", emp.Email);
+    setLegacy("employeePhone", emp.WhatsApp || emp.Telefone);
+    setLegacy("employeeCpf", emp.CPF);
+    setLegacy("employeeStore", emp.LojaID);
+    setLegacy("employeeRole", emp.Cargo);
+    setLegacy("employeeProfile", emp.Perfil);
+    if (emp.DataAdmissao) setLegacy("employeeAdmission", String(emp.DataAdmissao).slice(0, 10));
+    setLegacy("employeeContract", emp.TipoContrato);
+    const activeChk = document.getElementById("employeeActive");
+    if (activeChk) activeChk.checked = emp.Ativo !== false;
+    populateExtendedEmployeeFields(emp);
+    renderEmployeeOnboardingState(emp);
+  };
+
+  // Reset automatico para Aba 1 (ou aba solicitada) + sincronizacao & preenchimento ao abrir o modal
   if (dialog && dialog.dataset.portalOpenObserver !== "true") {
     dialog.dataset.portalOpenObserver = "true";
     const syncOnOpen = async () => {
       if (!dialog.hasAttribute("open")) return;
-      activatePortalTab("employee-modal", "emp-tab-basico");
+      const requestedTab = window.__PORTAL_OPEN_EMP_TAB__ || "emp-tab-basico";
+      window.__PORTAL_OPEN_EMP_TAB__ = "";
+      activatePortalTab("employee-modal", requestedTab);
+      const credBox = document.getElementById("portalOnboardingCredResult");
+      if (credBox) {
+        credBox.classList.add("hidden");
+        credBox.innerHTML = "";
+      }
       const empId = document.getElementById("employeeId")?.value || "";
       if (!empId) {
         populateExtendedEmployeeFields({});
@@ -1874,11 +1989,11 @@ function enhanceEmployeeDialog() {
         return;
       }
       try {
-        const emps = await runtime.list("Funcionarios").catch(() => []);
+        await invokePortal("sincronizarConvitesOnboarding", { FuncionarioID: empId }).catch(() => null);
+        const emps = await runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => []));
         const match = emps.find((e) => String(e.FuncionarioID) === String(empId));
         if (match) {
-          populateExtendedEmployeeFields(match);
-          renderEmployeeOnboardingState(match);
+          hydrateAllEmployeeFormInputs(match);
         }
       } catch {
         // Silencioso
@@ -1887,6 +2002,175 @@ function enhanceEmployeeDialog() {
     const obs = new MutationObserver(() => syncOnOpen());
     obs.observe(dialog, { attributes: true, attributeFilter: ["open"] });
   }
+
+  document.getElementById("btnShortcutGoOnboardingLink")?.addEventListener("click", () => {
+    activatePortalTab("employee-modal", "emp-tab-funil");
+  });
+
+  const handleGenerateOnboardingLink = async (regenerar = false) => {
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value || "";
+    const btn = document.getElementById(regenerar ? "btnRegenerarLinkOnboarding" : "btnGerarLinkOnboarding");
+    if (btn) btn.disabled = true;
+    try {
+      const res = await invokePortal("gerarLinkOnboarding", {
+        FuncionarioID: empId,
+        Nome: document.getElementById("employeeName")?.value || "",
+        LojaID: document.getElementById("employeeStore")?.value || "",
+        Cargo: document.getElementById("employeeRole")?.value || "",
+        Setor: document.getElementById("employeeSetor")?.value || "Cozinha",
+        Perfil: document.getElementById("employeeProfile")?.value || "Funcionário",
+        TipoContrato: document.getElementById("employeeContract")?.value || "CLT",
+        DataAdmissao: document.getElementById("employeeAdmission")?.value || "",
+        TurnoTrabalho: document.getElementById("employeeTurnoTrabalho")?.value || "",
+        SalarioBase: document.getElementById("employeeSalarioBase")?.value || 0,
+        Telefone: document.getElementById("employeePhone")?.value || "",
+        Email: document.getElementById("employeeEmail")?.value || "",
+        origin: `${window.location.origin}${window.location.pathname}`,
+        regenerar,
+      });
+      const emp = res.data?.colaborador;
+      if (emp?.FuncionarioID) {
+        const idInput = document.getElementById("employeeId");
+        if (idInput) idInput.value = emp.FuncionarioID;
+      }
+      renderEmployeeOnboardingState(emp, res.data);
+      showPortalToast(res.message || "Link de pré-cadastro gerado!", "success");
+    } catch (err) {
+      showPortalToast(err.message || "Não foi possível gerar o link.", "error");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  document.getElementById("btnGerarLinkOnboarding")?.addEventListener("click", () => handleGenerateOnboardingLink(false));
+  document.getElementById("btnRegenerarLinkOnboarding")?.addEventListener("click", () => handleGenerateOnboardingLink(true));
+
+  document.getElementById("btnCopiarLinkOnboarding")?.addEventListener("click", async () => {
+    const linkVal = document.getElementById("portalOnboardingLinkInput")?.value || "";
+    if (!linkVal) return;
+    try {
+      await navigator.clipboard.writeText(linkVal);
+      showPortalToast("Link copiado para a área de transferência!", "success");
+    } catch {
+      const inp = document.getElementById("portalOnboardingLinkInput");
+      inp?.select?.();
+      document.execCommand?.("copy");
+      showPortalToast("Link selecionado/copiado!", "success");
+    }
+  });
+
+  document.getElementById("btnLiberarAcessoOnboarding")?.addEventListener("click", async () => {
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value || "";
+    if (!empId) {
+      showPortalToast("Salve ou gere o link do colaborador primeiro.", "warning");
+      return;
+    }
+    const btn = document.getElementById("btnLiberarAcessoOnboarding");
+    const email = document.getElementById("portalOnboardingLoginEmail")?.value || document.getElementById("employeeEmail")?.value || "";
+    const senhaProvisoria = document.getElementById("portalOnboardingProvisionalPass")?.value || "";
+    const etapa = Number(document.getElementById("portalOnboardingApproveStage")?.value || 3);
+    if (btn) btn.disabled = true;
+    try {
+      const res = await invokePortal("conferirLiberarAcessoOnboarding", {
+        FuncionarioID: empId,
+        aprovar: true,
+        email,
+        senhaProvisoria,
+        etapa,
+        origin: `${window.location.origin}${window.location.pathname}`,
+      });
+      const updated = res.data?.colaborador;
+      hydrateAllEmployeeFormInputs(updated);
+      const credBox = document.getElementById("portalOnboardingCredResult");
+      if (credBox) {
+        const pwdLine = res.data?.senhaProvisoria
+          ? `<div><strong>Senha provisória:</strong> <code style="user-select:all;">${escapeHtml(res.data.senhaProvisoria)}</code></div>`
+          : "";
+        const waAction = res.data?.waUrl
+          ? `<a href="${escapeHtml(res.data.waUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="margin-top:8px; text-decoration:none; display:inline-flex;">Enviar Acesso no WhatsApp ↗</a>`
+          : "";
+        const notes = Array.isArray(res.data?.avisos) && res.data.avisos.length
+          ? `<small style="display:block; color:#b45309; margin-top:6px;">${escapeHtml(res.data.avisos.join(" "))}</small>`
+          : "";
+        credBox.innerHTML = `
+          <strong style="display:block; color:#047857; margin-bottom:4px;">Cadastro conferido e acesso liberado!</strong>
+          <div><strong>E-mail de acesso:</strong> ${escapeHtml(res.data?.emailLogin || email)}</div>
+          ${pwdLine}
+          ${notes}
+          ${waAction}
+        `;
+        credBox.classList.remove("hidden");
+      }
+      showPortalToast(res.message || "Acesso liberado!", "success");
+      loadEmployeesOverviewSummary();
+      loadUnifiedPendingHrItems();
+      if (typeof window.loadApplication === "function") {
+        window.loadApplication(true).catch(() => null);
+      }
+    } catch (err) {
+      showPortalToast(err.message || "Não foi possível liberar o acesso.", "error");
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  document.getElementById("btnSolicitarCorrecaoOnboarding")?.addEventListener("click", async () => {
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value || "";
+    if (!empId) return;
+    const motivo = window.prompt("Informe ao novato o que precisa ser corrigido ou reenviado:");
+    if (!motivo || motivo.trim().length < 3) return;
+    try {
+      const res = await invokePortal("conferirLiberarAcessoOnboarding", {
+        FuncionarioID: empId,
+        aprovar: false,
+        motivo: motivo.trim(),
+      });
+      hydrateAllEmployeeFormInputs(res.data?.colaborador);
+      showPortalToast(res.message || "Correção solicitada.", "success");
+      if (res.data?.waUrl) {
+        const credBox = document.getElementById("portalOnboardingCredResult");
+        if (credBox) {
+          credBox.innerHTML = `
+            <strong style="display:block; color:#b45309; margin-bottom:6px;">Correção solicitada ao novato</strong>
+            <a href="${escapeHtml(res.data.waUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none;">Avisar no WhatsApp com o mesmo link ↗</a>
+          `;
+          credBox.classList.remove("hidden");
+        }
+      }
+    } catch (err) {
+      showPortalToast(err.message || "Falha ao solicitar correção.", "error");
+    }
+  });
+
+  document.getElementById("btnAvancarProximaEtapaQuick")?.addEventListener("click", async () => {
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value;
+    if (!empId) {
+      showPortalToast("Salve ou gere o link do colaborador primeiro.", "warning");
+      return;
+    }
+    const currentStage = Number(document.getElementById("employeeEtapaAdmissao")?.value || 1);
+    const nextStage = Math.min(6, currentStage + 1);
+    if (nextStage === currentStage) {
+      showPortalToast("Colaborador já está na Etapa 6.", "info");
+      return;
+    }
+    const substatus = document.getElementById("employeeSubstatusEtapa6")?.value || "Efetivado";
+    const motivo = document.getElementById("employeeMotivoDesligamento")?.value || "";
+    try {
+      const res = await invokePortal("avancarEtapaOnboarding", {
+        FuncionarioID: empId,
+        etapa: nextStage,
+        substatus,
+        validarCadastro: nextStage >= 2,
+        motivo,
+      });
+      hydrateAllEmployeeFormInputs(res.data);
+      showPortalToast(res.message || `Avançou para Etapa ${nextStage}!`, "success");
+      loadEmployeesOverviewSummary();
+    } catch (err) {
+      showPortalToast(err.message || "Erro ao avançar etapa.", "error");
+    }
+  });
 
   // Salva campos complementares automaticamente apos salvar formulario
   if (form.dataset.portalExtendedSaveBound !== "true") {
@@ -1954,22 +2238,20 @@ function enhanceEmployeeDialog() {
     }
   });
 
-  // Upload file reader helper com nome amigavel
+  // Upload file reader helper com nome amigavel e compressao de foto
   const fileInput = document.getElementById("employeeDocUploadFile");
   const fileNameLabel = document.getElementById("employeeDocUploadFileName");
-  fileInput?.addEventListener("change", () => {
+  fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) {
       if (fileNameLabel) fileNameLabel.textContent = "Nenhum arquivo selecionado";
       return;
     }
     if (fileNameLabel) fileNameLabel.textContent = file.name;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const urlInput = document.getElementById("employeeDocUploadUrl");
-      if (urlInput) urlInput.value = String(reader.result || "");
-    };
-    reader.readAsDataURL(file);
+    const urlInput = document.getElementById("employeeDocUploadUrl");
+    if (urlInput) {
+      urlInput.value = await readAttachmentFileAsDataUrl(file);
+    }
   });
 
   document.getElementById("btnEnviarDocAdmissional")?.addEventListener("click", async () => {
@@ -2050,7 +2332,114 @@ function enhanceEmployeeDialog() {
   });
 }
 
-export function renderEmployeeOnboardingState(emp = {}) {
+function openOnboardingFilePreview(title, fileUrl) {
+  if (!fileUrl) return;
+  let dlg = document.getElementById("portalOnboardingPreviewDialog");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "portalOnboardingPreviewDialog";
+    dlg.className = "folha-dialog";
+    dlg.innerHTML = `
+      <div class="folha-dialog-head">
+        <div>
+          <span class="eyebrow" style="margin-bottom:2px;">DOCUMENTO ANEXADO</span>
+          <h3 id="onbPrevTitle" style="margin:0; font-size:17px;">Documento</h3>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="onbPrevClose">Fechar</button>
+      </div>
+      <div id="onbPrevBody" style="padding:14px; text-align:center; max-height:72vh; overflow:auto;"></div>
+    `;
+    document.body.appendChild(dlg);
+    dlg.querySelector("#onbPrevClose")?.addEventListener("click", () => dlg.close());
+  }
+  const titleEl = dlg.querySelector("#onbPrevTitle");
+  const bodyEl = dlg.querySelector("#onbPrevBody");
+  if (titleEl) titleEl.textContent = title || "Documento";
+  const safeUrl = String(fileUrl);
+  const isPdf = safeUrl.startsWith("data:application/pdf") || /\.pdf($|\?)/i.test(safeUrl);
+  if (bodyEl) {
+    bodyEl.innerHTML = isPdf
+      ? `<iframe src="${escapeHtml(safeUrl)}" style="width:100%; height:62vh; border:1px solid #e2e8f0; border-radius:8px;"></iframe><div style="margin-top:10px;"><a href="${escapeHtml(safeUrl)}" download="${escapeHtml(title || "documento")}.pdf" class="btn btn-primary btn-sm" style="text-decoration:none;">Baixar PDF</a></div>`
+      : `<img src="${escapeHtml(safeUrl)}" alt="${escapeHtml(title || "Documento")}" style="max-width:100%; max-height:62vh; border-radius:8px; object-fit:contain; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />`;
+  }
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "");
+}
+
+export function renderEmployeeOnboardingState(emp = {}, linkData = null) {
+  const linkInput = document.getElementById("portalOnboardingLinkInput");
+  const copyBtn = document.getElementById("btnCopiarLinkOnboarding");
+  const waBtn = document.getElementById("btnWhatsAppLinkOnboarding");
+  const regenBtn = document.getElementById("btnRegenerarLinkOnboarding");
+  const genBtn = document.getElementById("btnGerarLinkOnboarding");
+  const statusBadge = document.getElementById("portalOnboardingStatusBadge");
+  const reviewCard = document.getElementById("portalOnboardingReviewCard");
+  const loginEmailInput = document.getElementById("portalOnboardingLoginEmail");
+
+  const resolvedUrl =
+    linkData?.url ||
+    emp?.OnboardingLinkUrl ||
+    (emp?.OnboardingToken && typeof window !== "undefined"
+      ? `${window.location.origin}${window.location.pathname}?onboarding_token=${encodeURIComponent(emp.OnboardingToken)}`
+      : "");
+
+  if (linkInput) linkInput.value = resolvedUrl || "";
+  copyBtn?.classList.toggle("hidden", !resolvedUrl);
+  regenBtn?.classList.toggle("hidden", !resolvedUrl);
+  if (genBtn) genBtn.textContent = resolvedUrl ? "Atualizar Link" : "Gerar Link";
+
+  if (waBtn) {
+    const waHref = linkData?.waUrl || (() => {
+      const phoneDigits = String(emp?.WhatsApp || emp?.Telefone || "").replace(/\D/g, "");
+      if (!resolvedUrl || phoneDigits.length < 10) return "";
+      const phoneIntl = phoneDigits.startsWith("55") ? phoneDigits : `55${phoneDigits}`;
+      const first = String(emp?.Nome || "colaborador(a)").trim().split(/\s+/)[0];
+      const msg = encodeURIComponent(
+        `Olá ${first}! Preencha seus dados cadastrais e anexe seus documentos pelo link abaixo para iniciarmos sua admissão:\n\n${resolvedUrl}`,
+      );
+      return `https://wa.me/${phoneIntl}?text=${msg}`;
+    })();
+    if (waHref) {
+      waBtn.setAttribute("href", waHref);
+      waBtn.classList.remove("hidden");
+    } else {
+      waBtn.classList.add("hidden");
+    }
+  }
+
+  if (statusBadge) {
+    const st = String(emp?.StatusOnboarding || "");
+    if (emp?.CadastroValidado && emp?.Ativo !== false) {
+      statusBadge.className = "portal-pill portal-pill--green";
+      statusBadge.textContent = "Conferido · Acesso Liberado";
+    } else if (st === "Aguardando Conferência") {
+      statusBadge.className = "portal-pill portal-pill--amber";
+      statusBadge.textContent = "Preenchido · Aguardando Conferência";
+    } else if (st === "Correção Solicitada") {
+      statusBadge.className = "portal-pill portal-pill--red";
+      statusBadge.textContent = "Correção Solicitada";
+    } else if (resolvedUrl) {
+      statusBadge.className = "portal-pill portal-pill--blue";
+      statusBadge.textContent = "Link Ativo · Aguardando Novato";
+    } else {
+      statusBadge.className = "portal-pill portal-pill--neutral";
+      statusBadge.textContent = "Sem link gerado";
+    }
+  }
+
+  if (reviewCard) {
+    const showReview =
+      Boolean(emp?.FuncionarioID) &&
+      !emp?.CadastroValidado &&
+      (emp?.StatusOnboarding === "Aguardando Conferência" || Boolean(emp?.OnboardingEnviadoEm) || Boolean(emp?.Email));
+    reviewCard.classList.toggle("hidden", !showReview);
+    if (loginEmailInput && !loginEmailInput.value && emp?.Email) {
+      loginEmailInput.value = emp.Email;
+    } else if (loginEmailInput && emp?.Email) {
+      loginEmailInput.value = emp.Email;
+    }
+  }
+
   const stagesBar = document.getElementById("portalOnboardingStagesBar");
   if (stagesBar) {
     const etapaAtual = Number(emp?.EtapaAdmissao || 1);
@@ -2080,13 +2469,28 @@ export function renderEmployeeOnboardingState(emp = {}) {
     const dossie = emp?.DossieDocumentos || {};
     checklist.innerHTML = REQUIRED_ADMISSION_DOCUMENTS.map((doc) => {
       const item = dossie[doc.codigo];
+      const previewBtn = item?.arquivoUrl
+        ? `<button type="button" class="btn btn-secondary btn-sm" data-onb-preview-doc="${escapeHtml(doc.codigo)}" style="min-height:28px; padding:2px 8px; font-size:11.5px;">Ver</button>`
+        : "";
       return `
         <div class="portal-doc-item">
           <span>${doc.titulo}</span>
-          <span class="portal-pill ${item ? "portal-pill--green" : "portal-pill--neutral"}">${item ? "Enviado" : "Pendente"}</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${previewBtn}
+            <span class="portal-pill ${item ? "portal-pill--green" : "portal-pill--neutral"}">${item ? "Enviado" : "Pendente"}</span>
+          </div>
         </div>
       `;
     }).join("");
+    checklist.querySelectorAll("[data-onb-preview-doc]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const code = btn.getAttribute("data-onb-preview-doc");
+        const docItem = dossie[code];
+        if (docItem?.arquivoUrl) {
+          openOnboardingFilePreview(docItem.titulo || code, docItem.arquivoUrl);
+        }
+      });
+    });
   }
 
   const lockBanner = document.getElementById("employeeValidationLockBanner");
@@ -2230,8 +2634,9 @@ function mountEmployeesOverviewSummary() {
 async function loadEmployeesOverviewSummary() {
   try {
     const storeId = window.__selectedPortalStoreId || "";
+    await invokePortal("sincronizarConvitesOnboarding", {}).catch(() => null);
     const [employees, alertsRes] = await Promise.all([
-      runtime.list("Funcionarios").catch(() => []),
+      runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => [])),
       invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })),
     ]);
 
@@ -4388,10 +4793,13 @@ async function loadUnifiedPendingHrItems() {
   if (!atestadosContainer && !onboardingContainer) return;
 
   try {
+    if (isManagerUser) {
+      await invokePortal("sincronizarConvitesOnboarding", {}).catch(() => null);
+    }
     const [justificativas, docs, employees, alertsRes] = await Promise.all([
       runtime.list("JustificativasPonto").catch(() => []),
       runtime.list("Documentos").catch(() => []),
-      runtime.list("Funcionarios").catch(() => []),
+      runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => [])),
       isManagerUser ? invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
     ]);
 
@@ -4546,9 +4954,14 @@ async function loadUnifiedPendingHrItems() {
     }
 
     if (onboardingContainer && isManagerUser) {
-      const inOnboarding = employees.filter((e) => {
-        if (e.Ativo === false) return false;
+      const awaitingReview = employees.filter((e) => {
         if (storeId && String(e.LojaID || "") !== String(storeId)) return false;
+        return !e.CadastroValidado && (e.StatusOnboarding === "Aguardando Conferência" || (e.OnboardingToken && e.OnboardingEnviadoEm));
+      });
+      const inOnboarding = employees.filter((e) => {
+        if (storeId && String(e.LojaID || "") !== String(storeId)) return false;
+        if (awaitingReview.some((r) => String(r.FuncionarioID) === String(e.FuncionarioID))) return false;
+        if (e.Ativo === false && !e.OnboardingToken) return false;
         return Number(e.EtapaAdmissao || 1) < 5;
       });
       const alerts = Array.isArray(alertsRes?.data)
@@ -4556,6 +4969,15 @@ async function loadUnifiedPendingHrItems() {
         : [];
 
       const onboardingCards = [
+        ...awaitingReview.map((e) => ({
+          empId: e.FuncionarioID,
+          nome: e.Nome || "Novo Colaborador",
+          loja: e.NomeLoja || e.LojaID || "-",
+          tag: "Aguardando Conferência",
+          pillCls: "portal-pill--amber",
+          desc: "Preencheu ficha e documentos pelo link · Pronto para liberar acesso",
+          reviewReady: true,
+        })),
         ...alerts.map((a) => ({
           empId: a.FuncionarioID,
           nome: a.Nome || "Colaborador",
@@ -4587,8 +5009,13 @@ async function loadUnifiedPendingHrItems() {
                   <strong style="font-size:13.5px;">${escapeHtml(c.nome)}</strong>
                   <small style="display:block; color:var(--muted);">${escapeHtml(c.loja)} · ${escapeHtml(c.desc)}</small>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                   <span class="portal-pill ${c.pillCls}">${escapeHtml(c.tag)}</span>
+                  ${
+                    c.reviewReady
+                      ? `<button type="button" class="btn btn-primary btn-sm" data-conferir-onb-emp="${escapeHtml(c.empId)}">Conferir &amp; Liberar</button>`
+                      : ""
+                  }
                   <button type="button" class="btn btn-secondary btn-sm" data-open-dossier-emp="${escapeHtml(c.empId)}">Abrir Dossiê</button>
                 </div>
               </article>
@@ -4596,6 +5023,19 @@ async function loadUnifiedPendingHrItems() {
             )
             .join("")
         : `<div class="empty-state" style="padding:14px;">Toda a equipe está com onboarding concluído e sem vencimentos próximos.</div>`;
+
+      onboardingContainer.querySelectorAll("[data-conferir-onb-emp]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const empId = btn.getAttribute("data-conferir-onb-emp");
+          if (!empId) return;
+          window.__PORTAL_OPEN_EMP_TAB__ = "emp-tab-funil";
+          if (typeof window.editEmployee === "function") {
+            window.editEmployee(empId);
+          } else {
+            openEmployee360Dossier(empId);
+          }
+        });
+      });
     }
   } catch {
     // Silencioso
@@ -4839,8 +5279,12 @@ async function openEmployee360Dossier(employeeId) {
 
     bodyEl.querySelector("#emp360EditBtn")?.addEventListener("click", () => {
       dlg.close();
-      const rowEdit = document.querySelector(`#employeeBody [data-action="edit-employee"][data-id="${employeeId}"]`);
-      if (rowEdit) rowEdit.click();
+      if (typeof window.editEmployee === "function") {
+        window.editEmployee(employeeId);
+      } else {
+        const rowEdit = document.querySelector(`#employeeBody [data-action="edit-employee"][data-id="${employeeId}"]`);
+        if (rowEdit) rowEdit.click();
+      }
     });
 
     bodyEl.querySelector("#emp360KitBtn")?.addEventListener("click", async () => {
@@ -4977,6 +5421,547 @@ export function initPortalGestao() {
   }, 1200);
 }
 
+// ============================================================================
+// PORTAL PUBLICO DE AUTO-ONBOARDING DO FUNCIONARIO NOVATO (?onboarding_token=...)
+// ============================================================================
+
+const formatCpfMask = (val) => {
+  const d = String(val || "").replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+};
+
+const formatPhoneMask = (val) => {
+  const d = String(val || "").replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+};
+
+export async function mountOnboardingSelfPortal(token) {
+  if (typeof document === "undefined") return;
+  document.getElementById("loadingOverlay")?.classList.add("hidden");
+  document.getElementById("loginScreen")?.classList.add("hidden");
+  document.getElementById("app")?.classList.add("hidden");
+  document.getElementById("unauthorized")?.classList.add("hidden");
+  document.getElementById("copilotFab")?.classList.add("hidden");
+
+  let root = document.getElementById("onboardingSelfScreen");
+  if (!root) {
+    root = document.createElement("section");
+    root.id = "onboardingSelfScreen";
+    root.style.cssText =
+      "min-height:100vh; background:linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%); padding:18px 14px 48px; display:flex; justify-content:center; align-items:flex-start; overflow-x:hidden;";
+    document.body.appendChild(root);
+  }
+  root.classList.remove("hidden");
+  root.innerHTML = `
+    <div class="panel" style="max-width:760px; width:100%; padding:24px; margin-top:24px; text-align:center;">
+      <p style="margin:0; font-size:14px; color:var(--muted);">Carregando ficha de admissão...</p>
+    </div>
+  `;
+
+  let inviteData = null;
+  let etapasList = ONBOARDING_STAGES;
+  let docsMetaList = REQUIRED_ADMISSION_DOCUMENTS.map((d) => ({
+    ...d,
+    obrigatorioAutocadastro: SELF_ONBOARDING_REQUIRED_DOC_CODES.includes(d.codigo),
+  }));
+
+  try {
+    const res = await invokePortal("consultarConviteOnboarding", { token });
+    inviteData = res.data?.convite || null;
+    if (Array.isArray(res.data?.etapas)) etapasList = res.data.etapas;
+    if (Array.isArray(res.data?.documentosExigidos)) docsMetaList = res.data.documentosExigidos;
+  } catch (err) {
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+    root.innerHTML = `
+      <div class="panel" style="max-width:520px; width:100%; padding:26px; margin-top:32px; text-align:center; display:grid; gap:12px;">
+        <span class="eyebrow" style="color:#b91c1c;">LINK INDISPONÍVEL</span>
+        <h2 style="margin:0; font-size:20px;">Não foi possível abrir o pré-cadastro</h2>
+        <p style="margin:0; font-size:13.5px; color:var(--muted);">${escapeHtml(err?.message || "Este link de admissão é inválido ou expirou. Solicite um novo link ao gerente.")}</p>
+        <a href="${escapeHtml(baseUrl)}" class="btn btn-primary" style="text-decoration:none; margin-top:6px;">Ir para a tela inicial</a>
+      </div>
+    `;
+    return;
+  }
+
+  let currentStep =
+    inviteData.AcessoLiberado ||
+    inviteData.CadastroValidado ||
+    inviteData.Status === "Aprovado" ||
+    inviteData.Status === "Aguardando Conferência"
+      ? 3
+      : 1;
+  let editingSubmitted = false;
+
+  const initialDados = inviteData.Submissao?.Dados || {};
+  const draft = {
+    Nome: initialDados.Nome || (inviteData.NomeHint && inviteData.NomeHint !== "Novo Colaborador" ? inviteData.NomeHint : ""),
+    NomeSocial: initialDados.NomeSocial || "",
+    CPF: initialDados.CPF || "",
+    RG: initialDados.RG || "",
+    DataNascimento: initialDados.DataNascimento || "",
+    EstadoCivil: initialDados.EstadoCivil || "",
+    NomeMae: initialDados.NomeMae || "",
+    NomePai: initialDados.NomePai || "",
+    Telefone: initialDados.Telefone || "",
+    Email: initialDados.Email || "",
+    CEP: initialDados.CEP || "",
+    Endereco: initialDados.Endereco || "",
+    NumeroEndereco: initialDados.NumeroEndereco || "",
+    Complemento: initialDados.Complemento || "",
+    Bairro: initialDados.Bairro || "",
+    Cidade: initialDados.Cidade || "",
+    UF: initialDados.UF || "",
+    ContatoEmergenciaNome: initialDados.ContatoEmergenciaNome || "",
+    ContatoEmergenciaParentesco: initialDados.ContatoEmergenciaParentesco || "",
+    ContatoEmergenciaTelefone: initialDados.ContatoEmergenciaTelefone || "",
+    ChavePix: initialDados.ChavePix || "",
+    BancoNome: initialDados.BancoNome || "",
+    BancoAgencia: initialDados.BancoAgencia || "",
+    BancoConta: initialDados.BancoConta || "",
+    BancoTipoConta: initialDados.BancoTipoConta || "Corrente",
+  };
+  const docsDraft = { ...(inviteData.Submissao?.Documentos || {}) };
+
+  const captureFormToDraft = () => {
+    const read = (id) => root.querySelector(`#${id}`)?.value ?? "";
+    const keys = [
+      ["onbSelfNome", "Nome"],
+      ["onbSelfNomeSocial", "NomeSocial"],
+      ["onbSelfCPF", "CPF"],
+      ["onbSelfRG", "RG"],
+      ["onbSelfNascimento", "DataNascimento"],
+      ["onbSelfEstadoCivil", "EstadoCivil"],
+      ["onbSelfMae", "NomeMae"],
+      ["onbSelfPai", "NomePai"],
+      ["onbSelfTelefone", "Telefone"],
+      ["onbSelfEmail", "Email"],
+      ["onbSelfCEP", "CEP"],
+      ["onbSelfEndereco", "Endereco"],
+      ["onbSelfNumero", "NumeroEndereco"],
+      ["onbSelfComplemento", "Complemento"],
+      ["onbSelfBairro", "Bairro"],
+      ["onbSelfCidade", "Cidade"],
+      ["onbSelfUF", "UF"],
+      ["onbSelfEmergNome", "ContatoEmergenciaNome"],
+      ["onbSelfEmergParent", "ContatoEmergenciaParentesco"],
+      ["onbSelfEmergTel", "ContatoEmergenciaTelefone"],
+      ["onbSelfPix", "ChavePix"],
+      ["onbSelfBanco", "BancoNome"],
+      ["onbSelfAgencia", "BancoAgencia"],
+      ["onbSelfConta", "BancoConta"],
+      ["onbSelfTipoConta", "BancoTipoConta"],
+    ];
+    keys.forEach(([elId, field]) => {
+      const el = root.querySelector(`#${elId}`);
+      if (el) draft[field] = String(read(elId)).trim();
+    });
+  };
+
+  const renderSelfPortal = () => {
+    const approved = Boolean(inviteData.AcessoLiberado || inviteData.CadastroValidado || inviteData.Status === "Aprovado");
+    const awaiting = !approved && inviteData.Status === "Aguardando Conferência" && !editingSubmitted;
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+    const etapaAtual = Number(inviteData.EtapaAdmissao || (approved ? 3 : awaiting ? 2 : 1));
+    const currentStageMeta = etapasList.find((e) => e.etapa === etapaAtual) || { titulo: `Etapa ${etapaAtual}` };
+
+    const stepBadge = (num, label) => {
+      const active = currentStep === num;
+      const done = currentStep > num || approved;
+      const bg = done ? "#ecfdf5" : active ? "#eff6ff" : "#f8fafc";
+      const border = done ? "#6ee7b7" : active ? "#93c5fd" : "#e2e8f0";
+      const color = done ? "#047857" : active ? "#1d4ed8" : "#64748b";
+      return `<div style="flex:1; min-width:110px; padding:10px 12px; border-radius:10px; border:1px solid ${border}; background:${bg}; color:${color}; font-size:12px; font-weight:700; text-align:center;">${done ? "✓ " : `${num}. `}${escapeHtml(label)}</div>`;
+    };
+
+    const correctionBanner = inviteData.MotivoCorrecao
+      ? `<div style="padding:12px 14px; border-radius:10px; background:#fffbeb; border:1px solid #fcd34d; color:#92400e; font-size:13px;">
+           <strong>Ajuste solicitado pela Administração:</strong> ${escapeHtml(inviteData.MotivoCorrecao)}
+         </div>`
+      : "";
+
+    let bodyHtml = "";
+
+    if (approved) {
+      bodyHtml = `
+        <div class="panel" style="padding:22px; text-align:center; display:grid; gap:12px;">
+          <span class="portal-pill portal-pill--green" style="margin:0 auto;">Acesso Liberado</span>
+          <h2 style="margin:0; font-size:20px; color:#065f46;">Cadastro conferido com sucesso!</h2>
+          <p style="margin:0; font-size:14px; color:#334155;">
+            Seus dados e documentos foram validados pela Administração e seu acesso ao sistema já está liberado.
+          </p>
+          <div style="padding:12px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; color:#0f172a;">
+            <div><strong>Etapa atual da contratação:</strong> ${escapeHtml(currentStageMeta.titulo)}</div>
+          </div>
+          <a href="${escapeHtml(baseUrl)}" class="btn btn-primary" style="text-decoration:none; min-height:44px; justify-content:center;">
+            Ir para o Login do Sistema
+          </a>
+        </div>
+      `;
+    } else if (awaiting) {
+      const uploadedCount = Object.keys(docsDraft).length;
+      bodyHtml = `
+        <div class="panel" style="padding:22px; display:grid; gap:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <span class="portal-pill portal-pill--amber">Aguardando Conferência &amp; Liberação</span>
+            <small style="color:var(--muted);">Etapa ${etapaAtual}/6</small>
+          </div>
+          <h2 style="margin:0; font-size:19px;">Ficha e documentos enviados!</h2>
+          <p style="margin:0; font-size:13.5px; color:#334155;">
+            Obrigado, <strong>${escapeHtml(draft.Nome || "colaborador(a)")}</strong>. A Administração já recebeu seus dados cadastrais e ${uploadedCount} documento(s) anexado(s) para conferência. Assim que validarmos tudo, seu acesso ao aplicativo será liberado.
+          </p>
+          <div style="display:grid; gap:6px; padding:12px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px;">
+            <div><strong>E-mail cadastrado para acesso:</strong> ${escapeHtml(draft.Email || "-")}</div>
+            <div><strong>WhatsApp:</strong> ${escapeHtml(draft.Telefone || "-")}</div>
+            <div><strong>Documentos anexados:</strong> ${uploadedCount}</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" id="btnOnbSelfEditAgain" class="btn btn-secondary" style="min-height:40px;">
+              Editar Dados ou Documentos antes da Conferência
+            </button>
+          </div>
+        </div>
+      `;
+    } else if (currentStep === 1) {
+      bodyHtml = `
+        <form id="onbSelfStep1Form" style="display:grid; gap:14px;">
+          <div class="portal-field-card">
+            <div class="portal-field-card-head">
+              <h4 class="portal-field-card-title">1. Dados Pessoais &amp; Contato</h4>
+              <span class="portal-field-card-sub">Campos com * são obrigatórios</span>
+            </div>
+            <div class="dialog-grid">
+              <label class="field"><span>Nome Completo *</span><input id="onbSelfNome" required value="${escapeHtml(draft.Nome)}" placeholder="Seu nome completo" /></label>
+              <label class="field"><span>Nome Social</span><input id="onbSelfNomeSocial" value="${escapeHtml(draft.NomeSocial)}" placeholder="Opcional" /></label>
+              <label class="field"><span>CPF *</span><input id="onbSelfCPF" required maxlength="14" value="${escapeHtml(draft.CPF)}" placeholder="000.000.000-00" /></label>
+              <label class="field"><span>RG *</span><input id="onbSelfRG" required value="${escapeHtml(draft.RG)}" placeholder="00.000.000-0" /></label>
+              <label class="field"><span>Data de Nascimento *</span><input id="onbSelfNascimento" type="date" required value="${escapeHtml(draft.DataNascimento)}" /></label>
+              <label class="field"><span>Estado Civil</span>
+                <select id="onbSelfEstadoCivil">
+                  ${["", "Solteiro(a)", "Casado(a)", "União Estável", "Divorciado(a)", "Viúvo(a)"]
+                    .map((opt) => `<option value="${escapeHtml(opt)}"${draft.EstadoCivil === opt ? " selected" : ""}>${opt || "Selecione"}</option>`)
+                    .join("")}
+                </select>
+              </label>
+              <label class="field"><span>Nome da Mãe</span><input id="onbSelfMae" value="${escapeHtml(draft.NomeMae)}" /></label>
+              <label class="field"><span>Nome do Pai</span><input id="onbSelfPai" value="${escapeHtml(draft.NomePai)}" placeholder="Opcional" /></label>
+              <label class="field"><span>Telefone / WhatsApp *</span><input id="onbSelfTelefone" required maxlength="15" value="${escapeHtml(draft.Telefone)}" placeholder="(73) 99999-9999" /></label>
+              <label class="field"><span>E-mail pessoal (será seu login) *</span><input id="onbSelfEmail" type="email" required value="${escapeHtml(draft.Email)}" placeholder="seuemail@exemplo.com" /></label>
+            </div>
+          </div>
+
+          <div class="portal-field-card">
+            <div class="portal-field-card-head">
+              <h4 class="portal-field-card-title">2. Endereço Residencial</h4>
+              <span class="portal-field-card-sub">Digite o CEP para buscar automaticamente</span>
+            </div>
+            <div class="dialog-grid">
+              <label class="field"><span>CEP *</span><input id="onbSelfCEP" required maxlength="9" value="${escapeHtml(draft.CEP)}" placeholder="00000-000" /></label>
+              <label class="field"><span>Rua / Avenida *</span><input id="onbSelfEndereco" required value="${escapeHtml(draft.Endereco)}" /></label>
+              <label class="field"><span>Número</span><input id="onbSelfNumero" value="${escapeHtml(draft.NumeroEndereco)}" /></label>
+              <label class="field"><span>Complemento</span><input id="onbSelfComplemento" value="${escapeHtml(draft.Complemento)}" /></label>
+              <label class="field"><span>Bairro *</span><input id="onbSelfBairro" required value="${escapeHtml(draft.Bairro)}" /></label>
+              <label class="field"><span>Cidade *</span><input id="onbSelfCidade" required value="${escapeHtml(draft.Cidade)}" /></label>
+              <label class="field"><span>UF *</span><input id="onbSelfUF" required maxlength="2" value="${escapeHtml(draft.UF)}" placeholder="BA" /></label>
+            </div>
+          </div>
+
+          <div class="portal-field-card">
+            <div class="portal-field-card-head">
+              <h4 class="portal-field-card-title">3. Emergência &amp; Dados para Pagamento</h4>
+              <span class="portal-field-card-sub">Contato em caso de urgência e Chave PIX</span>
+            </div>
+            <div class="dialog-grid">
+              <label class="field"><span>Nome Contato de Emergência *</span><input id="onbSelfEmergNome" required value="${escapeHtml(draft.ContatoEmergenciaNome)}" /></label>
+              <label class="field"><span>Parentesco</span><input id="onbSelfEmergParent" value="${escapeHtml(draft.ContatoEmergenciaParentesco)}" placeholder="Mãe, Cônjuge..." /></label>
+              <label class="field"><span>Telefone de Emergência *</span><input id="onbSelfEmergTel" required maxlength="15" value="${escapeHtml(draft.ContatoEmergenciaTelefone)}" placeholder="(73) 99999-9999" /></label>
+              <label class="field"><span>Chave PIX *</span><input id="onbSelfPix" required value="${escapeHtml(draft.ChavePix)}" placeholder="CPF, Celular, E-mail ou Aleatória" /></label>
+              <label class="field"><span>Banco</span><input id="onbSelfBanco" value="${escapeHtml(draft.BancoNome)}" placeholder="Nubank, Itaú, Bradesco..." /></label>
+              <label class="field"><span>Agência</span><input id="onbSelfAgencia" value="${escapeHtml(draft.BancoAgencia)}" placeholder="0001" /></label>
+              <label class="field"><span>Conta e Dígito</span><input id="onbSelfConta" value="${escapeHtml(draft.BancoConta)}" placeholder="12345-6" /></label>
+              <label class="field"><span>Tipo de Conta</span>
+                <select id="onbSelfTipoConta">
+                  ${["Corrente", "Poupança", "Salário", "Pagamento"]
+                    .map((opt) => `<option value="${opt}"${draft.BancoTipoConta === opt ? " selected" : ""}>${opt}</option>`)
+                    .join("")}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+            <button type="button" id="btnOnbSelfSaveDraft" class="btn btn-secondary" style="min-height:44px;">
+              Salvar Rascunho
+            </button>
+            <button type="submit" class="btn btn-primary" style="min-height:44px;">
+              Continuar para Documentos →
+            </button>
+          </div>
+        </form>
+      `;
+    } else if (currentStep === 2) {
+      const reqMissing = docsMetaList.filter(
+        (d) => d.obrigatorioAutocadastro && !docsDraft[d.codigo]?.arquivoUrl,
+      ).length;
+      bodyHtml = `
+        <div style="display:grid; gap:14px;">
+          <div class="portal-field-card">
+            <div class="portal-field-card-head">
+              <div>
+                <h4 class="portal-field-card-title">Envio de Documentos Admissionais</h4>
+                <span class="portal-field-card-sub">Tire uma foto nítida ou anexe PDF. Obrigatórios pendentes: ${reqMissing}</span>
+              </div>
+              <button type="button" id="btnOnbSelfBackStep1" class="btn btn-secondary btn-sm">← Voltar aos Dados</button>
+            </div>
+            <div style="display:grid; gap:10px;">
+              ${docsMetaList
+                .map((d) => {
+                  const uploaded = docsDraft[d.codigo];
+                  const badge = uploaded
+                    ? `<span class="portal-pill portal-pill--green">Anexado ✓</span>`
+                    : d.obrigatorioAutocadastro
+                      ? `<span class="portal-pill portal-pill--amber">Obrigatório</span>`
+                      : `<span class="portal-pill portal-pill--neutral">Opcional</span>`;
+                  return `
+                    <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; background:#fff; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                      <div style="min-width:190px; flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                          <strong style="font-size:13.5px;">${escapeHtml(d.titulo)}</strong>
+                          ${badge}
+                        </div>
+                        <small style="display:block; color:var(--muted); margin-top:2px;">
+                          ${uploaded ? escapeHtml(uploaded.nomeArquivo || "Arquivo anexado") : "Foto da frente/verso ou PDF"}
+                        </small>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        ${
+                          uploaded?.arquivoUrl
+                            ? `<button type="button" class="btn btn-secondary btn-sm" data-self-preview-doc="${escapeHtml(d.codigo)}">Ver</button>`
+                            : ""
+                        }
+                        <label class="portal-file-upload-btn" style="cursor:pointer; margin:0;">
+                          ${uploaded ? "Trocar Arquivo" : "Enviar Foto / PDF"}
+                          <input type="file" accept="image/*,.pdf" class="portal-file-input-hidden" data-self-doc-input="${escapeHtml(d.codigo)}" />
+                        </label>
+                      </div>
+                    </div>
+                  `;
+                })
+                .join("")}
+            </div>
+          </div>
+
+          <div class="portal-field-card" style="display:grid; gap:12px;">
+            <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; color:#1e293b; cursor:pointer;">
+              <input type="checkbox" id="onbSelfTruthCheck" style="margin-top:3px;" />
+              <span>Declaro que todas as informações e os documentos anexados acima são verdadeiros e pertencem a mim, autorizando a conferência pela Administração do Grupo House 190.</span>
+            </label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+              <button type="button" id="btnOnbSelfSaveDocsDraft" class="btn btn-secondary" style="min-height:44px;">Salvar Rascunho</button>
+              <button type="button" id="btnOnbSelfSubmitFinal" class="btn btn-primary" style="min-height:44px;">
+                Enviar Cadastro e Aguardar Liberação
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    root.innerHTML = `
+      <div style="max-width:760px; width:100%; display:grid; gap:14px;">
+        <header class="panel" style="padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <span class="eyebrow" style="color:var(--brand-solid, #4077ba);">GRUPO HOUSE 190 · ADMISSÃO DIGITAL</span>
+            <h1 style="margin:2px 0 4px; font-size:21px;">Pré-Cadastro do Novo Colaborador</h1>
+            <small style="color:var(--muted);">
+              ${escapeHtml(inviteData.NomeLoja || "Unidade House 190")}
+              ${inviteData.Cargo ? ` · Cargo: ${escapeHtml(inviteData.Cargo)}` : ""}
+              ${inviteData.TipoContrato ? ` (${escapeHtml(inviteData.TipoContrato)})` : ""}
+            </small>
+          </div>
+          <span class="portal-pill portal-pill--blue">Etapa ${etapaAtual}/6</span>
+        </header>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          ${stepBadge(1, "Seus Dados")}
+          ${stepBadge(2, "Documentos")}
+          ${stepBadge(3, "Conferência & Liberação")}
+        </div>
+
+        ${correctionBanner}
+        ${bodyHtml}
+      </div>
+    `;
+
+    // Bind Step 1 Events
+    const cpfEl = root.querySelector("#onbSelfCPF");
+    cpfEl?.addEventListener("input", (ev) => {
+      ev.target.value = formatCpfMask(ev.target.value);
+    });
+    [root.querySelector("#onbSelfTelefone"), root.querySelector("#onbSelfEmergTel")].forEach((telEl) => {
+      telEl?.addEventListener("input", (ev) => {
+        ev.target.value = formatPhoneMask(ev.target.value);
+      });
+    });
+
+    const cepEl = root.querySelector("#onbSelfCEP");
+    cepEl?.addEventListener("blur", async () => {
+      const digits = String(cepEl.value || "").replace(/\D/g, "");
+      if (digits.length !== 8) return;
+      try {
+        const resp = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+        const json = await resp.json().catch(() => null);
+        if (json && !json.erro) {
+          const fill = (id, v) => {
+            const input = root.querySelector(`#${id}`);
+            if (input && v) input.value = v;
+          };
+          fill("onbSelfEndereco", json.logradouro);
+          fill("onbSelfBairro", json.bairro);
+          fill("onbSelfCidade", json.localidade);
+          fill("onbSelfUF", json.uf);
+        }
+      } catch {
+        // Silencioso offline
+      }
+    });
+
+    const persistDraft = async (finalizar = false) => {
+      captureFormToDraft();
+      const res = await invokePortal("salvarAutocadastroOnboarding", {
+        token,
+        dados: draft,
+        documentos: docsDraft,
+        finalizar,
+      });
+      if (res?.data) {
+        inviteData = { ...inviteData, ...res.data };
+      }
+      return res;
+    };
+
+    root.querySelector("#btnOnbSelfSaveDraft")?.addEventListener("click", async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        await persistDraft(false);
+        showPortalToast("Rascunho salvo! Você pode continuar depois pelo mesmo link.", "success");
+      } catch (err) {
+        showPortalToast(err.message || "Falha ao salvar rascunho.", "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    root.querySelector("#onbSelfStep1Form")?.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const btn = ev.target.querySelector('[type="submit"]');
+      if (btn) btn.disabled = true;
+      try {
+        await persistDraft(false);
+        currentStep = 2;
+        renderSelfPortal();
+        window.scrollTo?.({ top: 0, behavior: "smooth" });
+      } catch (err) {
+        showPortalToast(err.message || "Verifique os campos preenchidos.", "error");
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
+    // Bind Step 2 Events
+    root.querySelector("#btnOnbSelfBackStep1")?.addEventListener("click", () => {
+      currentStep = 1;
+      renderSelfPortal();
+    });
+
+    root.querySelectorAll("[data-self-doc-input]").forEach((input) => {
+      input.addEventListener("change", async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        const code = input.getAttribute("data-self-doc-input");
+        const meta = docsMetaList.find((d) => d.codigo === code);
+        try {
+          const dataUrl = await readAttachmentFileAsDataUrl(file);
+          if (dataUrl.length > 3500000) {
+            showPortalToast("Arquivo muito grande. Envie uma foto menor ou PDF de até 2,5 MB.", "error");
+            return;
+          }
+          docsDraft[code] = {
+            codigo: code,
+            titulo: meta?.titulo || code,
+            arquivoUrl: dataUrl,
+            nomeArquivo: file.name,
+            enviadoEm: new Date().toISOString(),
+          };
+          await persistDraft(false);
+          showPortalToast(`${meta?.titulo || code} anexado!`, "success");
+          renderSelfPortal();
+        } catch (err) {
+          showPortalToast(err.message || "Erro ao ler arquivo.", "error");
+        }
+      });
+    });
+
+    root.querySelectorAll("[data-self-preview-doc]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const code = btn.getAttribute("data-self-preview-doc");
+        const docItem = docsDraft[code];
+        if (docItem?.arquivoUrl) {
+          openOnboardingFilePreview(docItem.titulo || code, docItem.arquivoUrl);
+        }
+      });
+    });
+
+    root.querySelector("#btnOnbSelfSaveDocsDraft")?.addEventListener("click", async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        await persistDraft(false);
+        showPortalToast("Documentos salvos no rascunho!", "success");
+      } catch (err) {
+        showPortalToast(err.message || "Falha ao salvar.", "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    root.querySelector("#btnOnbSelfSubmitFinal")?.addEventListener("click", async (ev) => {
+      if (!root.querySelector("#onbSelfTruthCheck")?.checked) {
+        showPortalToast("Marque a declaração de veracidade antes de enviar.", "warning");
+        return;
+      }
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        await persistDraft(true);
+        editingSubmitted = false;
+        currentStep = 3;
+        renderSelfPortal();
+        window.scrollTo?.({ top: 0, behavior: "smooth" });
+        showPortalToast("Cadastro enviado! Aguarde a liberação da Administração.", "success");
+      } catch (err) {
+        showPortalToast(err.message || "Confira os campos obrigatórios.", "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    root.querySelector("#btnOnbSelfEditAgain")?.addEventListener("click", () => {
+      editingSubmitted = true;
+      currentStep = 1;
+      renderSelfPortal();
+    });
+  };
+
+  renderSelfPortal();
+}
+
 if (typeof window !== "undefined") {
   window.initPortalGestao = initPortalGestao;
   window.refreshPortalViews = refreshPortalViews;
@@ -4984,6 +5969,7 @@ if (typeof window !== "undefined") {
   window.loadUnifiedPendingHrItems = loadUnifiedPendingHrItems;
   window.openEmployee360Dossier = openEmployee360Dossier;
   window.renderEmployeeOnboardingState = renderEmployeeOnboardingState;
+  window.mountOnboardingSelfPortal = mountOnboardingSelfPortal;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => initPortalGestao());
   } else {

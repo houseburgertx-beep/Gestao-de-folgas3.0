@@ -229,6 +229,63 @@ test('Firebase Database rules enforce roles, privacy, balances and document owne
     allowed(await request(valePath, { uid: 'manager', method: 'PATCH', data: { Status: 'Validado pelo Gerente', ValidadoGerentePor: 'manager' } }));
     allowed(await request(valePath, { uid: 'admin', method: 'PATCH', data: { Status: 'Pago' } }));
   });
+  await t.test('onboarding invites enforce unguessable token writes, block self-approval, and lock after approval', async () => {
+    const token = 'onb_AbCdEfGhIjKlMnOpQrStUvWxYz123456';
+    const invitePath = `${base}/onboardingConvites/${token}`;
+    const baseInvite = {
+      TokenID: token,
+      Token: token,
+      FuncionarioID: 'emp-new-1',
+      LojaID: 'store-a',
+      NomeHint: 'Novato Teste',
+      Status: 'Pendente',
+      EtapaAdmissao: 1,
+      CadastroValidado: false,
+      AcessoLiberado: false,
+    };
+
+    denied(await request(`${base}/onboardingConvites`, { uid: 'admin' }));
+    denied(await request(`${base}/onboardingConvites/short_bad_token`, { method: 'PUT', data: { ...baseInvite, TokenID: 'short_bad_token', Token: 'short_bad_token' } }));
+    denied(await request(invitePath, { method: 'PUT', data: baseInvite }));
+    denied(await request(invitePath, { uid: 'othermanager', method: 'PUT', data: baseInvite }));
+    allowed(await request(invitePath, { uid: 'manager', method: 'PUT', data: baseInvite }));
+
+    allowed(await request(invitePath));
+    denied(await request(`${base}/onboardingConvites/short_bad_token`));
+
+    denied(await request(invitePath, { method: 'PATCH', data: { CadastroValidado: true } }));
+    denied(await request(invitePath, { method: 'PATCH', data: { AcessoLiberado: true } }));
+    denied(await request(invitePath, { method: 'PATCH', data: { LojaID: 'store-b' } }));
+    denied(await request(invitePath, { method: 'PATCH', data: { Status: 'Aprovado' } }));
+
+    allowed(await request(invitePath, {
+      method: 'PATCH',
+      data: {
+        Status: 'Aguardando Conferência',
+        EtapaAdmissao: 2,
+        CadastroValidado: false,
+        AcessoLiberado: false,
+        Submissao: { Dados: { Nome: 'Novato Teste', Email: 'novato@house190.com.br' } },
+      },
+    }));
+
+    allowed(await request(invitePath, {
+      uid: 'admin',
+      method: 'PATCH',
+      data: {
+        Status: 'Aprovado',
+        EtapaAdmissao: 3,
+        CadastroValidado: true,
+        AcessoLiberado: true,
+        Submissao: null,
+      },
+    }));
+
+    denied(await request(invitePath, {
+      method: 'PATCH',
+      data: { Status: 'Em Preenchimento', Submissao: { Dados: { Nome: 'Alterado pós aprovação' } } },
+    }));
+  });
   await t.test('initial administrator setup requires a unique bootstrap owner and closes after initialization', async () => {
     allowed(await request(base, { admin: true, method: 'PUT', data: {} }));
     allowed(await request(`${base}/meta/bootstrapOwner`, { uid: 'first', method: 'PUT', data: 'first' }));

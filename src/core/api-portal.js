@@ -532,6 +532,750 @@ async function enviarDocumentoAdmissional(payload = {}) {
   return success({ documento: docEntry, colaborador: updatedEmp }, `${docMeta.titulo} enviado com sucesso.`);
 }
 
+const ONBOARDING_TOKEN_REGEX = /^onb_[A-Za-z0-9_-]{24,96}$/;
+export const SELF_ONBOARDING_REQUIRED_DOC_CODES = Object.freeze([
+  "RG_CNH",
+  "CPF",
+  "COMPROVANTE_RESIDENCIA",
+  "CERTIDAO",
+  "CTPS_DIGITAL",
+]);
+
+function generateOnboardingToken() {
+  const randomPart = uuid().replace(/-/g, "");
+  return `onb_${randomPart}${Date.now().toString(36)}`;
+}
+
+function buildOnboardingUrl(origin, token) {
+  const rawOrigin = String(
+    origin || (typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}` : ""),
+  ).trim();
+  const base = rawOrigin ? rawOrigin.split("?")[0].split("#")[0] : "";
+  if (!base) return `?onboarding_token=${encodeURIComponent(token)}`;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}onboarding_token=${encodeURIComponent(token)}`;
+}
+
+function generateProvisionalPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  let out = "H190!";
+  for (let i = 0; i < 8; i += 1) {
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return out;
+}
+
+function sanitizeCandidatePersonalFields(raw = {}, fallback = {}) {
+  const pick = (key, def = "") => String(raw[key] ?? fallback[key] ?? def).trim();
+  const cpfRaw = raw.CPF ?? fallback.CPF ?? "";
+  const tel = pick("Telefone");
+  const wpp = String(raw.WhatsApp ?? fallback.WhatsApp ?? tel).trim();
+  return {
+    Nome: pick("Nome"),
+    NomeSocial: pick("NomeSocial"),
+    CPF: cpfRaw ? formatCpf(cpfRaw) : "",
+    RG: pick("RG"),
+    DataNascimento: pick("DataNascimento"),
+    EstadoCivil: pick("EstadoCivil"),
+    NomeMae: pick("NomeMae"),
+    NomePai: pick("NomePai"),
+    Telefone: tel,
+    WhatsApp: wpp || tel,
+    Email: normalizeEmail(raw.Email ?? fallback.Email ?? ""),
+    CEP: pick("CEP"),
+    Endereco: pick("Endereco"),
+    NumeroEndereco: pick("NumeroEndereco"),
+    Complemento: pick("Complemento"),
+    Bairro: pick("Bairro"),
+    Cidade: pick("Cidade"),
+    UF: pick("UF").toUpperCase().slice(0, 2),
+    ContatoEmergenciaNome: pick("ContatoEmergenciaNome"),
+    ContatoEmergenciaParentesco: pick("ContatoEmergenciaParentesco"),
+    ContatoEmergenciaTelefone: pick("ContatoEmergenciaTelefone"),
+    ChavePix: pick("ChavePix"),
+    BancoNome: pick("BancoNome"),
+    BancoAgencia: pick("BancoAgencia"),
+    BancoConta: pick("BancoConta"),
+    BancoTipoConta: pick("BancoTipoConta"),
+  };
+}
+
+function assertValidOnboardingToken(rawToken) {
+  const token = String(rawToken || "").trim();
+  assert(
+    ONBOARDING_TOKEN_REGEX.test(token),
+    "Link de pré-cadastro inválido ou malformado.",
+  );
+  return token;
+}
+
+function buildOnboardingWhatsAppUrl(phoneRaw, nome, url, cargo = "") {
+  const phoneIntl = normalizeWhatsAppNumber(phoneRaw);
+  if (!phoneIntl) return "";
+  const firstName = String(nome || "colaborador(a)").trim().split(/\s+/)[0];
+  const roleNote = cargo ? ` para o cargo de ${cargo}` : "";
+  const text = encodeURIComponent(
+    `Olá ${firstName}! Seja bem-vindo(a) ao Grupo House 190${roleNote}. Preencha seus dados cadastrais e anexe seus documentos pelo link abaixo para iniciarmos sua admissão e liberar seu acesso ao sistema:\n\n${url}`,
+  );
+  return `https://wa.me/${phoneIntl}?text=${text}`;
+}
+
+async function applyOnboardingSubmissionToEmployee(emp, convite, now = nowIso()) {
+  if (!emp || !convite?.Submissao?.Dados) return null;
+  const subDados = sanitizeCandidatePersonalFields(convite.Submissao.Dados, emp);
+  const subDocs = convite.Submissao.Documentos && typeof convite.Submissao.Documentos === "object"
+    ? convite.Submissao.Documentos
+    : {};
+
+  const mergedDossie = { ...(emp.DossieDocumentos || {}) };
+  for (const [rawCode, item] of Object.entries(subDocs)) {
+    const code = String(item?.codigo || rawCode).trim().toUpperCase();
+    if (!code || !item?.arquivoUrl) continue;
+    const meta = REQUIRED_ADMISSION_DOCUMENTS.find((d) => d.codigo === code) || {
+      codigo: code,
+      titulo: item.titulo || "Documento Admissional",
+    };
+    const docId = `ONB_${emp.FuncionarioID}_${code}`;
+    const docEntry = {
+      DocID: docId,
+      DocumentoID: docId,
+      FuncionarioID: emp.FuncionarioID,
+      FuncionarioNome: subDados.Nome || emp.Nome || "Colaborador",
+      CPF: subDados.CPF || emp.CPF || "",
+      LojaID: emp.LojaID || convite.LojaID || "",
+      Tipo: "Documento Admissional",
+      SubtipoCodigo: code,
+      Titulo: `${meta.titulo} - ${subDados.Nome || emp.Nome || "Colaborador"}`,
+      Competencia: todayIso().slice(0, 7),
+      ArquivoURL: item.arquivoUrl,
+      NomeArquivo: String(item.nomeArquivo || `${code}.pdf`),
+      RequerAssinatura: false,
+      Status: "Pendente",
+      StatusAssinatura: "Pendente de Conferência",
+      StatusValidacao: "Em Análise",
+      OrigemTipo: "AUTOCADASTRO_ONBOARDING",
+      EnviadoPor: subDados.Nome || subDados.Email || "Candidato",
+      DataCriacao: item.enviadoEm || now,
+    };
+    await runtime.upsert("Documentos", docEntry).catch(() => null);
+    mergedDossie[code] = {
+      docId,
+      codigo: code,
+      titulo: meta.titulo,
+      arquivoUrl: item.arquivoUrl,
+      nomeArquivo: docEntry.NomeArquivo,
+      enviadoEm: item.enviadoEm || now,
+      enviadoPor: subDados.Nome || "Candidato",
+      status: "Em Análise",
+    };
+  }
+
+  const historico = { ...(emp.HistoricoEtapasAdmissao || {}) };
+  if (!historico["1"]) {
+    historico["1"] = {
+      etapa: 1,
+      codigo: "PRE_CADASTRO",
+      titulo: "1. Pré-cadastro / Link enviado",
+      data: convite.CriadoEm || emp.DataCriacao || now,
+      responsavel: convite.CriadoPor || emp.CriadoPor || "Gestão",
+    };
+  }
+  const candidateSubmitted = convite.Status === "Aguardando Conferência";
+  if (candidateSubmitted && !historico["2"]) {
+    historico["2"] = {
+      etapa: 2,
+      codigo: "DOCUMENTOS_ANALISE",
+      titulo: "2. Documentos enviados e em análise",
+      data: convite.EnviadoEm || now,
+      responsavel: subDados.Nome || "Colaborador (Link)",
+    };
+  }
+
+  const nextStage = candidateSubmitted
+    ? Math.max(Number(emp.EtapaAdmissao || 1), 2)
+    : Number(emp.EtapaAdmissao || 1);
+
+  const updatedEmp = {
+    ...emp,
+    ...subDados,
+    DossieDocumentos: mergedDossie,
+    EtapaAdmissao: nextStage,
+    HistoricoEtapasAdmissao: historico,
+    StatusOnboarding: convite.Status || emp.StatusOnboarding || "Em Preenchimento",
+    StatusAcesso:
+      emp.Ativo === true
+        ? "Liberado"
+        : candidateSubmitted
+          ? "Aguardando Conferência"
+          : emp.StatusAcesso || "Aguardando Preenchimento",
+    OnboardingEnviadoEm: convite.EnviadoEm || emp.OnboardingEnviadoEm || "",
+    OnboardingUltimoSyncEm: convite.Submissao.AtualizadoEm || convite.EnviadoEm || now,
+    DataAtualizacao: now,
+  };
+
+  await runtime.update("Funcionarios", emp.FuncionarioID, updatedEmp);
+
+  if (candidateSubmitted && convite.TokenSyncPendente) {
+    await createNotification({
+      LojaID: updatedEmp.LojaID || "",
+      Tipo: "Onboarding",
+      Assunto: "Pré-cadastro preenchido · Aguardando conferência",
+      Mensagem: `${updatedEmp.Nome || "Novo colaborador"} preencheu a ficha e anexou os documentos pelo link de admissão. Confira para liberar o acesso.`,
+      RegistoRelacionadoID: updatedEmp.FuncionarioID,
+    }).catch(() => null);
+  }
+  await runtime
+    .patchPath(`onboardingConvites/${convite.TokenID}`, {
+      TokenSyncPendente: false,
+    })
+    .catch(() => null);
+
+  return updatedEmp;
+}
+
+async function gerarLinkOnboarding(payload = {}) {
+  const profile = await requireManager();
+  const now = nowIso();
+  const employeeIdRaw = String(payload.FuncionarioID || payload.funcionarioId || "").trim();
+
+  let current = employeeIdRaw ? await runtime.getById("Funcionarios", employeeIdRaw) : null;
+  if (employeeIdRaw) {
+    assert(current, "Colaborador não encontrado para gerar link.");
+  }
+
+  const resolvedLojaId = String(
+    payload.LojaID || current?.LojaID || (!isAdmin(profile) ? profile.LojaID : "") || "",
+  ).trim();
+  if (!isAdmin(profile) && current) {
+    assert(
+      String(current.LojaID || "") === String(profile.LojaID || ""),
+      "Gerente só pode gerar link de onboarding para a sua própria unidade/loja.",
+    );
+  }
+
+  let nomeLoja = String(payload.NomeLoja || current?.NomeLoja || "").trim();
+  if (!nomeLoja && resolvedLojaId) {
+    const stores = await runtime.list("Lojas").catch(() => []);
+    const storeObj = stores.find((s) => String(s.LojaID) === String(resolvedLojaId));
+    nomeLoja = storeObj?.NomeLoja || "";
+  }
+
+  if (!current) {
+    const newId = uuid();
+    const draftPersonal = sanitizeCandidatePersonalFields(payload);
+    current = {
+      FuncionarioID: newId,
+      Nome: draftPersonal.Nome || "Novo Colaborador",
+      NomeSocial: draftPersonal.NomeSocial,
+      CPF: draftPersonal.CPF,
+      Telefone: draftPersonal.Telefone,
+      WhatsApp: draftPersonal.WhatsApp,
+      Email: draftPersonal.Email,
+      LojaID: resolvedLojaId,
+      NomeLoja: nomeLoja,
+      Cargo: String(payload.Cargo || "Colaborador").trim(),
+      Setor: String(payload.Setor || "Cozinha").trim(),
+      Perfil: payload.Perfil || APP.profiles.employee,
+      TipoContrato: String(payload.TipoContrato || "CLT").trim(),
+      DataAdmissao: String(payload.DataAdmissao || "").trim(),
+      PeriodoExperienciaDias: Number(payload.PeriodoExperienciaDias || 90) || 90,
+      TurnoTrabalho: String(payload.TurnoTrabalho || "").trim(),
+      SalarioBase: Number(payload.SalarioBase || 0) || 0,
+      SaldoFolgas: 0,
+      Ativo: false,
+      StatusAcesso: "Aguardando Preenchimento",
+      StatusOnboarding: "Link Enviado",
+      EtapaAdmissao: 1,
+      CadastroValidado: false,
+      HistoricoEtapasAdmissao: {
+        1: {
+          etapa: 1,
+          codigo: "PRE_CADASTRO",
+          titulo: "1. Pré-cadastro / Link enviado",
+          data: now,
+          responsavel: profile.Nome || profile.Email,
+        },
+      },
+      DataCriacao: now,
+      CriadoPor: profile.Email || profile.Nome,
+      DataAtualizacao: now,
+    };
+    await runtime.create("Funcionarios", current);
+  }
+
+  const existingToken = String(current.OnboardingToken || "").trim();
+  const shouldReuse =
+    existingToken &&
+    ONBOARDING_TOKEN_REGEX.test(existingToken) &&
+    payload.regenerar !== true;
+
+  let token = shouldReuse ? existingToken : generateOnboardingToken();
+  let previousInvite = null;
+  if (shouldReuse) {
+    previousInvite = await runtime.readPath(`onboardingConvites/${token}`).catch(() => null);
+    if (!previousInvite) {
+      token = generateOnboardingToken();
+    }
+  } else if (existingToken && ONBOARDING_TOKEN_REGEX.test(existingToken)) {
+    await runtime.writePath(`onboardingConvites/${existingToken}`, null).catch(() => null);
+  }
+
+  const url = buildOnboardingUrl(payload.origin, token);
+  const cargoDisplay = String(payload.Cargo || current.Cargo || "").trim();
+  const nomeDisplay = String(payload.Nome || current.Nome || "Colaborador").trim();
+  const invitePayload = {
+    ...(previousInvite || {}),
+    TokenID: token,
+    Token: token,
+    FuncionarioID: current.FuncionarioID,
+    LojaID: resolvedLojaId || current.LojaID || "",
+    NomeLoja: nomeLoja || current.NomeLoja || "",
+    NomeHint: nomeDisplay,
+    Cargo: cargoDisplay,
+    Setor: String(payload.Setor || current.Setor || "").trim(),
+    TipoContrato: String(payload.TipoContrato || current.TipoContrato || "").trim(),
+    DataAdmissao: String(payload.DataAdmissao || current.DataAdmissao || "").trim(),
+    TurnoTrabalho: String(payload.TurnoTrabalho || current.TurnoTrabalho || "").trim(),
+    Status:
+      previousInvite?.Status === "Aguardando Conferência"
+        ? "Aguardando Conferência"
+        : previousInvite?.Status === "Aprovado" && current.CadastroValidado
+          ? "Aprovado"
+          : previousInvite?.Status || "Pendente",
+    EtapaAdmissao: Number(current.EtapaAdmissao || 1),
+    CadastroValidado: Boolean(current.CadastroValidado),
+    AcessoLiberado: Boolean(current.CadastroValidado && current.Ativo !== false),
+    CriadoEm: previousInvite?.CriadoEm || now,
+    AtualizadoEm: now,
+    CriadoPor: previousInvite?.CriadoPor || profile.Nome || profile.Email,
+  };
+
+  await runtime.writePath(`onboardingConvites/${token}`, invitePayload);
+
+  const historico = { ...(current.HistoricoEtapasAdmissao || {}) };
+  if (!historico["1"]) {
+    historico["1"] = {
+      etapa: 1,
+      codigo: "PRE_CADASTRO",
+      titulo: "1. Pré-cadastro / Link enviado",
+      data: now,
+      responsavel: profile.Nome || profile.Email,
+    };
+  }
+
+  const updatedEmp = {
+    ...current,
+    LojaID: resolvedLojaId || current.LojaID || "",
+    NomeLoja: nomeLoja || current.NomeLoja || "",
+    Cargo: cargoDisplay || current.Cargo || "",
+    OnboardingToken: token,
+    OnboardingLinkUrl: url,
+    OnboardingLinkGeradoEm: now,
+    StatusOnboarding:
+      current.StatusOnboarding === "Aguardando Conferência" || current.CadastroValidado
+        ? current.StatusOnboarding
+        : "Link Enviado",
+    StatusAcesso: current.Ativo === true ? "Liberado" : current.StatusAcesso || "Aguardando Preenchimento",
+    HistoricoEtapasAdmissao: historico,
+    DataAtualizacao: now,
+  };
+
+  await runtime.update("Funcionarios", current.FuncionarioID, updatedEmp);
+  await audit("ONBOARDING_LINK_GERADO", "Onboarding", current.FuncionarioID, {
+    tela: "Tela 2 - Link de Pré-Cadastro",
+    employeeId: current.FuncionarioID,
+    employeeName: updatedEmp.Nome,
+    LojaID: updatedEmp.LojaID,
+    resumo: `Link de pré-cadastro gerado para ${updatedEmp.Nome}`,
+  });
+
+  const waPhone = payload.Telefone || payload.WhatsApp || updatedEmp.WhatsApp || updatedEmp.Telefone || "";
+  const waUrl = buildOnboardingWhatsAppUrl(waPhone, updatedEmp.Nome, url, updatedEmp.Cargo);
+
+  return success(
+    {
+      token,
+      url,
+      waUrl,
+      convite: invitePayload,
+      colaborador: updatedEmp,
+    },
+    "Link de pré-cadastro gerado com sucesso!",
+  );
+}
+
+async function consultarConviteOnboarding(payload = {}) {
+  const token = assertValidOnboardingToken(payload.token || payload.TokenID);
+  const convite = await runtime.readPath(`onboardingConvites/${token}`);
+  assert(convite, "Link de pré-cadastro não encontrado, expirado ou já encerrado.");
+
+  return success({
+    convite: {
+      TokenID: convite.TokenID || token,
+      FuncionarioID: convite.FuncionarioID || "",
+      LojaID: convite.LojaID || "",
+      NomeLoja: convite.NomeLoja || "",
+      NomeHint: convite.NomeHint || "",
+      Cargo: convite.Cargo || "",
+      Setor: convite.Setor || "",
+      TipoContrato: convite.TipoContrato || "",
+      DataAdmissao: convite.DataAdmissao || "",
+      TurnoTrabalho: convite.TurnoTrabalho || "",
+      Status: convite.Status || "Pendente",
+      EtapaAdmissao: Number(convite.EtapaAdmissao || 1),
+      CadastroValidado: Boolean(convite.CadastroValidado),
+      AcessoLiberado: Boolean(convite.AcessoLiberado),
+      MotivoCorrecao: convite.MotivoCorrecao || "",
+      EnviadoEm: convite.EnviadoEm || "",
+      AprovadoEm: convite.AprovadoEm || "",
+      Submissao: convite.Submissao || null,
+    },
+    etapas: ONBOARDING_STAGES,
+    documentosExigidos: REQUIRED_ADMISSION_DOCUMENTS.map((d) => ({
+      ...d,
+      obrigatorioAutocadastro: SELF_ONBOARDING_REQUIRED_DOC_CODES.includes(d.codigo),
+    })),
+  });
+}
+
+async function salvarAutocadastroOnboarding(payload = {}) {
+  const token = assertValidOnboardingToken(payload.token || payload.TokenID);
+  const convite = await runtime.readPath(`onboardingConvites/${token}`);
+  assert(convite, "Link de pré-cadastro inválido ou expirado.");
+  assert(
+    convite.Status !== "Aprovado" && convite.CadastroValidado !== true,
+    "Seu cadastro já foi conferido e validado pela Administração. Caso precise alterar algo, procure seu gestor.",
+  );
+
+  const rawDados = payload.dados && typeof payload.dados === "object" ? payload.dados : payload;
+  const previousSub = convite.Submissao || {};
+  const sanitizedDados = sanitizeCandidatePersonalFields(rawDados, previousSub.Dados || {});
+  const rawDocs = payload.documentos && typeof payload.documentos === "object" ? payload.documentos : previousSub.Documentos || {};
+  const now = nowIso();
+
+  const sanitizedDocs = {};
+  for (const [key, doc] of Object.entries(rawDocs)) {
+    if (!doc || !doc.arquivoUrl) continue;
+    const code = String(doc.codigo || key).trim().toUpperCase();
+    const meta = REQUIRED_ADMISSION_DOCUMENTS.find((d) => d.codigo === code);
+    sanitizedDocs[code] = {
+      codigo: code,
+      titulo: meta?.titulo || String(doc.titulo || "Documento"),
+      arquivoUrl: String(doc.arquivoUrl).trim(),
+      nomeArquivo: String(doc.nomeArquivo || `${code}.pdf`).trim(),
+      enviadoEm: doc.enviadoEm || now,
+    };
+  }
+
+  const finalizar = payload.finalizar === true;
+  if (finalizar) {
+    assert(sanitizedDados.Nome.length >= 3, "Informe seu nome completo.");
+    assert(cleanCpfDigits(sanitizedDados.CPF).length === 11, "Informe um CPF válido com 11 dígitos.");
+    assert(sanitizedDados.RG.length >= 4, "Informe o número do seu RG.");
+    assert(sanitizedDados.DataNascimento, "Informe sua data de nascimento.");
+    assert(sanitizedDados.Telefone.replace(/\D/g, "").length >= 10, "Informe seu telefone / WhatsApp com DDD.");
+    assert(sanitizedDados.Email && sanitizedDados.Email.includes("@"), "Informe um e-mail pessoal válido para o seu acesso.");
+    assert(sanitizedDados.CEP.replace(/\D/g, "").length === 8, "Informe um CEP válido.");
+    assert(sanitizedDados.Endereco, "Informe seu endereço.");
+    assert(sanitizedDados.Bairro && sanitizedDados.Cidade && sanitizedDados.UF, "Preencha bairro, cidade e UF.");
+    assert(sanitizedDados.ContatoEmergenciaNome && sanitizedDados.ContatoEmergenciaTelefone, "Informe um contato de emergência.");
+    assert(sanitizedDados.ChavePix, "Informe sua Chave PIX para recebimento.");
+
+    const missingDocs = SELF_ONBOARDING_REQUIRED_DOC_CODES.filter((code) => !sanitizedDocs[code]?.arquivoUrl);
+    if (missingDocs.length) {
+      const titles = missingDocs
+        .map((c) => REQUIRED_ADMISSION_DOCUMENTS.find((d) => d.codigo === c)?.titulo || c)
+        .join(", ");
+      throw new Error(`Anexe os documentos obrigatórios antes de enviar: ${titles}.`);
+    }
+  }
+
+  const nextStatus = finalizar ? "Aguardando Conferência" : "Em Preenchimento";
+  const nextStage = finalizar ? 2 : 1;
+  const submissao = {
+    Dados: sanitizedDados,
+    Documentos: sanitizedDocs,
+    AtualizadoEm: now,
+    ...(finalizar ? { EnviadoEm: now, DeclaracaoVeracidadeAceita: true } : {}),
+  };
+
+  const patch = {
+    TokenID: convite.TokenID || token,
+    Token: convite.Token || token,
+    FuncionarioID: convite.FuncionarioID,
+    LojaID: convite.LojaID || "",
+    NomeHint: sanitizedDados.Nome || convite.NomeHint || "",
+    Status: nextStatus,
+    EtapaAdmissao: nextStage,
+    CadastroValidado: false,
+    AcessoLiberado: false,
+    MotivoCorrecao: finalizar ? "" : convite.MotivoCorrecao || "",
+    TokenSyncPendente: finalizar ? true : Boolean(convite.TokenSyncPendente),
+    AtualizadoEm: now,
+    ...(finalizar ? { EnviadoEm: now } : {}),
+    Submissao: submissao,
+  };
+
+  await runtime.patchPath(`onboardingConvites/${token}`, patch);
+
+  return success(
+    {
+      ...convite,
+      ...patch,
+    },
+    finalizar
+      ? "Cadastro e documentos enviados! Aguarde a conferência da Administração para liberação do seu acesso."
+      : "Rascunho salvo com sucesso.",
+  );
+}
+
+async function sincronizarConvitesOnboarding(payload = {}) {
+  const profile = await requireManager();
+  const targetId = String(payload.FuncionarioID || payload.funcionarioId || "").trim();
+  const candidates = targetId
+    ? [await runtime.getById("Funcionarios", targetId)].filter(Boolean)
+    : (await runtime.list("Funcionarios").catch(() => [])).filter((e) => {
+        if (!e?.OnboardingToken || e.CadastroValidado) return false;
+        if (!isAdmin(profile) && String(e.LojaID || "") !== String(profile.LojaID || "")) return false;
+        return e.StatusOnboarding !== "Aprovado";
+      });
+
+  const updatedEmployees = [];
+  for (const emp of candidates) {
+    if (!emp?.OnboardingToken || !ONBOARDING_TOKEN_REGEX.test(String(emp.OnboardingToken))) continue;
+    const convite = await runtime.readPath(`onboardingConvites/${emp.OnboardingToken}`).catch(() => null);
+    if (!convite?.Submissao?.Dados) continue;
+    const subUpdated = String(convite.Submissao.AtualizadoEm || convite.EnviadoEm || "");
+    const alreadySynced =
+      !convite.TokenSyncPendente &&
+      subUpdated &&
+      subUpdated === String(emp.OnboardingUltimoSyncEm || "") &&
+      convite.Status === emp.StatusOnboarding;
+    if (alreadySynced) continue;
+
+    const synced = await applyOnboardingSubmissionToEmployee(emp, convite, nowIso());
+    if (synced) updatedEmployees.push(synced);
+  }
+
+  return success(
+    { syncedCount: updatedEmployees.length, updatedEmployees },
+    updatedEmployees.length
+      ? `${updatedEmployees.length} pré-cadastro(s) sincronizado(s).`
+      : "Cadastros atualizados.",
+  );
+}
+
+async function conferirLiberarAcessoOnboarding(payload = {}) {
+  const profile = await requireManager();
+  const employeeId = String(payload.FuncionarioID || payload.funcionarioId || "").trim();
+  assert(employeeId, "Identificador do colaborador é obrigatório.");
+
+  await sincronizarConvitesOnboarding({ FuncionarioID: employeeId }).catch(() => null);
+  const current = await runtime.getById("Funcionarios", employeeId);
+  assert(current, "Colaborador não encontrado.");
+
+  if (!isAdmin(profile)) {
+    assert(
+      String(current.LojaID || "") === String(profile.LojaID || ""),
+      "Gerente só pode conferir cadastros da própria unidade/loja.",
+    );
+  }
+
+  const now = nowIso();
+  const aprovar = payload.aprovar !== false;
+  const token = String(current.OnboardingToken || payload.token || "").trim();
+
+  if (!aprovar) {
+    const motivo = String(payload.motivo || "").trim();
+    assert(motivo.length >= 3, "Informe o motivo da solicitação de correção ao colaborador.");
+
+    const updated = {
+      ...current,
+      EtapaAdmissao: 1,
+      CadastroValidado: false,
+      StatusOnboarding: "Correção Solicitada",
+      StatusAcesso: "Correção Solicitada",
+      MotivoCorrecaoOnboarding: motivo,
+      DataAtualizacao: now,
+    };
+    await runtime.update("Funcionarios", employeeId, updated);
+    if (token && ONBOARDING_TOKEN_REGEX.test(token)) {
+      await runtime
+        .patchPath(`onboardingConvites/${token}`, {
+          Status: "Em Preenchimento",
+          EtapaAdmissao: 1,
+          CadastroValidado: false,
+          AcessoLiberado: false,
+          MotivoCorrecao: motivo,
+          TokenSyncPendente: false,
+          AtualizadoEm: now,
+        })
+        .catch(() => null);
+    }
+    await audit("ONBOARDING_CORRECAO_SOLICITADA", "Onboarding", employeeId, {
+      tela: "Tela 2 - Conferência de Pré-Cadastro",
+      employeeId,
+      employeeName: current.Nome,
+      LojaID: current.LojaID,
+      justificativa: motivo,
+    });
+    const waUrl = buildOnboardingWhatsAppUrl(
+      updated.WhatsApp || updated.Telefone,
+      updated.Nome,
+      updated.OnboardingLinkUrl || "",
+      updated.Cargo,
+    );
+    return success({ colaborador: updated, waUrl }, "Correção solicitada. O colaborador pode editar usando o mesmo link.");
+  }
+
+  const targetEmail = normalizeEmail(payload.email || payload.Email || current.Email);
+  assert(targetEmail && targetEmail.includes("@"), "O colaborador precisa ter um e-mail válido preenchido antes de liberar o acesso.");
+
+  const targetStage = Math.min(6, Math.max(2, Number(payload.etapa || 3)));
+  const stageMeta = ONBOARDING_STAGES.find((s) => s.etapa === targetStage) || ONBOARDING_STAGES[2];
+  const historico = { ...(current.HistoricoEtapasAdmissao || {}) };
+  if (!historico["2"]) {
+    historico["2"] = {
+      etapa: 2,
+      codigo: "DOCUMENTOS_ANALISE",
+      titulo: "2. Documentos enviados e em análise",
+      data: current.OnboardingEnviadoEm || now,
+      responsavel: profile.Nome || profile.Email,
+    };
+  }
+  historico[String(targetStage)] = {
+    etapa: targetStage,
+    codigo: stageMeta.codigo,
+    titulo: stageMeta.titulo,
+    data: now,
+    responsavel: profile.Nome || profile.Email,
+    observacao: "Cadastro conferido e acesso liberado pela Administração",
+  };
+
+  let authUid = current.AuthUID || "";
+  let loginCriado = false;
+  let senhaProvisoria = "";
+  const avisos = [];
+
+  if (payload.criarLogin !== false) {
+    if (isAdmin(profile) && !authUid && typeof runtime.createAuthUser === "function") {
+      const candidatePwd = String(payload.senhaProvisoria || "").trim() || generateProvisionalPassword();
+      assert(candidatePwd.length >= 10, "A senha provisória deve ter pelo menos 10 caracteres.");
+      try {
+        authUid = await runtime.createAuthUser(targetEmail, candidatePwd, async (createdUid) => {
+          const accessRecord = {
+            UsuarioID: createdUid,
+            FuncionarioID: employeeId,
+            Nome: current.Nome || "Colaborador",
+            Email: targetEmail,
+            Perfil: current.Perfil || APP.profiles.employee,
+            LojaID: current.LojaID || "",
+            NomeLoja: current.NomeLoja || "",
+            Cargo: current.Cargo || "Colaborador",
+            PrimeiroAcesso: true,
+            Ativo: true,
+            DataCriacao: now,
+            DataAtualizacao: now,
+          };
+          await runtime.saveAccess(createdUid, accessRecord);
+        });
+        loginCriado = true;
+        senhaProvisoria = candidatePwd;
+      } catch (authErr) {
+        const msg = String(authErr?.message || authErr || "");
+        if (msg.includes("auth/email-already-in-use") || msg.includes("já possui um acesso")) {
+          avisos.push("E-mail já possuía conta no Firebase Auth. Caso necessário, use Esqueci a senha no login.");
+        } else {
+          avisos.push(`Não foi possível criar senha automática (${msg}); o acesso cadastral foi liberado.`);
+        }
+      }
+    } else if (authUid && isAdmin(profile) && typeof runtime.getAccess === "function") {
+      const existingAccess = await runtime.getAccess(authUid).catch(() => null);
+      if (existingAccess && typeof runtime.saveAccess === "function") {
+        await runtime.saveAccess(authUid, {
+          ...existingAccess,
+          Ativo: true,
+          Perfil: current.Perfil || existingAccess.Perfil || APP.profiles.employee,
+          LojaID: current.LojaID || existingAccess.LojaID || "",
+          DataAtualizacao: now,
+        }).catch(() => null);
+      }
+    } else if (!isAdmin(profile) && !authUid) {
+      avisos.push("Cadastro conferido pela gerência. A Diretoria/Administrador conclui a criação da senha de login.");
+    }
+  }
+
+  const updated = {
+    ...current,
+    Email: targetEmail,
+    ...(authUid ? { AuthUID: authUid } : {}),
+    EtapaAdmissao: Math.max(Number(current.EtapaAdmissao || 1), targetStage),
+    HistoricoEtapasAdmissao: historico,
+    CadastroValidado: true,
+    ValidadoPor: profile.Nome || profile.Email,
+    ValidadoEm: now,
+    Ativo: true,
+    StatusOnboarding: "Aprovado",
+    StatusAcesso: authUid || loginCriado ? "Liberado" : isAdmin(profile) ? "Liberado" : "Aguardando Senha Admin",
+    MotivoCorrecaoOnboarding: "",
+    DataAtualizacao: now,
+  };
+
+  await runtime.update("Funcionarios", employeeId, updated);
+
+  if (token && ONBOARDING_TOKEN_REGEX.test(token)) {
+    await runtime
+      .patchPath(`onboardingConvites/${token}`, {
+        Status: "Aprovado",
+        EtapaAdmissao: updated.EtapaAdmissao,
+        CadastroValidado: true,
+        AcessoLiberado: true,
+        AprovadoEm: now,
+        AprovadoPor: profile.Nome || profile.Email,
+        MotivoCorrecao: "",
+        TokenSyncPendente: false,
+        Submissao: null,
+      })
+      .catch(() => null);
+  }
+
+  await audit("ONBOARDING_APROVADO_ACESSO_LIBERADO", "Onboarding", employeeId, {
+    tela: "Tela 2 - Conferência e Liberação de Acesso",
+    employeeId,
+    employeeName: updated.Nome,
+    LojaID: updated.LojaID,
+    resumo: `Cadastro de ${updated.Nome} conferido, validado (Etapa ${updated.EtapaAdmissao}) e acesso liberado.`,
+  });
+
+  const phoneIntl = normalizeWhatsAppNumber(updated.WhatsApp || updated.Telefone || "");
+  const loginBase = buildOnboardingUrl(payload.origin, token).split("?")[0];
+  let waUrl = "";
+  if (phoneIntl) {
+    const firstName = String(updated.Nome || "Colaborador").trim().split(/\s+/)[0];
+    const credText = senhaProvisoria
+      ? `\n\nE-mail: ${targetEmail}\nSenha provisória: ${senhaProvisoria}`
+      : `\n\nE-mail de acesso: ${targetEmail}`;
+    const msg = encodeURIComponent(
+      `Olá ${firstName}! Seu cadastro admissional foi conferido e seu acesso ao sistema Folgas 3.0 foi liberado!\nAcesse em: ${loginBase}${credText}`,
+    );
+    waUrl = `https://wa.me/${phoneIntl}?text=${msg}`;
+  }
+
+  return success(
+    {
+      colaborador: updated,
+      loginCriado,
+      senhaProvisoria,
+      emailLogin: targetEmail,
+      waUrl,
+      avisos,
+    },
+    loginCriado
+      ? `Cadastro conferido e acesso liberado para ${updated.Nome}!`
+      : `Cadastro de ${updated.Nome} conferido e validado com sucesso!`,
+  );
+}
+
 async function gerarKitAdmissionalPdf(payload = {}) {
   const profile = await requireManager();
   const employeeId = String(payload.FuncionarioID || payload.employeeId || "").trim();
@@ -2605,7 +3349,12 @@ export const createPortalHandlers = () => ({
   resolverLoginPorCpfOuEmail: (args) => resolverLoginPorCpfOuEmail(unpackArg(args)),
   solicitarRecuperacaoSenhaWhatsApp: (args) => solicitarRecuperacaoSenhaWhatsApp(unpackArg(args)),
 
-  // Tela 2: Onboarding em 6 Etapas, Dossie e Kit Admissional PDF
+  // Tela 2: Onboarding em 6 Etapas, Link Publico, Dossie e Kit Admissional PDF
+  gerarLinkOnboarding: (args) => gerarLinkOnboarding(unpackArg(args)),
+  consultarConviteOnboarding: (args) => consultarConviteOnboarding(unpackArg(args)),
+  salvarAutocadastroOnboarding: (args) => salvarAutocadastroOnboarding(unpackArg(args)),
+  sincronizarConvitesOnboarding: (args) => sincronizarConvitesOnboarding(unpackArg(args)),
+  conferirLiberarAcessoOnboarding: (args) => conferirLiberarAcessoOnboarding(unpackArg(args)),
   salvarPreCadastroColaborador: (args) => salvarPreCadastroColaborador(unpackArg(args)),
   avancarEtapaOnboarding: (args) => avancarEtapaOnboarding(unpackArg(args)),
   enviarDocumentoAdmissional: (args) => enviarDocumentoAdmissional(unpackArg(args)),
