@@ -1403,41 +1403,61 @@ function injectPortalTabsStyles() {
       background: #ffffff;
       border: 1px solid #e2e8f0;
       border-radius: 16px;
-      padding: 18px 20px;
+      padding: 16px 18px;
       box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
+      display: grid;
+      gap: 10px;
     }
-    .onb-self-brand {
+    .onb-self-hero-top {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .onb-self-hero-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
       min-width: 0;
       flex: 1;
     }
     .onb-self-monogram {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
       background: linear-gradient(135deg, #2563eb 0%, #4077ba 100%);
       color: #ffffff;
-      font-size: 13px;
+      font-size: 10.5px;
       font-weight: 800;
       letter-spacing: -0.02em;
       display: grid;
       place-items: center;
-      flex: 0 0 42px;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+      flex: 0 0 30px;
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.22);
+    }
+    .onb-self-eyebrow {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.055em;
+      text-transform: uppercase;
+      color: #4077ba;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .onb-self-hero-body {
+      display: grid;
+      gap: 6px;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
     }
     .onb-self-hero h1 {
-      margin: 2px 0 4px;
+      margin: 0;
       font-size: 19px;
       font-weight: 750;
       color: #0f172a;
-      line-height: 1.2;
+      line-height: 1.25;
       letter-spacing: -0.015em;
     }
     .onb-self-meta {
@@ -1445,7 +1465,6 @@ function injectPortalTabsStyles() {
       align-items: center;
       flex-wrap: wrap;
       gap: 6px;
-      margin-top: 4px;
     }
     .onb-self-meta-chip {
       display: inline-flex;
@@ -3823,24 +3842,25 @@ async function getPayrollTakeatSnapshot(forceRefresh = false) {
   return payrollTakeatCache.promise;
 }
 
-async function compressReceiptFileToDataUrl(file) {
+async function compressAttachmentFileToDataUrl(file, { maxPdfBytes = 1.8 * 1024 * 1024, label = "arquivo" } = {}) {
   if (!file) return "";
   const isImage = String(file.type || "").startsWith("image/");
   if (!isImage) {
-    if (file.size > 1.8 * 1024 * 1024) {
-      throw new Error("O arquivo PDF deve ter no máximo 1,8 MB.");
+    if (file.size > maxPdfBytes) {
+      const mbLimit = (maxPdfBytes / (1024 * 1024)).toFixed(1).replace(".", ",");
+      throw new Error(`O arquivo PDF do ${label} deve ter no máximo ${mbLimit} MB.`);
     }
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Falha ao ler arquivo do comprovante."));
+      reader.onerror = () => reject(new Error(`Falha ao ler arquivo do ${label}.`));
       reader.readAsDataURL(file);
     });
   }
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Falha ao ler imagem do comprovante."));
+    reader.onerror = () => reject(new Error(`Falha ao ler imagem do ${label}.`));
     reader.onload = () => {
       const src = String(reader.result || "");
       const img = new Image();
@@ -3863,6 +3883,14 @@ async function compressReceiptFileToDataUrl(file) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+async function compressReceiptFileToDataUrl(file) {
+  return compressAttachmentFileToDataUrl(file, { maxPdfBytes: 1.8 * 1024 * 1024, label: "comprovante" });
+}
+
+async function readAttachmentFileAsDataUrl(file) {
+  return compressAttachmentFileToDataUrl(file, { maxPdfBytes: 2.5 * 1024 * 1024, label: "documento" });
 }
 
 function buildPayrollReportRowsHtml(linha) {
@@ -6255,19 +6283,21 @@ export async function mountOnboardingSelfPortal(token) {
     root.innerHTML = `
       <div class="onb-self-shell">
         <header class="onb-self-hero">
-          <div class="onb-self-brand">
-            <div class="onb-self-monogram">H190</div>
-            <div style="min-width:0; flex:1;">
-              <span class="eyebrow" style="color:#4077ba;">GRUPO HOUSE 190 · ADMISSÃO DIGITAL</span>
-              <h1>Pré-Cadastro do Novo Colaborador</h1>
-              <div class="onb-self-meta">
-                <span class="onb-self-meta-chip">${escapeHtml(inviteData.NomeLoja || "Unidade House 190")}</span>
-                ${inviteData.Cargo ? `<span class="onb-self-meta-chip">${escapeHtml(inviteData.Cargo)}</span>` : ""}
-                ${inviteData.TipoContrato ? `<span class="onb-self-meta-chip">${escapeHtml(inviteData.TipoContrato)}</span>` : ""}
-              </div>
+          <div class="onb-self-hero-top">
+            <div class="onb-self-hero-brand">
+              <div class="onb-self-monogram">H190</div>
+              <span class="onb-self-eyebrow">GRUPO HOUSE 190 · ADMISSÃO DIGITAL</span>
+            </div>
+            <span class="portal-pill portal-pill--blue" style="flex-shrink:0;">Etapa ${etapaAtual}/6</span>
+          </div>
+          <div class="onb-self-hero-body">
+            <h1>Pré-Cadastro do Novo Colaborador</h1>
+            <div class="onb-self-meta">
+              <span class="onb-self-meta-chip">${escapeHtml(inviteData.NomeLoja || "Unidade House 190")}</span>
+              ${inviteData.Cargo ? `<span class="onb-self-meta-chip">${escapeHtml(inviteData.Cargo)}</span>` : ""}
+              ${inviteData.TipoContrato ? `<span class="onb-self-meta-chip">${escapeHtml(inviteData.TipoContrato)}</span>` : ""}
             </div>
           </div>
-          <span class="portal-pill portal-pill--blue">Etapa ${etapaAtual}/6</span>
         </header>
 
         <nav class="onb-self-stepper" aria-label="Etapas do pré-cadastro">
