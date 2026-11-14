@@ -185,3 +185,73 @@ test('medical retries keep the same request ID, while reopening the form creates
   await node('#medSubmitBtn').click();
   assert.notEqual(sent[2].requestId, sent[0].requestId);
 });
+
+test('personal admission documents do not ask for employee signature in Meus Documentos', async () => {
+  const { requiresEmployeeSignature } = await import('../src/documents.js');
+  assert.equal(requiresEmployeeSignature({ DocumentoID: 'ONB_1_RG_CNH', Tipo: 'Documento Admissional', Status: 'Pendente' }), false);
+  assert.equal(requiresEmployeeSignature({ OrigemTipo: 'AUTOCADASTRO_ONBOARDING', Status: 'Validado' }), false);
+  assert.equal(requiresEmployeeSignature({ SubtipoCodigo: 'COMPROVANTE_PAGAMENTO_FOLHA', RequerAssinatura: false }), false);
+  assert.equal(requiresEmployeeSignature({ DocumentoID: 'DOC-1', Tipo: 'Termo de Responsabilidade', Status: 'Pendente' }), true);
+
+  const startFn = source.indexOf('export function requiresEmployeeSignature(');
+  const endFn = source.indexOf('\n/**\n * Classifica a categoria', startFn);
+  const sigBlock = source.slice(startFn, endFn).replace('export function', 'function');
+  const startEmp = source.indexOf('function renderEmployeeView()');
+  const endEmp = source.indexOf('\nlet listenersInitialized =', startEmp);
+  const empBlock = source.slice(startEmp, endEmp);
+
+  const state = {
+    user: { FuncionarioID: 'e1' },
+    isManager: false,
+    isAdmin: false,
+    statusFilter: 'all',
+    documents: [
+      {
+        DocumentoID: 'ONB_e1_RG_CNH',
+        FuncionarioID: 'e1',
+        Titulo: 'RG / CNH - Gleuce',
+        Tipo: 'Documento Admissional',
+        OrigemTipo: 'AUTOCADASTRO_ONBOARDING',
+        RequerAssinatura: false,
+        Status: 'Validado',
+        Arquivos: [{ nomeArquivo: 'frente.png' }, { nomeArquivo: 'verso.png' }],
+      },
+      {
+        DocumentoID: 'ONB_e1_CTPS',
+        FuncionarioID: 'e1',
+        Titulo: 'Carteira de Trabalho Digital - Gleuce',
+        Tipo: 'Documento Admissional',
+        Status: 'Pendente',
+      },
+      {
+        DocumentoID: 'TERM_1',
+        FuncionarioID: 'e1',
+        Titulo: 'Termo de Uniforme',
+        Tipo: 'Termo RH',
+        Status: 'Pendente',
+      },
+    ],
+  };
+
+  const ctx = {
+    state,
+    $: () => null,
+    userFuncId: (u) => String(u?.FuncionarioID || ''),
+    esc: (v) => String(v ?? ''),
+    formatDateShort: () => '14/11/2026',
+    formatDocTagLabel: (d) => d.Tipo || 'Documento',
+    formatMedicalFriendlyPeriod: () => '',
+  };
+  vm.runInNewContext(`${sigBlock}\n${empBlock}\nthis.render = renderEmployeeView;`, ctx);
+  const html = ctx.render();
+  assert.match(html, /Pendentes \(1\)/);
+  assert.match(html, /Validado/);
+  assert.match(html, /Em conferência/);
+  assert.match(html, /Visualizar \(2\)/);
+  const rgCardStart = html.indexOf('RG / CNH - Gleuce');
+  const termCardStart = html.indexOf('Termo de Uniforme');
+  const personalSection = html.slice(rgCardStart, termCardStart);
+  assert.doesNotMatch(personalSection, /Aguardando assinatura/i);
+  assert.doesNotMatch(personalSection, /data-action="sign"/i);
+  assert.match(html.slice(termCardStart), /data-action="sign"/i);
+});

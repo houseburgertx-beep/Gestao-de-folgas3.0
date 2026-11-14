@@ -357,6 +357,75 @@ function getInitials(name) {
 }
 
 /**
+ * Indica se o documento exige assinatura digital do colaborador.
+ * Documentos pessoais enviados no autocadastro/dossiê (RG, CTPS, comprovante de
+ * residência), atestados médicos e comprovantes de pagamento são apenas para
+ * conferência/consulta — nunca devem pedir assinatura do colaborador.
+ */
+export function requiresEmployeeSignature(doc) {
+  if (!doc || typeof doc !== "object") return false;
+  if (doc.RequerAssinatura === false) return false;
+  const tipo = String(doc.Tipo || "").trim().toLowerCase();
+  const origem = String(doc.OrigemTipo || "").trim().toUpperCase();
+  const subtipo = String(doc.SubtipoCodigo || "").trim().toUpperCase();
+  const docId = String(doc.DocumentoID || doc.DocID || "").trim().toUpperCase();
+  if (
+    tipo === "documento admissional" ||
+    tipo === "atestado médico" ||
+    tipo === "atestado medico" ||
+    origem === "AUTOCADASTRO_ONBOARDING" ||
+    origem === "DOSSIE_ADMISSIONAL" ||
+    subtipo === "COMPROVANTE_PAGAMENTO_FOLHA" ||
+    docId.startsWith("ONB_")
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function resolvePersonalDocState(doc) {
+  const rawStatus = String(doc?.StatusValidacao || doc?.Status || "").trim();
+  const statusUpper = String(doc?.Status || "").trim();
+  const sigUpper = String(doc?.StatusAssinatura || "").trim();
+  const isRejected =
+    ["Recusado", "Rejeitado", "Correção Solicitada"].includes(rawStatus) ||
+    ["Recusado", "Rejeitado"].includes(statusUpper);
+  if (isRejected) {
+    return {
+      label: "Correção solicitada",
+      badgeClass: "pill-danger",
+      managerStatusClass: "rejected",
+      cardClass: "is-rejected",
+      isValidated: false,
+      isRejected: true,
+    };
+  }
+  const isValidated =
+    ["Validado", "Aprovado", "Disponível", "Pago"].includes(rawStatus) ||
+    ["Validado", "Aprovado", "Disponível", "Pago"].includes(statusUpper) ||
+    ["Validado", "Validado no Dossiê", "Pago"].includes(sigUpper);
+  const isReceipt = String(doc?.SubtipoCodigo || "").toUpperCase() === "COMPROVANTE_PAGAMENTO_FOLHA";
+  if (isValidated) {
+    return {
+      label: isReceipt ? "Disponível" : "Validado",
+      badgeClass: "pill-success",
+      managerStatusClass: "signed",
+      cardClass: "is-approved",
+      isValidated: true,
+      isRejected: false,
+    };
+  }
+  return {
+    label: "Em conferência",
+    badgeClass: "pill-amber",
+    managerStatusClass: "pending",
+    cardClass: "is-pending",
+    isValidated: false,
+    isRejected: false,
+  };
+}
+
+/**
  * Classifica a categoria do documento: atestado, holerite ou termo
  */
 function getDocCategory(doc) {
@@ -376,6 +445,9 @@ function formatDocTagLabel(doc) {
   if (cat === "holerite") return "Holerite";
   const tipo = String(doc.Tipo || "").trim();
   const titulo = String(doc.Titulo || "").trim();
+  if (/documento admissional/i.test(tipo) || String(doc.OrigemTipo || "").toUpperCase() === "AUTOCADASTRO_ONBOARDING") {
+    return "Documento Pessoal";
+  }
   if (/advert[eê]ncia/i.test(titulo) || /advert[eê]ncia/i.test(tipo)) return "Advertência";
   if (/suspens[aã]o/i.test(titulo) || /suspens[aã]o/i.test(tipo)) return "Suspensão";
   if (/termo/i.test(titulo) || /termo/i.test(tipo)) return "Termo RH";
@@ -435,11 +507,13 @@ function canonicalStoreName(rawStore, storeIdHint) {
 function renderCleanDocRow(doc) {
   const isMed = getDocCategory(doc) === "atestado";
   const isHol = getDocCategory(doc) === "holerite";
-  const isSigned = doc.Status === "Assinado" || doc.Status === "Aprovado";
+  const needsSignature = !isMed && requiresEmployeeSignature(doc);
+  const personalState = !isMed && !needsSignature ? resolvePersonalDocState(doc) : null;
+  const isSigned = needsSignature && (doc.Status === "Assinado" || doc.Status === "Aprovado");
   const isRejected = doc.Status === "Rejeitado";
   const isPending = doc.Status === "Pendente";
 
-  const initials = getInitials(doc.NomeFuncionario);
+  const initials = getInitials(doc.NomeFuncionario || doc.FuncionarioNome);
   const avatarClass = isMed ? "medical" : isHol ? "payroll" : "contract";
   const tagClass = avatarClass;
   const tagLabel = formatDocTagLabel(doc);
@@ -452,12 +526,13 @@ function renderCleanDocRow(doc) {
   } else if (isHol) {
     descText = `Mês de Referência: ${doc.MesReferencia || "---"} ${doc.CPFFuncionario ? `• CPF: ${doc.CPFFuncionario}` : ""}`;
   } else {
-    descText = `${doc.Titulo || "Documento oficial"} ${doc.CPFFuncionario ? `• CPF: ${doc.CPFFuncionario}` : ""}`;
+    descText = `${doc.Titulo || "Documento oficial"} ${doc.CPFFuncionario || doc.CPF ? `• CPF: ${doc.CPFFuncionario || doc.CPF}` : ""}`;
   }
 
+  const rawDate = doc.DataEnvio || doc.DataCriacao;
   const dateDisplay = isSigned
-    ? `Assinado em ${formatDateShort(doc.DataAssinatura || doc.DataEnvio)}`
-    : `Enviado em ${formatDateShort(doc.DataEnvio)}`;
+    ? `Assinado em ${formatDateShort(doc.DataAssinatura || rawDate)}`
+    : `Enviado em ${formatDateShort(rawDate)}`;
 
   let statusLabel = "Pendente";
   let statusClass = "pending";
@@ -472,6 +547,9 @@ function renderCleanDocRow(doc) {
       statusLabel = "Avaliação Pendente";
       statusClass = "pending";
     }
+  } else if (personalState) {
+    statusLabel = personalState.label;
+    statusClass = personalState.managerStatusClass;
   } else if (isSigned) {
     statusLabel = "Assinado";
     statusClass = "signed";
@@ -494,7 +572,7 @@ function renderCleanDocRow(doc) {
         </div>
         <div class="doc-clean-info">
           <div class="doc-clean-name-row">
-            <span class="doc-clean-name">${esc(doc.NomeFuncionario || "Colaborador")}</span>
+            <span class="doc-clean-name">${esc(doc.NomeFuncionario || doc.FuncionarioNome || "Colaborador")}</span>
             <span class="doc-clean-tag ${tagClass}">${esc(tagLabel)}</span>
           </div>
           <div class="doc-clean-desc">${esc(descText)}</div>
@@ -513,6 +591,15 @@ function renderCleanDocRow(doc) {
             <button class="doc-btn-evaluate" data-action="preview" data-id="${esc(doc.DocumentoID)}">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <span>Avaliar e Abonar</span>
+            </button>
+          `
+              : !needsSignature
+              ? `
+            <button class="btn btn-secondary btn-sm" data-action="preview" data-id="${esc(doc.DocumentoID)}" style="border-radius:10px; font-weight:600; padding:6px 12px; font-size:12.5px;">
+              Visualizar
+            </button>
+            <button class="med-clean-icon-btn doc-del-btn" data-action="delete" data-id="${esc(doc.DocumentoID)}" title="Excluir documento">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           `
               : isSigned
@@ -799,22 +886,24 @@ function renderEmployeeView() {
     ? state.documents
     : (myId ? state.documents.filter((d) => String(d.FuncionarioID || "").trim() === myId) : state.documents);
 
-  const pending = myDocs.filter((d) => d.Status === "Pendente");
+  const pending = myDocs.filter((d) => d.Status === "Pendente" && requiresEmployeeSignature(d));
   const signed = myDocs.filter((d) => d.Status === "Assinado" || d.Status === "Aprovado");
 
   let displayDocs = [...myDocs];
   if (state.statusFilter && state.statusFilter !== "all") {
     if (state.statusFilter === "Pendente") {
-      displayDocs = myDocs.filter((d) => d.Status === "Pendente");
+      displayDocs = myDocs.filter((d) => d.Status === "Pendente" && requiresEmployeeSignature(d));
     } else if (state.statusFilter === "Assinado") {
       displayDocs = myDocs.filter((d) => d.Status === "Assinado" || d.Status === "Aprovado");
     }
   }
 
   displayDocs.sort((a, b) => {
-    if (a.Status === "Pendente" && b.Status !== "Pendente") return -1;
-    if (a.Status !== "Pendente" && b.Status === "Pendente") return 1;
-    return new Date(b.DataEnvio || 0) - new Date(a.DataEnvio || 0);
+    const aPend = a.Status === "Pendente" && requiresEmployeeSignature(a);
+    const bPend = b.Status === "Pendente" && requiresEmployeeSignature(b);
+    if (aPend && !bPend) return -1;
+    if (!aPend && bPend) return 1;
+    return new Date(b.DataEnvio || b.DataCriacao || 0) - new Date(a.DataEnvio || a.DataCriacao || 0);
   });
 
   // Atualiza chip de pendências no topo de forma sutil
@@ -895,6 +984,60 @@ function renderEmployeeView() {
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                     </a>
                   ` : ""}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        const needsSignature = requiresEmployeeSignature(doc);
+        if (!needsSignature) {
+          const pState = resolvePersonalDocState(doc);
+          const docStore = doc.NomeLoja || doc.LojaID || "";
+          const filesCount = Array.isArray(doc.Arquivos) ? doc.Arquivos.length : 0;
+          const isPersonalAdmission =
+            String(doc.Tipo || "").toLowerCase() === "documento admissional" ||
+            String(doc.OrigemTipo || "").toUpperCase() === "AUTOCADASTRO_ONBOARDING";
+          const docSubtitle = isPersonalAdmission
+            ? [docStore || "Dossiê Admissional", "Documento pessoal enviado por você"].filter(Boolean).join(" • ")
+            : [docStore, doc.MesReferencia && doc.MesReferencia !== "Geral" ? `Ref. ${doc.MesReferencia}` : "", formatDocTagLabel(doc)].filter(Boolean).join(" • ");
+          const rawDate = doc.DataEnvio || doc.DataCriacao;
+          const dateNote = formatDateShort(rawDate);
+          const footerMeta = pState.isValidated
+            ? `Conferido pelo RH${dateNote ? ` • ${dateNote}` : ""}`
+            : pState.isRejected
+            ? "Reenvio solicitado pela administração"
+            : `Enviado${dateNote ? ` em ${dateNote}` : ""} • Em conferência`;
+
+          return `
+            <div class="med-clean-card ${pState.cardClass}">
+              <div class="med-clean-top">
+                <div class="med-clean-ident">
+                  <div class="med-clean-icon blue">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                  </div>
+                  <div class="med-clean-texts">
+                    <h4 class="med-clean-title">${esc(doc.Titulo || "Documento")}</h4>
+                    <span class="med-clean-subtitle">${esc(docSubtitle)}</span>
+                  </div>
+                </div>
+                <span class="med-clean-pill ${pState.badgeClass}">
+                  ${esc(pState.label)}
+                </span>
+              </div>
+
+              <div class="med-clean-footer">
+                <span class="med-clean-meta">${esc(footerMeta)}</span>
+                <div class="med-clean-actions">
+                  <button type="button" class="med-clean-btn" data-action="preview" data-id="${esc(doc.DocumentoID)}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>Visualizar${filesCount > 1 ? ` (${filesCount})` : ""}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -3461,10 +3604,17 @@ export async function openPreviewDialog(docId) {
   const dialog = $("#documentPreviewDialog");
   if (!dialog) return;
 
-  const base64 = doc.ArquivoFinalBase64 || doc.ArquivoOriginalBase64 || "";
-  const fileUrl = doc.ArquivoUrl || doc.DocumentoUrl || "";
+  const fileUrl = doc.ArquivoUrl || doc.ArquivoURL || doc.DocumentoUrl || "";
+  const extraFiles = Array.isArray(doc.Arquivos)
+    ? doc.Arquivos.filter((f) => f && (f.arquivoUrl || f.ArquivoURL || f.ArquivoUrl || f.url))
+    : [];
+  const base64 =
+    doc.ArquivoFinalBase64 ||
+    doc.ArquivoOriginalBase64 ||
+    (fileUrl.startsWith("data:") ? fileUrl : "");
   const driveInfo = parseDriveUrl(fileUrl);
   const isMedical = doc.Tipo === "Atestado Médico" || String(doc.Titulo || "").toLowerCase().includes("atestado");
+  const isPersonalNonSignature = !isMedical && !requiresEmployeeSignature(doc);
   const hasBase64Image = Boolean(base64 && base64.startsWith("data:image/"));
   const hasBase64Pdf = Boolean(base64 && (base64.includes("application/pdf") || base64.startsWith("JVBERi")));
   const isPdf = Boolean(hasBase64Pdf || (fileUrl && /\.pdf($|\?)/i.test(fileUrl)));
@@ -3492,6 +3642,14 @@ export async function openPreviewDialog(docId) {
       statusBadgeLabel = "ATESTADO PENDENTE DE AVALIAÇÃO";
       statusBadgeColor = "#d97706";
     }
+  } else if (isPersonalNonSignature) {
+    const pState = resolvePersonalDocState(doc);
+    statusBadgeLabel = pState.isValidated
+      ? "DOCUMENTO PESSOAL VALIDADO"
+      : pState.isRejected
+      ? "CORREÇÃO SOLICITADA"
+      : "EM CONFERÊNCIA PELO RH";
+    statusBadgeColor = pState.isValidated ? "#059669" : pState.isRejected ? "#dc2626" : "#d97706";
   } else if (isSigned) {
     statusBadgeLabel = "DOCUMENTO ASSINADO";
     statusBadgeColor = "#16a34a";
@@ -3556,10 +3714,39 @@ export async function openPreviewDialog(docId) {
       }
 
       ${
-        isImage
+        extraFiles.length > 0 && isPersonalNonSignature
+          ? `
+        <div style="display:grid; gap:12px;">
+          ${extraFiles
+            .map((fileItem, idx) => {
+              const rawUrl = String(fileItem.arquivoUrl || fileItem.ArquivoURL || fileItem.ArquivoUrl || fileItem.url || "").trim();
+              const safeHref = /^https?:\/\//i.test(rawUrl) || /^data:(image\/|application\/pdf)/i.test(rawUrl) ? rawUrl : "";
+              const fileName = fileItem.nomeArquivo || `Arquivo ${idx + 1}`;
+              const itemIsImg = /^data:image\//i.test(safeHref) || /\.(jpe?g|png|webp|gif)($|\?)/i.test(safeHref);
+              const itemIsPdf = /^data:application\/pdf/i.test(safeHref) || /\.pdf($|\?)/i.test(safeHref);
+              return `
+                <div style="background:var(--surface-2, #f8fafc); border:1px solid var(--line, #e2e8f0); border-radius:12px; padding:12px; display:grid; gap:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <strong style="font-size:12.5px; color:var(--ink, #0f172a);">${esc(fileName)}</strong>
+                    ${safeHref ? `<a href="${esc(safeHref)}" download="${esc(fileName)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none; font-size:11.5px;">Abrir / Baixar</a>` : ""}
+                  </div>
+                  ${
+                    itemIsImg && safeHref
+                      ? `<img src="${esc(safeHref)}" alt="${esc(fileName)}" style="max-width:100%; max-height:46vh; object-fit:contain; border-radius:8px; margin:0 auto; display:block;" />`
+                      : itemIsPdf && safeHref
+                      ? `<iframe src="${esc(safeHref)}" title="${esc(fileName)}" style="width:100%; height:44vh; min-height:280px; border:1px solid var(--line, #cbd5e1); border-radius:8px; background:#fff;"></iframe>`
+                      : `<p style="margin:0; font-size:12px; color:#64748b;">Anexo disponível para abertura pelo botão acima.</p>`
+                  }
+                </div>
+              `;
+            })
+            .join("")}
+        </div>
+      `
+          : isImage
           ? `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
-          <span style="font-size:12px; color:#64748b; font-weight:600;">Comprovante / Foto do Atestado</span>
+          <span style="font-size:12px; color:#64748b; font-weight:600;">${isMedical ? "Comprovante / Foto do Atestado" : "Imagem do Documento"}</span>
           <div style="display:inline-flex; gap:6px; align-items:center;">
             ${driveInfo ? `
               <button type="button" id="btnToggleDriveMode" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:5px 10px; border-radius:8px;">

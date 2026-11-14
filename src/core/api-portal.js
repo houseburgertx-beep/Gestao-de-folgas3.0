@@ -455,21 +455,29 @@ async function enviarDocumentoAdmissional(payload = {}) {
   const now = nowIso();
   const docEntry = {
     DocID: docId,
+    DocumentoID: docId,
     FuncionarioID: employeeId,
     FuncionarioNome: current.Nome,
+    NomeFuncionario: current.Nome,
     CPF: current.CPF || "",
+    CPFFuncionario: current.CPF || "",
     LojaID: current.LojaID || profile.LojaID || "",
+    NomeLoja: current.NomeLoja || "",
     Tipo: "Documento Admissional",
     SubtipoCodigo: docMeta.codigo,
     Titulo: `${docMeta.titulo} - ${current.Nome}`,
     Competencia: todayIso().slice(0, 7),
     ArquivoURL: arquivoUrl,
+    ArquivoUrl: arquivoUrl,
     NomeArquivo: String(payload.nomeArquivo || `${docMeta.codigo}.pdf`).trim(),
     RequerAssinatura: false,
-    StatusAssinatura: "Validado no Dossiê",
+    Status: isManager(profile) ? "Validado" : "Em Análise",
+    StatusAssinatura: "Sem assinatura",
     StatusValidacao: isManager(profile) ? "Aprovado" : "Em Análise",
+    OrigemTipo: "DOSSIE_ADMISSIONAL",
     EnviadoPor: profile.Nome || profile.Email,
     DataCriacao: now,
+    DataEnvio: now,
   };
 
   await runtime.create("Documentos", docEntry);
@@ -673,22 +681,27 @@ async function applyOnboardingSubmissionToEmployee(emp, convite, now = nowIso())
       DocumentoID: docId,
       FuncionarioID: emp.FuncionarioID,
       FuncionarioNome: subDados.Nome || emp.Nome || "Colaborador",
+      NomeFuncionario: subDados.Nome || emp.Nome || "Colaborador",
       CPF: subDados.CPF || emp.CPF || "",
+      CPFFuncionario: subDados.CPF || emp.CPF || "",
       LojaID: emp.LojaID || convite.LojaID || "",
+      NomeLoja: emp.NomeLoja || convite.NomeLoja || "",
       Tipo: "Documento Admissional",
       SubtipoCodigo: code,
       Titulo: `${meta.titulo} - ${subDados.Nome || emp.Nome || "Colaborador"}`,
       Competencia: todayIso().slice(0, 7),
       ArquivoURL: norm.arquivoUrl,
+      ArquivoUrl: norm.arquivoUrl,
       NomeArquivo: norm.nomeArquivo,
       Arquivos: norm.files,
       RequerAssinatura: false,
-      Status: "Pendente",
-      StatusAssinatura: "Pendente de Conferência",
+      Status: "Em Análise",
+      StatusAssinatura: "Sem assinatura",
       StatusValidacao: "Em Análise",
       OrigemTipo: "AUTOCADASTRO_ONBOARDING",
       EnviadoPor: subDados.Nome || subDados.Email || "Candidato",
       DataCriacao: norm.files[0].enviadoEm || now,
+      DataEnvio: norm.files[0].enviadoEm || now,
     };
     await runtime.upsert("Documentos", docEntry).catch(() => null);
     mergedDossie[code] = {
@@ -1296,10 +1309,13 @@ async function conferirLiberarAcessoOnboarding(payload = {}) {
       await runtime
         .update("Documentos", docMeta.docId, {
           FuncionarioNome: formalizedNome,
+          NomeFuncionario: formalizedNome,
           LojaID: resolvedLojaId,
+          NomeLoja: resolvedNomeLoja,
+          RequerAssinatura: false,
           Status: "Validado",
           StatusValidacao: "Validado",
-          StatusAssinatura: "Validado",
+          StatusAssinatura: "Sem assinatura",
         })
         .catch(() => null);
     }

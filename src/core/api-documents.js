@@ -1319,7 +1319,13 @@ export function createDocumentsHandlers() {
         return db.localeCompare(da);
       });
 
-      const pendingCount = filtered.filter((d) => d.Status === "Pendente").length;
+      const pendingCount = filtered.filter(
+        (d) =>
+          d.Status === "Pendente" &&
+          d.RequerAssinatura !== false &&
+          String(d.Tipo || "").trim().toLowerCase() !== "documento admissional" &&
+          String(d.OrigemTipo || "").trim().toUpperCase() !== "AUTOCADASTRO_ONBOARDING",
+      ).length;
       const signedCount = filtered.filter((d) => d.Status === "Assinado").length;
 
       // Keep binary fields out of UI list state. RTDB currently still downloads
