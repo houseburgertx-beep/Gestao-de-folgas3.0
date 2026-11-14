@@ -1833,11 +1833,6 @@ export class FirebaseRuntime {
     return transaction.committed ? clone(transaction.snapshot.val()) : null;
   }
 
-  async patchPath(relativePath, value) {
-    await update(this.appRef(relativePath), cleanObject(value));
-    return clone(value);
-  }
-
   async removePath(relativePath) {
     await remove(this.appRef(relativePath));
   }

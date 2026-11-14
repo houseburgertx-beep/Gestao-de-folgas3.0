@@ -743,12 +743,15 @@ async function gerarLinkOnboarding(payload = {}) {
     assert(current, "Colaborador não encontrado para gerar link.");
   }
 
+  const isExisting = Boolean(current);
   const resolvedLojaId = String(
-    payload.LojaID || current?.LojaID || (!isAdmin(profile) ? profile.LojaID : "") || "",
+    !isAdmin(profile)
+      ? current?.LojaID || profile.LojaID || ""
+      : payload.LojaID || current?.LojaID || "",
   ).trim();
-  if (!isAdmin(profile) && current) {
+  if (!isAdmin(profile)) {
     assert(
-      String(current.LojaID || "") === String(profile.LojaID || ""),
+      resolvedLojaId && resolvedLojaId === String(profile.LojaID || "").trim(),
       "Gerente só pode gerar link de onboarding para a sua própria unidade/loja.",
     );
   }
@@ -800,7 +803,6 @@ async function gerarLinkOnboarding(payload = {}) {
       CriadoPor: profile.Email || profile.Nome,
       DataAtualizacao: now,
     };
-    await runtime.create("Funcionarios", current);
   }
 
   const existingToken = String(current.OnboardingToken || "").trim();
@@ -850,7 +852,17 @@ async function gerarLinkOnboarding(payload = {}) {
     CriadoPor: previousInvite?.CriadoPor || profile.Nome || profile.Email,
   };
 
-  await runtime.writePath(`onboardingConvites/${token}`, invitePayload);
+  try {
+    await runtime.writePath(`onboardingConvites/${token}`, invitePayload);
+  } catch (err) {
+    const rawMsg = String(err?.message || err?.code || err || "");
+    if (/permission[_ ]denied/i.test(rawMsg)) {
+      throw new Error(
+        "Permissão negada no Firebase (onboardingConvites). Publique o arquivo database.rules.json atualizado no Firebase Console → Realtime Database → Regras → Publicar.",
+      );
+    }
+    throw err;
+  }
 
   const historico = { ...(current.HistoricoEtapasAdmissao || {}) };
   if (!historico["1"]) {
@@ -880,7 +892,11 @@ async function gerarLinkOnboarding(payload = {}) {
     DataAtualizacao: now,
   };
 
-  await runtime.update("Funcionarios", current.FuncionarioID, updatedEmp);
+  if (isExisting) {
+    await runtime.update("Funcionarios", current.FuncionarioID, updatedEmp);
+  } else {
+    await runtime.create("Funcionarios", updatedEmp);
+  }
   await audit("ONBOARDING_LINK_GERADO", "Onboarding", current.FuncionarioID, {
     tela: "Tela 2 - Link de Pré-Cadastro",
     employeeId: current.FuncionarioID,
