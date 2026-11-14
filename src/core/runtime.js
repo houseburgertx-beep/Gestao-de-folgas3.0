@@ -75,6 +75,71 @@ const isEmployeeProfile = (profile) =>
 const PERIOD_INDEXED_TABLES = new Set(["RegistrosPonto", "AjustesPonto"]);
 const PERIOD_INDEX_MIGRATION = "timeClockPeriodIndexesV1";
 
+const REALTIME_CACHE_TABLES = new Set(["RegistrosPonto", "AjustesPonto", "Notificacoes"]);
+const VOLATILE_CACHE_TABLES = new Set([
+  "TrocasFolga",
+  "JustificativasPonto",
+  "SolicitacoesVale",
+  "Denuncias",
+  "DenunciasMensagens",
+  "Tarefas",
+  "Onboarding",
+  "Substituicoes",
+  "Auditoria",
+]);
+const STATIC_REFERENCE_CACHE_TABLES = new Set([
+  "Lojas",
+  "Configuracoes",
+  "Feriados",
+  "RegrasFolga",
+  "RegrasOperacionais",
+  "POPsTreinamentos",
+  "TarefasTemplates",
+  "TabelaFichas",
+  "PontosCatalogo",
+  "LocaisPonto",
+]);
+const PERSISTENT_CACHE_PREFIX = "gf_rtdb_v1:";
+const PERSISTENT_CACHE_MAX_CHARS = 1500000;
+
+export const tableCacheTtl = (table) => {
+  if (REALTIME_CACHE_TABLES.has(table)) return 15000;
+  if (VOLATILE_CACHE_TABLES.has(table)) return 90000;
+  if (STATIC_REFERENCE_CACHE_TABLES.has(table)) return 1800000;
+  return 300000;
+};
+
+const persistentStorageForTable = (table) => {
+  try {
+    if (STATIC_REFERENCE_CACHE_TABLES.has(table)) {
+      return globalThis?.localStorage || null;
+    }
+    if (!REALTIME_CACHE_TABLES.has(table) && !VOLATILE_CACHE_TABLES.has(table)) {
+      return globalThis?.sessionStorage || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const clearPersistentCacheByPrefix = (prefix) => {
+  for (const kind of ["localStorage", "sessionStorage"]) {
+    try {
+      const storage = globalThis?.[kind];
+      if (!storage || typeof storage.key !== "function" || typeof storage.removeItem !== "function") continue;
+      const toRemove = [];
+      for (let i = 0; i < storage.length; i += 1) {
+        const k = storage.key(i);
+        if (k && k.startsWith(prefix)) toRemove.push(k);
+      }
+      toRemove.forEach((k) => storage.removeItem(k));
+    } catch {
+      // Ignore storage access failures in restricted contexts.
+    }
+  }
+};
+
 const pathKey = (value) =>
   encodeURIComponent(String(value || uuid())).replaceAll(".", "%2E");
 
@@ -214,6 +279,11 @@ export class FirebaseRuntime {
     for (const key of this.pendingQueries.keys()) {
       if (!table || key.startsWith(`${table}:`)) this.pendingQueries.delete(key);
     }
+    clearPersistentCacheByPrefix(
+      table
+        ? `${PERSISTENT_CACHE_PREFIX}${this.root}:${table}:`
+        : `${PERSISTENT_CACHE_PREFIX}${this.root}:`,
+    );
     if (!table) {
       this.periodIndexReadyState = null;
       this.periodIndexReadyCheck = null;
@@ -1034,13 +1104,71 @@ export class FirebaseRuntime {
     return this.cachedRows_(cacheKey, table, () => this.fetchScopedRows_(table, profile), forceRefresh);
   }
 
+  readPersistentCache_(cacheKey, table, ttl) {
+    const storage = persistentStorageForTable(table);
+    if (!storage || typeof storage.getItem !== "function") return null;
+    try {
+      const raw = storage.getItem(`${PERSISTENT_CACHE_PREFIX}${this.root}:${cacheKey}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (
+        !parsed ||
+        typeof parsed.timestamp !== "number" ||
+        Date.now() - parsed.timestamp >= ttl ||
+        !Array.isArray(parsed.data)
+      ) {
+        storage.removeItem?.(`${PERSISTENT_CACHE_PREFIX}${this.root}:${cacheKey}`);
+        return null;
+      }
+      if (Array.isArray(parsed.keys)) {
+        const idField = ID_FIELDS[table];
+        parsed.keys.forEach(([id, storageKey], idx) => {
+          if (id && storageKey) {
+            this.rememberRecordStorageKey(table, id, storageKey, parsed.data[idx] || (idField ? { [idField]: id } : null));
+          }
+        });
+      }
+      return { timestamp: parsed.timestamp, data: clone(parsed.data) };
+    } catch {
+      return null;
+    }
+  }
+
+  writePersistentCache_(cacheKey, table, rows, timestamp = Date.now()) {
+    const storage = persistentStorageForTable(table);
+    if (!storage || typeof storage.setItem !== "function" || !Array.isArray(rows)) return;
+    const storageKey = `${PERSISTENT_CACHE_PREFIX}${this.root}:${cacheKey}`;
+    try {
+      const idField = ID_FIELDS[table];
+      const keys = idField
+        ? rows.map((row) => {
+            const id = String(row?.[idField] || "");
+            const recKey = id ? this.recordKeys.get(this.recordCacheKey(table, id)) || "" : "";
+            return [id, recKey];
+          })
+        : null;
+      const payload = JSON.stringify({ timestamp, data: rows, keys });
+      if (payload.length > PERSISTENT_CACHE_MAX_CHARS) return;
+      storage.setItem(storageKey, payload);
+    } catch {
+      // Ignore quota exceeded or storage restrictions; memory cache still works.
+    }
+  }
+
   // Reuse short-lived read snapshots only; clock confirmations always use
   // requestServerRecord and are never routed through this cache.
   async cachedRows_(cacheKey, table, load, forceRefresh = false) {
     const cached = this.queryCache.get(cacheKey);
-    const ttl = ["RegistrosPonto", "AjustesPonto", "Notificacoes"].includes(table) ? 15000 : 45000;
+    const ttl = tableCacheTtl(table);
     if (!forceRefresh && cached && Date.now() - cached.timestamp < ttl) {
       return clone(cached.data);
+    }
+    if (!forceRefresh) {
+      const persisted = this.readPersistentCache_(cacheKey, table, ttl);
+      if (persisted) {
+        this.queryCache.set(cacheKey, persisted);
+        return clone(persisted.data);
+      }
     }
     if (this.pendingQueries.has(cacheKey)) return clone(await this.pendingQueries.get(cacheKey));
     const generation = this.cacheGeneration;
@@ -1049,7 +1177,9 @@ export class FirebaseRuntime {
     try {
       const rows = await request;
       if (generation === this.cacheGeneration) {
-        this.queryCache.set(cacheKey, { timestamp: Date.now(), data: clone(rows) });
+        const now = Date.now();
+        this.queryCache.set(cacheKey, { timestamp: now, data: clone(rows) });
+        this.writePersistentCache_(cacheKey, table, rows, now);
       }
       return clone(rows);
     } finally {
@@ -1142,7 +1272,43 @@ export class FirebaseRuntime {
       );
     }
 
-    if (table === "Tarefas" || table === "TarefasTemplates") {
+    if (table === "Tarefas") {
+      if (storeId || employeeId) {
+        const scopedQueries = [];
+        if (storeId) {
+          scopedQueries.push(
+            get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))).catch((e) => {
+              if (isPermissionDenied(e)) return null;
+              throw e;
+            }),
+          );
+        }
+        if (employeeId) {
+          scopedQueries.push(
+            get(query(tableRef, orderByChild("FuncionarioID"), equalTo(employeeId))).catch((e) => {
+              if (isPermissionDenied(e)) return null;
+              throw e;
+            }),
+          );
+        }
+        const snapshots = (await Promise.all(scopedQueries)).filter(Boolean);
+        const unique = new Map();
+        snapshots
+          .flatMap((snapshot) => this.recordsFromSnapshot(table, snapshot))
+          .forEach((record) => {
+            unique.set(String(record?.TarefaID || uuid()), record);
+          });
+        return [...unique.values()];
+      }
+      try {
+        return this.recordsFromSnapshot(table, await get(tableRef));
+      } catch (error) {
+        if (isPermissionDenied(error)) return [];
+        throw error;
+      }
+    }
+
+    if (table === "TarefasTemplates") {
       try {
         return this.recordsFromSnapshot(table, await get(tableRef));
       } catch (error) {
@@ -1163,21 +1329,38 @@ export class FirebaseRuntime {
     }
 
     if (table === "Documentos" || table === "DocumentosAssinaturas") {
-      if (isAdminProfile(profile) || isStoreReaderProfile(profile)) {
+      if (isStoreReaderProfile(profile)) {
+        if (storeId || employeeId) {
+          const idField = ID_FIELDS[table];
+          const scopedQueries = [];
+          if (storeId) {
+            scopedQueries.push(
+              get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))).catch((e) => {
+                if (isPermissionDenied(e)) return null;
+                throw e;
+              }),
+            );
+          }
+          if (employeeId) {
+            scopedQueries.push(
+              get(query(tableRef, orderByChild("FuncionarioID"), equalTo(employeeId))).catch((e) => {
+                if (isPermissionDenied(e)) return null;
+                throw e;
+              }),
+            );
+          }
+          const snapshots = (await Promise.all(scopedQueries)).filter(Boolean);
+          const unique = new Map();
+          snapshots
+            .flatMap((snapshot) => this.recordsFromSnapshot(table, snapshot))
+            .forEach((record) => {
+              unique.set(String(record?.[idField] || record?.DocID || uuid()), record);
+            });
+          return [...unique.values()];
+        }
         try {
           return this.recordsFromSnapshot(table, await get(tableRef));
         } catch (error) {
-          if (storeId) {
-            try {
-              return this.recordsFromSnapshot(
-                table,
-                await get(query(tableRef, orderByChild("LojaID"), equalTo(storeId))),
-              );
-            } catch (e) {
-              if (isPermissionDenied(e)) return [];
-              throw e;
-            }
-          }
           if (isPermissionDenied(error)) return [];
           throw error;
         }

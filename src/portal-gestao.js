@@ -2951,9 +2951,9 @@ function enhanceEmployeeDialog() {
         return;
       }
       try {
-        await invokePortal("sincronizarConvitesOnboarding", { FuncionarioID: empId }).catch(() => null);
-        const emps = await runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => []));
-        const match = emps.find((e) => String(e.FuncionarioID) === String(empId));
+        const syncRes = await invokePortal("sincronizarConvitesOnboarding", { FuncionarioID: empId }).catch(() => null);
+        const syncedOne = syncRes?.data?.updatedEmployees?.[0];
+        const match = syncedOne || await runtime.getById("Funcionarios", empId).catch(() => null);
         if (match) {
           hydrateAllEmployeeFormInputs(match);
         }
@@ -4082,7 +4082,7 @@ async function loadEmployeesOverviewSummary() {
       showPortalToast(`${syncRes.data.syncedCount} solicitação(ões) de pré-cadastro sincronizada(s) para conferência.`, "info");
     }
     const [employees, alertsRes] = await Promise.all([
-      runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => [])),
+      runtime.list("Funcionarios").catch(() => []),
       invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })),
     ]);
 
@@ -6335,7 +6335,7 @@ async function loadUnifiedPendingHrItems() {
     const [justificativas, docs, employees, alertsRes] = await Promise.all([
       runtime.list("JustificativasPonto").catch(() => []),
       runtime.list("Documentos").catch(() => []),
-      runtime.list("Funcionarios", { forceRefresh: true }).catch(() => runtime.list("Funcionarios").catch(() => [])),
+      runtime.list("Funcionarios").catch(() => []),
       isManagerUser ? invokePortal("listarAlertasExperiencia", {}).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
     ]);
 

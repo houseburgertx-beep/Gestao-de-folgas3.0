@@ -2064,7 +2064,9 @@ export function createClockHandlers() {
         await Promise.all([
           runtime.list("Funcionarios", { profile }),
           runtime.list("Lojas", { profile }),
-          runtime.list("RegistrosPonto", { profile }),
+          isAdmin(profile) && targetEmpId && typeof runtime.listWhere === "function"
+            ? runtime.listWhere("RegistrosPonto", "FuncionarioID", String(targetEmpId))
+            : runtime.list("RegistrosPonto", { profile }),
           runtime.list("JornadasPonto", { profile }),
           runtime.list("Folgas", { profile }),
           runtime.list("JustificativasPonto", { profile }),

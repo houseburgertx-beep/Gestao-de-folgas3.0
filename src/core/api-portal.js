@@ -1122,7 +1122,7 @@ async function sincronizarConvitesOnboarding(payload = {}) {
   const targetId = String(payload.FuncionarioID || payload.funcionarioId || "").trim();
   const candidates = targetId
     ? [await runtime.getById("Funcionarios", targetId)].filter(Boolean)
-    : (await runtime.list("Funcionarios", { forceRefresh: true }).catch(() => [])).filter((e) => {
+    : (await runtime.list("Funcionarios", { profile, forceRefresh: Boolean(payload.force) }).catch(() => [])).filter((e) => {
         if (!e?.OnboardingToken || e.CadastroValidado) return false;
         if (!isAdmin(profile) && String(e.LojaID || "") !== String(profile.LojaID || "")) return false;
         return e.StatusOnboarding !== "Aprovado";
