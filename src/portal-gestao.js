@@ -11,6 +11,28 @@ import {
   loadMappings as loadTakeatMappings,
   resolveAccountMatch as resolveTakeatAccountMatch,
 } from "./core/takeat-credit.js";
+import {
+  inferMimeTypeFromDataUrl,
+  parseDriveFileId,
+  readPrivateDriveFile,
+  uploadOnboardingDocumentToDrive,
+  uploadPrivateDocumentToDrive,
+} from "./core/drive-storage.js";
+
+function driveDataUrlToObjectUrl(dataUrl, fallbackMime = "application/pdf") {
+  try {
+    const clean = String(dataUrl || "");
+    const match = clean.match(/^data:([^;]+);base64,([\s\S]+)$/i);
+    const mime = match ? match[1] : fallbackMime;
+    const b64 = (match ? match[2] : clean).replace(/\s+/g, "");
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: mime }));
+  } catch {
+    return dataUrl;
+  }
+}
 
 const formatBRL = (val) => {
   const n = Number(val || 0);
@@ -3187,19 +3209,42 @@ function enhanceEmployeeDialog() {
     }
   });
 
-  // Upload file reader helper com nome amigavel e compressao de foto
+  // Upload file reader helper com nome amigavel e envio seguro ao Google Drive
   const fileInput = document.getElementById("employeeDocUploadFile");
   const fileNameLabel = document.getElementById("employeeDocUploadFileName");
+  let uploadedAdmissionDriveMeta = null;
   fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
+    uploadedAdmissionDriveMeta = null;
     if (!file) {
       if (fileNameLabel) fileNameLabel.textContent = "Nenhum arquivo selecionado";
       return;
     }
-    if (fileNameLabel) fileNameLabel.textContent = file.name;
     const urlInput = document.getElementById("employeeDocUploadUrl");
-    if (urlInput) {
-      urlInput.value = await readAttachmentFileAsDataUrl(file);
+    const empId = form.elements.FuncionarioID?.value || document.getElementById("employeeId")?.value || "";
+    const codigoDocumento = document.getElementById("employeeDocUploadTipo")?.value || "admissao";
+    try {
+      if (fileNameLabel) fileNameLabel.textContent = `Enviando "${file.name}" ao Google Drive...`;
+      const dataUrl = await readAttachmentFileAsDataUrl(file);
+      const driveRes = await uploadPrivateDocumentToDrive({
+        dataUrl,
+        fileName: file.name,
+        category: "admissao",
+        employeeId: empId,
+        storeId: form.elements.LojaID?.value || "",
+        docId: codigoDocumento,
+      });
+      uploadedAdmissionDriveMeta = {
+        url: driveRes.url,
+        fileId: driveRes.fileId,
+        mimeType: driveRes.mimeType,
+        fileName: file.name,
+      };
+      if (urlInput) urlInput.value = driveRes.url;
+      if (fileNameLabel) fileNameLabel.textContent = `${file.name} · Salvo no Drive`;
+    } catch (err) {
+      if (fileNameLabel) fileNameLabel.textContent = file.name;
+      showPortalToast(err.message || "Falha ao enviar documento para o Google Drive.", "error");
     }
   });
 
@@ -3210,15 +3255,33 @@ function enhanceEmployeeDialog() {
       return;
     }
     const codigoDocumento = document.getElementById("employeeDocUploadTipo")?.value;
-    const arquivoUrl = document.getElementById("employeeDocUploadUrl")?.value;
+    let arquivoUrl = document.getElementById("employeeDocUploadUrl")?.value;
     const fileObj = document.getElementById("employeeDocUploadFile")?.files?.[0];
     try {
+      let driveFileId = uploadedAdmissionDriveMeta?.fileId || parseDriveFileId(arquivoUrl) || "";
+      let mimeType = uploadedAdmissionDriveMeta?.mimeType || fileObj?.type || "";
+      if (arquivoUrl && arquivoUrl.startsWith("data:")) {
+        const driveRes = await uploadPrivateDocumentToDrive({
+          dataUrl: arquivoUrl,
+          fileName: fileObj?.name || `${codigoDocumento}.pdf`,
+          category: "admissao",
+          employeeId: empId,
+          storeId: form.elements.LojaID?.value || "",
+          docId: codigoDocumento,
+        });
+        arquivoUrl = driveRes.url;
+        driveFileId = driveRes.fileId;
+        mimeType = driveRes.mimeType;
+      }
       const res = await invokePortal("enviarDocumentoAdmissional", {
         FuncionarioID: empId,
         codigoDocumento,
         arquivoUrl,
+        driveFileId,
+        mimeType,
         nomeArquivo: fileObj?.name || `${codigoDocumento}.pdf`,
       });
+      uploadedAdmissionDriveMeta = null;
       showPortalToast(res.message || "Documento anexado!", "success");
       renderEmployeeOnboardingState(res.data?.colaborador);
     } catch (err) {
@@ -3292,7 +3355,7 @@ function normalizeDocItemFiles(docItem) {
   return [];
 }
 
-function openOnboardingFilePreview(title, fileUrlOrList) {
+async function openOnboardingFilePreview(title, fileUrlOrList, options = {}) {
   const files = Array.isArray(fileUrlOrList)
     ? fileUrlOrList.filter((f) => f && f.arquivoUrl)
     : fileUrlOrList
@@ -3315,33 +3378,94 @@ function openOnboardingFilePreview(title, fileUrlOrList) {
       <div id="onbPrevBody" style="padding:14px; text-align:center; max-height:72vh; overflow:auto; display:grid; gap:14px;"></div>
     `;
     document.body.appendChild(dlg);
+    const cleanup = () => {
+      (dlg._activeBlobUrls || []).forEach((u) => {
+        try { URL.revokeObjectURL(u); } catch (_) {}
+      });
+      dlg._activeBlobUrls = [];
+    };
+    dlg.addEventListener("close", cleanup);
     dlg.querySelector("#onbPrevClose")?.addEventListener("click", () => dlg.close());
   }
+  (dlg._activeBlobUrls || []).forEach((u) => {
+    try { URL.revokeObjectURL(u); } catch (_) {}
+  });
+  dlg._activeBlobUrls = [];
+
   const titleEl = dlg.querySelector("#onbPrevTitle");
   const bodyEl = dlg.querySelector("#onbPrevBody");
   if (titleEl) {
     titleEl.textContent = files.length > 1 ? `${title || "Documento"} (${files.length} arquivos)` : title || "Documento";
   }
+
+  const hasDriveFiles = files.some((f) => Boolean(f.driveFileId || parseDriveFileId(f.arquivoUrl)));
+  if (bodyEl && hasDriveFiles) {
+    bodyEl.innerHTML = `<p style="margin:18px 0; font-size:13px; color:#64748b;">Carregando arquivo seguro do Google Drive...</p>`;
+  }
+  if (typeof dlg.showModal === "function") {
+    if (!dlg.open) dlg.showModal();
+  } else {
+    dlg.setAttribute("open", "");
+  }
+
+  const resolvedFiles = await Promise.all(
+    files.map(async (f, idx) => {
+      const rawUrl = String(f.arquivoUrl || "").trim();
+      const fid = String(f.driveFileId || parseDriveFileId(rawUrl) || "").trim();
+      const label = f.nomeArquivo || `${title || "Documento"} ${idx + 1}`;
+      let viewUrl = rawUrl;
+      let mime = String(f.mimeType || "").toLowerCase();
+      let errorMsg = "";
+
+      if (fid && !rawUrl.startsWith("data:")) {
+        try {
+          const driveData = await readPrivateDriveFile(fid, {
+            inviteToken: options.inviteToken || f.inviteToken || "",
+          });
+          viewUrl = driveData.dataUrl;
+          mime = String(driveData.mimeType || mime).toLowerCase();
+        } catch (err) {
+          errorMsg = err?.message || "Não foi possível carregar este arquivo do Google Drive.";
+        }
+      }
+      return { rawUrl, viewUrl, mime, label, errorMsg };
+    }),
+  );
+
   if (bodyEl) {
-    bodyEl.innerHTML = files
-      .map((f, idx) => {
-        const safeUrl = String(f.arquivoUrl);
-        const label = f.nomeArquivo || `${title || "Documento"} ${idx + 1}`;
-        const isPdf = safeUrl.startsWith("data:application/pdf") || /\.pdf($|\?)/i.test(safeUrl);
+    bodyEl.innerHTML = resolvedFiles
+      .map((item, idx) => {
+        if (item.errorMsg) {
+          return `
+            <div style="border:1px solid #fecaca; border-radius:12px; padding:12px; background:#fef2f2; color:#991b1b; font-size:12.5px;">
+              <strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.errorMsg)}
+              ${item.rawUrl ? `<div style="margin-top:8px;"><a href="${escapeHtml(item.rawUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Abrir no Drive ↗</a></div>` : ""}
+            </div>
+          `;
+        }
+        const safeUrl = item.viewUrl;
+        const isPdf =
+          safeUrl.startsWith("data:application/pdf") ||
+          item.mime === "application/pdf" ||
+          /\.pdf($|\?)/i.test(safeUrl) ||
+          /\.pdf$/i.test(item.label);
+        let hrefUrl = safeUrl;
+        if (isPdf && safeUrl.startsWith("data:")) {
+          hrefUrl = driveDataUrlToObjectUrl(safeUrl, "application/pdf");
+          if (hrefUrl.startsWith("blob:")) dlg._activeBlobUrls.push(hrefUrl);
+        }
         const mediaHtml = isPdf
-          ? `<iframe src="${escapeHtml(safeUrl)}" style="width:100%; height:56vh; border:1px solid #e2e8f0; border-radius:8px;"></iframe><div style="margin-top:8px;"><a href="${escapeHtml(safeUrl)}" download="${escapeHtml(label)}.pdf" class="btn btn-primary btn-sm" style="text-decoration:none;">Baixar PDF</a></div>`
-          : `<img src="${escapeHtml(safeUrl)}" alt="${escapeHtml(label)}" style="max-width:100%; max-height:58vh; border-radius:8px; object-fit:contain; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />`;
+          ? `<iframe src="${escapeHtml(hrefUrl)}" style="width:100%; height:56vh; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></iframe><div style="margin-top:8px;"><a href="${escapeHtml(hrefUrl)}" download="${escapeHtml(item.label.endsWith(".pdf") ? item.label : `${item.label}.pdf`)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="text-decoration:none;">Abrir / Baixar PDF</a></div>`
+          : `<img src="${escapeHtml(safeUrl)}" alt="${escapeHtml(item.label)}" style="max-width:100%; max-height:58vh; border-radius:8px; object-fit:contain; box-shadow:0 2px 10px rgba(0,0,0,0.08);" />`;
         return `
           <div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px; background:#f8fafc;">
-            ${files.length > 1 ? `<div style="font-size:12px; font-weight:700; color:#334155; margin-bottom:8px; text-align:left;">Arquivo ${idx + 1}: ${escapeHtml(label)}</div>` : ""}
+            ${resolvedFiles.length > 1 ? `<div style="font-size:12px; font-weight:700; color:#334155; margin-bottom:8px; text-align:left;">Arquivo ${idx + 1}: ${escapeHtml(item.label)}</div>` : ""}
             ${mediaHtml}
           </div>
         `;
       })
       .join("");
   }
-  if (typeof dlg.showModal === "function") dlg.showModal();
-  else dlg.setAttribute("open", "");
 }
 
 export function renderEmployeeOnboardingState(emp = {}, linkData = null) {
@@ -4774,11 +4898,11 @@ async function compressAttachmentFileToDataUrl(file, { maxPdfBytes = 1.8 * 1024 
 }
 
 async function compressReceiptFileToDataUrl(file) {
-  return compressAttachmentFileToDataUrl(file, { maxPdfBytes: 1.8 * 1024 * 1024, label: "comprovante" });
+  return compressAttachmentFileToDataUrl(file, { maxPdfBytes: 5.5 * 1024 * 1024, label: "comprovante" });
 }
 
 async function readAttachmentFileAsDataUrl(file) {
-  return compressAttachmentFileToDataUrl(file, { maxPdfBytes: 2.5 * 1024 * 1024, label: "documento" });
+  return compressAttachmentFileToDataUrl(file, { maxPdfBytes: 5.5 * 1024 * 1024, label: "documento" });
 }
 
 function buildPayrollReportRowsHtml(linha) {
@@ -5021,8 +5145,11 @@ function openPayrollPayDialog({ linha, competencia, quinzena, takeatSnapshot }) 
   const dlg = ensurePayrollPagamentoDialog();
   const form = dlg.querySelector("#folhaPagamentoForm");
 
-  let uploadedDataUrl = "";
+  let uploadedDriveUrl = "";
+  let uploadedDriveFileId = "";
+  let uploadedMimeType = "";
   let uploadedFileName = "";
+  let pendingDataUrl = "";
 
   dlg.querySelector("#folhaPagTitle").textContent = `Pagar ${linha.FuncionarioNome}`;
   dlg.querySelector("#folhaPagSubtitle").textContent = `${linha.NomeLoja || linha.LojaID || "-"} · ${linha.Cargo || "Operação"} · Competência ${competencia}`;
@@ -5056,8 +5183,11 @@ function openPayrollPayDialog({ linha, competencia, quinzena, takeatSnapshot }) 
 
   fileInput.onchange = async () => {
     const file = fileInput.files?.[0];
+    uploadedDriveUrl = "";
+    uploadedDriveFileId = "";
+    uploadedMimeType = "";
+    pendingDataUrl = "";
     if (!file) {
-      uploadedDataUrl = "";
       uploadedFileName = "";
       previewEl.style.display = "none";
       previewEl.innerHTML = "";
@@ -5065,24 +5195,45 @@ function openPayrollPayDialog({ linha, competencia, quinzena, takeatSnapshot }) 
     }
     try {
       uploadedFileName = file.name;
-      uploadedDataUrl = await compressReceiptFileToDataUrl(file);
+      pendingDataUrl = await compressReceiptFileToDataUrl(file);
+      uploadedMimeType = inferMimeTypeFromDataUrl(pendingDataUrl, file.type || "application/pdf");
       previewEl.style.display = "block";
-      previewEl.innerHTML = String(file.type || "").startsWith("image/")
-        ? `<img src="${uploadedDataUrl}" alt="Prévia do comprovante" /><small style="display:block; margin-top:4px; color:var(--muted);">${escapeHtml(file.name)}</small>`
-        : `<div style="font-size:12.5px; font-weight:600; color:#047857;">PDF anexado: ${escapeHtml(file.name)}</div>`;
+      previewEl.innerHTML = String(uploadedMimeType).startsWith("image/")
+        ? `<img src="${pendingDataUrl}" alt="Prévia do comprovante" /><small style="display:block; margin-top:4px; color:var(--muted);">${escapeHtml(file.name)} · Enviando ao Google Drive...</small>`
+        : `<div style="font-size:12.5px; font-weight:600; color:#4f46e5;">PDF selecionado: ${escapeHtml(file.name)} · Enviando ao Google Drive...</div>`;
+
+      const driveRes = await uploadPrivateDocumentToDrive({
+        dataUrl: pendingDataUrl,
+        mimeType: uploadedMimeType,
+        fileName: file.name,
+        category: "comprovante_folha",
+        employeeId: linha.FuncionarioID || "",
+        storeId: linha.LojaID || "",
+        monthKey: /^\d{4}-\d{2}/.test(String(competencia || "")) ? String(competencia).slice(0, 7) : "",
+      });
+      uploadedDriveUrl = driveRes.url;
+      uploadedDriveFileId = driveRes.fileId;
+      uploadedMimeType = driveRes.mimeType || uploadedMimeType;
+      previewEl.innerHTML = String(uploadedMimeType).startsWith("image/")
+        ? `<img src="${pendingDataUrl}" alt="Prévia do comprovante" /><small style="display:block; margin-top:4px; color:#047857;">${escapeHtml(file.name)} · Salvo no Google Drive</small>`
+        : `<div style="font-size:12.5px; font-weight:600; color:#047857;">PDF salvo no Google Drive: ${escapeHtml(file.name)}</div>`;
     } catch (err) {
-      uploadedDataUrl = "";
+      uploadedDriveUrl = "";
+      uploadedDriveFileId = "";
+      pendingDataUrl = "";
       uploadedFileName = "";
       fileInput.value = "";
-      showPortalToast(err.message || "Falha ao processar comprovante.", "error");
+      previewEl.style.display = "none";
+      previewEl.innerHTML = "";
+      showPortalToast(err.message || "Falha ao enviar comprovante para o Google Drive.", "error");
     }
   };
 
   form.onsubmit = async (ev) => {
     ev.preventDefault();
     const confirmBtn = dlg.querySelector("#folhaPagConfirmBtn");
-    const comprovanteUrl = uploadedDataUrl || urlInput.value.trim();
-    if (!comprovanteUrl) {
+    let comprovanteUrl = uploadedDriveUrl || urlInput.value.trim();
+    if (!comprovanteUrl && !pendingDataUrl) {
       showPortalToast("Anexe a imagem/PDF do comprovante ou informe o link.", "warning");
       return;
     }
@@ -5092,12 +5243,30 @@ function openPayrollPayDialog({ linha, competencia, quinzena, takeatSnapshot }) 
         confirmBtn.disabled = true;
         confirmBtn.textContent = "Processando...";
       }
+      if (!uploadedDriveFileId && (pendingDataUrl || comprovanteUrl.startsWith("data:"))) {
+        confirmBtn.textContent = "Salvando comprovante no Drive...";
+        const driveRes = await uploadPrivateDocumentToDrive({
+          dataUrl: pendingDataUrl || comprovanteUrl,
+          mimeType: uploadedMimeType || "",
+          fileName: uploadedFileName || "comprovante_folha",
+          category: "comprovante_folha",
+          employeeId: linha.FuncionarioID || "",
+          storeId: linha.LojaID || "",
+          monthKey: /^\d{4}-\d{2}/.test(String(competencia || "")) ? String(competencia).slice(0, 7) : "",
+        });
+        comprovanteUrl = driveRes.url;
+        uploadedDriveFileId = driveRes.fileId;
+        uploadedMimeType = driveRes.mimeType;
+      }
+      if (confirmBtn) confirmBtn.textContent = "Registrando pagamento...";
       const res = await invokePortal("pagarFolhaColaborador", {
         competencia,
         quinzena,
         FuncionarioID: linha.FuncionarioID,
         LojaID: linha.LojaID || "",
         comprovanteUrl,
+        comprovanteDriveFileId: uploadedDriveFileId || parseDriveFileId(comprovanteUrl) || "",
+        comprovanteMimeType: uploadedMimeType,
         comprovanteNome: uploadedFileName || "Comprovante de Pagamento",
         observacao: obsInput.value.trim(),
         enviarParaColaborador: Boolean(notifyCheck.checked),
@@ -5149,16 +5318,16 @@ function ensurePayrollReceiptViewDialog() {
   return dlg;
 }
 
-function openPayrollReceiptModal(payment, options = {}) {
+async function openPayrollReceiptModal(payment, options = {}) {
   if (!payment) return;
   const dlg = ensurePayrollReceiptViewDialog();
   const when = String(payment.DataPagamento || "").replace("T", " ").slice(0, 16);
   dlg.querySelector("#folhaReciboTitle").textContent = `${payment.FuncionarioNome || "Colaborador"} · ${formatBRL(payment.ValorLiquido)}`;
   dlg.querySelector("#folhaReciboMeta").textContent = `Pago em ${when} por ${payment.PagoPor || "-"} · Competência ${payment.AnoMes || payment.Competencia || "-"}`;
 
-  const compUrl = String(payment.ComprovanteURL || "").trim();
-  const isImg = compUrl.startsWith("data:image/") || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(compUrl);
-  const isPdf = compUrl.startsWith("data:application/pdf") || /\.pdf(\?|$)/i.test(compUrl);
+  let compUrl = String(payment.ComprovanteURL || "").trim();
+  const driveId = String(payment.ComprovanteDriveFileID || parseDriveFileId(compUrl) || "").trim();
+  let mimeHint = String(payment.ComprovanteMimeType || "").toLowerCase();
 
   const waBanner = options.showWaFallbackBanner && payment.WhatsAppUrl
     ? `<div style="padding:10px 12px; border-radius:10px; background:#ecfdf5; border:1px solid #a7f3d0; font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
@@ -5167,22 +5336,40 @@ function openPayrollReceiptModal(payment, options = {}) {
        </div>`
     : "";
 
-  const mediaHtml = !compUrl
-    ? `<p style="font-size:12.5px; color:var(--muted); margin:0;">Sem anexo de imagem/PDF neste pagamento.</p>`
-    : isImg
-      ? `<img src="${escapeHtml(compUrl)}" alt="Comprovante de Pagamento" style="max-width:100%; max-height:320px; object-fit:contain; border-radius:10px; border:1px solid #cbd5e1;" />`
+  const bodyEl = dlg.querySelector("#folhaReciboBody");
+  const renderBody = (resolvedUrl, resolvedMime, errorMsg = "") => {
+    const isImg = resolvedUrl.startsWith("data:image/") || /^image\//i.test(resolvedMime) || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(resolvedUrl);
+    const isPdf = resolvedUrl.startsWith("data:application/pdf") || resolvedMime === "application/pdf" || /\.pdf(\?|$)/i.test(resolvedUrl) || /\.pdf$/i.test(String(payment.ComprovanteNome || ""));
+    const hrefPdf = isPdf && resolvedUrl.startsWith("data:") ? driveDataUrlToObjectUrl(resolvedUrl, "application/pdf") : resolvedUrl;
+    const mediaHtml = errorMsg
+      ? `<div style="padding:10px; border-radius:8px; background:#fef2f2; color:#991b1b; font-size:12.5px;">${escapeHtml(errorMsg)} ${compUrl ? `<a href="${escapeHtml(compUrl)}" target="_blank" rel="noopener noreferrer">Abrir no Drive ↗</a>` : ""}</div>`
+      : !resolvedUrl
+      ? `<p style="font-size:12.5px; color:var(--muted); margin:0;">Sem anexo de imagem/PDF neste pagamento.</p>`
+      : isImg
+      ? `<img src="${escapeHtml(resolvedUrl)}" alt="Comprovante de Pagamento" style="max-width:100%; max-height:320px; object-fit:contain; border-radius:10px; border:1px solid #cbd5e1;" />`
       : isPdf
-        ? `<a href="${escapeHtml(compUrl)}" download="${escapeHtml(payment.ComprovanteNome || "comprovante.pdf")}" class="btn btn-secondary btn-sm" style="text-decoration:none;">Baixar Comprovante PDF</a>`
-        : `<a href="${escapeHtml(compUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none;">Abrir Comprovante ↗</a>`;
+      ? `<iframe src="${escapeHtml(hrefPdf)}" style="width:100%; height:340px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; margin-bottom:8px;"></iframe><a href="${escapeHtml(hrefPdf)}" download="${escapeHtml(payment.ComprovanteNome || "comprovante.pdf")}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none;">Baixar Comprovante PDF</a>`
+      : `<a href="${escapeHtml(resolvedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none;">Abrir Comprovante ↗</a>`;
 
-  dlg.querySelector("#folhaReciboBody").innerHTML = `
-    ${waBanner}
-    <pre style="margin:0; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; font-family:inherit; font-size:12.5px; white-space:pre-wrap; line-height:1.45;">${escapeHtml(payment.RelatorioTexto || "")}</pre>
-    <div>
-      <span style="display:block; font-size:11.5px; font-weight:700; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Comprovante Anexado</span>
-      ${mediaHtml}
-    </div>
-  `;
+    bodyEl.innerHTML = `
+      ${waBanner}
+      <pre style="margin:0; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; font-family:inherit; font-size:12.5px; white-space:pre-wrap; line-height:1.45;">${escapeHtml(payment.RelatorioTexto || "")}</pre>
+      <div>
+        <span style="display:block; font-size:11.5px; font-weight:700; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Comprovante Anexado</span>
+        ${mediaHtml}
+      </div>
+    `;
+  };
+
+  if (driveId && !compUrl.startsWith("data:")) {
+    bodyEl.innerHTML = `
+      ${waBanner}
+      <pre style="margin:0; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; font-family:inherit; font-size:12.5px; white-space:pre-wrap; line-height:1.45;">${escapeHtml(payment.RelatorioTexto || "")}</pre>
+      <p style="font-size:12.5px; color:var(--muted); margin:6px 0 0;">Carregando comprovante do Google Drive...</p>
+    `;
+  } else {
+    renderBody(compUrl, mimeHint);
+  }
 
   dlg.querySelector("#folhaReciboFoot").innerHTML = `
     ${payment.WhatsAppUrl ? `<a href="${escapeHtml(payment.WhatsAppUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="text-decoration:none;">Abrir WhatsApp</a>` : ""}
@@ -5191,6 +5378,15 @@ function openPayrollReceiptModal(payment, options = {}) {
   dlg.querySelector("#folhaReciboOkBtn")?.addEventListener("click", () => dlg.close());
 
   if (typeof dlg.showModal === "function") dlg.showModal();
+
+  if (driveId && !compUrl.startsWith("data:")) {
+    try {
+      const driveData = await readPrivateDriveFile(driveId);
+      renderBody(driveData.dataUrl, driveData.mimeType || mimeHint);
+    } catch (err) {
+      renderBody("", mimeHint, err?.message || "Não foi possível carregar o comprovante do Drive.");
+    }
+  }
 }
 
 async function loadPayrollHistoryTable() {
@@ -6237,6 +6433,14 @@ async function loadUnifiedPendingHrItems() {
             const url = btn.getAttribute("data-atestado-url");
             if (src === "doc" && typeof window.openPreviewDialog === "function") {
               window.openPreviewDialog(id);
+            } else if (url && (parseDriveFileId(url) || url.startsWith("data:"))) {
+              openOnboardingFilePreview("Comprovante / Atestado", [
+                {
+                  arquivoUrl: url,
+                  driveFileId: parseDriveFileId(url) || "",
+                  nomeArquivo: "Comprovante Anexo",
+                },
+              ]);
             } else if (url) {
               window.open(url, "_blank", "noopener,noreferrer");
             }
@@ -7335,6 +7539,10 @@ export async function mountOnboardingSelfPortal(token) {
         const code = input.getAttribute("data-self-doc-input");
         const meta = docsMetaList.find((d) => d.codigo === code);
         const allowMulti = Boolean(meta?.multiplosArquivos || code === "RG_CNH");
+        const cardEl = input.closest(".onb-self-doc-card");
+        const subHintEl = cardEl?.querySelector(".onb-self-doc-sub");
+        if (subHintEl) subHintEl.textContent = "Enviando arquivo(s) para o Google Drive...";
+        input.disabled = true;
         try {
           const existingFiles = allowMulti ? normalizeDocItemFiles(docsDraft[code]) : [];
           const nextFiles = [...existingFiles];
@@ -7344,12 +7552,25 @@ export async function mountOnboardingSelfPortal(token) {
               break;
             }
             const dataUrl = await readAttachmentFileAsDataUrl(file);
-            if (dataUrl.length > 3500000) {
-              showPortalToast(`Arquivo "${file.name}" muito grande. Máx. 2,5 MB.`, "error");
+            if (dataUrl.length > 7800000) {
+              showPortalToast(`Arquivo "${file.name}" muito grande. Máx. 5,5 MB.`, "error");
               continue;
             }
+            const mimeType = inferMimeTypeFromDataUrl(dataUrl, file.type || "image/jpeg");
+            const driveRes = await uploadOnboardingDocumentToDrive({
+              inviteToken: token,
+              dataUrl,
+              mimeType,
+              fileName: file.name,
+              docCode: code,
+              employeeId: inviteData?.FuncionarioID || "",
+              storeId: inviteData?.LojaID || "",
+            });
             nextFiles.push({
-              arquivoUrl: dataUrl,
+              arquivoUrl: driveRes.url,
+              driveFileId: driveRes.fileId,
+              storage: "Google Drive",
+              mimeType: driveRes.mimeType || mimeType,
               nomeArquivo: file.name,
               enviadoEm: new Date().toISOString(),
             });
@@ -7363,15 +7584,21 @@ export async function mountOnboardingSelfPortal(token) {
             codigo: code,
             titulo: meta?.titulo || code,
             arquivoUrl: nextFiles[0].arquivoUrl,
+            driveFileId: nextFiles[0].driveFileId || "",
+            storage: nextFiles[0].storage || "Google Drive",
+            mimeType: nextFiles[0].mimeType || "",
             nomeArquivo: summaryName,
             arquivos: nextFiles,
             enviadoEm: nextFiles[0].enviadoEm,
           };
           await persistDraft(false);
-          showPortalToast(`${meta?.titulo || code} anexado!`, "success");
+          showPortalToast(`${meta?.titulo || code} salvo no Google Drive!`, "success");
           renderSelfPortal();
         } catch (err) {
-          showPortalToast(err.message || "Erro ao ler arquivo.", "error");
+          showPortalToast(err.message || "Erro ao enviar arquivo ao Google Drive.", "error");
+          renderSelfPortal();
+        } finally {
+          input.disabled = false;
         }
       });
     });
@@ -7385,10 +7612,14 @@ export async function mountOnboardingSelfPortal(token) {
         if (!files.length) return;
         if (idxAttr !== null && idxAttr !== undefined) {
           const fileObj = files[Number(idxAttr)];
-          if (fileObj) openOnboardingFilePreview(fileObj.nomeArquivo || docItem.titulo || code, [fileObj]);
+          if (fileObj) {
+            openOnboardingFilePreview(fileObj.nomeArquivo || docItem.titulo || code, [fileObj], {
+              inviteToken: token,
+            });
+          }
           return;
         }
-        openOnboardingFilePreview(docItem.titulo || code, files);
+        openOnboardingFilePreview(docItem.titulo || code, files, { inviteToken: token });
       });
     });
 

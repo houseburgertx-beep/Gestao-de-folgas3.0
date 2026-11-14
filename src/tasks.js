@@ -1469,20 +1469,12 @@ function openCompleteModal(taskId) {
 
     try {
       btnLoading(true);
-      // Upload para Google Drive (com fallback para base64)
-      let photoUrl = currentBase64;
-      let photoId = "";
-      let photoPrivate = false;
-      let pendingDrive = true;
-      try {
-        const driveRes = await uploadPhotoToDrive(currentBase64, `task_${taskId}.jpg`);
-        photoUrl = driveRes.url;
-        photoId = driveRes.fileId;
-        photoPrivate = driveRes.private === true;
-        pendingDrive = false;
-      } catch (uploadErr) {
-        console.warn("Foto da tarefa será preservada no banco durante a indisponibilidade do Drive:", uploadErr.message);
-      }
+      // Upload obrigatório para o Google Drive (sem gravar Base64 no Firebase)
+      const driveRes = await uploadPhotoToDrive(currentBase64, `task_${taskId}.jpg`);
+      const photoUrl = driveRes.url;
+      const photoId = driveRes.fileId;
+      const photoPrivate = driveRes.private === true;
+      const pendingDrive = false;
 
       await callApi('cozinhaTasksComplete', [{
         taskId,
@@ -1827,28 +1819,48 @@ async function uploadPhotoToDrive(base64, filename) {
   const endpoint = SELFIE_DRIVE_UPLOAD_ENDPOINT;
   if (!endpoint) throw new Error("Serviço de fotos não configurado.");
 
-  const payload = {
-    action: 'driveUpload',
-    idToken: await runtime.auth?.currentUser?.getIdToken(),
-    requestId: crypto.randomUUID(),
-    name: filename,
-    mimeType: 'image/jpeg',
-    base64: base64,
-  };
-
-  if (!payload.idToken) throw new Error("Sua sessão expirou. Entre novamente.");
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    credentials: "omit",
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(25000),
-  });
-
-  if (!response.ok) throw new Error("Erro no upload do Google Drive.");
-  const data = await response.json().catch(() => ({}));
-  if (!data.ok || !data.fileId || !data.url) throw new Error(data.error || "O Drive não confirmou o salvamento da foto.");
-  return data;
+  let refreshToken = false;
+  let lastErr = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const idToken = await runtime.auth?.currentUser?.getIdToken(refreshToken);
+      if (!idToken) throw new Error("Sua sessão expirou. Entre novamente.");
+      const payload = {
+        action: 'driveUpload',
+        idToken,
+        requestId: crypto.randomUUID(),
+        name: filename,
+        mimeType: 'image/jpeg',
+        base64: base64,
+      };
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        credentials: "omit",
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(attempt === 0 ? 25000 : 35000),
+      });
+      if (response.status === 401) {
+        refreshToken = true;
+        throw new Error("Sessão expirada.");
+      }
+      if (!response.ok) throw new Error("Erro no upload do Google Drive.");
+      const data = await response.json().catch(() => ({}));
+      if (!data.ok || !data.fileId || !data.url) {
+        throw new Error(data.error || "O Drive não confirmou o salvamento da foto.");
+      }
+      return data;
+    } catch (err) {
+      lastErr = err;
+      if (attempt === 0 && !/sessão expirou/i.test(err?.message || "")) {
+        await new Promise((r) => setTimeout(r, 400));
+        continue;
+      }
+      if (attempt === 0 && refreshToken) continue;
+      break;
+    }
+  }
+  throw lastErr || new Error("Não foi possível enviar a foto ao Google Drive. Tente novamente.");
 }
 
 // ==========================================================================

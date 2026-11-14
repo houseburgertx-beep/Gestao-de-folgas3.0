@@ -1619,12 +1619,26 @@ const medicalDate = (value, message) => {
   return date;
 };
 
-const medicalAttachmentFingerprint = async (base64, url) => {
+const medicalAttachmentFingerprint = async (base64, url, driveMeta = {}) => {
   assert(base64 || url, "É obrigatório anexar a foto ou PDF do atestado.");
   assert(!url || /^https:\/\//i.test(url), "Informe um link HTTPS válido para o atestado.");
   if (!base64) {
+    const precomputedHash = String(driveMeta.sha256 || "").trim().toLowerCase();
+    if (/^[a-f0-9]{64}$/.test(precomputedHash)) {
+      return {
+        hash: precomputedHash,
+        mimeType: String(driveMeta.mimeType || "application/octet-stream").trim() || "application/octet-stream",
+        bytes: Number(driveMeta.bytes || 0),
+        method: "SHA256_BINARIO_DRIVE",
+      };
+    }
     // A URL fingerprint describes the reference, not the remote file contents.
-    return { hash: await sha256Hex(`url:${url}`), mimeType: "referencia-url", bytes: 0, method: "SHA256_REFERENCIA_URL" };
+    return {
+      hash: await sha256Hex(`url:${url}`),
+      mimeType: String(driveMeta.mimeType || "referencia-url").trim() || "referencia-url",
+      bytes: Number(driveMeta.bytes || 0),
+      method: "SHA256_REFERENCIA_URL",
+    };
   }
   const dataUrl = base64.match(/^data:([^;,]+);base64,([\s\S]+)$/i);
   assert(!base64.startsWith("data:") || dataUrl, "O anexo do atestado está em formato inválido.");
@@ -2240,8 +2254,15 @@ export function createBaseHandlers() {
       assert(diasAbono <= 60, "O atestado não pode ultrapassar 60 dias.");
 
       const docUrl = String(payload.documentoUrl || payload.DocumentoUrl || "").trim();
-      const docBase64 = String(payload.documentoBase64 || payload.base64 || payload.base64Data || "").trim();
-      const attachment = await medicalAttachmentFingerprint(docBase64, docUrl);
+      const docDriveFileId = String(payload.documentoDriveFileId || payload.ArquivoDriveFileID || "").trim();
+      const docBase64 = docDriveFileId
+        ? ""
+        : String(payload.documentoBase64 || payload.base64 || payload.base64Data || "").trim();
+      const attachment = await medicalAttachmentFingerprint(docBase64, docUrl, {
+        sha256: payload.documentoHash || payload.HashOriginalSHA256 || "",
+        mimeType: payload.documentoMimeType || payload.ArquivoMimeType || "",
+        bytes: payload.documentoBytes || payload.ArquivoTamanhoBytes || 0,
+      });
       const requestId = String(payload.requestId || "").trim().toLowerCase();
       assert(!requestId || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId),
         "Identificador do envio inválido. Reabra o formulário do atestado.");
@@ -2290,6 +2311,8 @@ export function createBaseHandlers() {
         NomeLoja: employee.NomeLoja,
         DataEnvio: submittedAt,
         ArquivoUrl: docUrl,
+        ArquivoDriveFileID: docDriveFileId,
+        ArquivoStorage: docDriveFileId ? "Google Drive" : (docBase64 ? "Firebase" : ""),
         ArquivoOriginalBase64: docBase64,
         ArquivoMimeType: attachment.mimeType,
         ArquivoTamanhoBytes: attachment.bytes,

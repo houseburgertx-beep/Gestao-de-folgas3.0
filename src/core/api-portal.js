@@ -27,6 +27,7 @@ import {
   resolveAccountMatch as resolveTakeatAccountMatch,
 } from "./takeat-credit.js";
 import { requestWorker } from "./worker-client.js";
+import { parseDriveFileId } from "./drive-storage.js";
 
 const requireSession = () => runtime.requireProfile();
 const requireAdmin = async () => {
@@ -449,6 +450,8 @@ async function enviarDocumentoAdmissional(payload = {}) {
     titulo: String(payload.titulo || payload.Tipo || "Documento Admissional").trim(),
   };
   const arquivoUrl = String(payload.arquivoUrl || payload.ArquivoURL || payload.conteudoBase64 || "").trim();
+  const driveFileId = String(payload.driveFileId || payload.ArquivoDriveFileID || parseDriveFileId(arquivoUrl) || "").trim();
+  const mimeType = String(payload.mimeType || payload.ArquivoMimeType || "").trim();
   assert(arquivoUrl, "Anexe o arquivo (PDF ou foto) do documento.");
 
   const docId = uuid();
@@ -469,6 +472,8 @@ async function enviarDocumentoAdmissional(payload = {}) {
     Competencia: todayIso().slice(0, 7),
     ArquivoURL: arquivoUrl,
     ArquivoUrl: arquivoUrl,
+    ...(driveFileId ? { ArquivoDriveFileID: driveFileId, ArquivoStorage: "Google Drive" } : {}),
+    ...(mimeType ? { ArquivoMimeType: mimeType } : {}),
     NomeArquivo: String(payload.nomeArquivo || `${docMeta.codigo}.pdf`).trim(),
     RequerAssinatura: false,
     Status: isManager(profile) ? "Validado" : "Em Análise",
@@ -489,6 +494,8 @@ async function enviarDocumentoAdmissional(payload = {}) {
       codigo: docMeta.codigo,
       titulo: docMeta.titulo,
       arquivoUrl,
+      ...(driveFileId ? { driveFileId, storage: "Google Drive" } : {}),
+      ...(mimeType ? { mimeType } : {}),
       nomeArquivo: docEntry.NomeArquivo,
       enviadoEm: now,
       enviadoPor: profile.Nome || profile.Email,
@@ -642,11 +649,20 @@ function normalizeSubmittedDocFiles(item, fallbackCode = "DOC", fallbackNow = no
   const files = rawList
     .filter((f) => f && String(f.arquivoUrl || "").trim())
     .slice(0, 5)
-    .map((f, idx) => ({
-      arquivoUrl: String(f.arquivoUrl).trim(),
-      nomeArquivo: String(f.nomeArquivo || `${fallbackCode}_${idx + 1}.pdf`).trim(),
-      enviadoEm: f.enviadoEm || item.enviadoEm || fallbackNow,
-    }));
+    .map((f, idx) => {
+      const arquivoUrl = String(f.arquivoUrl).trim();
+      const driveFileId = String(f.driveFileId || f.DriveFileID || parseDriveFileId(arquivoUrl) || "").trim();
+      const storage = String(f.storage || (driveFileId ? "Google Drive" : "")).trim();
+      const mimeType = String(f.mimeType || "").trim();
+      return {
+        arquivoUrl,
+        nomeArquivo: String(f.nomeArquivo || `${fallbackCode}_${idx + 1}.pdf`).trim(),
+        enviadoEm: f.enviadoEm || item.enviadoEm || fallbackNow,
+        ...(driveFileId ? { driveFileId } : {}),
+        ...(storage ? { storage } : {}),
+        ...(mimeType ? { mimeType } : {}),
+      };
+    });
   if (!files.length) return { files: [], arquivoUrl: "", nomeArquivo: "" };
   const summaryName =
     files.length > 1
@@ -676,6 +692,8 @@ async function applyOnboardingSubmissionToEmployee(emp, convite, now = nowIso())
       titulo: item.titulo || "Documento Admissional",
     };
     const docId = `ONB_${emp.FuncionarioID}_${code}`;
+    const primaryDriveId = norm.files[0]?.driveFileId || parseDriveFileId(norm.arquivoUrl) || "";
+    const primaryMime = norm.files[0]?.mimeType || "";
     const docEntry = {
       DocID: docId,
       DocumentoID: docId,
@@ -692,6 +710,8 @@ async function applyOnboardingSubmissionToEmployee(emp, convite, now = nowIso())
       Competencia: todayIso().slice(0, 7),
       ArquivoURL: norm.arquivoUrl,
       ArquivoUrl: norm.arquivoUrl,
+      ...(primaryDriveId ? { ArquivoDriveFileID: primaryDriveId, ArquivoStorage: "Google Drive" } : {}),
+      ...(primaryMime ? { ArquivoMimeType: primaryMime } : {}),
       NomeArquivo: norm.nomeArquivo,
       Arquivos: norm.files,
       RequerAssinatura: false,
@@ -1910,6 +1930,11 @@ async function aprovarPagarValeDiretoria(payload = {}) {
   const aprovar = payload.aprovar !== false && String(payload.decisao || "pagar").toLowerCase() !== "recusar";
   const novoStatus = aprovar ? "Pago" : "Recusado pela Diretoria";
   const comprovanteUrl = String(payload.comprovanteUrl || payload.ComprovanteURL || "").trim();
+  const comprovanteDriveFileId = String(
+    payload.comprovanteDriveFileId || payload.ComprovanteDriveFileID || parseDriveFileId(comprovanteUrl) || "",
+  ).trim();
+  const comprovanteMimeType = String(payload.comprovanteMimeType || "").trim();
+  const comprovanteNome = String(payload.comprovanteNome || payload.ComprovanteNome || "").trim();
   if (aprovar) {
     assert(comprovanteUrl, "Anexe o comprovante de pagamento para concluir a aprovação do vale.");
   }
@@ -1941,6 +1966,11 @@ async function aprovarPagarValeDiretoria(payload = {}) {
       Competencia: current.Competencia,
       ConteudoTexto: reciboTexto,
       ArquivoURL: comprovanteUrl,
+      ArquivoUrl: comprovanteUrl,
+      ArquivoDriveFileID: comprovanteDriveFileId,
+      ArquivoStorage: comprovanteDriveFileId ? "Google Drive" : "",
+      ArquivoMimeType: comprovanteMimeType,
+      ComprovanteNome: comprovanteNome,
       HashSHA256Original: hashRecibo,
       RequerAssinatura: true,
       StatusAssinatura: "Pendente",
@@ -1955,6 +1985,10 @@ async function aprovarPagarValeDiretoria(payload = {}) {
     AprovadoDiretoriaPor: profile.Nome || profile.Email,
     AprovadoDiretoriaEm: now,
     ComprovanteURL: comprovanteUrl,
+    ComprovanteDriveFileID: comprovanteDriveFileId,
+    ComprovanteStorage: comprovanteDriveFileId ? "Google Drive" : "",
+    ComprovanteMimeType: comprovanteMimeType,
+    ComprovanteNome: comprovanteNome,
     ReciboDocID: reciboDocId,
     ObservacaoDiretoria: String(payload.observacao || "").trim(),
     DataAtualizacao: now,
@@ -2966,6 +3000,10 @@ async function pagarFolhaColaborador(payload = {}) {
 
   const comprovanteUrl = String(payload.comprovanteUrl || payload.ComprovanteURL || "").trim();
   const comprovanteNome = String(payload.comprovanteNome || payload.ComprovanteNome || "").trim();
+  const comprovanteDriveFileId = String(
+    payload.comprovanteDriveFileId || payload.ComprovanteDriveFileID || parseDriveFileId(comprovanteUrl) || "",
+  ).trim();
+  const comprovanteMimeType = String(payload.comprovanteMimeType || payload.ComprovanteMimeType || "").trim();
   const observacao = String(payload.observacao || payload.Observacao || "").trim();
   if (!payload.permitirSemComprovante) {
     assert(comprovanteUrl, "Anexe o comprovante de pagamento para concluir o pagamento.");
@@ -3006,9 +3044,12 @@ async function pagarFolhaColaborador(payload = {}) {
       Competencia: previa.bounds.competencia,
       MesReferencia: previa.bounds.competencia,
       ConteudoTexto: relatorioTexto,
-      ArquivoOriginalBase64: isDataUrl ? comprovanteUrl : "",
+      ArquivoOriginalBase64: comprovanteDriveFileId ? "" : (isDataUrl ? comprovanteUrl : ""),
       ArquivoUrl: comprovanteUrl || `data:text/plain;charset=utf-8,${encodeURIComponent(relatorioTexto)}`,
       ArquivoURL: comprovanteUrl || `data:text/plain;charset=utf-8,${encodeURIComponent(relatorioTexto)}`,
+      ArquivoDriveFileID: comprovanteDriveFileId,
+      ArquivoStorage: comprovanteDriveFileId ? "Google Drive" : (isDataUrl ? "Firebase" : ""),
+      ArquivoMimeType: comprovanteMimeType,
       ComprovanteURL: comprovanteUrl,
       ComprovanteNome: comprovanteNome,
       HashSHA256Original: hashRelatorio,
@@ -3105,6 +3146,9 @@ async function pagarFolhaColaborador(payload = {}) {
     ValorLiquido: mergedLine.ValorLiquido,
     ChavePix: mergedLine.ChavePix || "",
     ComprovanteURL: comprovanteUrl,
+    ComprovanteDriveFileID: comprovanteDriveFileId,
+    ComprovanteStorage: comprovanteDriveFileId ? "Google Drive" : (isDataUrl ? "Firebase" : ""),
+    ComprovanteMimeType: comprovanteMimeType,
     ComprovanteNome: comprovanteNome,
     Observacao: observacao,
     RelatorioTexto: relatorioTexto,

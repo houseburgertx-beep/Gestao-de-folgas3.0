@@ -5,6 +5,14 @@
 
 import { DOCUMENT_TEMPLATES, sha256Hex, parseBatchPayrollPdf, formatMonthLabel } from "./core/api-documents.js";
 import { uuid } from "./core/utils.js";
+import {
+  inferMimeTypeFromDataUrl,
+  isGoogleDriveUrl,
+  parseDriveFileId,
+  readPrivateDriveFile,
+  uploadPrivateDocumentToDrive,
+} from "./core/drive-storage.js";
+import { migrarAnexosParaGoogleDrive } from "./core/drive-migration.js";
 
 const $ = (selector, parent = document) => parent.querySelector(selector);
 const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
@@ -88,19 +96,76 @@ async function callApi(method, ...args) {
   throw new Error("API central não inicializada.");
 }
 
-async function ensureDocumentFullPayload(doc) {
+async function ensureDocumentFullPayload(doc, { hydrateDrive = true } = {}) {
   if (!doc) return doc;
-  if (!doc.ArquivoOriginalBase64 && !doc.ArquivoFinalBase64) {
+  const hasInlinePayload = Boolean(doc.ArquivoOriginalBase64 || doc.ArquivoFinalBase64);
+  if (!hasInlinePayload && doc.DocumentoID) {
     try {
       const res = await callApi("documentsGet", doc.DocumentoID);
       const full = res?.data || res?.document || res;
-      if (full) {
+      if (full && typeof full === "object") {
         Object.assign(doc, full);
       }
     } catch (err) {
       console.warn("Falha ao obter payload completo do documento:", err);
     }
   }
+
+  if (hydrateDrive && typeof readPrivateDriveFile === "function") {
+    const finalDriveId = String(
+      doc.ArquivoFinalDriveFileID || parseDriveFileId(doc.ArquivoFinalUrl || "") || "",
+    ).trim();
+    if (!doc.ArquivoFinalBase64 && finalDriveId) {
+      try {
+        const res = await readPrivateDriveFile(finalDriveId);
+        if (res?.dataUrl) doc.ArquivoFinalBase64 = res.dataUrl;
+      } catch (err) {
+        console.warn("[documents] Falha ao carregar PDF assinado do Drive:", err);
+      }
+    }
+
+    const origDriveId = String(
+      doc.ArquivoDriveFileID ||
+        parseDriveFileId(doc.ArquivoUrl || doc.ArquivoURL || doc.DocumentoUrl || "") ||
+        "",
+    ).trim();
+    if (!doc.ArquivoOriginalBase64 && origDriveId) {
+      try {
+        const res = await readPrivateDriveFile(origDriveId);
+        if (res?.dataUrl) {
+          doc.ArquivoOriginalBase64 = res.dataUrl;
+          if (res.mimeType && !doc.ArquivoMimeType) doc.ArquivoMimeType = res.mimeType;
+        }
+      } catch (err) {
+        console.warn("[documents] Falha ao carregar documento original do Drive:", err);
+      }
+    }
+
+    if (Array.isArray(doc.Arquivos) && doc.Arquivos.length > 0) {
+      await Promise.all(
+        doc.Arquivos.map(async (f) => {
+          if (!f || f._resolvedDataUrl) return;
+          const fid = String(
+            f.driveFileId ||
+              f.DriveFileID ||
+              parseDriveFileId(f.arquivoUrl || f.ArquivoURL || f.ArquivoUrl || f.url || "") ||
+              "",
+          ).trim();
+          if (!fid) return;
+          try {
+            const res = await readPrivateDriveFile(fid);
+            if (res?.dataUrl) {
+              f._resolvedDataUrl = res.dataUrl;
+              f._resolvedMimeType = res.mimeType || f.mimeType || "";
+            }
+          } catch (err) {
+            console.warn("[documents] Falha ao carregar anexo multiarquivo do Drive:", err);
+          }
+        }),
+      );
+    }
+  }
+
   return doc;
 }
 
@@ -183,6 +248,7 @@ async function prepareMedicalCertificateAttachment(file, employeeName = "Colabor
   return {
     url: "",
     base64: compressed.base64,
+    mimeType: compressed.mimeType,
     fileName: `atestado_${cleanName}_${dateStr}_${Date.now()}.${ext}`,
   };
 }
@@ -814,6 +880,12 @@ function renderManagerView() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             <span>Verificar</span>
           </button>
+          ${state.isAdmin ? `
+            <button type="button" id="docMigrateDriveBtn" class="btn btn-secondary btn-sm doc-action-btn" title="Mover anexos antigos do Firebase para o Google Drive">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Mover Antigos p/ Drive</span>
+            </button>
+          ` : ""}
           <button type="button" id="docNewDocumentBtn" class="btn btn-primary btn-sm doc-primary-cta">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Novo Documento</span>
@@ -1320,6 +1392,42 @@ function bindViewEvents() {
   const verifyBtn = $("#docVerifyBtn");
   if (verifyBtn) {
     verifyBtn.onclick = () => openVerifyDialog();
+  }
+
+  const migrateBtn = $("#docMigrateDriveBtn");
+  if (migrateBtn) {
+    migrateBtn.onclick = async () => {
+      if (!confirm("Deseja mover todos os PDFs, fotos, atestados e comprovantes antigos armazenados no Firebase para o Google Drive (grupo190house@gmail.com)?\n\nNenhum arquivo será perdido — o Firebase ficará apenas com os links leves.")) {
+        return;
+      }
+      const origHtml = migrateBtn.innerHTML;
+      migrateBtn.disabled = true;
+      migrateBtn.innerHTML = "<span>Analisando Firebase...</span>";
+      try {
+        const res = await migrarAnexosParaGoogleDrive({
+          onProgress: (info) => {
+            migrateBtn.innerHTML = `<span>${esc(info.stage)}: ${info.migratedFiles} arq...</span>`;
+          },
+        });
+        const resumo = [
+          `Migração concluída!`,
+          `• Arquivos movidos para o Drive: ${res.migratedFiles}`,
+          `• Registros aliviados no Firebase: ${res.migratedRecords}`,
+          `• Espaço liberado estimado: ${res.mbFreed} MB`,
+          res.protectedSignatureRecords > 0
+            ? `• Assinaturas antigas protegidas pelas regras imutáveis do Firebase: ${res.protectedSignatureRecords} (mantidas intactas por segurança jurídica)`
+            : "",
+          res.errors.length > 0 ? `• Avisos (${res.errors.length}): ${res.errors.slice(0, 3).join("; ")}` : "",
+        ].filter(Boolean).join("\n");
+        alert(resumo);
+        await loadDocuments({ force: true });
+      } catch (err) {
+        alert(`Falha na migração para o Drive: ${err?.message || err}`);
+      } finally {
+        migrateBtn.disabled = false;
+        migrateBtn.innerHTML = origHtml;
+      }
+    };
   }
 }
 
@@ -2843,19 +2951,49 @@ export function openMedicalCertificateDialog(options = {}) {
       showFeedback("Preparando envio seguro do atestado...", false);
 
       try {
-        // 1. Prepara PDF/foto sem usar o uploader de tarefas.
+        // 1. Prepara PDF/foto localmente e envia para o Google Drive.
         const uploadResult = await prepareMedicalCertificateAttachment(selectedFile, empName);
         if (submissionOwner !== documentListOwner()) throw new Error("Sua sessão mudou antes do envio do atestado. Abra o formulário novamente.");
-        const docUrl = uploadResult.url || "";
-        const docBase64 = uploadResult.base64 || fileBase64;
+        let docUrl = uploadResult.url || "";
+        let docBase64 = uploadResult.base64 || fileBase64;
+        let docDriveFileId = "";
+        let docHash = "";
+        let docMime = uploadResult.mimeType || "";
+        let docBytes = 0;
 
-        // 2. Invoca a API de atestado médico
+        if (!docUrl && docBase64 && typeof uploadPrivateDocumentToDrive === "function") {
+          submitBtn.innerHTML = `<span>Salvando no Google Drive...</span>`;
+          showFeedback("Salvando atestado com segurança no Google Drive...", false);
+          const driveRes = await uploadPrivateDocumentToDrive({
+            dataUrl: docBase64,
+            mimeType: docMime,
+            fileName: uploadResult.fileName || "atestado",
+            category: "atestado",
+            employeeId: userFuncId(state.user),
+            storeId: userLojaId(state.user),
+          });
+          if (submissionOwner !== documentListOwner()) {
+            throw new Error("Sua sessão mudou antes do envio do atestado. Abra o formulário novamente.");
+          }
+          docUrl = driveRes.url;
+          docDriveFileId = driveRes.fileId;
+          docHash = driveRes.sha256;
+          docMime = driveRes.mimeType;
+          docBytes = driveRes.bytes;
+          docBase64 = "";
+        }
+
+        // 2. Invoca a API de atestado médico (apenas referência leve no Firebase quando salvo no Drive)
         submitBtn.innerHTML = `<span>Finalizando pedido de abono...</span>`;
         await callApi("submitMedicalCertificate", {
           requestId,
           dataInicio: start,
           dataFim: end,
           documentoUrl: docUrl,
+          documentoDriveFileId: docDriveFileId,
+          documentoHash: docHash,
+          documentoMimeType: docMime,
+          documentoBytes: docBytes,
           documentoBase64: docBase64,
           crm: crm,
           motivo: reason,
@@ -3210,6 +3348,21 @@ function setupUploadDialogEvents(dialog) {
       const resolvedLojaId = lojaId || (targetEmp ? empStoreId(targetEmp) : empOption?.getAttribute("data-loja") || "");
       const resolvedEmpName = (targetEmp ? empName(targetEmp) : empOption?.getAttribute("data-name")) || "Colaborador";
       const resolvedEmpCpf = (targetEmp ? empCpf(targetEmp) : empOption?.getAttribute("data-cpf")) || "";
+
+      let driveUpload = null;
+      if (currentMode === "pdf") {
+        submitBtn.innerHTML = "Salvando PDF no Google Drive...";
+        driveUpload = await uploadPrivateDocumentToDrive({
+          dataUrl: selectedFileBase64,
+          mimeType: "application/pdf",
+          fileName: docFileInput?.files?.[0]?.name || `${titulo}.pdf`,
+          category: "documento",
+          employeeId: funcId,
+          storeId: resolvedLojaId,
+        });
+      }
+
+      submitBtn.innerHTML = "Emitindo documento...";
       const payload = {
         Titulo: titulo,
         Tipo: tipo,
@@ -3221,9 +3374,19 @@ function setupUploadDialogEvents(dialog) {
         CargoFuncionario: targetEmp?.Cargo || "",
         MesReferencia: mesRef,
         OrigemTipo: currentMode === "pdf" ? "PDF_IMPORTADO" : "TEXTO_SISTEMA",
-        ArquivoOriginalBase64: currentMode === "pdf" ? selectedFileBase64 : "",
+        ArquivoOriginalBase64: "",
+        ...(driveUpload
+          ? {
+              ArquivoDriveFileID: driveUpload.fileId,
+              ArquivoUrl: driveUpload.url,
+              ArquivoMimeType: driveUpload.mimeType || "application/pdf",
+            }
+          : {}),
         ConteudoTexto: currentMode === "template" ? templateText?.value : "",
-        HashOriginalSHA256: currentMode === "pdf" ? selectedFileHash : await sha256Hex(templateText?.value || ""),
+        HashOriginalSHA256:
+          currentMode === "pdf"
+            ? selectedFileHash || driveUpload?.sha256 || ""
+            : await sha256Hex(templateText?.value || ""),
       };
 
       await callApi("documentsSave", payload);
@@ -3564,7 +3727,9 @@ export function openVerifyDialog() {
  */
 export async function downloadPdf(docId) {
   let doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
-  if (!doc) return;
+  if (!doc) {
+    doc = { DocumentoID: docId };
+  }
   await ensureDocumentFullPayload(doc);
 
   const base64 = doc.ArquivoFinalBase64 || doc.ArquivoOriginalBase64;
@@ -3573,6 +3738,7 @@ export async function downloadPdf(docId) {
     return;
   }
 
+  const mimeType = inferMimeTypeFromDataUrl(base64, "application/pdf");
   const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, "");
   const binary = atob(cleanBase64);
   const len = binary.length;
@@ -3581,12 +3747,13 @@ export async function downloadPdf(docId) {
     bytes[i] = binary.charCodeAt(i);
   }
 
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  const blob = new Blob([bytes], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   const sanitizedTitle = (doc.Titulo || "documento").replace(/[^a-zA-Z0-9_-]/g, "_");
-  a.download = `${sanitizedTitle}__assinado.pdf`;
+  const ext = mimeType.includes("pdf") ? "pdf" : mimeType.split("/")[1] || "bin";
+  a.download = `${sanitizedTitle}${doc.Status === "Assinado" ? "__assinado" : ""}.${ext}`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -3598,15 +3765,21 @@ export async function downloadPdf(docId) {
  */
 export async function openPreviewDialog(docId) {
   let doc = state.documents.find((d) => String(d.DocumentoID) === String(docId));
-  if (!doc) return;
+  if (!doc) {
+    doc = { DocumentoID: docId };
+  }
   await ensureDocumentFullPayload(doc);
+  if (!doc || (!doc.Titulo && !doc.ArquivoOriginalBase64 && !doc.ArquivoFinalBase64 && !doc.ArquivoUrl && !doc.ArquivoURL && !doc.ConteudoTexto && !Array.isArray(doc.Arquivos))) {
+    alert("Documento não encontrado ou indisponível no momento.");
+    return;
+  }
 
   const dialog = $("#documentPreviewDialog");
   if (!dialog) return;
 
   const fileUrl = doc.ArquivoUrl || doc.ArquivoURL || doc.DocumentoUrl || "";
   const extraFiles = Array.isArray(doc.Arquivos)
-    ? doc.Arquivos.filter((f) => f && (f.arquivoUrl || f.ArquivoURL || f.ArquivoUrl || f.url))
+    ? doc.Arquivos.filter((f) => f && (f._resolvedDataUrl || f.arquivoUrl || f.ArquivoURL || f.ArquivoUrl || f.url))
     : [];
   const base64 =
     doc.ArquivoFinalBase64 ||
@@ -3617,8 +3790,8 @@ export async function openPreviewDialog(docId) {
   const isPersonalNonSignature = !isMedical && !requiresEmployeeSignature(doc);
   const hasBase64Image = Boolean(base64 && base64.startsWith("data:image/"));
   const hasBase64Pdf = Boolean(base64 && (base64.includes("application/pdf") || base64.startsWith("JVBERi")));
-  const isPdf = Boolean(hasBase64Pdf || (fileUrl && /\.pdf($|\?)/i.test(fileUrl)));
-  const isImage = Boolean(hasBase64Image || (fileUrl && /\.(jpe?g|png|webp|gif)($|\?)/i.test(fileUrl)) || (isMedical && !isPdf));
+  const isPdf = Boolean(hasBase64Pdf || (fileUrl && /\.pdf($|\?)/i.test(fileUrl)) || String(doc.ArquivoMimeType || "").toLowerCase() === "application/pdf");
+  const isImage = Boolean(hasBase64Image || (fileUrl && /\.(jpe?g|png|webp|gif)($|\?)/i.test(fileUrl)) || /^image\//i.test(String(doc.ArquivoMimeType || "")) || (isMedical && !isPdf));
 
   let blobUrl = "";
   if (base64 && isPdf) {
@@ -3719,11 +3892,13 @@ export async function openPreviewDialog(docId) {
         <div style="display:grid; gap:12px;">
           ${extraFiles
             .map((fileItem, idx) => {
-              const rawUrl = String(fileItem.arquivoUrl || fileItem.ArquivoURL || fileItem.ArquivoUrl || fileItem.url || "").trim();
+              const rawUrl = String(fileItem._resolvedDataUrl || fileItem.arquivoUrl || fileItem.ArquivoURL || fileItem.ArquivoUrl || fileItem.url || "").trim();
               const safeHref = /^https?:\/\//i.test(rawUrl) || /^data:(image\/|application\/pdf)/i.test(rawUrl) ? rawUrl : "";
               const fileName = fileItem.nomeArquivo || `Arquivo ${idx + 1}`;
-              const itemIsImg = /^data:image\//i.test(safeHref) || /\.(jpe?g|png|webp|gif)($|\?)/i.test(safeHref);
-              const itemIsPdf = /^data:application\/pdf/i.test(safeHref) || /\.pdf($|\?)/i.test(safeHref);
+              const mimeHint = String(fileItem._resolvedMimeType || fileItem.mimeType || "").toLowerCase();
+              const itemIsImg = /^data:image\//i.test(safeHref) || /^image\//i.test(mimeHint) || /\.(jpe?g|png|webp|gif)($|\?)/i.test(safeHref) || /\.(jpe?g|png|webp|gif)$/i.test(fileName);
+              const itemIsPdf = /^data:application\/pdf/i.test(safeHref) || mimeHint === "application/pdf" || /\.pdf($|\?)/i.test(safeHref) || /\.pdf$/i.test(fileName);
+              const pdfViewUrl = itemIsPdf && safeHref.startsWith("data:") ? base64ToBlobUrl(safeHref, "application/pdf") : safeHref;
               return `
                 <div style="background:var(--surface-2, #f8fafc); border:1px solid var(--line, #e2e8f0); border-radius:12px; padding:12px; display:grid; gap:8px;">
                   <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -3733,8 +3908,8 @@ export async function openPreviewDialog(docId) {
                   ${
                     itemIsImg && safeHref
                       ? `<img src="${esc(safeHref)}" alt="${esc(fileName)}" style="max-width:100%; max-height:46vh; object-fit:contain; border-radius:8px; margin:0 auto; display:block;" />`
-                      : itemIsPdf && safeHref
-                      ? `<iframe src="${esc(safeHref)}" title="${esc(fileName)}" style="width:100%; height:44vh; min-height:280px; border:1px solid var(--line, #cbd5e1); border-radius:8px; background:#fff;"></iframe>`
+                      : itemIsPdf && pdfViewUrl
+                      ? `<iframe src="${esc(pdfViewUrl)}" title="${esc(fileName)}" style="width:100%; height:44vh; min-height:280px; border:1px solid var(--line, #cbd5e1); border-radius:8px; background:#fff;"></iframe>`
                       : `<p style="margin:0; font-size:12px; color:#64748b;">Anexo disponível para abertura pelo botão acima.</p>`
                   }
                 </div>
@@ -3890,7 +4065,7 @@ export async function openPreviewDialog(docId) {
   });
 
   $("#docPreviewDownloadBtn")?.addEventListener("click", () => {
-    downloadSignedDocument(docId);
+    downloadPdf(docId);
   });
 
   const toggleBtn = $("#btnToggleDriveMode");
@@ -4377,25 +4552,53 @@ export function openBatchConfirmDialog(parsedResult, fileName) {
       }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = "Importando e distribuindo holerites...";
+      submitBtn.textContent = `Enviando ${readyItems.length} holerite(s) ao Drive...`;
 
       try {
-        const payload = readyItems.map((it) => ({
-          FuncionarioID: it.FuncionarioID,
-          NomeFuncionario: it.NomeFuncionario,
-          CPFFuncionario: it.CPFFuncionario,
-          CargoFuncionario: it.CargoFuncionario,
-          LojaID: it.LojaID,
-          NomeLoja: it.NomeLoja,
-          MesReferencia: it.MesReferencia || globalMonthInput?.value || "",
-          Titulo: it.Titulo || `Holerite — ${formatMonthLabel(it.MesReferencia || globalMonthInput?.value)}`,
-          Tipo: "Holerite",
-          Descricao: `Importação em lote contábil (Folha #${it.pageNumber})`,
-          ArquivoOriginalBase64: it.ArquivoOriginalBase64,
-          HashOriginalSHA256: it.HashOriginalSHA256,
-          pageNumber: it.pageNumber,
-        }));
+        const uploadedItems = new Array(readyItems.length);
+        let doneCount = 0;
+        const concurrency = 3;
+        let cursor = 0;
+        const worker = async () => {
+          while (cursor < readyItems.length) {
+            const i = cursor++;
+            const it = readyItems[i];
+            const mesRef = it.MesReferencia || globalMonthInput?.value || "";
+            const driveRes = await uploadPrivateDocumentToDrive({
+              dataUrl: it.ArquivoOriginalBase64,
+              mimeType: "application/pdf",
+              fileName: `holerite_${mesRef || "lote"}_p${it.pageNumber || i + 1}.pdf`,
+              category: "holerite",
+              employeeId: it.FuncionarioID,
+              storeId: it.LojaID || "",
+              monthKey: /^\d{4}-\d{2}/.test(mesRef) ? mesRef.slice(0, 7) : "",
+            });
+            doneCount += 1;
+            submitBtn.textContent = `Enviando ao Drive (${doneCount}/${readyItems.length})...`;
+            uploadedItems[i] = {
+              FuncionarioID: it.FuncionarioID,
+              NomeFuncionario: it.NomeFuncionario,
+              CPFFuncionario: it.CPFFuncionario,
+              CargoFuncionario: it.CargoFuncionario,
+              LojaID: it.LojaID,
+              NomeLoja: it.NomeLoja,
+              MesReferencia: mesRef,
+              Titulo: it.Titulo || `Holerite — ${formatMonthLabel(mesRef)}`,
+              Tipo: "Holerite",
+              Descricao: `Importação em lote contábil (Folha #${it.pageNumber})`,
+              ArquivoOriginalBase64: "",
+              ArquivoDriveFileID: driveRes.fileId,
+              ArquivoUrl: driveRes.url,
+              ArquivoMimeType: driveRes.mimeType || "application/pdf",
+              HashOriginalSHA256: it.HashOriginalSHA256 || driveRes.sha256,
+              pageNumber: it.pageNumber,
+            };
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(concurrency, readyItems.length) }, worker));
 
+        submitBtn.textContent = "Finalizando distribuição...";
+        const payload = uploadedItems;
         const res = await callApi("documentsBatchCreate", payload);
         dialog.close();
         alert(`${res.createdCount || payload.length} holerite(s) importado(s) e disponibilizado(s) com sucesso!\nCada colaborador já pode assinar em Meus Documentos.`);

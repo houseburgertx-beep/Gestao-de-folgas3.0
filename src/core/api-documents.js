@@ -3,6 +3,12 @@ import { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFArray, decodePDFR
 import { runtime } from "./runtime.js";
 import { assert, nowIso, uuid } from "./utils.js";
 import { createNotification, isAdmin, isManager, success } from "./api-base.js";
+import {
+  isGoogleDriveUrl,
+  parseDriveFileId,
+  readPrivateDriveFile,
+  uploadPrivateDocumentToDrive,
+} from "./drive-storage.js";
 
 /**
  * Utilitários criptográficos e de conversão Base64 / Hex
@@ -1328,15 +1334,23 @@ export function createDocumentsHandlers() {
       ).length;
       const signedCount = filtered.filter((d) => d.Status === "Assinado").length;
 
-      // Keep binary fields out of UI list state. RTDB currently still downloads
-      // complete scoped records; removing those bytes from the network requires
-      // a separate metadata index and migration, not merely stripping this response.
+      // Keep binary fields out of UI list state. Drive-backed records only store metadata here.
       const lightDocuments = filtered.map((doc) => {
         const { ArquivoOriginalBase64, ArquivoFinalBase64, ...rest } = doc;
         return {
           ...rest,
-          temArquivoOriginal: Boolean(ArquivoOriginalBase64),
-          temArquivoFinal: Boolean(ArquivoFinalBase64),
+          temArquivoOriginal: Boolean(
+            ArquivoOriginalBase64 ||
+              doc.ArquivoDriveFileID ||
+              isGoogleDriveUrl(doc.ArquivoUrl || doc.ArquivoURL || "") ||
+              (Array.isArray(doc.Arquivos) && doc.Arquivos.length > 0),
+          ),
+          temArquivoFinal: Boolean(
+            ArquivoFinalBase64 ||
+              doc.ArquivoFinalDriveFileID ||
+              isGoogleDriveUrl(doc.ArquivoFinalUrl || "") ||
+              doc.Status === "Assinado",
+          ),
         };
       });
 
@@ -1385,6 +1399,19 @@ export function createDocumentsHandlers() {
         );
       }
 
+      if (doc.Status === "Assinado" && !doc.ArquivoFinalBase64 && !doc.ArquivoFinalDriveFileID && doc.AssinaturaID) {
+        const sig = await runtime.getById("DocumentosAssinaturas", doc.AssinaturaID).catch(() => null);
+        if (sig) {
+          return success({
+            ...doc,
+            ArquivoFinalUrl: sig.ArquivoFinalUrl || doc.ArquivoFinalUrl || "",
+            ArquivoFinalDriveFileID: sig.ArquivoFinalDriveFileID || "",
+            ArquivoFinalStorage: sig.ArquivoFinalStorage || "",
+            ArquivoFinalBase64: sig.ArquivoFinalBase64 || "",
+          });
+        }
+      }
+
       return success(doc);
     },
 
@@ -1428,14 +1455,17 @@ export function createDocumentsHandlers() {
         `DOC_${Date.now()}_${uuid().slice(0, 6)}`;
 
       let hashOriginal = String(payload.HashOriginalSHA256 || "").trim();
-      let pdfBase64 = String(payload.ArquivoOriginalBase64 || "");
+      const pdfBase64 = String(payload.ArquivoOriginalBase64 || "");
+      const docUrl = String(payload.ArquivoUrl || "").trim();
+      const driveFileId = String(payload.ArquivoDriveFileID || parseDriveFileId(docUrl) || "").trim();
 
       // Validação de tipo e conteúdo
-      if (payload.OrigemTipo === "PDF_IMPORTADO") {
-        assert(pdfBase64, "O arquivo PDF original é obrigatório.");
-        if (!hashOriginal) {
+      if ((payload.OrigemTipo || "PDF_IMPORTADO") === "PDF_IMPORTADO") {
+        assert(pdfBase64 || driveFileId || isGoogleDriveUrl(docUrl), "O arquivo PDF original é obrigatório.");
+        if (!hashOriginal && pdfBase64) {
           hashOriginal = await sha256Hex(base64ToUint8Array(pdfBase64));
         }
+        assert(hashOriginal, "Hash SHA-256 original do documento é obrigatório.");
       } else {
         // Modelo interno de texto
         const texto = String(payload.ConteudoTexto || "").trim();
@@ -1461,7 +1491,11 @@ export function createDocumentsHandlers() {
         Status: "Pendente",
         OrigemTipo: payload.OrigemTipo || "PDF_IMPORTADO",
         ConteudoTexto: payload.ConteudoTexto || "",
-        ArquivoOriginalBase64: pdfBase64 || "",
+        ArquivoOriginalBase64: driveFileId ? "" : pdfBase64 || "",
+        ArquivoDriveFileID: driveFileId,
+        ArquivoUrl: docUrl || (driveFileId ? `https://drive.google.com/file/d/${driveFileId}/view` : ""),
+        ArquivoStorage: driveFileId ? "Google Drive" : (pdfBase64 ? "Firebase" : ""),
+        ArquivoMimeType: String(payload.ArquivoMimeType || (driveFileId || pdfBase64 ? "application/pdf" : "")).trim(),
         HashOriginalSHA256: hashOriginal,
         DataEnvio: nowIso(),
         CriadoPor: String(profile.Email || profile.Nome || "Gestão").trim(),
@@ -1513,8 +1547,13 @@ export function createDocumentsHandlers() {
       for (let idx = 0; idx < items.length; idx++) {
         const item = items[idx];
         try {
+          const itemDriveFileId = String(item.ArquivoDriveFileID || parseDriveFileId(item.ArquivoUrl || "") || "").trim();
+          const itemDocUrl = String(item.ArquivoUrl || "").trim();
           assert(item.FuncionarioID, `Colaborador não vinculado para a página ${item.pageNumber || idx + 1}.`);
-          assert(item.ArquivoOriginalBase64, `PDF individual não gerado para a página ${item.pageNumber || idx + 1}.`);
+          assert(
+            item.ArquivoOriginalBase64 || itemDriveFileId || isGoogleDriveUrl(itemDocUrl),
+            `PDF individual não gerado para a página ${item.pageNumber || idx + 1}.`,
+          );
 
           const targetEmp = employees.find(
             (e) => String(e.FuncionarioID || e.id || e.Funcionario || "").trim() === String(item.FuncionarioID).trim(),
@@ -1534,9 +1573,10 @@ export function createDocumentsHandlers() {
 
           const docId = `DOC_${Date.now()}_${uuid().slice(0, 6)}_${idx + 1}`;
           let hashOriginal = String(item.HashOriginalSHA256 || "").trim();
-          if (!hashOriginal) {
+          if (!hashOriginal && item.ArquivoOriginalBase64) {
             hashOriginal = await sha256Hex(base64ToUint8Array(item.ArquivoOriginalBase64));
           }
+          assert(hashOriginal, `Hash SHA-256 não calculado para a página ${item.pageNumber || idx + 1}.`);
 
           const record = {
             DocumentoID: docId,
@@ -1554,7 +1594,11 @@ export function createDocumentsHandlers() {
             Status: "Pendente",
             OrigemTipo: "PDF_IMPORTADO",
             ConteudoTexto: "",
-            ArquivoOriginalBase64: item.ArquivoOriginalBase64,
+            ArquivoOriginalBase64: itemDriveFileId ? "" : item.ArquivoOriginalBase64,
+            ArquivoDriveFileID: itemDriveFileId,
+            ArquivoUrl: itemDocUrl || (itemDriveFileId ? `https://drive.google.com/file/d/${itemDriveFileId}/view` : ""),
+            ArquivoStorage: itemDriveFileId ? "Google Drive" : "Firebase",
+            ArquivoMimeType: String(item.ArquivoMimeType || "application/pdf"),
             HashOriginalSHA256: hashOriginal,
             DataEnvio: nowIso(),
             CriadoPor: String(profile.Email || profile.Nome || "Gestão").trim(),
@@ -1624,17 +1668,47 @@ export function createDocumentsHandlers() {
         "Apenas o colaborador titular pode assinar este documento.",
       );
 
-      if (doc.Status === "Assinado") return success({documento:doc,assinatura:{AssinaturaID:doc.AssinaturaID,CodigoValidacao:doc.CodigoValidacao},pdfBase64:doc.ArquivoFinalBase64,recovered:true});
+      if (doc.Status === "Assinado") {
+        let enrichedDoc = doc;
+        if (!doc.ArquivoFinalBase64 && !doc.ArquivoFinalDriveFileID && doc.AssinaturaID) {
+          const existingSig = await runtime.getById("DocumentosAssinaturas", doc.AssinaturaID).catch(() => null);
+          if (existingSig) {
+            enrichedDoc = {
+              ...doc,
+              ArquivoFinalUrl: existingSig.ArquivoFinalUrl || doc.ArquivoFinalUrl || "",
+              ArquivoFinalDriveFileID: existingSig.ArquivoFinalDriveFileID || "",
+              ArquivoFinalStorage: existingSig.ArquivoFinalStorage || "",
+              ArquivoFinalBase64: existingSig.ArquivoFinalBase64 || "",
+            };
+          }
+        }
+        return success({
+          documento: enrichedDoc,
+          assinatura: { AssinaturaID: doc.AssinaturaID, CodigoValidacao: doc.CodigoValidacao },
+          pdfBase64: enrichedDoc.ArquivoFinalBase64 || "",
+          recovered: true,
+        });
+      }
       assert(["Pendente","Contestado"].includes(doc.Status), "Este documento não está disponível para assinatura.");
 
       const validationCode = generateValidationCode();
       const signTime = nowIso();
       const timestampUtc = Date.now();
 
-      // Conversão do PDF base e Rubrica para bytes
+      // Conversão do PDF base e Rubrica para bytes (buscando do Google Drive quando aplicável)
       let originalPdfBytes = null;
       if (doc.ArquivoOriginalBase64) {
         originalPdfBytes = base64ToUint8Array(doc.ArquivoOriginalBase64);
+      } else {
+        const originalDriveId = String(
+          doc.ArquivoDriveFileID || parseDriveFileId(doc.ArquivoUrl || doc.ArquivoURL || "") || "",
+        ).trim();
+        if (originalDriveId) {
+          const driveFile = await readPrivateDriveFile(originalDriveId);
+          if (/pdf/i.test(driveFile.mimeType || "")) {
+            originalPdfBytes = base64ToUint8Array(driveFile.dataUrl);
+          }
+        }
       }
 
       const rubricBytes = base64ToUint8Array(rubricBase64);
@@ -1658,6 +1732,28 @@ export function createDocumentsHandlers() {
         rubricPngBytes: rubricBytes,
       });
 
+      let finalDriveUpload = null;
+      if (runtime.auth?.currentUser?.uid && typeof fetch === "function" && signedPdfResult.finalPdfBase64) {
+        try {
+          finalDriveUpload = await uploadPrivateDocumentToDrive({
+            dataUrl: signedPdfResult.finalPdfBase64,
+            mimeType: "application/pdf",
+            fileName: `${doc.Titulo || docId}_assinado.pdf`,
+            category: "assinado",
+            employeeId: doc.FuncionarioID || "",
+            storeId: doc.LojaID || "",
+            docId,
+          });
+        } catch (driveErr) {
+          if (typeof window !== "undefined") {
+            throw new Error(
+              driveErr?.message ||
+                "Não foi possível salvar o documento assinado no Google Drive. Tente novamente.",
+            );
+          }
+        }
+      }
+
       const signatureId = `ASS_${await sha256Hex(`${docId}|${doc.HashOriginalSHA256 || ""}|${doc.AssinaturaID || ""}`)}`;
       const signatureRecord = {
         AssinaturaID: signatureId,
@@ -1675,7 +1771,14 @@ export function createDocumentsHandlers() {
         HashDocumentoFinalSHA256: signedPdfResult.finalHashSha256,
         HashOriginalSHA256: doc.HashOriginalSHA256,
         CodigoValidacao: validationCode,
-        ArquivoFinalBase64: signedPdfResult.finalPdfBase64,
+        ArquivoFinalBase64: finalDriveUpload ? "" : signedPdfResult.finalPdfBase64,
+        ...(finalDriveUpload
+          ? {
+              ArquivoFinalUrl: finalDriveUpload.url,
+              ArquivoFinalDriveFileID: finalDriveUpload.fileId,
+              ArquivoFinalStorage: "Google Drive",
+            }
+          : {}),
       };
 
       // A single acknowledged server update cannot leave an orphan signature.
@@ -1685,8 +1788,17 @@ export function createDocumentsHandlers() {
         AssinaturaID: signatureId,
         HashDocumentoFinalSHA256: signedPdfResult.finalHashSha256,
         CodigoValidacao: validationCode,
-        ArquivoFinalBase64: signedPdfResult.finalPdfBase64,
+        ArquivoFinalBase64: finalDriveUpload ? "" : signedPdfResult.finalPdfBase64,
       }, ownerUid);
+
+      const returnDoc = finalDriveUpload
+        ? {
+            ...updatedDoc,
+            ArquivoFinalUrl: finalDriveUpload.url,
+            ArquivoFinalDriveFileID: finalDriveUpload.fileId,
+            ArquivoFinalStorage: "Google Drive",
+          }
+        : updatedDoc;
 
       // The signature receipt must not wait for a secondary notification write.
       if (runtime.auth?.currentUser?.uid === ownerUid) void createNotification({
@@ -1698,7 +1810,7 @@ export function createDocumentsHandlers() {
       }).catch(() => console.warn("[documents] Notificação de assinatura pendente."));
 
       return success({
-        documento: updatedDoc,
+        documento: returnDoc,
         assinatura: signatureRecord,
         pdfBase64: signedPdfResult.finalPdfBase64,
       });

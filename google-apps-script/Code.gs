@@ -3,7 +3,16 @@ const SELFIE_SERVICE_CONFIG_ = Object.freeze({
   databaseUrl: "https://github-737ec-default-rtdb.firebaseio.com",
   appRoot: "gestao-folgas/v2",
   maxImageBytes: 1500000,
+  maxFileBytes: 6291456, // 6 MB para PDFs, atestados, admissão e comprovantes
 });
+
+const ALLOWED_DOCUMENT_MIME_TYPES_ = Object.freeze([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
 const CLOCK_TYPES_ = Object.freeze([
   "ENTRADA",
@@ -27,7 +36,7 @@ function doPost(event) {
   try {
     let payload = {};
     if (event && event.postData && event.postData.contents) {
-      assert_(event.postData.contents.length <= 2200000, "O arquivo ultrapassa o limite permitido.");
+      assert_(event.postData.contents.length <= 9500000, "O arquivo ultrapassa o limite permitido.");
       try {
         payload = JSON.parse(event.postData.contents);
       } catch (parseErr) {
@@ -39,14 +48,41 @@ function doPost(event) {
 
     const action = String(payload.action || "").trim();
 
-    assert_(["driveUpload", "uploadClockSelfie", "readPrivateImage"].indexOf(action) >= 0, "Ação inválida.");
+    assert_(
+      [
+        "driveUpload",
+        "uploadClockSelfie",
+        "readPrivateImage",
+        "uploadPrivateDocument",
+        "uploadOnboardingDocument",
+        "readPrivateFile",
+      ].indexOf(action) >= 0,
+      "Ação inválida.",
+    );
+
+    if (action === "uploadOnboardingDocument") {
+      return jsonResponse_(handleOnboardingUpload_(payload));
+    }
+
+    if (action === "readPrivateFile" && !payload.idToken && payload.inviteToken) {
+      return jsonResponse_(readOnboardingPrivateFile_(payload.inviteToken, payload.fileId));
+    }
+
     const token = String(payload.idToken || "");
     const uid = firebaseUid_(token);
     const profile = firebaseProfile_(uid, token);
     assert_(profile && (profile.Ativo === true || profile.Ativo === 1 || String(profile.Ativo).toLowerCase() === "true"), "Usuário inativo.");
+
     if (action === "readPrivateImage") {
       return jsonResponse_(readPrivateImage_(uid, profile, payload.fileId));
     }
+    if (action === "readPrivateFile") {
+      return jsonResponse_(readPrivateFile_(uid, profile, payload.fileId));
+    }
+    if (action === "uploadPrivateDocument") {
+      return jsonResponse_(handlePrivateDocumentUpload_(uid, profile, payload));
+    }
+
     assert_(profile.FuncionarioID, "Usuário sem funcionário vinculado.");
 
     // Tasks and selfies use the same authenticated, bounded upload path.
@@ -131,23 +167,271 @@ function imageReceipt_(file) {
   };
 }
 
+function fileReceipt_(file, mimeType, sizeBytes, sha256) {
+  const receipt = imageReceipt_(file);
+  receipt.mimeType = mimeType || "";
+  receipt.bytes = Number(sizeBytes || 0);
+  receipt.sha256 = sha256 || "";
+  receipt.storage = "Google Drive";
+  return receipt;
+}
+
+function normalizeMimeAndBase64_(rawMime, rawData) {
+  const str = String(rawData || "").trim();
+  const dataUrlMatch = str.match(/^data:([^;]+);base64,([A-Za-z0-9+/=\s]+)$/i);
+  const mimeType = String(dataUrlMatch ? dataUrlMatch[1] : rawMime || "").trim().toLowerCase();
+  const normalizedMime = mimeType === "image/jpg" ? "image/jpeg" : mimeType;
+  assert_(ALLOWED_DOCUMENT_MIME_TYPES_.indexOf(normalizedMime) >= 0, "Formato de arquivo não suportado. Envie PDF ou imagem.");
+  const base64Str = (dataUrlMatch ? dataUrlMatch[2] : str).replace(/\s/g, "");
+  assert_(base64Str.length >= 60 && base64Str.length <= 8600000 && /^[A-Za-z0-9+/=]+$/.test(base64Str), "Arquivo vazio ou inválido.");
+  const bytes = Utilities.base64Decode(base64Str);
+  validateDocumentBytes_(bytes, normalizedMime);
+  return { mimeType: normalizedMime, bytes: bytes, digest: sha256Hex_(bytes) };
+}
+
+function extensionFromMime_(mimeType) {
+  if (mimeType === "application/pdf") return ".pdf";
+  if (mimeType === "image/png") return ".png";
+  if (mimeType === "image/webp") return ".webp";
+  if (mimeType === "image/gif") return ".gif";
+  return ".jpg";
+}
+
+function sha256Hex_(bytes) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)
+    .map(function (b) { return ("0" + (b & 255).toString(16)).slice(-2); })
+    .join("");
+}
+
+function validateDocumentBytes_(bytes, mimeType) {
+  assert_(bytes.length >= 100 && bytes.length <= SELFIE_SERVICE_CONFIG_.maxFileBytes, "O arquivo ultrapassa o limite permitido (6 MB).");
+  const b = function (i) { return bytes[i] & 255; };
+  if (mimeType === "application/pdf") {
+    let found = false;
+    const limit = Math.min(bytes.length - 5, 32);
+    for (let i = 0; i <= limit; i += 1) {
+      if (b(i) === 37 && b(i + 1) === 80 && b(i + 2) === 68 && b(i + 3) === 70 && b(i + 4) === 45) {
+        found = true;
+        break;
+      }
+    }
+    assert_(found, "O arquivo informado não possui assinatura PDF válida.");
+    return;
+  }
+  const jpeg = b(0) === 255 && b(1) === 216 && b(2) === 255;
+  const png = b(0) === 137 && b(1) === 80 && b(2) === 78 && b(3) === 71;
+  const webp = bytes.length >= 12 && b(0) === 82 && b(1) === 73 && b(2) === 70 && b(3) === 70 && b(8) === 87 && b(9) === 69 && b(10) === 66 && b(11) === 80;
+  const gif = bytes.length >= 6 && b(0) === 71 && b(1) === 73 && b(2) === 70 && b(3) === 56;
+  assert_(
+    (mimeType === "image/jpeg" && jpeg) ||
+      (mimeType === "image/png" && png) ||
+      (mimeType === "image/webp" && webp) ||
+      (mimeType === "image/gif" && gif),
+    "O conteúdo do arquivo não corresponde ao formato informado.",
+  );
+}
+
+function documentFolder_(category, monthKey) {
+  const cleanCategory = safeName_(category || "documentos").toLowerCase();
+  const cleanMonth = /^\d{4}-\d{2}$/.test(String(monthKey || "")) ? String(monthKey) : Utilities.formatDate(new Date(), "America/Bahia", "yyyy-MM");
+  const cache = CacheService.getScriptCache();
+  const cacheKey = ["doc-folder", cleanCategory, cleanMonth].join(":");
+  const cachedId = cache.get(cacheKey);
+  if (cachedId) {
+    try {
+      return DriveApp.getFolderById(cachedId);
+    } catch (ignored) {
+      cache.remove(cacheKey);
+    }
+  }
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    const lockedId = cache.get(cacheKey);
+    if (lockedId) {
+      try {
+        return DriveApp.getFolderById(lockedId);
+      } catch (ignored) {
+        cache.remove(cacheKey);
+      }
+    }
+    const root = getRootFolder_();
+    const docsRoot = childFolder_(root, "Documentos-e-Anexos");
+    const catFolder = childFolder_(docsRoot, cleanCategory);
+    const monthFolder = childFolder_(catFolder, cleanMonth);
+    cache.put(cacheKey, monthFolder.getId(), 21600);
+    return monthFolder;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handlePrivateDocumentUpload_(uid, profile, payload) {
+  const role = String(profile.Perfil || "");
+  const isAdmin = role === "Administrador";
+  const isManager = ["Gerente", "Responsável de loja", "Chefe de cozinha"].indexOf(role) >= 0;
+  assert_(profile.FuncionarioID || isAdmin, "Usuário sem funcionário vinculado.");
+
+  const employeeId = String(payload.employeeId || profile.FuncionarioID || uid || "").trim();
+  const storeId = String(payload.storeId || profile.LojaID || "").trim();
+  const category = safeName_(payload.category || "documentos").toLowerCase();
+  const canUpload = isAdmin ||
+    (profile.FuncionarioID && String(profile.FuncionarioID) === employeeId) ||
+    (isManager && (!storeId || !profile.LojaID || String(profile.LojaID) === storeId));
+  assert_(canUpload, "Sem permissão para enviar documento neste perfil.");
+
+  const parsed = normalizeMimeAndBase64_(payload.mimeType, payload.dataUrl || payload.base64 || payload.base64Data);
+  const ext = extensionFromMime_(parsed.mimeType);
+  const hint = payload.fileName ? safeName_(String(payload.fileName).replace(/\.[A-Za-z0-9]{2,5}$/, "")).slice(0, 48) : category;
+  const fileName = [category, safeName_(employeeId || uid), parsed.digest.slice(0, 16), hint].join("__") + ext;
+  const folder = documentFolder_(category, payload.monthKey);
+  const file = privateImageFile_(folder, fileName, parsed.bytes, parsed.mimeType, {
+    uid: uid,
+    employeeId: employeeId,
+    storeId: storeId,
+    inviteToken: String(payload.inviteToken || ""),
+    docId: String(payload.docId || ""),
+    category: category,
+    mimeType: parsed.mimeType,
+    sha256: parsed.digest,
+    kind: "document",
+  });
+  return fileReceipt_(file, parsed.mimeType, parsed.bytes.length, parsed.digest);
+}
+
+function onboardingInviteRecord_(inviteToken) {
+  const token = String(inviteToken || "").trim();
+  assert_(/^[A-Za-z0-9_-]{16,160}$/.test(token), "Token de pré-cadastro inválido.");
+  const url = [
+    SELFIE_SERVICE_CONFIG_.databaseUrl,
+    SELFIE_SERVICE_CONFIG_.appRoot,
+    "onboardingConvites",
+    encodeURIComponent(token) + ".json",
+  ].join("/");
+  const response = UrlFetchApp.fetch(url, { method: "get", muteHttpExceptions: true });
+  if (response.getResponseCode() !== 200) {
+    const failure = new Error("Não foi possível validar o link de pré-cadastro.");
+    failure.retryable = response.getResponseCode() >= 500 || response.getResponseCode() === 429;
+    throw failure;
+  }
+  const convite = JSON.parse(response.getContentText() || "null");
+  const conviteToken = String((convite && (convite.TokenID || convite.Token || convite.ConviteID)) || "");
+  assert_(convite && conviteToken === token, "Convite de pré-cadastro não encontrado.");
+  assert_(
+    convite.CadastroValidado !== true && ["Aprovado", "Cancelado", "Expirado"].indexOf(String(convite.Status || "")) < 0,
+    "Este link de pré-cadastro já foi finalizado.",
+  );
+  return convite;
+}
+
+function handleOnboardingUpload_(payload) {
+  let uid = "";
+  let profile = null;
+  let convite = null;
+  if (payload.idToken) {
+    uid = firebaseUid_(String(payload.idToken || ""));
+    profile = firebaseProfile_(uid, String(payload.idToken || ""));
+    assert_(profile && (profile.Ativo === true || profile.Ativo === 1 || String(profile.Ativo).toLowerCase() === "true"), "Usuário inativo.");
+  }
+  const inviteToken = String(payload.inviteToken || "").trim();
+  if (inviteToken) {
+    convite = onboardingInviteRecord_(inviteToken);
+  }
+  assert_(convite || (profile && ["Administrador", "Gerente", "Responsável de loja", "Chefe de cozinha"].indexOf(String(profile.Perfil || "")) >= 0), "Autorização ausente para envio de documento admissional.");
+
+  const parsed = normalizeMimeAndBase64_(payload.mimeType, payload.dataUrl || payload.base64 || payload.base64Data);
+  const ext = extensionFromMime_(parsed.mimeType);
+  const category = "admissao";
+  const docCode = safeName_(payload.docCode || "doc");
+  const targetEmpId = String((convite && convite.FuncionarioID) || payload.employeeId || "");
+  const targetStoreId = String((convite && convite.LojaID) || (profile && profile.LojaID) || payload.storeId || "");
+  const fileName = ["admissao", safeName_(inviteToken || targetEmpId || "novo"), docCode, parsed.digest.slice(0, 16)].join("__") + ext;
+  const folder = documentFolder_(category, payload.monthKey);
+  const file = privateImageFile_(folder, fileName, parsed.bytes, parsed.mimeType, {
+    uid: uid,
+    employeeId: targetEmpId,
+    storeId: targetStoreId,
+    inviteToken: inviteToken,
+    category: category,
+    docCode: docCode,
+    mimeType: parsed.mimeType,
+    sha256: parsed.digest,
+    kind: "onboarding",
+  });
+  return fileReceipt_(file, parsed.mimeType, parsed.bytes.length, parsed.digest);
+}
+
+function authorizePrivateMetadata_(uid, profile, metadata) {
+  const role = String(profile.Perfil || "");
+  const manager = ["Gerente", "Responsável de loja", "Chefe de cozinha"].indexOf(role) >= 0;
+  const sameUid = Boolean(metadata.uid && metadata.uid === uid);
+  const sameEmployee = Boolean(profile.FuncionarioID && metadata.employeeId && String(profile.FuncionarioID) === String(metadata.employeeId));
+  const sameStoreManager = Boolean(manager && profile.LojaID && metadata.storeId && String(profile.LojaID) === String(metadata.storeId));
+  const onboardingManager = Boolean(manager && metadata.kind === "onboarding");
+  return role === "Administrador" || sameUid || sameEmployee || sameStoreManager || onboardingManager;
+}
+
 function readPrivateImage_(uid, profile, rawId) {
   const fileId = String(rawId || "");
   assert_(/^[A-Za-z0-9_-]{10,160}$/.test(fileId), "Identificador de foto inválido.");
   const file = DriveApp.getFileById(fileId);
   let metadata;
   try { metadata = JSON.parse(file.getDescription() || "null"); } catch (_) {}
-  assert_(metadata && metadata.uid && metadata.employeeId, "Foto sem metadados de autorização.");
-  const role = String(profile.Perfil || "");
-  const manager = ["Gerente", "Responsável de loja", "Chefe de cozinha"].indexOf(role) >= 0;
-  assert_(metadata.uid === uid || role === "Administrador" ||
-    (manager && profile.LojaID && String(profile.LojaID) === metadata.storeId), "Sem permissão para visualizar esta foto.");
+  assert_(metadata && (metadata.uid || metadata.inviteToken || metadata.employeeId), "Foto sem metadados de autorização.");
+  assert_(authorizePrivateMetadata_(uid, profile, metadata), "Sem permissão para visualizar esta foto.");
   const blob = file.getBlob();
   const mimeType = blob.getContentType();
   assert_(/^image\/(jpeg|png|webp)$/.test(mimeType), "Arquivo não é uma foto permitida.");
   const bytes = blob.getBytes();
   assert_(bytes.length <= SELFIE_SERVICE_CONFIG_.maxImageBytes, "Foto ultrapassa o limite permitido.");
   return { ok: true, dataUrl: "data:" + mimeType + ";base64," + Utilities.base64Encode(bytes), mimeType: mimeType, fileName: file.getName() };
+}
+
+function readPrivateFile_(uid, profile, rawId) {
+  const fileId = String(rawId || "");
+  assert_(/^[A-Za-z0-9_-]{10,160}$/.test(fileId), "Identificador de arquivo inválido.");
+  const file = DriveApp.getFileById(fileId);
+  let metadata;
+  try { metadata = JSON.parse(file.getDescription() || "null"); } catch (_) {}
+  assert_(metadata && (metadata.uid || metadata.inviteToken || metadata.employeeId), "Arquivo sem metadados de autorização.");
+  assert_(authorizePrivateMetadata_(uid, profile, metadata), "Sem permissão para visualizar este arquivo.");
+  const blob = file.getBlob();
+  const mimeType = String(blob.getContentType() || metadata.mimeType || "application/octet-stream").toLowerCase();
+  assert_(ALLOWED_DOCUMENT_MIME_TYPES_.indexOf(mimeType) >= 0, "Formato de arquivo não permitido.");
+  const bytes = blob.getBytes();
+  assert_(bytes.length <= SELFIE_SERVICE_CONFIG_.maxFileBytes, "Arquivo ultrapassa o limite permitido.");
+  return {
+    ok: true,
+    dataUrl: "data:" + mimeType + ";base64," + Utilities.base64Encode(bytes),
+    mimeType: mimeType,
+    fileName: file.getName(),
+    bytes: bytes.length,
+    sha256: metadata.sha256 || "",
+  };
+}
+
+function readOnboardingPrivateFile_(inviteToken, rawId) {
+  const convite = onboardingInviteRecord_(inviteToken);
+  const fileId = String(rawId || "");
+  assert_(/^[A-Za-z0-9_-]{10,160}$/.test(fileId), "Identificador de arquivo inválido.");
+  const file = DriveApp.getFileById(fileId);
+  let metadata;
+  try { metadata = JSON.parse(file.getDescription() || "null"); } catch (_) {}
+  const conviteToken = String(convite.TokenID || convite.Token || convite.ConviteID || "");
+  assert_(metadata && String(metadata.inviteToken || "") === conviteToken, "Sem permissão para visualizar este arquivo do pré-cadastro.");
+  const blob = file.getBlob();
+  const mimeType = String(blob.getContentType() || metadata.mimeType || "application/octet-stream").toLowerCase();
+  assert_(ALLOWED_DOCUMENT_MIME_TYPES_.indexOf(mimeType) >= 0, "Formato de arquivo não permitido.");
+  const bytes = blob.getBytes();
+  assert_(bytes.length <= SELFIE_SERVICE_CONFIG_.maxFileBytes, "Arquivo ultrapassa o limite permitido.");
+  return {
+    ok: true,
+    dataUrl: "data:" + mimeType + ";base64," + Utilities.base64Encode(bytes),
+    mimeType: mimeType,
+    fileName: file.getName(),
+    bytes: bytes.length,
+    sha256: metadata.sha256 || "",
+  };
 }
 
 function validateImageBytes_(bytes, mimeType) {
