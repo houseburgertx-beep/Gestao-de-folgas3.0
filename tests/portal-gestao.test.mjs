@@ -929,6 +929,8 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
     assert.equal(consultRes.success, true);
     assert.equal(consultRes.data.convite.Status, "Pendente");
     assert.equal(consultRes.data.convite.NomeLoja, "House 190 Matriz");
+    const docCodesReturned = consultRes.data.documentosExigidos.map((d) => d.codigo);
+    assert.deepEqual(docCodesReturned, ["RG_CNH", "COMPROVANTE_RESIDENCIA", "CTPS_DIGITAL", "ASO"]);
 
     // 3. Salva rascunho parcial sem erro
     const draftRes = await portal.salvarAutocadastroOnboarding({
@@ -968,12 +970,10 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
       /documentos obrigatórios/i,
     );
 
-    // 5. Envia ficha completa + 5 documentos obrigatórios
+    // 5. Envia ficha completa + 3 documentos obrigatórios (sem CPF, Título, Reservista ou Certidão)
     const docsPayload = {
       RG_CNH: { codigo: "RG_CNH", arquivoUrl: "data:image/png;base64,AAA", nomeArquivo: "rg.png" },
-      CPF: { codigo: "CPF", arquivoUrl: "data:image/png;base64,BBB", nomeArquivo: "cpf.png" },
       COMPROVANTE_RESIDENCIA: { codigo: "COMPROVANTE_RESIDENCIA", arquivoUrl: "data:application/pdf;base64,CCC", nomeArquivo: "residencia.pdf" },
-      CERTIDAO: { codigo: "CERTIDAO", arquivoUrl: "data:image/png;base64,DDD", nomeArquivo: "certidao.png" },
       CTPS_DIGITAL: { codigo: "CTPS_DIGITAL", arquivoUrl: "data:application/pdf;base64,EEE", nomeArquivo: "ctps.pdf" },
     };
 

@@ -533,11 +533,15 @@ async function enviarDocumentoAdmissional(payload = {}) {
 }
 
 const ONBOARDING_TOKEN_REGEX = /^onb_[A-Za-z0-9_-]{24,96}$/;
+export const SELF_ONBOARDING_DOC_CODES = Object.freeze([
+  "RG_CNH",
+  "COMPROVANTE_RESIDENCIA",
+  "CTPS_DIGITAL",
+  "ASO",
+]);
 export const SELF_ONBOARDING_REQUIRED_DOC_CODES = Object.freeze([
   "RG_CNH",
-  "CPF",
   "COMPROVANTE_RESIDENCIA",
-  "CERTIDAO",
   "CTPS_DIGITAL",
 ]);
 
@@ -947,7 +951,9 @@ async function consultarConviteOnboarding(payload = {}) {
       Submissao: convite.Submissao || null,
     },
     etapas: ONBOARDING_STAGES,
-    documentosExigidos: REQUIRED_ADMISSION_DOCUMENTS.map((d) => ({
+    documentosExigidos: REQUIRED_ADMISSION_DOCUMENTS.filter((d) =>
+      SELF_ONBOARDING_DOC_CODES.includes(d.codigo),
+    ).map((d) => ({
       ...d,
       obrigatorioAutocadastro: SELF_ONBOARDING_REQUIRED_DOC_CODES.includes(d.codigo),
     })),

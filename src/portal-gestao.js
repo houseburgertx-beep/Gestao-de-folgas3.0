@@ -2,6 +2,7 @@ import { runtime } from "./core/runtime.js";
 import {
   ONBOARDING_STAGES,
   REQUIRED_ADMISSION_DOCUMENTS,
+  SELF_ONBOARDING_DOC_CODES,
   SELF_ONBOARDING_REQUIRED_DOC_CODES,
 } from "./core/api-portal.js";
 import { todayIso } from "./core/utils.js";
@@ -1373,6 +1374,429 @@ function injectPortalTabsStyles() {
     [data-theme="dark"] .emp360-hero {
       background: rgba(37, 99, 235, 0.14);
       border-color: rgba(59, 130, 246, 0.25);
+    }
+
+    /* ---- Portal Publico de Auto-Onboarding (Pliifex Mobile-First & Desktop) ---- */
+    #onboardingSelfScreen,
+    #onboardingSelfScreen * {
+      box-sizing: border-box;
+    }
+    #onboardingSelfScreen {
+      min-height: 100vh;
+      width: 100%;
+      padding: 20px 14px calc(48px + env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, #f3f5fa 0%, #eaedf5 100%);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow-x: hidden;
+      font-family: var(--font-sans, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    }
+    .onb-self-shell {
+      width: 100%;
+      max-width: 720px;
+      display: grid;
+      gap: 14px;
+      margin: 0 auto;
+    }
+    .onb-self-hero {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .onb-self-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+    .onb-self-monogram {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2563eb 0%, #4077ba 100%);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: grid;
+      place-items: center;
+      flex: 0 0 42px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+    }
+    .onb-self-hero h1 {
+      margin: 2px 0 4px;
+      font-size: 19px;
+      font-weight: 750;
+      color: #0f172a;
+      line-height: 1.2;
+      letter-spacing: -0.015em;
+    }
+    .onb-self-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .onb-self-meta-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .onb-self-stepper {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px;
+      border-radius: 12px;
+      background: #e2e8f0;
+    }
+    .onb-self-step {
+      padding: 9px 8px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .onb-self-step.is-active {
+      background: #ffffff;
+      color: #1d4ed8;
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    }
+    .onb-self-step.is-done {
+      background: #ecfdf5;
+      color: #047857;
+      font-weight: 700;
+    }
+    .onb-self-step-num {
+      width: 19px;
+      height: 19px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.08);
+      flex: 0 0 19px;
+    }
+    .onb-self-step.is-active .onb-self-step-num {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .onb-self-step.is-done .onb-self-step-num {
+      background: #a7f3d0;
+      color: #065f46;
+    }
+    .onb-self-step-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .onb-self-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.03);
+      display: grid;
+      gap: 14px;
+    }
+    .onb-self-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .onb-self-card-title {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #4077ba;
+    }
+    .onb-self-card-sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 12.5px;
+      color: #64748b;
+    }
+    .onb-self-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 14px;
+    }
+    .onb-self-span-2 {
+      grid-column: span 2;
+    }
+    .onb-self-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+      margin: 0;
+    }
+    .onb-self-field-label {
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      color: #334155 !important;
+      line-height: 1.3;
+      text-transform: none !important;
+    }
+    #onboardingSelfScreen .onb-self-field input,
+    #onboardingSelfScreen .onb-self-field select {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      height: 44px !important;
+      min-height: 44px !important;
+      padding: 0 13px !important;
+      border-radius: 10px !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #ffffff !important;
+      color: #0f172a !important;
+      font-size: 15px !important;
+      font-weight: 500 !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+    }
+    #onboardingSelfScreen .onb-self-field input:focus,
+    #onboardingSelfScreen .onb-self-field select:focus {
+      border-color: #2563eb !important;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
+    }
+    .onb-self-progress-wrap {
+      display: grid;
+      gap: 6px;
+    }
+    .onb-self-progress-track {
+      height: 7px;
+      width: 100%;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+    .onb-self-progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #2563eb 0%, #10b981 100%);
+      transition: width 0.25s ease;
+    }
+    .onb-self-doc-list {
+      display: grid;
+      gap: 10px;
+    }
+    .onb-self-doc-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 13px 14px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .onb-self-doc-card.is-uploaded {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .onb-self-doc-info {
+      min-width: 0;
+      flex: 1;
+      display: grid;
+      gap: 3px;
+    }
+    .onb-self-doc-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .onb-self-doc-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.3;
+    }
+    .onb-self-doc-sub {
+      font-size: 12.5px;
+      color: #64748b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .onb-self-doc-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .onb-self-upload-btn {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      min-height: 40px !important;
+      padding: 0 14px !important;
+      border-radius: 10px !important;
+      border: 1px solid #bfdbfe !important;
+      background: #eff6ff !important;
+      color: #1d4ed8 !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      margin: 0 !important;
+      white-space: nowrap !important;
+      transition: background 0.15s ease, border-color 0.15s ease !important;
+    }
+    .onb-self-upload-btn:hover {
+      background: #dbeafe !important;
+      border-color: #93c5fd !important;
+    }
+    .onb-self-doc-card.is-uploaded .onb-self-upload-btn {
+      background: #ffffff !important;
+      border-color: #86efac !important;
+      color: #047857 !important;
+    }
+    .onb-self-consent {
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 12px !important;
+      padding: 14px 16px !important;
+      border-radius: 12px !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #f8fafc !important;
+      cursor: pointer !important;
+      width: 100% !important;
+      margin: 0 !important;
+      text-transform: none !important;
+    }
+    #onboardingSelfScreen input[type="checkbox"].onb-self-checkbox {
+      width: 20px !important;
+      min-width: 20px !important;
+      max-width: 20px !important;
+      height: 20px !important;
+      min-height: 20px !important;
+      flex: 0 0 20px !important;
+      margin: 2px 0 0 !important;
+      padding: 0 !important;
+      border-radius: 6px !important;
+      border: 1.5px solid #94a3b8 !important;
+      accent-color: #2563eb !important;
+      cursor: pointer !important;
+      box-shadow: none !important;
+    }
+    .onb-self-consent-text {
+      flex: 1 1 auto !important;
+      min-width: 0 !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      line-height: 1.5 !important;
+      color: #334155 !important;
+      white-space: normal !important;
+      overflow-wrap: break-word !important;
+      text-align: left !important;
+    }
+    .onb-self-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .onb-self-actions .btn {
+      min-height: 46px !important;
+      border-radius: 11px !important;
+      padding: 0 18px !important;
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    .onb-self-actions .btn-primary {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+      color: #ffffff !important;
+      border: 0 !important;
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.24) !important;
+    }
+    @media (max-width: 600px) {
+      #onboardingSelfScreen {
+        padding: 12px 10px calc(44px + env(safe-area-inset-bottom));
+      }
+      .onb-self-hero {
+        padding: 14px 16px;
+      }
+      .onb-self-hero h1 {
+        font-size: 17px;
+      }
+      .onb-self-card {
+        padding: 15px 14px;
+        border-radius: 14px;
+      }
+      .onb-self-grid {
+        grid-template-columns: 1fr;
+      }
+      .onb-self-span-2 {
+        grid-column: span 1;
+      }
+      .onb-self-step {
+        font-size: 11px;
+        padding: 8px 4px;
+        gap: 4px;
+      }
+      .onb-self-step-num {
+        width: 17px;
+        height: 17px;
+        flex: 0 0 17px;
+        font-size: 10px;
+      }
+      .onb-self-doc-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .onb-self-doc-actions {
+        width: 100%;
+      }
+      .onb-self-upload-btn {
+        flex: 1;
+      }
+      .onb-self-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+      .onb-self-actions .btn {
+        width: 100%;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -5443,6 +5867,7 @@ const formatPhoneMask = (val) => {
 
 export async function mountOnboardingSelfPortal(token) {
   if (typeof document === "undefined") return;
+  injectPortalTabsStyles();
   document.getElementById("loadingOverlay")?.classList.add("hidden");
   document.getElementById("loginScreen")?.classList.add("hidden");
   document.getElementById("app")?.classList.add("hidden");
@@ -5453,20 +5878,22 @@ export async function mountOnboardingSelfPortal(token) {
   if (!root) {
     root = document.createElement("section");
     root.id = "onboardingSelfScreen";
-    root.style.cssText =
-      "min-height:100vh; background:linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%); padding:18px 14px 48px; display:flex; justify-content:center; align-items:flex-start; overflow-x:hidden;";
     document.body.appendChild(root);
   }
   root.classList.remove("hidden");
   root.innerHTML = `
-    <div class="panel" style="max-width:760px; width:100%; padding:24px; margin-top:24px; text-align:center;">
-      <p style="margin:0; font-size:14px; color:var(--muted);">Carregando ficha de admissão...</p>
+    <div class="onb-self-shell">
+      <div class="onb-self-card" style="padding:28px; text-align:center;">
+        <p style="margin:0; font-size:14px; color:#64748b;">Carregando ficha de admissão...</p>
+      </div>
     </div>
   `;
 
   let inviteData = null;
   let etapasList = ONBOARDING_STAGES;
-  let docsMetaList = REQUIRED_ADMISSION_DOCUMENTS.map((d) => ({
+  let docsMetaList = REQUIRED_ADMISSION_DOCUMENTS.filter((d) =>
+    SELF_ONBOARDING_DOC_CODES.includes(d.codigo),
+  ).map((d) => ({
     ...d,
     obrigatorioAutocadastro: SELF_ONBOARDING_REQUIRED_DOC_CODES.includes(d.codigo),
   }));
@@ -5475,15 +5902,23 @@ export async function mountOnboardingSelfPortal(token) {
     const res = await invokePortal("consultarConviteOnboarding", { token });
     inviteData = res.data?.convite || null;
     if (Array.isArray(res.data?.etapas)) etapasList = res.data.etapas;
-    if (Array.isArray(res.data?.documentosExigidos)) docsMetaList = res.data.documentosExigidos;
+    if (Array.isArray(res.data?.documentosExigidos)) {
+      docsMetaList = res.data.documentosExigidos.filter((d) =>
+        SELF_ONBOARDING_DOC_CODES.includes(d.codigo),
+      );
+    }
   } catch (err) {
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
     root.innerHTML = `
-      <div class="panel" style="max-width:520px; width:100%; padding:26px; margin-top:32px; text-align:center; display:grid; gap:12px;">
-        <span class="eyebrow" style="color:#b91c1c;">LINK INDISPONÍVEL</span>
-        <h2 style="margin:0; font-size:20px;">Não foi possível abrir o pré-cadastro</h2>
-        <p style="margin:0; font-size:13.5px; color:var(--muted);">${escapeHtml(err?.message || "Este link de admissão é inválido ou expirou. Solicite um novo link ao gerente.")}</p>
-        <a href="${escapeHtml(baseUrl)}" class="btn btn-primary" style="text-decoration:none; margin-top:6px;">Ir para a tela inicial</a>
+      <div class="onb-self-shell" style="max-width:520px; margin-top:24px;">
+        <div class="onb-self-card" style="padding:28px; text-align:center;">
+          <span class="eyebrow" style="color:#b91c1c;">LINK INDISPONÍVEL</span>
+          <h2 style="margin:0; font-size:20px; color:#0f172a;">Não foi possível abrir o pré-cadastro</h2>
+          <p style="margin:0; font-size:13.5px; color:#64748b; line-height:1.5;">${escapeHtml(err?.message || "Este link de admissão é inválido ou expirou. Solicite um novo link ao gerente.")}</p>
+          <div class="onb-self-actions" style="justify-content:center; margin-top:6px;">
+            <a href="${escapeHtml(baseUrl)}" class="btn btn-primary" style="text-decoration:none;">Ir para a tela inicial</a>
+          </div>
+        </div>
       </div>
     `;
     return;
@@ -5573,14 +6008,17 @@ export async function mountOnboardingSelfPortal(token) {
     const stepBadge = (num, label) => {
       const active = currentStep === num;
       const done = currentStep > num || approved;
-      const bg = done ? "#ecfdf5" : active ? "#eff6ff" : "#f8fafc";
-      const border = done ? "#6ee7b7" : active ? "#93c5fd" : "#e2e8f0";
-      const color = done ? "#047857" : active ? "#1d4ed8" : "#64748b";
-      return `<div style="flex:1; min-width:110px; padding:10px 12px; border-radius:10px; border:1px solid ${border}; background:${bg}; color:${color}; font-size:12px; font-weight:700; text-align:center;">${done ? "✓ " : `${num}. `}${escapeHtml(label)}</div>`;
+      const cls = done ? "is-done" : active ? "is-active" : "";
+      return `
+        <div class="onb-self-step ${cls}">
+          <span class="onb-self-step-num">${done ? "✓" : num}</span>
+          <span class="onb-self-step-text">${escapeHtml(label)}</span>
+        </div>
+      `;
     };
 
     const correctionBanner = inviteData.MotivoCorrecao
-      ? `<div style="padding:12px 14px; border-radius:10px; background:#fffbeb; border:1px solid #fcd34d; color:#92400e; font-size:13px;">
+      ? `<div style="padding:13px 15px; border-radius:12px; background:#fffbeb; border:1px solid #fcd34d; color:#92400e; font-size:13px; line-height:1.45;">
            <strong>Ajuste solicitado pela Administração:</strong> ${escapeHtml(inviteData.MotivoCorrecao)}
          </div>`
       : "";
@@ -5589,39 +6027,48 @@ export async function mountOnboardingSelfPortal(token) {
 
     if (approved) {
       bodyHtml = `
-        <div class="panel" style="padding:22px; text-align:center; display:grid; gap:12px;">
-          <span class="portal-pill portal-pill--green" style="margin:0 auto;">Acesso Liberado</span>
+        <div class="onb-self-card" style="padding:26px 22px; text-align:center; justify-items:center;">
+          <div style="width:52px; height:52px; border-radius:999px; background:#ecfdf5; border:1px solid #a7f3d0; color:#059669; display:grid; place-items:center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <span class="portal-pill portal-pill--green">Acesso Liberado</span>
           <h2 style="margin:0; font-size:20px; color:#065f46;">Cadastro conferido com sucesso!</h2>
-          <p style="margin:0; font-size:14px; color:#334155;">
+          <p style="margin:0; font-size:14px; color:#475569; max-width:460px; line-height:1.5;">
             Seus dados e documentos foram validados pela Administração e seu acesso ao sistema já está liberado.
           </p>
-          <div style="padding:12px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; color:#0f172a;">
-            <div><strong>Etapa atual da contratação:</strong> ${escapeHtml(currentStageMeta.titulo)}</div>
+          <div style="width:100%; padding:12px 14px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; color:#0f172a;">
+            <strong>Etapa atual da contratação:</strong> ${escapeHtml(currentStageMeta.titulo)}
           </div>
-          <a href="${escapeHtml(baseUrl)}" class="btn btn-primary" style="text-decoration:none; min-height:44px; justify-content:center;">
-            Ir para o Login do Sistema
-          </a>
+          <div class="onb-self-actions" style="width:100%; justify-content:center; margin-top:4px;">
+            <a href="${escapeHtml(baseUrl)}" class="btn btn-primary" style="text-decoration:none; width:100%; max-width:340px;">
+              Ir para o Login do Sistema
+            </a>
+          </div>
         </div>
       `;
     } else if (awaiting) {
-      const uploadedCount = Object.keys(docsDraft).length;
+      const uploadedCount = docsMetaList.filter((d) => docsDraft[d.codigo]?.arquivoUrl).length;
       bodyHtml = `
-        <div class="panel" style="padding:22px; display:grid; gap:14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
-            <span class="portal-pill portal-pill--amber">Aguardando Conferência &amp; Liberação</span>
-            <small style="color:var(--muted);">Etapa ${etapaAtual}/6</small>
+        <div class="onb-self-card">
+          <div class="onb-self-card-head">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span class="portal-pill portal-pill--amber">Aguardando Conferência</span>
+              <span class="portal-pill portal-pill--blue">Etapa ${etapaAtual}/6</span>
+            </div>
           </div>
-          <h2 style="margin:0; font-size:19px;">Ficha e documentos enviados!</h2>
-          <p style="margin:0; font-size:13.5px; color:#334155;">
-            Obrigado, <strong>${escapeHtml(draft.Nome || "colaborador(a)")}</strong>. A Administração já recebeu seus dados cadastrais e ${uploadedCount} documento(s) anexado(s) para conferência. Assim que validarmos tudo, seu acesso ao aplicativo será liberado.
-          </p>
-          <div style="display:grid; gap:6px; padding:12px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px;">
-            <div><strong>E-mail cadastrado para acesso:</strong> ${escapeHtml(draft.Email || "-")}</div>
-            <div><strong>WhatsApp:</strong> ${escapeHtml(draft.Telefone || "-")}</div>
-            <div><strong>Documentos anexados:</strong> ${uploadedCount}</div>
+          <div style="display:grid; gap:6px;">
+            <h2 style="margin:0; font-size:19px; color:#0f172a;">Ficha e documentos enviados!</h2>
+            <p style="margin:0; font-size:13.5px; color:#475569; line-height:1.5;">
+              Obrigado, <strong>${escapeHtml(draft.Nome || "colaborador(a)")}</strong>. A Administração já recebeu seus dados cadastrais e ${uploadedCount} documento(s) para conferência. Assim que validarmos tudo, seu acesso ao aplicativo será liberado.
+            </p>
           </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button type="button" id="btnOnbSelfEditAgain" class="btn btn-secondary" style="min-height:40px;">
+          <div style="display:grid; gap:8px; padding:14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; color:#1e293b;">
+            <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span style="color:#64748b;">E-mail de acesso</span><strong>${escapeHtml(draft.Email || "-")}</strong></div>
+            <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span style="color:#64748b;">WhatsApp</span><strong>${escapeHtml(draft.Telefone || "-")}</strong></div>
+            <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span style="color:#64748b;">Documentos anexados</span><strong>${uploadedCount} arquivo(s)</strong></div>
+          </div>
+          <div class="onb-self-actions" style="justify-content:flex-start;">
+            <button type="button" id="btnOnbSelfEditAgain" class="btn btn-secondary">
               Editar Dados ou Documentos antes da Conferência
             </button>
           </div>
@@ -5630,95 +6077,119 @@ export async function mountOnboardingSelfPortal(token) {
     } else if (currentStep === 1) {
       bodyHtml = `
         <form id="onbSelfStep1Form" style="display:grid; gap:14px;">
-          <div class="portal-field-card">
-            <div class="portal-field-card-head">
-              <h4 class="portal-field-card-title">1. Dados Pessoais &amp; Contato</h4>
-              <span class="portal-field-card-sub">Campos com * são obrigatórios</span>
+          <div class="onb-self-card">
+            <div class="onb-self-card-head">
+              <div>
+                <h4 class="onb-self-card-title">1. Dados Pessoais &amp; Contato</h4>
+                <span class="onb-self-card-sub">Campos com * são obrigatórios</span>
+              </div>
             </div>
-            <div class="dialog-grid">
-              <label class="field"><span>Nome Completo *</span><input id="onbSelfNome" required value="${escapeHtml(draft.Nome)}" placeholder="Seu nome completo" /></label>
-              <label class="field"><span>Nome Social</span><input id="onbSelfNomeSocial" value="${escapeHtml(draft.NomeSocial)}" placeholder="Opcional" /></label>
-              <label class="field"><span>CPF *</span><input id="onbSelfCPF" required maxlength="14" value="${escapeHtml(draft.CPF)}" placeholder="000.000.000-00" /></label>
-              <label class="field"><span>RG *</span><input id="onbSelfRG" required value="${escapeHtml(draft.RG)}" placeholder="00.000.000-0" /></label>
-              <label class="field"><span>Data de Nascimento *</span><input id="onbSelfNascimento" type="date" required value="${escapeHtml(draft.DataNascimento)}" /></label>
-              <label class="field"><span>Estado Civil</span>
+            <div class="onb-self-grid">
+              <label class="onb-self-field onb-self-span-2"><span class="onb-self-field-label">Nome Completo *</span><input id="onbSelfNome" required value="${escapeHtml(draft.Nome)}" placeholder="Seu nome completo" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Nome Social</span><input id="onbSelfNomeSocial" value="${escapeHtml(draft.NomeSocial)}" placeholder="Opcional" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">CPF *</span><input id="onbSelfCPF" required maxlength="14" inputmode="numeric" value="${escapeHtml(draft.CPF)}" placeholder="000.000.000-00" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">RG *</span><input id="onbSelfRG" required value="${escapeHtml(draft.RG)}" placeholder="00.000.000-0" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Data de Nascimento *</span><input id="onbSelfNascimento" type="date" required value="${escapeHtml(draft.DataNascimento)}" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Estado Civil</span>
                 <select id="onbSelfEstadoCivil">
                   ${["", "Solteiro(a)", "Casado(a)", "União Estável", "Divorciado(a)", "Viúvo(a)"]
                     .map((opt) => `<option value="${escapeHtml(opt)}"${draft.EstadoCivil === opt ? " selected" : ""}>${opt || "Selecione"}</option>`)
                     .join("")}
                 </select>
               </label>
-              <label class="field"><span>Nome da Mãe</span><input id="onbSelfMae" value="${escapeHtml(draft.NomeMae)}" /></label>
-              <label class="field"><span>Nome do Pai</span><input id="onbSelfPai" value="${escapeHtml(draft.NomePai)}" placeholder="Opcional" /></label>
-              <label class="field"><span>Telefone / WhatsApp *</span><input id="onbSelfTelefone" required maxlength="15" value="${escapeHtml(draft.Telefone)}" placeholder="(73) 99999-9999" /></label>
-              <label class="field"><span>E-mail pessoal (será seu login) *</span><input id="onbSelfEmail" type="email" required value="${escapeHtml(draft.Email)}" placeholder="seuemail@exemplo.com" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Nome da Mãe</span><input id="onbSelfMae" value="${escapeHtml(draft.NomeMae)}" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Nome do Pai</span><input id="onbSelfPai" value="${escapeHtml(draft.NomePai)}" placeholder="Opcional" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Telefone / WhatsApp *</span><input id="onbSelfTelefone" required maxlength="15" inputmode="tel" value="${escapeHtml(draft.Telefone)}" placeholder="(73) 99999-9999" /></label>
+              <label class="onb-self-field onb-self-span-2"><span class="onb-self-field-label">E-mail pessoal (será seu login no app) *</span><input id="onbSelfEmail" type="email" required value="${escapeHtml(draft.Email)}" placeholder="seuemail@exemplo.com" /></label>
             </div>
           </div>
 
-          <div class="portal-field-card">
-            <div class="portal-field-card-head">
-              <h4 class="portal-field-card-title">2. Endereço Residencial</h4>
-              <span class="portal-field-card-sub">Digite o CEP para buscar automaticamente</span>
+          <div class="onb-self-card">
+            <div class="onb-self-card-head">
+              <div>
+                <h4 class="onb-self-card-title">2. Endereço Residencial</h4>
+                <span class="onb-self-card-sub" id="onbSelfCepHint">Digite o CEP para preencher a rua automaticamente</span>
+              </div>
             </div>
-            <div class="dialog-grid">
-              <label class="field"><span>CEP *</span><input id="onbSelfCEP" required maxlength="9" value="${escapeHtml(draft.CEP)}" placeholder="00000-000" /></label>
-              <label class="field"><span>Rua / Avenida *</span><input id="onbSelfEndereco" required value="${escapeHtml(draft.Endereco)}" /></label>
-              <label class="field"><span>Número</span><input id="onbSelfNumero" value="${escapeHtml(draft.NumeroEndereco)}" /></label>
-              <label class="field"><span>Complemento</span><input id="onbSelfComplemento" value="${escapeHtml(draft.Complemento)}" /></label>
-              <label class="field"><span>Bairro *</span><input id="onbSelfBairro" required value="${escapeHtml(draft.Bairro)}" /></label>
-              <label class="field"><span>Cidade *</span><input id="onbSelfCidade" required value="${escapeHtml(draft.Cidade)}" /></label>
-              <label class="field"><span>UF *</span><input id="onbSelfUF" required maxlength="2" value="${escapeHtml(draft.UF)}" placeholder="BA" /></label>
+            <div class="onb-self-grid">
+              <label class="onb-self-field"><span class="onb-self-field-label">CEP *</span><input id="onbSelfCEP" required maxlength="9" inputmode="numeric" value="${escapeHtml(draft.CEP)}" placeholder="00000-000" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Bairro *</span><input id="onbSelfBairro" required value="${escapeHtml(draft.Bairro)}" /></label>
+              <label class="onb-self-field onb-self-span-2"><span class="onb-self-field-label">Rua / Avenida *</span><input id="onbSelfEndereco" required value="${escapeHtml(draft.Endereco)}" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Número</span><input id="onbSelfNumero" value="${escapeHtml(draft.NumeroEndereco)}" placeholder="Ex: 190" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Complemento</span><input id="onbSelfComplemento" value="${escapeHtml(draft.Complemento)}" placeholder="Casa, Apto, Fundos..." /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Cidade *</span><input id="onbSelfCidade" required value="${escapeHtml(draft.Cidade)}" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">UF *</span><input id="onbSelfUF" required maxlength="2" value="${escapeHtml(draft.UF)}" placeholder="BA" /></label>
             </div>
           </div>
 
-          <div class="portal-field-card">
-            <div class="portal-field-card-head">
-              <h4 class="portal-field-card-title">3. Emergência &amp; Dados para Pagamento</h4>
-              <span class="portal-field-card-sub">Contato em caso de urgência e Chave PIX</span>
+          <div class="onb-self-card">
+            <div class="onb-self-card-head">
+              <div>
+                <h4 class="onb-self-card-title">3. Emergência &amp; Dados para Pagamento</h4>
+                <span class="onb-self-card-sub">Contato de urgência e Chave PIX</span>
+              </div>
             </div>
-            <div class="dialog-grid">
-              <label class="field"><span>Nome Contato de Emergência *</span><input id="onbSelfEmergNome" required value="${escapeHtml(draft.ContatoEmergenciaNome)}" /></label>
-              <label class="field"><span>Parentesco</span><input id="onbSelfEmergParent" value="${escapeHtml(draft.ContatoEmergenciaParentesco)}" placeholder="Mãe, Cônjuge..." /></label>
-              <label class="field"><span>Telefone de Emergência *</span><input id="onbSelfEmergTel" required maxlength="15" value="${escapeHtml(draft.ContatoEmergenciaTelefone)}" placeholder="(73) 99999-9999" /></label>
-              <label class="field"><span>Chave PIX *</span><input id="onbSelfPix" required value="${escapeHtml(draft.ChavePix)}" placeholder="CPF, Celular, E-mail ou Aleatória" /></label>
-              <label class="field"><span>Banco</span><input id="onbSelfBanco" value="${escapeHtml(draft.BancoNome)}" placeholder="Nubank, Itaú, Bradesco..." /></label>
-              <label class="field"><span>Agência</span><input id="onbSelfAgencia" value="${escapeHtml(draft.BancoAgencia)}" placeholder="0001" /></label>
-              <label class="field"><span>Conta e Dígito</span><input id="onbSelfConta" value="${escapeHtml(draft.BancoConta)}" placeholder="12345-6" /></label>
-              <label class="field"><span>Tipo de Conta</span>
+            <div class="onb-self-grid">
+              <label class="onb-self-field"><span class="onb-self-field-label">Nome Contato de Emergência *</span><input id="onbSelfEmergNome" required value="${escapeHtml(draft.ContatoEmergenciaNome)}" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Parentesco</span><input id="onbSelfEmergParent" value="${escapeHtml(draft.ContatoEmergenciaParentesco)}" placeholder="Mãe, Cônjuge..." /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Telefone de Emergência *</span><input id="onbSelfEmergTel" required maxlength="15" inputmode="tel" value="${escapeHtml(draft.ContatoEmergenciaTelefone)}" placeholder="(73) 99999-9999" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Chave PIX *</span><input id="onbSelfPix" required value="${escapeHtml(draft.ChavePix)}" placeholder="CPF, Celular, E-mail ou Aleatória" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Banco</span><input id="onbSelfBanco" value="${escapeHtml(draft.BancoNome)}" placeholder="Nubank, Itaú, Bradesco..." /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Tipo de Conta</span>
                 <select id="onbSelfTipoConta">
                   ${["Corrente", "Poupança", "Salário", "Pagamento"]
                     .map((opt) => `<option value="${opt}"${draft.BancoTipoConta === opt ? " selected" : ""}>${opt}</option>`)
                     .join("")}
                 </select>
               </label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Agência</span><input id="onbSelfAgencia" value="${escapeHtml(draft.BancoAgencia)}" placeholder="0001" /></label>
+              <label class="onb-self-field"><span class="onb-self-field-label">Conta e Dígito</span><input id="onbSelfConta" value="${escapeHtml(draft.BancoConta)}" placeholder="12345-6" /></label>
             </div>
           </div>
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
-            <button type="button" id="btnOnbSelfSaveDraft" class="btn btn-secondary" style="min-height:44px;">
-              Salvar Rascunho
-            </button>
-            <button type="submit" class="btn btn-primary" style="min-height:44px;">
-              Continuar para Documentos →
-            </button>
+          <div class="onb-self-card" style="padding:14px 16px;">
+            <div class="onb-self-actions">
+              <button type="button" id="btnOnbSelfSaveDraft" class="btn btn-secondary">
+                Salvar Rascunho
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Continuar para Documentos →
+              </button>
+            </div>
           </div>
         </form>
       `;
     } else if (currentStep === 2) {
-      const reqMissing = docsMetaList.filter(
-        (d) => d.obrigatorioAutocadastro && !docsDraft[d.codigo]?.arquivoUrl,
-      ).length;
+      const reqList = docsMetaList.filter((d) => d.obrigatorioAutocadastro);
+      const reqDone = reqList.filter((d) => docsDraft[d.codigo]?.arquivoUrl).length;
+      const reqMissing = Math.max(0, reqList.length - reqDone);
+      const pct = reqList.length ? Math.round((reqDone / reqList.length) * 100) : 100;
+      const uploadIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+
       bodyHtml = `
         <div style="display:grid; gap:14px;">
-          <div class="portal-field-card">
-            <div class="portal-field-card-head">
+          <div class="onb-self-card">
+            <div class="onb-self-card-head">
               <div>
-                <h4 class="portal-field-card-title">Envio de Documentos Admissionais</h4>
-                <span class="portal-field-card-sub">Tire uma foto nítida ou anexe PDF. Obrigatórios pendentes: ${reqMissing}</span>
+                <h4 class="onb-self-card-title">Envio de Documentos Admissionais</h4>
+                <span class="onb-self-card-sub">
+                  ${reqMissing === 0 ? "Todos os documentos obrigatórios foram anexados!" : `Anexe os ${reqMissing} documento(s) obrigatório(s) pendente(s) em foto nítida ou PDF.`}
+                </span>
               </div>
               <button type="button" id="btnOnbSelfBackStep1" class="btn btn-secondary btn-sm">← Voltar aos Dados</button>
             </div>
-            <div style="display:grid; gap:10px;">
+
+            <div class="onb-self-progress-wrap">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                <span style="color:#475569; font-weight:600;">Obrigatórios enviados</span>
+                <strong style="color:${reqMissing === 0 ? "#047857" : "#1d4ed8"};">${reqDone} de ${reqList.length}</strong>
+              </div>
+              <div class="onb-self-progress-track">
+                <div class="onb-self-progress-fill" style="width:${pct}%;"></div>
+              </div>
+            </div>
+
+            <div class="onb-self-doc-list">
               ${docsMetaList
                 .map((d) => {
                   const uploaded = docsDraft[d.codigo];
@@ -5728,24 +6199,25 @@ export async function mountOnboardingSelfPortal(token) {
                       ? `<span class="portal-pill portal-pill--amber">Obrigatório</span>`
                       : `<span class="portal-pill portal-pill--neutral">Opcional</span>`;
                   return `
-                    <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; background:#fff; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                      <div style="min-width:190px; flex:1;">
-                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                          <strong style="font-size:13.5px;">${escapeHtml(d.titulo)}</strong>
+                    <div class="onb-self-doc-card ${uploaded ? "is-uploaded" : ""}">
+                      <div class="onb-self-doc-info">
+                        <div class="onb-self-doc-top">
+                          <span class="onb-self-doc-title">${escapeHtml(d.titulo)}</span>
                           ${badge}
                         </div>
-                        <small style="display:block; color:var(--muted); margin-top:2px;">
-                          ${uploaded ? escapeHtml(uploaded.nomeArquivo || "Arquivo anexado") : "Foto da frente/verso ou PDF"}
-                        </small>
+                        <span class="onb-self-doc-sub">
+                          ${uploaded ? escapeHtml(uploaded.nomeArquivo || "Arquivo anexado") : "Foto legível (frente e verso) ou arquivo PDF"}
+                        </span>
                       </div>
-                      <div style="display:flex; align-items:center; gap:8px;">
+                      <div class="onb-self-doc-actions">
                         ${
                           uploaded?.arquivoUrl
-                            ? `<button type="button" class="btn btn-secondary btn-sm" data-self-preview-doc="${escapeHtml(d.codigo)}">Ver</button>`
+                            ? `<button type="button" class="btn btn-secondary btn-sm" style="min-height:40px;" data-self-preview-doc="${escapeHtml(d.codigo)}">Ver</button>`
                             : ""
                         }
-                        <label class="portal-file-upload-btn" style="cursor:pointer; margin:0;">
-                          ${uploaded ? "Trocar Arquivo" : "Enviar Foto / PDF"}
+                        <label class="onb-self-upload-btn">
+                          ${uploadIcon}
+                          <span>${uploaded ? "Trocar" : "Enviar Foto / PDF"}</span>
                           <input type="file" accept="image/*,.pdf" class="portal-file-input-hidden" data-self-doc-input="${escapeHtml(d.codigo)}" />
                         </label>
                       </div>
@@ -5756,14 +6228,22 @@ export async function mountOnboardingSelfPortal(token) {
             </div>
           </div>
 
-          <div class="portal-field-card" style="display:grid; gap:12px;">
-            <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; color:#1e293b; cursor:pointer;">
-              <input type="checkbox" id="onbSelfTruthCheck" style="margin-top:3px;" />
-              <span>Declaro que todas as informações e os documentos anexados acima são verdadeiros e pertencem a mim, autorizando a conferência pela Administração do Grupo House 190.</span>
+          <div class="onb-self-card">
+            <div class="onb-self-card-head">
+              <div>
+                <h4 class="onb-self-card-title">Confirmação &amp; Envio Final</h4>
+                <span class="onb-self-card-sub">Revise seus anexos e finalize para análise da Administração</span>
+              </div>
+            </div>
+            <label class="onb-self-consent" for="onbSelfTruthCheck">
+              <input type="checkbox" id="onbSelfTruthCheck" class="onb-self-checkbox" />
+              <span class="onb-self-consent-text">Declaro que todas as informações preenchidas e os documentos anexados são verdadeiros e pertencem a mim, autorizando a conferência pela Administração do Grupo House 190 para liberação do meu acesso.</span>
             </label>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
-              <button type="button" id="btnOnbSelfSaveDocsDraft" class="btn btn-secondary" style="min-height:44px;">Salvar Rascunho</button>
-              <button type="button" id="btnOnbSelfSubmitFinal" class="btn btn-primary" style="min-height:44px;">
+            <div class="onb-self-actions">
+              <button type="button" id="btnOnbSelfSaveDocsDraft" class="btn btn-secondary">
+                Salvar Rascunho
+              </button>
+              <button type="button" id="btnOnbSelfSubmitFinal" class="btn btn-primary">
                 Enviar Cadastro e Aguardar Liberação
               </button>
             </div>
@@ -5773,25 +6253,28 @@ export async function mountOnboardingSelfPortal(token) {
     }
 
     root.innerHTML = `
-      <div style="max-width:760px; width:100%; display:grid; gap:14px;">
-        <header class="panel" style="padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <div>
-            <span class="eyebrow" style="color:var(--brand-solid, #4077ba);">GRUPO HOUSE 190 · ADMISSÃO DIGITAL</span>
-            <h1 style="margin:2px 0 4px; font-size:21px;">Pré-Cadastro do Novo Colaborador</h1>
-            <small style="color:var(--muted);">
-              ${escapeHtml(inviteData.NomeLoja || "Unidade House 190")}
-              ${inviteData.Cargo ? ` · Cargo: ${escapeHtml(inviteData.Cargo)}` : ""}
-              ${inviteData.TipoContrato ? ` (${escapeHtml(inviteData.TipoContrato)})` : ""}
-            </small>
+      <div class="onb-self-shell">
+        <header class="onb-self-hero">
+          <div class="onb-self-brand">
+            <div class="onb-self-monogram">H190</div>
+            <div style="min-width:0; flex:1;">
+              <span class="eyebrow" style="color:#4077ba;">GRUPO HOUSE 190 · ADMISSÃO DIGITAL</span>
+              <h1>Pré-Cadastro do Novo Colaborador</h1>
+              <div class="onb-self-meta">
+                <span class="onb-self-meta-chip">${escapeHtml(inviteData.NomeLoja || "Unidade House 190")}</span>
+                ${inviteData.Cargo ? `<span class="onb-self-meta-chip">${escapeHtml(inviteData.Cargo)}</span>` : ""}
+                ${inviteData.TipoContrato ? `<span class="onb-self-meta-chip">${escapeHtml(inviteData.TipoContrato)}</span>` : ""}
+              </div>
+            </div>
           </div>
           <span class="portal-pill portal-pill--blue">Etapa ${etapaAtual}/6</span>
         </header>
 
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <nav class="onb-self-stepper" aria-label="Etapas do pré-cadastro">
           ${stepBadge(1, "Seus Dados")}
           ${stepBadge(2, "Documentos")}
-          ${stepBadge(3, "Conferência & Liberação")}
-        </div>
+          ${stepBadge(3, "Liberação")}
+        </nav>
 
         ${correctionBanner}
         ${bodyHtml}
