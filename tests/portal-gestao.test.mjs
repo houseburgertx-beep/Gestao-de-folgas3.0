@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { FirebaseRuntime, runtime } from "../src/core/runtime.js";
 import { createPortalHandlers } from "../src/core/api-portal.js";
 import { ID_FIELDS } from "../src/core/constants.js";
@@ -379,9 +380,9 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
   });
 
   // ==========================================================================
-  // TELA 4: Solicitação de Vale / Adiantamento (Fluxo de 3 Etapas + Trava de Limite)
+  // TELA 4: Solicitação de Vale / Adiantamento (Aprovação direta Diretoria + Comprovante opcional + Recibo assinável)
   // ==========================================================================
-  await t.test("Tela 4: Fluxo de Vale (Trava de limite -> Solicitado -> Validado pelo Gerente -> Pago pela Diretoria com Recibo)", async () => {
+  await t.test("Tela 4: Fluxo de Vale (Trava de limite -> Solicitado -> Diretoria aprova sem gerente e comprovante opcional -> Recibo + Folha)", async () => {
     // Diretoria configura limite máximo de R$ 400,00
     mock.setProfile({
       UsuarioID: "u-dir-1",
@@ -416,7 +417,16 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
     assert.equal(solRes.data.Status, "Solicitado");
     const valeId = solRes.data.ValeID;
 
-    // Gerente valida (1ª aprovação)
+    // Segundo vale (competência separada) para testar aprovação com comprovante opcional preenchido
+    const solComCompRes = await portal.solicitarVale({
+      valor: 100,
+      motivo: "Passagem extra",
+      dataDesejada: "2026-10-12",
+    });
+    assert.equal(solComCompRes.data.Status, "Solicitado");
+    const valeComCompId = solComCompRes.data.ValeID;
+
+    // Gerente tenta aprovar/pagar etapa da Diretoria -> bloqueado!
     mock.setProfile({
       UsuarioID: "u-ger-1",
       FuncionarioID: "emp-ger-1",
@@ -425,16 +435,12 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
       Perfil: "Responsável de loja",
       LojaID: "loja-1",
     });
-    const gerVal = await portal.validarValeGerente({ ValeID: valeId, aprovar: true });
-    assert.equal(gerVal.data.Status, "Validado pelo Gerente");
-
-    // Gerente tenta aprovar/pagar etapa da Diretoria -> bloqueado!
     await assert.rejects(
-      () => portal.aprovarPagarValeDiretoria({ ValeID: valeId, comprovanteUrl: "pix.pdf" }),
+      () => portal.aprovarPagarValeDiretoria({ ValeID: valeId, comprovanteUrl: "" }),
       /administrador/i,
     );
 
-    // Diretoria aprova e paga anexando comprovante -> gera Recibo Digital na Tela 7
+    // Diretoria aprova e paga diretamente (sem etapa de gerente) e SEM comprovante (campo opcional)
     mock.setProfile({
       UsuarioID: "u-dir-1",
       FuncionarioID: "emp-dir-1",
@@ -443,13 +449,40 @@ test("Portal do Colaborador e Gestão Interna - Fluxo Completo (Telas 1 a 8, RBA
       Perfil: "Diretoria",
       LojaID: "",
     });
-    const dirPay = await portal.aprovarPagarValeDiretoria({
+    const dirPaySemComp = await portal.aprovarPagarValeDiretoria({
       ValeID: valeId,
       aprovar: true,
-      comprovanteUrl: "https://storage.house190.com.br/comprovantes/pix-vale-250.pdf",
+      comprovanteUrl: "",
     });
-    assert.equal(dirPay.data.Status, "Pago");
-    assert.ok(dirPay.data.ReciboDocID);
+    assert.equal(dirPaySemComp.data.Status, "Pago");
+    assert.equal(dirPaySemComp.data.ComprovanteURL, "");
+    assert.ok(dirPaySemComp.data.ReciboDocID);
+
+    const reciboDoc = await runtime.getById("Documentos", dirPaySemComp.data.ReciboDocID);
+    assert.ok(reciboDoc);
+    assert.equal(reciboDoc.DocumentoID, dirPaySemComp.data.ReciboDocID);
+    assert.equal(reciboDoc.Tipo, "Recibo de Vale");
+    assert.equal(reciboDoc.Status, "Pendente");
+    assert.equal(reciboDoc.StatusAssinatura, "Pendente");
+    assert.equal(reciboDoc.RequerAssinatura, true);
+    assert.equal(reciboDoc.OrigemTipo, "TEXTO_SISTEMA");
+    assert.equal(reciboDoc.MesReferencia, "2026-11");
+    assert.ok(reciboDoc.HashOriginalSHA256);
+    assert.match(reciboDoc.ConteudoTexto, /R\$ 250,00/);
+
+    // Diretoria aprova o segundo vale COM comprovante opcional preenchido
+    const dirPayComComp = await portal.aprovarPagarValeDiretoria({
+      ValeID: valeComCompId,
+      aprovar: true,
+      comprovanteUrl: "gdrive:file-pix-vale-100",
+    });
+    assert.equal(dirPayComComp.data.Status, "Pago");
+    assert.equal(dirPayComComp.data.ComprovanteURL, "gdrive:file-pix-vale-100");
+    assert.ok(dirPayComComp.data.ReciboDocID);
+
+    // UI do portal-gestao não deve mais renderizar o botão "Validar (Gerente)"
+    const portalGestaoSource = readFileSync(new URL("../src/portal-gestao.js", import.meta.url), "utf8");
+    assert.equal(portalGestaoSource.includes("Validar (Gerente)"), false);
   });
 
   // ==========================================================================

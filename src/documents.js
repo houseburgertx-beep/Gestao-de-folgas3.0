@@ -1625,10 +1625,19 @@ export async function openSignDialog(docId) {
 
   const ip = "Consultando…";
 
+  const rawOrig = String(doc.ArquivoOriginalBase64 || "").trim();
+  const isImageOrig = Boolean(
+    rawOrig && (/^data:image\//i.test(rawOrig) || (/^image\//i.test(String(doc.ArquivoMimeType || "")) && !rawOrig.startsWith("JVBERi"))),
+  );
+  const isPdfOrig = Boolean(rawOrig && !isImageOrig);
+  const hasTextBody = Boolean(String(doc.ConteudoTexto || "").trim());
+
   let pdfBlobUrl = "";
-  if (doc.ArquivoOriginalBase64) {
-    pdfBlobUrl = base64ToBlobUrl(doc.ArquivoOriginalBase64, "application/pdf");
+  if (!hasTextBody && isPdfOrig) {
+    pdfBlobUrl = base64ToBlobUrl(rawOrig, "application/pdf");
   }
+  const extraPdfUrl = hasTextBody && isPdfOrig ? base64ToBlobUrl(rawOrig, "application/pdf") : "";
+  const externalCompUrl = String(doc.ArquivoUrl || doc.ArquivoURL || "").trim();
 
   // Renderiza viewer do documento com botão de tela cheia
   let viewerHtml = "";
@@ -1653,6 +1662,27 @@ export async function openSignDialog(docId) {
       </div>
     `;
   } else {
+    let attachmentBlock = "";
+    if (isImageOrig) {
+      attachmentBlock = `
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid #e2e8f0;">
+          <strong style="display:block; font-size:12px; color:#334155; margin-bottom:8px;">Comprovante Anexo:</strong>
+          <img src="${esc(rawOrig)}" alt="Comprovante anexo" style="max-width:100%; border-radius:8px; border:1px solid #cbd5e1;" />
+        </div>`;
+    } else if (extraPdfUrl) {
+      attachmentBlock = `
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid #e2e8f0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+            <strong style="font-size:12px; color:#334155;">Comprovante PDF Anexo:</strong>
+            <a href="${esc(extraPdfUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="text-decoration:none;">Abrir Comprovante PDF ↗</a>
+          </div>
+        </div>`;
+    } else if (externalCompUrl && /^https?:\/\//i.test(externalCompUrl) && !doc.ArquivoDriveFileID) {
+      attachmentBlock = `
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid #e2e8f0;">
+          <a href="${esc(externalCompUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="text-decoration:none;">Abrir Comprovante Anexo ↗</a>
+        </div>`;
+    }
     viewerHtml = `
       <div class="doc-viewer-action-row">
         <div class="doc-sign-meta-compact">
@@ -1664,6 +1694,7 @@ export async function openSignDialog(docId) {
       <div id="docViewerBox" class="doc-viewer-container doc-text-viewer">
         <h3 style="margin-top:0; color:#312e81;">${esc(doc.Titulo)}</h3>
         <div style="white-space: pre-wrap; font-family: inherit;">${esc(doc.ConteudoTexto || "")}</div>
+        ${attachmentBlock}
       </div>
     `;
   }
@@ -1804,7 +1835,7 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
   };
 
   if (viewerBox) {
-    let viewerReady = !doc.ArquivoOriginalBase64;
+    let viewerReady = !pdfBlobUrl;
     const checkReadProgress = () => {
       if (disposed || !viewerReady) return;
       const scrollTotal = viewerBox.scrollHeight - viewerBox.clientHeight;
@@ -1817,7 +1848,7 @@ function setupSignModalEvents(dialog, doc, pdfBlobUrl = "") {
       if (pct >= 80) unlockSignature();
     };
     viewerBox.addEventListener("scroll", checkReadProgress);
-    if (doc.ArquivoOriginalBase64) {
+    if (pdfBlobUrl && doc.ArquivoOriginalBase64) {
       renderPdfToContainer(viewerBox, doc.ArquivoOriginalBase64, pdfBlobUrl).then((rendered) => {
         if (disposed) return;
         viewerReady = rendered === true;

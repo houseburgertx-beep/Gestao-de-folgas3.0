@@ -4216,7 +4216,7 @@ function mountSolicitacoesTabsAndVale() {
       <div>
         <span class="eyebrow">ADIANTAMENTO SALARIAL</span>
         <h3 style="margin: 2px 0 4px;">Pedir Vale</h3>
-        <p style="font-size: 13px; color: var(--muted); margin: 0;">Seu pedido passa pela conferência do gerente e pagamento pela diretoria.</p>
+        <p style="font-size: 13px; color: var(--muted); margin: 0;">Seu pedido segue direto para aprovação da Diretoria/Administração, com geração de recibo e desconto na folha.</p>
       </div>
       <div class="permission-admin" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
         <input id="valeNovoLimiteInput" type="number" min="50" step="10" placeholder="Teto limite (R$)" style="width:136px !important; min-height:36px !important; height:36px !important;" />
@@ -4310,48 +4310,278 @@ function getValeStatusMeta(status) {
   return { pillCls };
 }
 
-function buildValeActionButtons(v, isManagerUser, isAdminUser) {
-  const actions = [];
-  if (isManagerUser && v.Status === "Solicitado") {
-    actions.push(
-      `<button type="button" class="btn btn-ghost btn-sm" data-vale-action="recusar-gerente" data-vale-id="${v.ValeID}">Recusar</button>`,
-      `<button type="button" class="btn btn-secondary btn-sm" data-vale-action="validar-gerente" data-vale-id="${v.ValeID}">Validar (Gerente)</button>`,
-    );
+const portalValesById = new Map();
+
+function ensureValeApprovalDialog() {
+  let dlg = document.getElementById("valeAprovacaoDialog");
+  if (dlg) return dlg;
+  dlg = document.createElement("dialog");
+  dlg.id = "valeAprovacaoDialog";
+  dlg.className = "folha-dialog";
+  dlg.innerHTML = `
+    <form id="valeAprovacaoForm" class="folha-dialog-card" style="width:min(540px, 100%);" novalidate>
+      <div class="folha-dialog-head">
+        <div>
+          <span class="eyebrow">APROVAÇÃO DE VALE</span>
+          <h3 id="valeAprTitle" style="margin:2px 0 0;">Aprovar e Pagar Vale</h3>
+          <p id="valeAprSubtitle" style="margin:4px 0 0; font-size:12.5px; color:var(--muted);"></p>
+        </div>
+        <button type="button" id="valeAprCloseBtn" class="icon-btn" aria-label="Fechar modal">✕</button>
+      </div>
+      <div class="folha-dialog-body">
+        <div class="folha-pix-box" style="display:grid; gap:6px;">
+          <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <span>Valor do Vale: <strong id="valeAprValor">R$ 0,00</strong></span>
+            <span>Desconto na Folha: <strong id="valeAprComp">-</strong></span>
+          </div>
+          <div style="font-size:12.5px; color:var(--muted);">Motivo: <span id="valeAprMotivo">-</span></div>
+        </div>
+
+        <div style="padding:10px 12px; border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; font-size:12.5px; color:#1e3a8a; line-height:1.45;">
+          Ao confirmar, será gerado automaticamente um <strong>Recibo de Vale</strong> em <strong>Meus Documentos</strong> para o colaborador assinar confirmando o recebimento, e este valor será <strong>descontado na Folha de Pagamento</strong> da competência acima.
+        </div>
+
+        <div class="folha-upload-box">
+          <div>
+            <strong style="display:block; font-size:13px;">Comprovante de Pagamento (Opcional)</strong>
+            <span style="font-size:11.5px; color:var(--muted);">Se desejar, anexe imagem ou PDF do PIX/transferência (salvo no Google Drive). Você também pode aprovar sem anexo.</span>
+          </div>
+          <input id="valeAprFileInput" type="file" accept="image/*,.pdf" class="input" />
+          <div id="valeAprPreview" class="folha-upload-preview" style="display:none;"></div>
+          <label style="display:grid; gap:4px; font-size:12px; font-weight:600;">
+            Ou cole um link do comprovante (opcional)
+            <input id="valeAprUrlInput" type="url" class="input" placeholder="https://..." />
+          </label>
+        </div>
+
+        <label style="display:grid; gap:6px; font-size:12.5px; font-weight:600;">
+          Observação (opcional)
+          <input id="valeAprObsInput" type="text" class="input" placeholder="Ex: Pago via PIX / transferência bancária" />
+        </label>
+      </div>
+      <div class="folha-dialog-foot">
+        <button type="button" id="valeAprCancelBtn" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" id="valeAprConfirmBtn" class="btn btn-primary">Confirmar Aprovação</button>
+      </div>
+    </form>
+  `;
+  document.body.appendChild(dlg);
+  dlg.querySelector("#valeAprCloseBtn")?.addEventListener("click", () => dlg.close());
+  dlg.querySelector("#valeAprCancelBtn")?.addEventListener("click", () => dlg.close());
+  dlg.addEventListener("click", (e) => {
+    if (e.target === dlg) dlg.close();
+  });
+  return dlg;
+}
+
+function openValeApprovalDialog(vale) {
+  if (!vale?.ValeID) return;
+  const dlg = ensureValeApprovalDialog();
+  const form = dlg.querySelector("#valeAprovacaoForm");
+
+  let uploadedDriveUrl = "";
+  let uploadedDriveFileId = "";
+  let uploadedMimeType = "";
+  let uploadedFileName = "";
+  let pendingDataUrl = "";
+
+  const comp = String(vale.Competencia || vale.DataDesejada || todayIso()).slice(0, 7);
+  dlg.querySelector("#valeAprTitle").textContent = `Aprovar Vale — ${vale.FuncionarioNome || "Colaborador"}`;
+  dlg.querySelector("#valeAprSubtitle").textContent = `${vale.NomeLoja || vale.LojaID || "-"} · Para ${vale.DataDesejada || "-"}`;
+  dlg.querySelector("#valeAprValor").textContent = formatBRL(vale.Valor);
+  dlg.querySelector("#valeAprComp").textContent = comp;
+  dlg.querySelector("#valeAprMotivo").textContent = vale.Motivo || "Sem motivo informado";
+
+  const fileInput = dlg.querySelector("#valeAprFileInput");
+  const urlInput = dlg.querySelector("#valeAprUrlInput");
+  const obsInput = dlg.querySelector("#valeAprObsInput");
+  const previewEl = dlg.querySelector("#valeAprPreview");
+  const confirmBtn = dlg.querySelector("#valeAprConfirmBtn");
+
+  fileInput.value = "";
+  urlInput.value = "";
+  obsInput.value = "";
+  previewEl.style.display = "none";
+  previewEl.innerHTML = "";
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Confirmar Aprovação";
   }
+
+  fileInput.onchange = async () => {
+    const file = fileInput.files?.[0];
+    uploadedDriveUrl = "";
+    uploadedDriveFileId = "";
+    uploadedMimeType = "";
+    pendingDataUrl = "";
+    if (!file) {
+      uploadedFileName = "";
+      previewEl.style.display = "none";
+      previewEl.innerHTML = "";
+      return;
+    }
+    try {
+      uploadedFileName = file.name;
+      pendingDataUrl = await compressReceiptFileToDataUrl(file);
+      uploadedMimeType = inferMimeTypeFromDataUrl(pendingDataUrl, file.type || "application/pdf");
+      previewEl.style.display = "block";
+      previewEl.innerHTML = String(uploadedMimeType).startsWith("image/")
+        ? `<img src="${pendingDataUrl}" alt="Prévia do comprovante" /><small style="display:block; margin-top:4px; color:var(--muted);">${escapeHtml(file.name)} · Enviando ao Google Drive...</small>`
+        : `<div style="font-size:12.5px; font-weight:600; color:#4f46e5;">PDF selecionado: ${escapeHtml(file.name)} · Enviando ao Google Drive...</div>`;
+
+      const driveRes = await uploadPrivateDocumentToDrive({
+        dataUrl: pendingDataUrl,
+        mimeType: uploadedMimeType,
+        fileName: file.name,
+        category: "comprovante_vale",
+        employeeId: vale.FuncionarioID || "",
+        storeId: vale.LojaID || "",
+        monthKey: /^\d{4}-\d{2}$/.test(comp) ? comp : "",
+      });
+      uploadedDriveUrl = driveRes.url;
+      uploadedDriveFileId = driveRes.fileId;
+      uploadedMimeType = driveRes.mimeType || uploadedMimeType;
+      previewEl.innerHTML = String(uploadedMimeType).startsWith("image/")
+        ? `<img src="${pendingDataUrl}" alt="Prévia do comprovante" /><small style="display:block; margin-top:4px; color:#047857;">${escapeHtml(file.name)} · Salvo no Google Drive</small>`
+        : `<div style="font-size:12.5px; font-weight:600; color:#047857;">PDF salvo no Google Drive: ${escapeHtml(file.name)}</div>`;
+    } catch (err) {
+      uploadedDriveUrl = "";
+      uploadedDriveFileId = "";
+      pendingDataUrl = "";
+      uploadedFileName = "";
+      fileInput.value = "";
+      previewEl.style.display = "none";
+      previewEl.innerHTML = "";
+      showPortalToast(err.message || "Falha ao enviar comprovante para o Google Drive.", "error");
+    }
+  };
+
+  form.onsubmit = async (ev) => {
+    ev.preventDefault();
+    let comprovanteUrl = uploadedDriveUrl || urlInput.value.trim();
+    try {
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = "Aprovando...";
+      }
+      if (!uploadedDriveFileId && (pendingDataUrl || comprovanteUrl.startsWith("data:"))) {
+        if (confirmBtn) confirmBtn.textContent = "Salvando comprovante no Drive...";
+        const driveRes = await uploadPrivateDocumentToDrive({
+          dataUrl: pendingDataUrl || comprovanteUrl,
+          mimeType: uploadedMimeType || "",
+          fileName: uploadedFileName || "comprovante_vale",
+          category: "comprovante_vale",
+          employeeId: vale.FuncionarioID || "",
+          storeId: vale.LojaID || "",
+          monthKey: /^\d{4}-\d{2}$/.test(comp) ? comp : "",
+        });
+        comprovanteUrl = driveRes.url;
+        uploadedDriveFileId = driveRes.fileId;
+        uploadedMimeType = driveRes.mimeType;
+      }
+      if (confirmBtn) confirmBtn.textContent = "Gerando recibo...";
+      await invokePortal("aprovarPagarValeDiretoria", {
+        ValeID: vale.ValeID,
+        aprovar: true,
+        comprovanteUrl,
+        comprovanteDriveFileId: uploadedDriveFileId || parseDriveFileId(comprovanteUrl) || "",
+        comprovanteMimeType: uploadedMimeType,
+        comprovanteNome: uploadedFileName,
+        observacao: obsInput.value.trim(),
+      });
+      dlg.close();
+      showPortalToast("Vale aprovado! Recibo enviado para assinatura do colaborador e programado para desconto na folha.", "success");
+      await loadValesList();
+    } catch (err) {
+      showPortalToast(err.message || "Falha ao aprovar solicitação de vale.", "error");
+    } finally {
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Confirmar Aprovação";
+      }
+    }
+  };
+
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "true");
+}
+
+function buildValeActionButtons(v, _isManagerUser, isAdminUser) {
+  const actions = [];
   if (isAdminUser && (v.Status === "Validado pelo Gerente" || v.Status === "Solicitado")) {
     actions.push(
+      `<button type="button" class="btn btn-ghost btn-sm" data-vale-action="recusar-diretoria" data-vale-id="${v.ValeID}">Recusar</button>`,
       `<button type="button" class="btn btn-primary btn-sm" data-vale-action="pagar-diretoria" data-vale-id="${v.ValeID}">Aprovar e Pagar</button>`,
     );
   }
   return actions;
 }
 
+function renderValeComprovanteAction(v, label = "Ver Comprovante") {
+  const url = String(v?.ComprovanteURL || "").trim();
+  const driveId = String(v?.ComprovanteDriveFileID || parseDriveFileId(url) || "").trim();
+  if (!url && !driveId) return "";
+  if (driveId) {
+    return `<button type="button" class="btn btn-secondary btn-sm" data-vale-open-comp="${escapeHtml(v.ValeID)}">${escapeHtml(label)} ↗</button>`;
+  }
+  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="text-decoration:none;">${escapeHtml(label)} ↗</a>`;
+}
+
 function bindValeActionButtons(rootEl) {
+  rootEl?.querySelectorAll("[data-vale-open-comp]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const valeId = btn.getAttribute("data-vale-open-comp");
+      const v = portalValesById.get(String(valeId));
+      if (!v) return;
+      const url = String(v.ComprovanteURL || "").trim();
+      const driveId = String(v.ComprovanteDriveFileID || parseDriveFileId(url) || "").trim();
+      if (!driveId) {
+        if (url) window.open(url, "_blank", "noopener");
+        return;
+      }
+      const prevText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Abrindo...";
+      try {
+        const driveData = await readPrivateDriveFile(driveId);
+        const win = window.open("", "_blank");
+        if (win) {
+          const isPdf = /pdf/i.test(driveData.mimeType || "") || String(driveData.dataUrl || "").startsWith("data:application/pdf");
+          win.document.write(
+            isPdf
+              ? `<html><body style="margin:0"><iframe src="${driveData.dataUrl}" style="width:100vw;height:100vh;border:0"></iframe></body></html>`
+              : `<html><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#0f172a"><img src="${driveData.dataUrl}" style="max-width:100%;max-height:100vh" /></body></html>`,
+          );
+          win.document.close();
+        }
+      } catch (err) {
+        showPortalToast(err?.message || "Não foi possível abrir o comprovante do Drive.", "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prevText;
+      }
+    });
+  });
+
   rootEl?.querySelectorAll("[data-vale-action]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const action = btn.getAttribute("data-vale-action");
       const valeId = btn.getAttribute("data-vale-id");
+      const vale = portalValesById.get(String(valeId)) || { ValeID: valeId };
       try {
-        if (action === "validar-gerente" || action === "recusar-gerente") {
-          await invokePortal("validarValeGerente", {
-            ValeID: valeId,
-            aprovar: action === "validar-gerente",
-          });
-          showPortalToast("Validação do gerente registrada!", "success");
-        } else if (action === "pagar-diretoria") {
-          const comprovanteUrl = window.prompt(
-            "Informe a URL ou código do comprovante PIX/transferência para liberar o pagamento e gerar o recibo digital:",
-            `comprovante-pix-${valeId.slice(0, 8)}.pdf`,
-          );
-          if (!comprovanteUrl) return;
+        if (action === "recusar-diretoria") {
+          const obs = window.prompt("Motivo da recusa do vale (opcional):", "");
+          if (obs === null) return;
           await invokePortal("aprovarPagarValeDiretoria", {
             ValeID: valeId,
-            aprovar: true,
-            comprovanteUrl,
+            aprovar: false,
+            observacao: obs,
           });
-          showPortalToast("Vale pago e recibo enviado para assinatura digital!", "success");
+          showPortalToast("Solicitação de vale recusada.", "info");
+          await loadValesList();
+        } else if (action === "pagar-diretoria") {
+          openValeApprovalDialog(vale);
         }
-        await loadValesList();
       } catch (err) {
         showPortalToast(err.message || "Falha ao processar solicitação de vale.", "error");
       }
@@ -4368,6 +4598,10 @@ async function loadValesList() {
       storeId: window.__selectedPortalStoreId || "",
     });
     const { limiteMaximo, vales = [] } = res.data || {};
+    portalValesById.clear();
+    vales.forEach((v) => {
+      if (v?.ValeID) portalValesById.set(String(v.ValeID), v);
+    });
     const badge = document.getElementById("valeLimiteMaximoBadge");
     if (badge && limiteMaximo) {
       badge.textContent = formatBRL(limiteMaximo);
@@ -4378,8 +4612,7 @@ async function loadValesList() {
 
     const pendingCount = vales.filter((v) => {
       if (isAdminUser) return v.Status === "Validado pelo Gerente" || v.Status === "Solicitado";
-      if (isManagerUser) return v.Status === "Solicitado";
-      return v.Status === "Solicitado" || v.Status === "Validado pelo Gerente";
+      return false;
     }).length;
     window.__portalValesPendingCount = pendingCount;
     window.syncPendingCenterSummary?.();
@@ -4392,6 +4625,7 @@ async function loadValesList() {
           .map((v) => {
             const actions = buildValeActionButtons(v, isManagerUser, isAdminUser);
             const { pillCls } = getValeStatusMeta(v.Status);
+            const compHtml = renderValeComprovanteAction(v, "Abrir Comprovante") || "-";
             return `
               <tr>
                 <td data-label="Data">${v.DataDesejada || "-"}</td>
@@ -4400,7 +4634,7 @@ async function loadValesList() {
                 <td data-label="Valor" class="portal-num-col" style="font-weight:700; color:var(--ink);">${formatBRL(v.Valor)}</td>
                 <td data-label="Motivo">${v.Motivo || "-"}</td>
                 <td data-label="Status"><span class="portal-pill ${pillCls}">${v.Status}</span></td>
-                <td data-label="Comprovante">${v.ComprovanteURL ? `<a href="${v.ComprovanteURL}" target="_blank" rel="noopener">Abrir Recibo</a>` : "-"}</td>
+                <td data-label="Comprovante">${compHtml}</td>
                 <td data-label="Ações"><div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">${actions.join("") || "-"}</div></td>
               </tr>
             `;
@@ -4419,6 +4653,7 @@ async function loadValesList() {
           .map((v) => {
             const actions = buildValeActionButtons(v, isManagerUser, isAdminUser);
             const { pillCls } = getValeStatusMeta(v.Status);
+            const compHtml = renderValeComprovanteAction(v, "Ver Comprovante");
             return `
               <article class="request-card pending-unified-card">
                 <div class="request-card-head">
@@ -4431,7 +4666,7 @@ async function loadValesList() {
                   <span>${v.NomeLoja || v.LojaID || "-"}</span>
                 </div>
                 <p>${v.Motivo || "Sem motivo informado"}</p>
-                ${v.ComprovanteURL ? `<div style="margin-bottom:8px;"><a href="${v.ComprovanteURL}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Ver Comprovante ↗</a></div>` : ""}
+                ${compHtml ? `<div style="margin-bottom:8px;">${compHtml}</div>` : ""}
                 ${actions.length ? `<div class="request-card-actions">${actions.join("")}</div>` : ""}
               </article>
             `;
@@ -6111,7 +6346,7 @@ export function mountQuickValeDialog() {
       if (submitBtn) submitBtn.disabled = true;
       try {
         const res = await invokePortal("solicitarVale", { valor, dataDesejada, motivo });
-        toast(res?.message || "Solicitação de vale enviada para validação do Gerente.");
+        toast(res?.message || "Solicitação de vale enviada para aprovação da Administração/Diretoria.");
         document.getElementById("valeQuickForm")?.reset();
         const dt = document.getElementById("valeQuickDataInput");
         if (dt) dt.value = todayIso();

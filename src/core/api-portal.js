@@ -1875,7 +1875,7 @@ async function solicitarVale(payload = {}) {
     resumo: `Solicitação de vale de ${formatCurrencyBRL(valor)} criada por ${record.FuncionarioNome}`,
   });
 
-  return success(record, "Solicitação de vale enviada para validação do Gerente.");
+  return success(record, "Solicitação de vale enviada para aprovação da Administração/Diretoria.");
 }
 
 async function validarValeGerente(payload = {}) {
@@ -1935,36 +1935,57 @@ async function aprovarPagarValeDiretoria(payload = {}) {
   ).trim();
   const comprovanteMimeType = String(payload.comprovanteMimeType || "").trim();
   const comprovanteNome = String(payload.comprovanteNome || payload.ComprovanteNome || "").trim();
-  if (aprovar) {
-    assert(comprovanteUrl, "Anexe o comprovante de pagamento para concluir a aprovação do vale.");
-  }
 
   const now = nowIso();
+  const competenciaDesconto = String(current.Competencia || current.DataDesejada || now).slice(0, 7);
   let reciboDocId = current.ReciboDocID || "";
 
   if (aprovar) {
+    const emp = await runtime.getById("Funcionarios", current.FuncionarioID).catch(() => null);
+    const cpfFmt = formatCpf(current.CPF || emp?.CPF || "");
+    const nomeColab = current.FuncionarioNome || emp?.Nome || "Colaborador";
+    const lojaNome = current.NomeLoja || emp?.NomeLoja || current.LojaID || "";
+    const observacao = String(payload.observacao || "").trim();
     const reciboTexto = [
       "RECIBO DE ADIANTAMENTO SALARIAL / VALE",
-      `Colaborador: ${current.FuncionarioNome} (CPF: ${formatCpf(current.CPF)})`,
-      `Unidade/Loja: ${current.NomeLoja || current.LojaID}`,
-      `Valor Pago: ${formatCurrencyBRL(current.Valor)}`,
-      `Competencia de Desconto: ${current.Competencia}`,
-      `Data de Aprovacao/Pagamento: ${now}`,
-      `Aprovado pela Diretoria: ${profile.Nome || profile.Email}`,
-      `Comprovante Anexo: ${comprovanteUrl}`,
-    ].join("\n");
+      `Colaborador: ${nomeColab}${cpfFmt ? ` (CPF: ${cpfFmt})` : ""}`,
+      `Unidade/Loja: ${lojaNome}`,
+      `Valor Recebido: ${formatCurrencyBRL(current.Valor)}`,
+      `Competência para Desconto em Folha: ${competenciaDesconto}`,
+      `Data da Aprovação/Pagamento: ${now}`,
+      `Aprovado por: ${profile.Nome || profile.Email}`,
+      comprovanteUrl
+        ? `Comprovante Anexo: ${comprovanteNome || "Arquivo enviado"} (${comprovanteUrl})`
+        : "Comprovante Anexo: Não informado (pagamento confirmado sem anexo opcional)",
+      observacao ? `Observação: ${observacao}` : "",
+      "",
+      `Declaro para os devidos fins ter recebido a importância líquida de ${formatCurrencyBRL(current.Valor)} a título de adiantamento salarial (vale), autorizando o respectivo desconto integral na folha de pagamento da competência ${competenciaDesconto}.`,
+    ]
+      .filter((line, idx, arr) => line !== "" || (idx > 0 && arr[idx - 1] !== ""))
+      .join("\n");
     const hashRecibo = await sha256Hex(reciboTexto);
     reciboDocId = uuid();
     await runtime.create("Documentos", {
       DocID: reciboDocId,
+      DocumentoID: reciboDocId,
       FuncionarioID: current.FuncionarioID,
-      FuncionarioNome: current.FuncionarioNome,
-      CPF: current.CPF || "",
+      FuncionarioNome: nomeColab,
+      NomeFuncionario: nomeColab,
+      CPF: current.CPF || emp?.CPF || "",
+      CPFFuncionario: cpfFmt,
+      CargoFuncionario: emp?.Cargo || "",
       LojaID: current.LojaID,
+      NomeLoja: lojaNome,
       Tipo: "Recibo de Vale",
-      Titulo: `Recibo de Vale (${formatCurrencyBRL(current.Valor)}) - ${current.Competencia}`,
-      Competencia: current.Competencia,
+      Titulo: `Recibo de Vale (${formatCurrencyBRL(current.Valor)}) - ${competenciaDesconto}`,
+      Descricao: `Confirmação de recebimento de vale de ${formatCurrencyBRL(current.Valor)} com desconto automático na folha de ${competenciaDesconto}.`,
+      Competencia: competenciaDesconto,
+      MesReferencia: competenciaDesconto,
+      ValeID: valeId,
+      ValorVale: Number(current.Valor || 0),
+      OrigemTipo: "TEXTO_SISTEMA",
       ConteudoTexto: reciboTexto,
+      ArquivoOriginalBase64: "",
       ArquivoURL: comprovanteUrl,
       ArquivoUrl: comprovanteUrl,
       ArquivoDriveFileID: comprovanteDriveFileId,
@@ -1972,15 +1993,29 @@ async function aprovarPagarValeDiretoria(payload = {}) {
       ArquivoMimeType: comprovanteMimeType,
       ComprovanteNome: comprovanteNome,
       HashSHA256Original: hashRecibo,
+      HashOriginalSHA256: hashRecibo,
       RequerAssinatura: true,
+      Status: "Pendente",
       StatusAssinatura: "Pendente",
+      DataEnvio: now,
       CriadoPor: profile.Nome || profile.Email,
       DataCriacao: now,
     });
+
+    await createNotification({
+      employeeId: current.FuncionarioID,
+      storeId: current.LojaID,
+      subject: "Vale aprovado - Assine o recibo",
+      message: `Seu vale de ${formatCurrencyBRL(current.Valor)} foi aprovado e será descontado na folha de ${competenciaDesconto}. Acesse Meus Documentos para assinar o recibo de recebimento.`,
+      type: "Documentos",
+      relatedId: reciboDocId,
+      severity: "info",
+    }).catch(() => {});
   }
 
   const updated = {
     ...current,
+    Competencia: competenciaDesconto,
     Status: novoStatus,
     AprovadoDiretoriaPor: profile.Nome || profile.Email,
     AprovadoDiretoriaEm: now,
@@ -2006,7 +2041,7 @@ async function aprovarPagarValeDiretoria(payload = {}) {
     resumo: `Status do vale (${formatCurrencyBRL(current.Valor)}) de ${current.FuncionarioNome} alterado de ${current.Status} para ${novoStatus}`,
   });
 
-  return success(updated, aprovar ? "Vale pago e recibo enviado para assinatura do colaborador." : "Vale recusado pela Diretoria.");
+  return success(updated, aprovar ? "Vale aprovado e recibo enviado para assinatura do colaborador." : "Vale recusado pela Administração.");
 }
 
 async function listarVales(filters = {}) {
@@ -2655,7 +2690,7 @@ async function calcularLinhasFolhaPeriodo({
         String(v.FuncionarioID || "") === empId &&
         v.Status === "Pago" &&
         !v.DeduzidoFolhaPagamentoID &&
-        String(v.DataDesejada || v.Competencia || "").slice(0, 7) === bounds.competencia,
+        String(v.Competencia || v.DataDesejada || "").slice(0, 7) === bounds.competencia,
     );
     const sistemaVales = Number(
       empVales.reduce((acc, item) => acc + Number(item.Valor || 0), 0).toFixed(2),
@@ -3173,7 +3208,7 @@ async function pagarFolhaColaborador(payload = {}) {
       String(v.FuncionarioID || "") === employeeId &&
       v.Status === "Pago" &&
       !v.DeduzidoFolhaPagamentoID &&
-      String(v.DataDesejada || v.Competencia || "").slice(0, 7) === previa.bounds.competencia,
+      String(v.Competencia || v.DataDesejada || "").slice(0, 7) === previa.bounds.competencia,
   );
   for (const vale of valesDeduzidos) {
     await runtime.update("SolicitacoesVale", vale.ValeID, {
