@@ -353,7 +353,15 @@ async function handle(request, env) {
       const pushName = body.data?.pushName || body.pushName || "";
       const messageId = body.data?.key?.id || body.messageId || "";
 
-      if (body.data?.isGroup || String(rawFrom).endsWith("@g.us")) return json({ ok: true, ignored: true, reason: "group" });
+      if (
+        body.data?.isGroup ||
+        String(rawFrom).endsWith("@g.us") ||
+        String(rawFrom).endsWith("@broadcast") ||
+        String(rawFrom).endsWith("@newsletter") ||
+        String(rawFrom).includes("status@broadcast")
+      ) {
+        return json({ ok: true, ignored: true, reason: "group_or_broadcast" });
+      }
       if (typeof rawFrom !== "string" || typeof rawText !== "string" || !messageId || typeof messageId !== "string" || messageId.length > 200 || !rawFrom || !rawText) {
         return json({ error: "missing_from_or_text" }, 400);
       }
@@ -429,7 +437,16 @@ async function handle(request, env) {
         });
       }
 
-      return json({ ok: true, handled: false });
+      if (messageId && env.DB) {
+        await env.DB.prepare(
+          "UPDATE deliveries SET state='ignored' WHERE event_key=? AND endpoint=?"
+        )
+          .bind(`wa_inbound:${messageId}`, rawFrom)
+          .run()
+          .catch(() => {});
+      }
+
+      return json({ ok: true, handled: false, ignored: true });
     } catch (err) {
       return json({ error: "inbound_failed", details: String(err.message || err) }, 502);
     }

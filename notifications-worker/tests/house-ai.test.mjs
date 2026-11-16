@@ -205,7 +205,7 @@ test("House AI: Consulta de escala de trabalho", async () => {
   assert.equal(/[\u{1F300}-\u{1F9FF}]/u.test(res.replyText), false);
 });
 
-test("House AI: Número não cadastrado é educadamente informado", async () => {
+test("House AI: Número não cadastrado é ignorado sem envio de mensagem", async () => {
   const mockEnv = { APP_URL: "https://house190.com/app" };
   const mockDb = async (_env, _tok, path) => path === "tables/Funcionarios" ? {
     "emp-1": { FuncionarioID: "emp-1", Nome: "Bruno House", Telefone: "5573991740014" },
@@ -219,10 +219,8 @@ test("House AI: Número não cadastrado é educadamente informado", async () => 
     tok: "mock-token",
   });
 
-  assert.equal(res.handled, true);
   assert.equal(res.authorized, false);
-  assert.ok(res.replyText.includes("uso exclusivo para colaboradores cadastrados"));
-  assert.ok(res.replyText.includes("procure o gerente da sua loja"));
+  assert.equal(res.replyText, null);
 });
 
 test("House AI: Mensagens motivacionais de Ponto (Entrada, Saída e Intervalo)", () => {

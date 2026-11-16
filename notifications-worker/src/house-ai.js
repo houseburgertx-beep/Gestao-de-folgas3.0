@@ -469,13 +469,10 @@ export async function processInboundHouseAI({
   ) : [];
   if (!matchedEmp || (matchedEmp.Ativo !== undefined && !active(matchedEmp.Ativo)) || (associatedProfiles.length && !associatedProfiles.some((p) => active(p.Ativo)))) {
     return {
-      handled: true,
+      handled: false,
       authorized: false,
-      replyText: stripHouseAIEmojis(
-        `Olá! Este canal de atendimento do Grupo House 190 é de uso exclusivo para colaboradores cadastrados.\n\n` +
-        `Não localizamos o número (${cleanPhone}) em nosso cadastro oficial de funcionários.\n\n` +
-        `Caso seja colaborador da House 190, por favor procure o gerente da sua loja para atualizar o número no cadastro.`
-      ),
+      replyText: null,
+      reason: "unregistered_or_inactive_sender",
     };
   }
 

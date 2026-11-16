@@ -11,6 +11,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 const WORKER_URL = "https://house-folgas-notifications.brunohouse.workers.dev";
+const TAKEAT_WORKER_URL = "https://takeat-mobile-oauth.brunohouse.workers.dev";
 const API_KEY = process.env.WA_API_KEY || "";
 const SERVICE_TOKEN = process.env.WA_SERVICE_TOKEN || "";
 const INSTANCE = "house190";
@@ -157,17 +158,29 @@ export async function syncConfig(url = DEFAULT_GATEWAY_URL) {
     }
   } catch (_) {}
 
+  const syncPayload = JSON.stringify({
+    gatewayUrl,
+    instanceName: INSTANCE,
+    apiKey: API_KEY,
+    connectionStatus: isConnected ? "connected" : "disconnected",
+    phone,
+  });
+
+  // Sincroniza também com o Worker do Takeat Mobile (House Experience)
+  if (typeof TAKEAT_WORKER_URL !== "undefined" && TAKEAT_WORKER_URL) {
+    fetch(`${TAKEAT_WORKER_URL}/api/house-experience/wa-sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Service-Token": SERVICE_TOKEN },
+      body: syncPayload,
+      signal: AbortSignal.timeout(8000),
+    }).catch(() => {});
+  }
+
   try {
     const res = await fetch(`${WORKER_URL}/wa-gateway-config`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Service-Token": SERVICE_TOKEN },
-      body: JSON.stringify({
-        gatewayUrl,
-        instanceName: INSTANCE,
-        apiKey: API_KEY,
-        connectionStatus: isConnected ? "connected" : "disconnected",
-        phone,
-      }),
+      body: syncPayload,
       signal: AbortSignal.timeout(8000),
     });
     if (res.ok) {
