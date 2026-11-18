@@ -1564,6 +1564,13 @@
         if (button) setPendingCenterFilter_(button.dataset.pendingFilter);
       });
     }
+    const pendingSummaryGrid = $("#view-pending-center .pending-summary-grid");
+    if (pendingSummaryGrid) {
+      pendingSummaryGrid.addEventListener("click", (event) => {
+        const card = event.target?.closest?.("[data-pending-filter]");
+        if (card) setPendingCenterFilter_(card.dataset.pendingFilter);
+      });
+    }
     if ($("#swapForm")) $("#swapForm").onsubmit = saveSwapUI;
     if ($("#acknowledgementForm")) {
       $("#acknowledgementForm").onsubmit = (e) =>
@@ -3376,6 +3383,16 @@
         ? "＋ Pedir folga"
         : "＋ Criar folga";
     }
+    if ($("#pendingAllTitle")) {
+      $("#pendingAllTitle").textContent = employeeMode
+        ? "Todas as minhas solicitações"
+        : "Todas as solicitações";
+    }
+    if ($("#pendingAllDescription")) {
+      $("#pendingAllDescription").textContent = employeeMode
+        ? "Folgas, vales, ajustes de ponto, trocas e demais pedidos em um só lugar."
+        : "Folgas, vales, ajustes de ponto, trocas, atestados e demais pedidos da equipe em um só lugar.";
+    }
     if ($("#pendingValeTitle")) {
       $("#pendingValeTitle").textContent = employeeMode
         ? "Meus pedidos de vale"
@@ -4471,7 +4488,7 @@
   function requestDateBannerHtml_(raw) {
     const formatted = formatRequestDateLabel_(raw);
     if (!formatted) return "";
-    return `<div class="request-date-banner" title="Data em que o funcionário enviou a solicitação"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>Solicitado em <strong>${esc(formatted)}</strong></span></div>`;
+    return `<div class="request-date-banner" title="Data em que o funcionário enviou a solicitação"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>Solicitado em <strong>${esc(formatted)}</strong></span></div>`;
   }
   function renderRequests() {
     const rows = state.timeOff
@@ -4576,6 +4593,7 @@
     const counts = pendingCenterCounts_(),
       values = {
         pendingTotalMetric: counts.total,
+        pendingAllFilterCount: counts.total,
         pendingTimeOffMetric: counts.timeOff,
         pendingClockMetric: counts.clock,
         pendingSwapMetric: counts.swaps,
@@ -4597,21 +4615,209 @@
   }
   window.syncPendingCenterSummary = renderPendingCenterSummary_;
 
+  function pendingSortTs_(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return 0;
+    const ts = /^\d{4}-\d{2}-\d{2}$/.test(s)
+      ? Date.parse(`${s}T12:00:00`)
+      : Date.parse(s);
+    return Number.isNaN(ts) ? 0 : ts;
+  }
+
+  function renderAllPendingCards_() {
+    const box = $("#allPendingCards");
+    if (!box) return;
+    const manager = isManager();
+    const currentEmployeeId = String(
+      val(state.user, "funcionarioId", "FuncionarioID", "id") || "",
+    );
+    const entries = [];
+    const renderedFolgaIds = new Set();
+
+    // 1. Folgas
+    state.timeOff
+      .filter((x) =>
+        manager ? statusClass(val(x, "Status", "status")) === "pending" : true,
+      )
+      .slice(0, manager ? 50 : 20)
+      .forEach((x) => {
+        const id = idOf(x, "Folga");
+        if (id) renderedFolgaIds.add(String(id));
+        const n = val(x, "NomeFuncionario", "nomeFuncionario"),
+          status = val(x, "Status", "status") || "Pendente",
+          tipo = val(x, "TipoFolga", "tipoFolga") || "Folga",
+          isMedical = String(tipo).toLowerCase().includes("atestado"),
+          docUrl = val(x, "DocumentoUrl", "documentoUrl"),
+          crm = val(x, "CRM", "crm"),
+          startD = val(x, "DataInicio", "dataInicio"),
+          endD = val(x, "DataFim", "dataFim") || startD,
+          reqRaw = extractRequestDateRaw_(x),
+          periodText =
+            startD === endD
+              ? dateBR(startD)
+              : `${dateBR(startD)} até ${dateBR(endD)}`,
+          diffDays = Math.max(
+            1,
+            Math.round(
+              (new Date(`${endD}T12:00:00`) - new Date(`${startD}T12:00:00`)) /
+                86400000,
+            ) + 1,
+          ),
+          approveBtnText = isMedical ? "Aprovar e Abonar Faltas" : "Aprovar",
+          managerActions = isKitchenChief()
+            ? `<div class="request-card-actions"><span class="status">Somente leitura</span></div>`
+            : manager
+              ? `<div class="request-card-actions"><button class="btn btn-secondary" data-action="reject" data-id="${esc(id)}">Rejeitar</button><button class="btn btn-primary" data-action="approve" data-id="${esc(id)}">${approveBtnText}</button></div>`
+              : `<div class="request-card-actions"><button class="btn btn-secondary" data-action="edit-timeoff" data-id="${esc(id)}">Ver detalhes</button>${statusClass(status) === "pending" ? `<button class="btn btn-ghost" data-action="cancel" data-id="${esc(id)}">Cancelar pedido</button>` : ""}</div>`;
+        entries.push({
+          sortTs: pendingSortTs_(reqRaw || startD),
+          html: `<article class="request-card pending-unified-card"><div class="pending-all-card-top"><span class="pending-type-chip ${isMedical ? "is-atestados" : "is-timeoff"}">${isMedical ? "Atestado médico" : "Folga"}</span>${badge(status)}</div><div class="request-card-head">${person(n)}</div>${requestDateBannerHtml_(reqRaw)}<div class="pending-card-meta"><span><strong>${periodText}</strong> (${diffDays} dia${diffDays > 1 ? "s" : ""})</span><span>${esc(tipo)}</span><span>${esc(val(x, "NomeLoja", "nomeLoja") || "Minha loja")}</span>${crm ? `<span>CRM: <strong>${esc(crm)}</strong></span>` : ""}</div><p>${esc(val(x, "Motivo", "motivo") || "Sem motivo informado")}</p>${docUrl ? `<div style="margin-bottom:8px;"><a href="${esc(docUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12.5px; padding:6px 12px; border-radius:8px;">Ver Comprovante no Drive ↗</a></div>` : ""}${managerActions}</article>`,
+        });
+      });
+
+    // 2. Ajustes de ponto
+    const clockLabels = clockActionLabels_();
+    const clockAdjustments = arr((state.timeClock || {}).adjustments);
+    const visibleClock = (
+      manager
+        ? clockAdjustments.filter((a) => String(a.Status || "") === "Pendente")
+        : clockAdjustments
+    ).slice(0, 30);
+    visibleClock.forEach((a) => {
+      const reqRaw =
+        a.DataSolicitacao ||
+        a.DataCriacao ||
+        a.CriadoEm ||
+        a.DataEnvio ||
+        a.DataAtualizacao;
+      const actions = manager
+        ? `<button class="btn btn-primary clock-review-btn" data-action="clock-review" data-id="${esc(a.AjustePontoID)}">Revisar ajuste</button>`
+        : `<div class="pending-request-status">${badge(a.Status || "Pendente")}<small>${a.Status === "Pendente" ? "Aguardando análise do gestor" : "Solicitação concluída"}</small></div>`;
+      entries.push({
+        sortTs: pendingSortTs_(reqRaw || a.DataHoraSolicitada),
+        html: `<article class="request-card clock-request-card pending-unified-card"><div class="pending-all-card-top"><span class="pending-type-chip is-clock">Ajuste de ponto</span>${badge(a.Status || "Pendente")}</div><div class="request-head">${avatarMarkup_(a)}<div><strong>${esc(a.NomeFuncionario)}</strong><span>${esc(clockLabels[a.TipoMarcacao] || a.TipoMarcacao)}</span></div></div>${requestDateBannerHtml_(reqRaw)}<div class="clock-request-change"><div><small>Registrado</small><strong>${esc(formatClockDateTime(a.DataHoraOriginal))}</strong></div><b>→</b><div><small>Solicitado</small><strong>${esc(formatClockDateTime(a.DataHoraSolicitada))}</strong></div></div><p><strong>Motivo:</strong> ${esc(a.Motivo)}</p>${actions}</article>`,
+      });
+    });
+
+    // 3. Trocas de folga
+    const visibleSwaps = arr(state.swaps)
+      .filter((swap) => {
+        if (!manager) return true;
+        return String(val(swap, "Status") || "") === "Aguardando gestor";
+      })
+      .slice(0, 20);
+    visibleSwaps.forEach((swap) => {
+      const id = val(swap, "TrocaID"),
+        status = val(swap, "Status"),
+        reqRaw = extractRequestDateRaw_(swap),
+        isDestination =
+          String(val(swap, "FuncionarioDestinoID")) === currentEmployeeId,
+        pendingAcceptance = status === "Aguardando aceite" && isDestination,
+        managerDecision = status === "Aguardando gestor" && manager,
+        progress =
+          status === "Aguardando aceite"
+            ? 1
+            : status === "Aguardando gestor"
+              ? 2
+              : 3;
+      entries.push({
+        sortTs: pendingSortTs_(reqRaw || val(swap, "DataFolgaOrigem")),
+        html: `<article class="request-card swap-card pending-unified-card">
+          <div class="pending-all-card-top">
+            <span class="pending-type-chip is-swaps">Troca de folga</span>
+            ${badge(status)}
+          </div>
+          ${requestDateBannerHtml_(reqRaw)}
+          <div class="swap-people">
+            <div><span>${initials(val(swap, "NomeFuncionarioOrigem"))}</span><small>Solicitante</small><strong>${esc(val(swap, "NomeFuncionarioOrigem"))}</strong></div>
+            <i>⇄</i>
+            <div><span>${initials(val(swap, "NomeFuncionarioDestino"))}</span><small>Colega</small><strong>${esc(val(swap, "NomeFuncionarioDestino"))}</strong></div>
+          </div>
+          <div class="swap-dates">
+            <div><small>${val(swap, "TipoFolgaOrigem") === "Fixa" ? "Folga fixa atual" : "Folga atual"}</small><strong>${dateBR(val(swap, "DataFolgaOrigem"))}</strong></div>
+            <i>→</i>
+            <div><small>${val(swap, "TipoFolgaDestino") === "Fixa" ? "Folga fixa do colega" : "Folga desejada"}</small><strong>${dateBR(val(swap, "DataFolgaDestino"))}</strong></div>
+          </div>
+          <p class="swap-reason"><span>Motivo</span>${esc(val(swap, "Motivo") || "Não informado")}</p>
+          <div class="swap-progress" aria-label="Etapa ${progress} de 3"><i class="done"></i><i class="${progress >= 2 ? "done" : ""}"></i><i class="${progress >= 3 ? "done" : ""}"></i></div>
+          ${pendingAcceptance ? `<div class="request-card-actions"><button class="btn btn-secondary" onclick="respondSwapUI('${esc(id)}',false)">Recusar</button><button class="btn btn-primary" onclick="respondSwapUI('${esc(id)}',true)">Aceitar troca</button></div>` : ""}
+          ${managerDecision ? `<div class="request-card-actions"><button class="btn btn-secondary" onclick="decideSwapUI('${esc(id)}',false)">Rejeitar</button><button class="btn btn-primary" onclick="decideSwapUI('${esc(id)}',true)">Aprovar troca</button></div>` : ""}
+        </article>`,
+      });
+    });
+
+    // 4. Férias CLT
+    const visibleVacations = arr(state.vacations)
+      .filter((v) =>
+        manager ? statusClass(val(v, "Status", "status")) === "pending" : true,
+      )
+      .slice(0, 20);
+    visibleVacations.forEach((record) => {
+      const id = String(val(record, "FeriasID") || ""),
+        status = String(val(record, "Status") || "Pendente"),
+        reqRaw = extractRequestDateRaw_(record),
+        pending = statusClass(status) === "pending",
+        cancellable = pending || statusClass(status) === "approved",
+        own = String(val(record, "FuncionarioID")) === currentEmployeeId,
+        actions = [];
+      if (pending && manager) {
+        actions.push(
+          `<button class="btn btn-secondary" type="button" onclick="decideVacation_('${esc(id)}','rejeitar',this)">Rejeitar</button>`,
+          `<button class="btn btn-primary" type="button" onclick="decideVacation_('${esc(id)}','aprovar',this)">Aprovar</button>`,
+        );
+      } else if (cancellable && own) {
+        actions.push(
+          `<button class="btn btn-ghost" type="button" onclick="cancelVacation_('${esc(id)}',this)">Cancelar</button>`,
+        );
+      }
+      entries.push({
+        sortTs: pendingSortTs_(reqRaw || val(record, "DataInicio")),
+        html: `<article class="request-card pending-unified-card"><div class="pending-all-card-top"><span class="pending-type-chip is-vacation">Férias CLT</span>${badge(status)}</div><div class="request-card-head">${person(val(record, "NomeFuncionario") || "Funcionário")}</div>${requestDateBannerHtml_(reqRaw)}<div class="pending-card-meta"><span><strong>${dateBR(val(record, "DataInicio"))} até ${dateBR(val(record, "DataFim"))}</strong></span><span>${esc(val(record, "Dias") || 0)} dias</span><span>Parcela ${esc(val(record, "Parcela") || 1)}/${esc(val(record, "TotalParcelas") || 1)}</span>${Number(val(record, "AbonoPecuniario") || 0) ? `<span>Abono: ${esc(val(record, "AbonoPecuniario"))}d</span>` : ""}</div><p>${esc(val(record, "Observacoes") || "Solicitação de férias")}</p>${actions.length ? `<div class="request-card-actions">${actions.join("")}</div>` : ""}</article>`,
+      });
+    });
+
+    // 5. Vales, Atestados e Admissão (Portal Gestão)
+    if (typeof window.getPortalAllPendingEntries === "function") {
+      const portalEntries = window.getPortalAllPendingEntries({
+        isManager: manager,
+        renderedFolgaIds,
+      });
+      if (Array.isArray(portalEntries)) {
+        portalEntries.forEach((entry) => {
+          if (entry && entry.html) entries.push(entry);
+        });
+      }
+    }
+
+    entries.sort((a, b) => (b.sortTs || 0) - (a.sortTs || 0));
+
+    box.innerHTML =
+      entries.map((entry) => entry.html).join("") ||
+      `<div class="panel pending-empty-state"><span>✓</span><strong>${manager ? "Nenhuma solicitação aguardando decisão" : "Você ainda não possui solicitações"}</strong><p>${manager ? "Folgas, vales, ajustes de ponto, trocas e atestados da equipe aparecerão aqui juntos." : "Use os botões acima para solicitar folga ou vale."}</p></div>`;
+
+    if (typeof window.bindPortalAllPendingActions === "function") {
+      window.bindPortalAllPendingActions(box);
+    }
+  }
+
   function setPendingCenterFilter_(filter, silent) {
     const allowed = ["all", "timeoff", "clock", "swaps", "vale", "atestados", "documents", "onboarding"];
     filter = allowed.includes(filter) ? filter : "all";
     state.pendingCenter.filter = filter;
-    $$("[data-pending-filter]").forEach((button) => {
+    $$(".pending-filter-bar [data-pending-filter]").forEach((button) => {
       const active = button.dataset.pendingFilter === filter;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", active ? "true" : "false");
     });
     $$("[data-pending-category]").forEach((section) => {
-      section.classList.toggle(
-        "hidden",
-        filter !== "all" && section.dataset.pendingCategory !== filter,
-      );
+      const cat = section.dataset.pendingCategory;
+      const managerOnlyBlocked =
+        section.classList.contains("permission-manager") && !isManager();
+      section.classList.toggle("hidden", managerOnlyBlocked || cat !== filter);
     });
+    if (filter === "all") {
+      renderAllPendingCards_();
+    }
     if (!silent && window.innerWidth <= 700) {
       $("#view-pending-center .pending-center-content")?.scrollIntoView({
         behavior: "smooth",

@@ -38,7 +38,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
     <meta name="app-version" content="6.17.13-firebase-github" />
     <title>Gestão de Folgas</title>
-    <link rel="stylesheet" href="./generated/legacy-styles-0db0f9a3b010.css">
+    <link rel="stylesheet" href="./generated/legacy-styles-a12113b1d0bf.css">
   </head>
   <body>
     <div id="loadingOverlay" class="loading-overlay">
@@ -695,34 +695,34 @@
               role="region"
               aria-label="Resumo da central"
             >
-              <article class="pending-summary-card is-total">
+              <article class="pending-summary-card is-total" data-pending-filter="all">
                 <span class="pending-summary-icon">◷</span>
                 <div>
                   <strong id="pendingTotalMetric">0</strong
                   ><small>Aguardando</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-timeoff">
+              <article class="pending-summary-card is-timeoff" data-pending-filter="timeoff">
                 <span class="pending-summary-icon">✓</span>
                 <div>
                   <strong id="pendingTimeOffMetric">0</strong
                   ><small>Folgas</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-clock">
+              <article class="pending-summary-card is-clock" data-pending-filter="clock">
                 <span class="pending-summary-icon">⌁</span>
                 <div>
                   <strong id="pendingClockMetric">0</strong
                   ><small>Ajustes de ponto</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-swaps">
+              <article class="pending-summary-card is-swaps" data-pending-filter="swaps">
                 <span class="pending-summary-icon">⇄</span>
                 <div>
                   <strong id="pendingSwapMetric">0</strong><small>Trocas</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-vale">
+              <article class="pending-summary-card is-vale" data-pending-filter="vale">
                 <span class="pending-summary-icon">R$</span>
                 <div>
                   <strong id="pendingValeMetric">0</strong><small>Vales</small>
@@ -740,7 +740,7 @@
                 data-pending-filter="all"
                 type="button"
               >
-                Todas
+                Todas <em id="pendingAllFilterCount">0</em>
               </button>
               <button
                 class="pending-filter-btn"
@@ -773,6 +773,25 @@
             </div>
 
             <div class="pending-center-content">
+              <section
+                class="pending-category"
+                id="pendingAllCategory"
+                data-pending-category="all"
+              >
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon">◷</span>
+                    <div>
+                      <span class="eyebrow">VISÃO UNIFICADA</span>
+                      <h3 id="pendingAllTitle">Todas as solicitações</h3>
+                      <p id="pendingAllDescription">
+                        Folgas, vales, ajustes de ponto, trocas, atestados e demais pedidos reunidos em um só lugar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div id="allPendingCards" class="request-grid"></div>
+              </section>
               <section class="pending-category" data-pending-category="timeoff">
                 <div class="pending-category-head">
                   <div class="pending-category-heading">
@@ -4737,6 +4756,6 @@
 </script>
 <!-- PDF.js (./vendor/pdfjs/pdf.min.js) is loaded on demand by documents.js. -->
 <script type="module" src="./src/main.js?v=6.17.13"></script>
-<script defer src="./generated/legacy-client-2fb525847b54.js"></script>
+<script defer src="./generated/legacy-client-062f09c2d87f.js"></script>
   </body>
 </html>

@@ -701,34 +701,34 @@
               role="region"
               aria-label="Resumo da central"
             >
-              <article class="pending-summary-card is-total">
+              <article class="pending-summary-card is-total" data-pending-filter="all">
                 <span class="pending-summary-icon">◷</span>
                 <div>
                   <strong id="pendingTotalMetric">0</strong
                   ><small>Aguardando</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-timeoff">
+              <article class="pending-summary-card is-timeoff" data-pending-filter="timeoff">
                 <span class="pending-summary-icon">✓</span>
                 <div>
                   <strong id="pendingTimeOffMetric">0</strong
                   ><small>Folgas</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-clock">
+              <article class="pending-summary-card is-clock" data-pending-filter="clock">
                 <span class="pending-summary-icon">⌁</span>
                 <div>
                   <strong id="pendingClockMetric">0</strong
                   ><small>Ajustes de ponto</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-swaps">
+              <article class="pending-summary-card is-swaps" data-pending-filter="swaps">
                 <span class="pending-summary-icon">⇄</span>
                 <div>
                   <strong id="pendingSwapMetric">0</strong><small>Trocas</small>
                 </div>
               </article>
-              <article class="pending-summary-card is-vale">
+              <article class="pending-summary-card is-vale" data-pending-filter="vale">
                 <span class="pending-summary-icon">R$</span>
                 <div>
                   <strong id="pendingValeMetric">0</strong><small>Vales</small>
@@ -746,7 +746,7 @@
                 data-pending-filter="all"
                 type="button"
               >
-                Todas
+                Todas <em id="pendingAllFilterCount">0</em>
               </button>
               <button
                 class="pending-filter-btn"
@@ -779,6 +779,25 @@
             </div>
 
             <div class="pending-center-content">
+              <section
+                class="pending-category"
+                id="pendingAllCategory"
+                data-pending-category="all"
+              >
+                <div class="pending-category-head">
+                  <div class="pending-category-heading">
+                    <span class="pending-category-icon">◷</span>
+                    <div>
+                      <span class="eyebrow">VISÃO UNIFICADA</span>
+                      <h3 id="pendingAllTitle">Todas as solicitações</h3>
+                      <p id="pendingAllDescription">
+                        Folgas, vales, ajustes de ponto, trocas, atestados e demais pedidos reunidos em um só lugar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div id="allPendingCards" class="request-grid"></div>
+              </section>
               <section class="pending-category" data-pending-category="timeoff">
                 <div class="pending-category-head">
                   <div class="pending-category-heading">

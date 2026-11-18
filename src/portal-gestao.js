@@ -4400,10 +4400,22 @@ function formatRequestDateBR(raw, withTime = false) {
   return dStr;
 }
 
+let portalValesCache = [];
+let portalValesRoleState = { isAdminUser: false, isManagerUser: false };
+let portalAtestadosCache = [];
+let portalOnboardingPendingCache = [];
+
+function parsePortalSortTs(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return 0;
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(s) ? Date.parse(`${s}T12:00:00`) : Date.parse(s);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 function renderPortalRequestDateBanner(raw) {
   const formatted = formatRequestDateBR(raw, true);
   if (!formatted) return "";
-  return `<div class="request-date-banner" title="Data em que o funcionário enviou a solicitação"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>Solicitado em <strong>${escapeHtml(formatted)}</strong></span></div>`;
+  return `<div class="request-date-banner" title="Data em que o funcionário enviou a solicitação"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>Solicitado em <strong>${escapeHtml(formatted)}</strong></span></div>`;
 }
 
 function openValeApprovalDialog(vale) {
@@ -4644,10 +4656,11 @@ async function loadValesList() {
     const isAdminUser = isDiretoriaProfile(profile);
     const isManagerUser = isGerenteProfile(profile);
 
-    const pendingCount = vales.filter((v) => {
-      if (isAdminUser) return v.Status === "Validado pelo Gerente" || v.Status === "Solicitado";
-      return false;
-    }).length;
+    const pendingCount = vales.filter(
+      (v) => v.Status === "Validado pelo Gerente" || v.Status === "Solicitado",
+    ).length;
+    portalValesCache = vales;
+    portalValesRoleState = { isAdminUser, isManagerUser };
     window.__portalValesPendingCount = pendingCount;
     window.syncPendingCenterSummary?.();
 
@@ -6537,6 +6550,7 @@ function enhanceUnifiedPendingCenter() {
     const card = document.createElement("article");
     card.id = "pendingAtestadoSummaryCard";
     card.className = "pending-summary-card is-atestados permission-manager";
+    card.setAttribute("data-pending-filter", "atestados");
     card.innerHTML = `
       <span class="pending-summary-icon">+</span>
       <div>
@@ -6597,6 +6611,218 @@ function enhanceUnifiedPendingCenter() {
       onboardingSec.appendChild(grid);
     }
   }
+}
+
+function bindAtestadoActionButtons(rootEl) {
+  if (!rootEl) return;
+  rootEl.querySelectorAll("[data-view-atestado-src]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const src = btn.getAttribute("data-view-atestado-src");
+      const id = btn.getAttribute("data-atestado-id");
+      const url = btn.getAttribute("data-atestado-url");
+      if (src === "doc" && typeof window.openPreviewDialog === "function") {
+        window.openPreviewDialog(id);
+      } else if (url && (parseDriveFileId(url) || url.startsWith("data:"))) {
+        openOnboardingFilePreview("Comprovante / Atestado", [
+          {
+            arquivoUrl: url,
+            driveFileId: parseDriveFileId(url) || "",
+            nomeArquivo: "Comprovante Anexo",
+          },
+        ]);
+      } else if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    });
+  });
+
+  rootEl.querySelectorAll("[data-approve-atestado-src]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const src = btn.getAttribute("data-approve-atestado-src");
+      const id = btn.getAttribute("data-atestado-id");
+      const folgaId = btn.getAttribute("data-folga-id");
+      try {
+        btn.disabled = true;
+        if (src === "just") {
+          await invokePortal("validarAtestadoMedico", { JustificativaPontoID: id, aprovar: true });
+        } else if (folgaId) {
+          await runtime.invoke("approveTimeOff", [folgaId, "Atestado aprovado na Central de Demandas"]);
+        } else {
+          await runtime.update("Documentos", id, { Status: "Aprovado" });
+        }
+        showPortalToast("Atestado aprovado e faltas abonadas!", "success");
+        await loadUnifiedPendingHrItems();
+      } catch (err) {
+        showPortalToast(err.message || "Erro ao aprovar atestado.", "error");
+        btn.disabled = false;
+      }
+    });
+  });
+
+  rootEl.querySelectorAll("[data-reject-atestado-src]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const motivo = window.prompt("Informe o motivo da recusa do atestado:", "Atestado ilegível ou inválido");
+      if (motivo === null) return;
+      const src = btn.getAttribute("data-reject-atestado-src");
+      const id = btn.getAttribute("data-atestado-id");
+      const folgaId = btn.getAttribute("data-folga-id");
+      try {
+        btn.disabled = true;
+        if (src === "just") {
+          await invokePortal("validarAtestadoMedico", { JustificativaPontoID: id, aprovar: false, observacao: motivo });
+        } else if (folgaId) {
+          await runtime.invoke("rejectTimeOff", [folgaId, motivo]);
+        } else {
+          await runtime.update("Documentos", id, { Status: "Rejeitado", MotivoRecusa: motivo });
+        }
+        showPortalToast("Atestado recusado.", "info");
+        await loadUnifiedPendingHrItems();
+      } catch (err) {
+        showPortalToast(err.message || "Erro ao recusar atestado.", "error");
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function bindOnboardingActionButtons(rootEl) {
+  if (!rootEl) return;
+  rootEl.querySelectorAll("[data-conferir-onb-emp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const empId = btn.getAttribute("data-conferir-onb-emp");
+      if (!empId) return;
+      window.__PORTAL_OPEN_EMP_TAB__ = "emp-tab-funil";
+      if (typeof window.editEmployee === "function") {
+        window.editEmployee(empId);
+      } else {
+        openEmployee360Dossier(empId);
+      }
+    });
+  });
+}
+
+function getPortalAllPendingEntries({ isManager = false, renderedFolgaIds = new Set() } = {}) {
+  const entries = [];
+  const profile = runtime?.profile || {};
+  const isAdminUser = portalValesRoleState.isAdminUser || isDiretoriaProfile(profile);
+  const isManagerUser = portalValesRoleState.isManagerUser || isGerenteProfile(profile);
+  const managerMode = Boolean(isManager || isManagerUser || isAdminUser);
+
+  const visibleVales = managerMode
+    ? portalValesCache.filter((v) => v.Status === "Validado pelo Gerente" || v.Status === "Solicitado")
+    : portalValesCache.slice(0, 20);
+
+  visibleVales.forEach((v) => {
+    const actions = buildValeActionButtons(v, isManagerUser, isAdminUser);
+    const { pillCls } = getValeStatusMeta(v.Status);
+    const compHtml = renderValeComprovanteAction(v, "Ver Comprovante");
+    const paraStr = formatRequestDateBR(v.DataDesejada, false) || v.DataDesejada || "-";
+    const reqRaw =
+      v.DataCriacao ||
+      v.DataSolicitacao ||
+      v.CriadoEm ||
+      v.DataEnvio ||
+      v.DataAtualizacao;
+    entries.push({
+      sortTs: parsePortalSortTs(reqRaw || v.DataDesejada),
+      html: `
+        <article class="request-card pending-unified-card">
+          <div class="pending-all-card-top">
+            <span class="pending-type-chip is-vale">Vale</span>
+            <span class="portal-pill ${pillCls}">${escapeHtml(v.Status)}</span>
+          </div>
+          <div class="request-card-head">
+            <div class="person-cell"><strong>${escapeHtml(v.FuncionarioNome || "Colaborador")}</strong></div>
+          </div>
+          ${renderPortalRequestDateBanner(reqRaw)}
+          <div class="pending-card-meta">
+            <span><strong>${formatBRL(v.Valor)}</strong></span>
+            <span>Para: <strong>${escapeHtml(paraStr)}</strong></span>
+            <span>${escapeHtml(v.NomeLoja || v.LojaID || "-")}</span>
+          </div>
+          <p>${escapeHtml(v.Motivo || "Sem motivo informado")}</p>
+          ${compHtml ? `<div style="margin-bottom:8px;">${compHtml}</div>` : ""}
+          ${actions.length ? `<div class="request-card-actions">${actions.join("")}</div>` : ""}
+        </article>
+      `,
+    });
+  });
+
+  portalAtestadosCache.forEach((a) => {
+    if (a.folgaId && renderedFolgaIds.has(String(a.folgaId))) return;
+    const actionBtns = [];
+    if (a.source === "doc" || a.url) {
+      actionBtns.push(
+        `<button type="button" class="btn btn-secondary btn-sm" data-view-atestado-src="${a.source}" data-atestado-id="${escapeHtml(a.id)}" data-atestado-url="${escapeHtml(a.url)}">Ver Anexo</button>`,
+      );
+    }
+    if (isManagerUser || isAdminUser) {
+      actionBtns.push(
+        `<button type="button" class="btn btn-secondary btn-sm" data-reject-atestado-src="${a.source}" data-atestado-id="${escapeHtml(a.id)}" data-folga-id="${escapeHtml(a.folgaId)}">Recusar</button>`,
+        `<button type="button" class="btn btn-primary btn-sm" data-approve-atestado-src="${a.source}" data-atestado-id="${escapeHtml(a.id)}" data-folga-id="${escapeHtml(a.folgaId)}">Aprovar &amp; Abonar</button>`,
+      );
+    }
+    entries.push({
+      sortTs: parsePortalSortTs(a.criadoEm),
+      html: `
+        <article class="request-card pending-unified-card">
+          <div class="pending-all-card-top">
+            <span class="pending-type-chip is-atestados">Atestado</span>
+            <span class="portal-pill portal-pill--amber">Pendente</span>
+          </div>
+          <div class="request-card-head">
+            <div class="person-cell"><strong>${escapeHtml(a.empName)}</strong></div>
+          </div>
+          ${renderPortalRequestDateBanner(a.criadoEm)}
+          <div class="pending-card-meta">
+            <span><strong>${escapeHtml(a.periodo)}</strong> (${escapeHtml(String(a.dias))} dia(s))</span>
+            <span>${escapeHtml(a.loja)}</span>
+          </div>
+          <p>${escapeHtml(a.motivo)}</p>
+          ${actionBtns.length ? `<div class="request-card-actions">${actionBtns.join("")}</div>` : ""}
+        </article>
+      `,
+    });
+  });
+
+  if (managerMode) {
+    portalOnboardingPendingCache.forEach((e) => {
+      const reqRaw = e.OnboardingEnviadoEm || e.DataCriacao || e.CriadoEm || e.DataAtualizacao || "";
+      entries.push({
+        sortTs: parsePortalSortTs(reqRaw),
+        html: `
+          <article class="request-card pending-unified-card">
+            <div class="pending-all-card-top">
+              <span class="pending-type-chip is-onboarding">Admissão</span>
+              <span class="portal-pill portal-pill--amber">Aguardando Conferência</span>
+            </div>
+            <div class="request-card-head">
+              <div class="person-cell"><strong>${escapeHtml(e.Nome || "Novo Colaborador")}</strong></div>
+            </div>
+            ${renderPortalRequestDateBanner(reqRaw)}
+            <div class="pending-card-meta">
+              <span>${escapeHtml(e.NomeLoja || e.LojaID || "-")}</span>
+              <span>Onboarding enviado</span>
+            </div>
+            <p>Preencheu ficha e documentos pelo link · Pronto para liberar acesso</p>
+            <div class="request-card-actions">
+              <button type="button" class="btn btn-secondary btn-sm" data-open-dossier-emp="${escapeHtml(e.FuncionarioID)}">Abrir Dossiê</button>
+              <button type="button" class="btn btn-primary btn-sm" data-conferir-onb-emp="${escapeHtml(e.FuncionarioID)}">Conferir &amp; Liberar</button>
+            </div>
+          </article>
+        `,
+      });
+    });
+  }
+
+  return entries;
+}
+
+function bindPortalAllPendingActions(rootEl) {
+  if (!rootEl) return;
+  bindValeActionButtons(rootEl);
+  bindAtestadoActionButtons(rootEl);
+  bindOnboardingActionButtons(rootEl);
 }
 
 async function loadUnifiedPendingHrItems() {
@@ -6671,6 +6897,7 @@ async function loadUnifiedPendingHrItems() {
       })),
     ];
 
+    portalAtestadosCache = mergedAtestados;
     window.__portalAtestadosPendingCount = mergedAtestados.length;
     if (typeof window.syncPendingCenterSummary === "function") {
       window.syncPendingCenterSummary();
@@ -6712,75 +6939,7 @@ async function loadUnifiedPendingHrItems() {
             },
           )
           .join("");
-
-        atestadosContainer.querySelectorAll("[data-view-atestado-src]").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const src = btn.getAttribute("data-view-atestado-src");
-            const id = btn.getAttribute("data-atestado-id");
-            const url = btn.getAttribute("data-atestado-url");
-            if (src === "doc" && typeof window.openPreviewDialog === "function") {
-              window.openPreviewDialog(id);
-            } else if (url && (parseDriveFileId(url) || url.startsWith("data:"))) {
-              openOnboardingFilePreview("Comprovante / Atestado", [
-                {
-                  arquivoUrl: url,
-                  driveFileId: parseDriveFileId(url) || "",
-                  nomeArquivo: "Comprovante Anexo",
-                },
-              ]);
-            } else if (url) {
-              window.open(url, "_blank", "noopener,noreferrer");
-            }
-          });
-        });
-
-        atestadosContainer.querySelectorAll("[data-approve-atestado-src]").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const src = btn.getAttribute("data-approve-atestado-src");
-            const id = btn.getAttribute("data-atestado-id");
-            const folgaId = btn.getAttribute("data-folga-id");
-            try {
-              btn.disabled = true;
-              if (src === "just") {
-                await invokePortal("validarAtestadoMedico", { JustificativaPontoID: id, aprovar: true });
-              } else if (folgaId) {
-                await runtime.invoke("approveTimeOff", [folgaId, "Atestado aprovado na Central de Demandas"]);
-              } else {
-                await runtime.update("Documentos", id, { Status: "Aprovado" });
-              }
-              showPortalToast("Atestado aprovado e faltas abonadas!", "success");
-              await loadUnifiedPendingHrItems();
-            } catch (err) {
-              showPortalToast(err.message || "Erro ao aprovar atestado.", "error");
-              btn.disabled = false;
-            }
-          });
-        });
-
-        atestadosContainer.querySelectorAll("[data-reject-atestado-src]").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const motivo = window.prompt("Informe o motivo da recusa do atestado:", "Atestado ilegível ou inválido");
-            if (motivo === null) return;
-            const src = btn.getAttribute("data-reject-atestado-src");
-            const id = btn.getAttribute("data-atestado-id");
-            const folgaId = btn.getAttribute("data-folga-id");
-            try {
-              btn.disabled = true;
-              if (src === "just") {
-                await invokePortal("validarAtestadoMedico", { JustificativaPontoID: id, aprovar: false, observacao: motivo });
-              } else if (folgaId) {
-                await runtime.invoke("rejectTimeOff", [folgaId, motivo]);
-              } else {
-                await runtime.update("Documentos", id, { Status: "Rejeitado", MotivoRecusa: motivo });
-              }
-              showPortalToast("Atestado recusado.", "info");
-              await loadUnifiedPendingHrItems();
-            } catch (err) {
-              showPortalToast(err.message || "Erro ao recusar atestado.", "error");
-              btn.disabled = false;
-            }
-          });
-        });
+        bindAtestadoActionButtons(atestadosContainer);
       }
     }
 
@@ -6789,6 +6948,7 @@ async function loadUnifiedPendingHrItems() {
         if (storeId && String(e.LojaID || "") !== String(storeId)) return false;
         return isOnboardingReadyForReview(e);
       });
+      portalOnboardingPendingCache = awaitingReview;
       window.__portalOnboardingPendingCount = awaitingReview.length;
       if (typeof window.syncPendingCenterSummary === "function") {
         window.syncPendingCenterSummary();
@@ -6859,18 +7019,7 @@ async function loadUnifiedPendingHrItems() {
             .join("")
         : `<div class="empty-state" style="padding:14px;">Toda a equipe está com onboarding concluído e sem vencimentos próximos.</div>`;
 
-      onboardingContainer.querySelectorAll("[data-conferir-onb-emp]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const empId = btn.getAttribute("data-conferir-onb-emp");
-          if (!empId) return;
-          window.__PORTAL_OPEN_EMP_TAB__ = "emp-tab-funil";
-          if (typeof window.editEmployee === "function") {
-            window.editEmployee(empId);
-          } else {
-            openEmployee360Dossier(empId);
-          }
-        });
-      });
+      bindOnboardingActionButtons(onboardingContainer);
     }
   } catch {
     // Silencioso
@@ -7983,6 +8132,8 @@ if (typeof window !== "undefined") {
   window.refreshPortalViews = refreshPortalViews;
   window.loadValesList = loadValesList;
   window.loadUnifiedPendingHrItems = loadUnifiedPendingHrItems;
+  window.getPortalAllPendingEntries = getPortalAllPendingEntries;
+  window.bindPortalAllPendingActions = bindPortalAllPendingActions;
   window.openEmployee360Dossier = openEmployee360Dossier;
   window.renderEmployeeOnboardingState = renderEmployeeOnboardingState;
   window.mountOnboardingSelfPortal = mountOnboardingSelfPortal;
