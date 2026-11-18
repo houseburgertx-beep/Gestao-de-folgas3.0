@@ -8087,29 +8087,63 @@
     font-size: 9px;
     font-weight: 750;
   }
-  .pending-card-meta span.request-date-pill {
-    color: var(--muted);
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  .request-date-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 0 4px;
+    padding: 6px 11px;
+    border-radius: 9px;
+    background: linear-gradient(90deg, #eff6ff 0%, #f5f3ff 100%);
+    border: 1px solid #bfdbfe;
+    border-left: 3.5px solid #2563eb;
+    color: #1e40af;
+    font-size: 12px;
     font-weight: 600;
+    line-height: 1.25;
     font-variant-numeric: tabular-nums;
+    width: fit-content;
+    max-width: 100%;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.06);
+  }
+  .request-date-banner svg {
+    flex-shrink: 0;
+    color: #2563eb;
+  }
+  .request-date-banner strong {
+    color: #1d4ed8;
+    font-weight: 800;
     letter-spacing: -0.01em;
   }
-  .request-date-inline {
-    margin-right: auto;
-    margin-left: 8px;
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+  [data-theme="dark"] .request-date-banner {
+    background: rgba(37, 99, 235, 0.16);
+    border-color: rgba(96, 165, 250, 0.35);
+    border-left-color: #60a5fa;
+    color: #bfdbfe;
+  }
+  [data-theme="dark"] .request-date-banner svg,
+  [data-theme="dark"] .request-date-banner strong {
+    color: #93c5fd;
   }
   .table-sub-date {
-    display: block;
-    margin-top: 2px;
-    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
+    width: fit-content;
+  }
+  [data-theme="dark"] .table-sub-date {
+    background: rgba(37, 99, 235, 0.18);
+    border-color: rgba(96, 165, 250, 0.35);
+    color: #93c5fd;
   }
   .pending-request-status {
     margin-top: auto;

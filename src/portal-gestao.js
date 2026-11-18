@@ -4400,6 +4400,12 @@ function formatRequestDateBR(raw, withTime = false) {
   return dStr;
 }
 
+function renderPortalRequestDateBanner(raw) {
+  const formatted = formatRequestDateBR(raw, true);
+  if (!formatted) return "";
+  return `<div class="request-date-banner" title="Data em que o funcionário enviou a solicitação"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>Solicitado em <strong>${escapeHtml(formatted)}</strong></span></div>`;
+}
+
 function openValeApprovalDialog(vale) {
   if (!vale?.ValeID) return;
   const dlg = ensureValeApprovalDialog();
@@ -4412,7 +4418,7 @@ function openValeApprovalDialog(vale) {
   let pendingDataUrl = "";
 
   const comp = String(vale.Competencia || vale.DataDesejada || todayIso()).slice(0, 7);
-  const reqAt = formatRequestDateBR(vale.DataCriacao || vale.DataSolicitacao || vale.CriadoEm, true);
+  const reqAt = formatRequestDateBR(vale.DataCriacao || vale.DataSolicitacao || vale.CriadoEm || vale.DataEnvio || vale.DataAtualizacao, true);
   const paraStr = formatRequestDateBR(vale.DataDesejada, false) || vale.DataDesejada || "-";
   dlg.querySelector("#valeAprTitle").textContent = `Aprovar Vale — ${vale.FuncionarioNome || "Colaborador"}`;
   dlg.querySelector("#valeAprSubtitle").textContent = `${vale.NomeLoja || vale.LojaID || "-"} · Para ${paraStr}${reqAt ? ` · Solicitado em ${reqAt}` : ""}`;
@@ -4655,10 +4661,13 @@ async function loadValesList() {
             const { pillCls } = getValeStatusMeta(v.Status);
             const compHtml = renderValeComprovanteAction(v, "Abrir Comprovante") || "-";
             const paraStr = formatRequestDateBR(v.DataDesejada, false) || v.DataDesejada || "-";
-            const reqAt = formatRequestDateBR(v.DataCriacao || v.DataSolicitacao || v.CriadoEm, true);
+            const reqAt = formatRequestDateBR(
+              v.DataCriacao || v.DataSolicitacao || v.CriadoEm || v.DataEnvio || v.DataAtualizacao,
+              true,
+            );
             return `
               <tr>
-                <td data-label="Data">${escapeHtml(paraStr)}${reqAt ? `<small class="table-sub-date">Solicitado em ${escapeHtml(reqAt)}</small>` : ""}</td>
+                <td data-label="Data"><div><span>${escapeHtml(paraStr)}</span>${reqAt ? `<div><span class="table-sub-date">Solicitado em ${escapeHtml(reqAt)}</span></div>` : ""}</div></td>
                 <td data-label="Colaborador"><strong>${v.FuncionarioNome || "-"}</strong></td>
                 <td data-label="Unidade">${v.NomeLoja || v.LojaID || "-"}</td>
                 <td data-label="Valor" class="portal-num-col" style="font-weight:700; color:var(--ink);">${formatBRL(v.Valor)}</td>
@@ -4685,18 +4694,23 @@ async function loadValesList() {
             const { pillCls } = getValeStatusMeta(v.Status);
             const compHtml = renderValeComprovanteAction(v, "Ver Comprovante");
             const paraStr = formatRequestDateBR(v.DataDesejada, false) || v.DataDesejada || "-";
-            const reqAt = formatRequestDateBR(v.DataCriacao || v.DataSolicitacao || v.CriadoEm, true);
+            const reqRaw =
+              v.DataCriacao ||
+              v.DataSolicitacao ||
+              v.CriadoEm ||
+              v.DataEnvio ||
+              v.DataAtualizacao;
             return `
               <article class="request-card pending-unified-card">
                 <div class="request-card-head">
                   <div class="person-cell"><strong>${v.FuncionarioNome || "Colaborador"}</strong></div>
                   <span class="portal-pill ${pillCls}">${v.Status}</span>
                 </div>
+                ${renderPortalRequestDateBanner(reqRaw)}
                 <div class="pending-card-meta">
                   <span><strong>${formatBRL(v.Valor)}</strong></span>
                   <span>Para: <strong>${escapeHtml(paraStr)}</strong></span>
                   <span>${v.NomeLoja || v.LojaID || "-"}</span>
-                  ${reqAt ? `<span class="request-date-pill" title="Data em que o colaborador enviou a solicitação">Solicitado em ${escapeHtml(reqAt)}</span>` : ""}
                 </div>
                 <p>${v.Motivo || "Sem motivo informado"}</p>
                 ${compHtml ? `<div style="margin-bottom:8px;">${compHtml}</div>` : ""}
@@ -6640,7 +6654,7 @@ async function loadUnifiedPendingHrItems() {
         dias: d.DiasAbono || 1,
         motivo: d.Observacao || d.CRM || d.Titulo || "Atestado Médico",
         url: d.ArquivoUrl || d.ArquivoURL || d.ArquivoOriginalBase64 || "",
-        criadoEm: d.DataCriacao || d.DataEnvio || d.DataSolicitacao || "",
+        criadoEm: d.DataCriacao || d.DataEnvio || d.DataSolicitacao || d.DataAtualizacao || "",
       })),
       ...pendingJust.map((j) => ({
         source: "just",
@@ -6653,7 +6667,7 @@ async function loadUnifiedPendingHrItems() {
         dias: j.DiasAfastamento || 1,
         motivo: j.Motivo || "Atestado Médico",
         url: j.ArquivoURL || j.ArquivoUrl || "",
-        criadoEm: j.DataCriacao || j.DataSolicitacao || "",
+        criadoEm: j.DataCriacao || j.DataSolicitacao || j.DataAtualizacao || "",
       })),
     ];
 
@@ -6669,16 +6683,16 @@ async function loadUnifiedPendingHrItems() {
         atestadosContainer.innerHTML = mergedAtestados
           .map(
             (a) => {
-              const reqAt = a.criadoEm ? formatRequestDateBR(a.criadoEm, true) : "";
               return `
             <article class="panel" style="padding:14px; display:grid; gap:10px;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                 <div>
                   <strong style="font-size:14px;">${escapeHtml(a.empName)}</strong>
-                  <small style="display:block; color:var(--muted);">${escapeHtml(a.loja)} · Período: ${escapeHtml(a.periodo)} (${escapeHtml(String(a.dias))} dia(s))${reqAt ? ` · Solicitado em ${escapeHtml(reqAt)}` : ""}</small>
+                  <small style="display:block; color:var(--muted);">${escapeHtml(a.loja)} · Período: ${escapeHtml(a.periodo)} (${escapeHtml(String(a.dias))} dia(s))</small>
                 </div>
                 <span class="portal-pill portal-pill--amber">Pendente</span>
               </div>
+              ${renderPortalRequestDateBanner(a.criadoEm)}
               <p style="margin:0; font-size:12.5px; color:var(--ink-2, #475569);">${escapeHtml(a.motivo)}</p>
               <div style="display:flex; flex-wrap:wrap; gap:8px;">
                 ${
