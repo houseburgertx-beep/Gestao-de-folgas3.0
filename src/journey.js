@@ -75,6 +75,16 @@ function person(p) {
 function unitSelect() { return data.manager ? `<label class="j-unit"><span>Unidade</span><select data-j-unit aria-label="Selecionar unidade"><option value="">Todas as unidades</option>${stores().map(s=>`<option value="${esc(storeId(s))}" ${storeId(s)===unit?'selected':''}>${esc(storeName(s) || 'Unidade sem nome')}</option>`).join('')}</select></label>` : ''; }
 const ownId = () => String(data.user?.FuncionarioID || data.user?.funcionarioId || '');
 const dateLabel = day => day ? new Date(day.slice(0,10)+'T12:00:00Z').toLocaleDateString('pt-BR',{timeZone:'America/Bahia',day:'2-digit',month:'short'}) : 'Data não informada';
+const reqDateLabel = raw => {
+ const s = String(raw || '').trim();
+ if (!s) return '';
+ if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+  const [y, m, d] = s.split('-');
+  return `${d}/${m}/${y}`;
+ }
+ const dt = new Date(s);
+ return Number.isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('pt-BR', { timeZone: 'America/Bahia', day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 const norm = text => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const scoped = items => list(items).filter(x => data.manager ? (!unit || String(x.LojaID || list(data.employees).find(p=>String(p.FuncionarioID)===String(x.FuncionarioID))?.LojaID || '') === unit) : String(x.FuncionarioID) === ownId());
 const approved = x => ['aprovada','concluida'].includes(norm(x.Status));
@@ -85,7 +95,8 @@ function leaveItems(items, manager=false) {
   const reason = String(x.Motivo || '').trim();
   const isDuplicateReason = reason && norm(reason) === norm(x.TipoFolga);
   const detail = isDuplicateReason ? (approved(x) ? 'Solicitação confirmada pela liderança' : 'Aguardando decisão da liderança') : (reason || 'Acompanhe a decisão da gestão');
-  return `<div class="w-request"><div class="w-date"><strong>${esc(dateLabel(x.DataInicio))}</strong><small>${x.DataFim && x.DataFim!==x.DataInicio?'até '+esc(dateLabel(x.DataFim)):esc(manager?x.TipoFolga || 'Folga':'Solicitação')}</small></div><div class="w-request-body"><strong>${type}</strong><small>${esc(manager?x.NomeLoja || '':detail)}</small></div><span class="w-badge ${approved(x)?'ok':'wait'}">${esc(x.Status || 'Pendente')}</span></div>`;
+  const reqAt = reqDateLabel(x.DataSolicitacao || x.DataCriacao || x.CriadoEm);
+  return `<div class="w-request"><div class="w-date"><strong>${esc(dateLabel(x.DataInicio))}</strong><small>${x.DataFim && x.DataFim!==x.DataInicio?'até '+esc(dateLabel(x.DataFim)):esc(manager?x.TipoFolga || 'Folga':'Solicitação')}</small></div><div class="w-request-body"><strong>${type}</strong><small>${esc(manager?x.NomeLoja || '':detail)}${reqAt ? ` · Solicitado em ${esc(reqAt)}` : ''}</small></div><span class="w-badge ${approved(x)?'ok':'wait'}">${esc(x.Status || 'Pendente')}</span></div>`;
  }).join('');
 }
 function managerCommand() {
@@ -245,7 +256,7 @@ function operation() {
  </div>${renderOperationalNoticeCard()}${renderCraqueDaSemanaCard()}<article class="j-card w-queue"><div class="j-card-top"><div><span class="eyebrow">CENTRAL DE DECISÕES</span><h3>Pendências da operação</h3></div><span class="w-badge wait">${data.coreReady?requests.length+missing.length:'…'} para revisar</span></div>
  <div class="w-queue-tabs"><button data-view-target="pending-center"><strong>${data.coreReady?requests.length:'—'}</strong> pedidos de folga <span>↗</span></button><button data-view-target="timeclock"><strong>${data.pending?missing.length:'—'}</strong> pontos incompletos <span>↗</span></button></div>
  ${missing.slice(0,3).map(x=>`<div class="w-task"><span class="w-task-mark">!</span><div><strong>${esc(x.NomeFuncionario || x.Nome)}</strong><small>${esc(dateLabel(x.Data))} · Ponto incompleto</small><p>Conferir as marcações antes de fechar as horas.</p></div><button class="btn btn-secondary" data-j-clock="${esc(x.FuncionarioID)}" data-j-day="${esc(x.Data)}">Conferir</button></div>`).join('')}
- ${requests.slice(0,3).map(x=>`<div class="w-task"><span class="w-task-mark neutral">✓</span><div><strong>${esc(x.NomeFuncionario)}</strong><small>${esc(dateLabel(x.DataInicio))} · ${esc(x.TipoFolga || 'Folga')}</small><p>${esc(x.Motivo || 'Aguardando sua decisão')}</p></div><button class="btn btn-secondary" data-action="approve" data-id="${esc(x.FolgaID)}">Analisar</button></div>`).join('')}
+ ${requests.slice(0,3).map(x=>{const reqAt=reqDateLabel(x.DataSolicitacao || x.DataCriacao || x.CriadoEm); return `<div class="w-task"><span class="w-task-mark neutral">✓</span><div><strong>${esc(x.NomeFuncionario)}</strong><small>${esc(dateLabel(x.DataInicio))} · ${esc(x.TipoFolga || 'Folga')}${reqAt ? ` · Solicitado em ${esc(reqAt)}` : ''}</small><p>${esc(x.Motivo || 'Aguardando sua decisão')}</p></div><button class="btn btn-secondary" data-action="approve" data-id="${esc(x.FolgaID)}">Analisar</button></div>`;}).join('')}
  ${!requests.length&&!missing.length?emptyState(data.coreReady?'Nenhum pedido nesta seleção':'Carregando solicitações',data.pending?'As conferências de ponto também estão em dia.':'A conferência dos registros de ponto está sendo carregada.') : ''}
  <button class="btn btn-ghost" data-view-target="pending-center">Abrir central de pendências →</button></article>
  <article class="j-card w-live"><div class="j-card-top"><div><span class="eyebrow">PRESENÇA</span><h3>Agora na unidade</h3><small>${ready?`${present.length} de ${r.length} presentes · ${pct}% da equipe`:'Consultando as marcações…'}</small></div><span class="j-live"><i></i> HOJE</span></div>${present.slice(0,4).map(person).join('')||emptyState(ready?'Ninguém com turno aberto':'Carregando equipe')}

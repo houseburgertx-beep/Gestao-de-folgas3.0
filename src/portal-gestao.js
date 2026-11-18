@@ -4374,6 +4374,32 @@ function ensureValeApprovalDialog() {
   return dlg;
 }
 
+function formatRequestDateBR(raw, withTime = false) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  const dt = new Date(s);
+  if (Number.isNaN(dt.getTime())) return s;
+  const dStr = dt.toLocaleDateString("pt-BR", {
+    timeZone: "America/Bahia",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  if (withTime && s.includes("T")) {
+    const tStr = dt.toLocaleTimeString("pt-BR", {
+      timeZone: "America/Bahia",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    if (tStr && tStr !== "00:00") return `${dStr} às ${tStr}`;
+  }
+  return dStr;
+}
+
 function openValeApprovalDialog(vale) {
   if (!vale?.ValeID) return;
   const dlg = ensureValeApprovalDialog();
@@ -4386,8 +4412,10 @@ function openValeApprovalDialog(vale) {
   let pendingDataUrl = "";
 
   const comp = String(vale.Competencia || vale.DataDesejada || todayIso()).slice(0, 7);
+  const reqAt = formatRequestDateBR(vale.DataCriacao || vale.DataSolicitacao || vale.CriadoEm, true);
+  const paraStr = formatRequestDateBR(vale.DataDesejada, false) || vale.DataDesejada || "-";
   dlg.querySelector("#valeAprTitle").textContent = `Aprovar Vale — ${vale.FuncionarioNome || "Colaborador"}`;
-  dlg.querySelector("#valeAprSubtitle").textContent = `${vale.NomeLoja || vale.LojaID || "-"} · Para ${vale.DataDesejada || "-"}`;
+  dlg.querySelector("#valeAprSubtitle").textContent = `${vale.NomeLoja || vale.LojaID || "-"} · Para ${paraStr}${reqAt ? ` · Solicitado em ${reqAt}` : ""}`;
   dlg.querySelector("#valeAprValor").textContent = formatBRL(vale.Valor);
   dlg.querySelector("#valeAprComp").textContent = comp;
   dlg.querySelector("#valeAprMotivo").textContent = vale.Motivo || "Sem motivo informado";
@@ -4626,9 +4654,11 @@ async function loadValesList() {
             const actions = buildValeActionButtons(v, isManagerUser, isAdminUser);
             const { pillCls } = getValeStatusMeta(v.Status);
             const compHtml = renderValeComprovanteAction(v, "Abrir Comprovante") || "-";
+            const paraStr = formatRequestDateBR(v.DataDesejada, false) || v.DataDesejada || "-";
+            const reqAt = formatRequestDateBR(v.DataCriacao || v.DataSolicitacao || v.CriadoEm, true);
             return `
               <tr>
-                <td data-label="Data">${v.DataDesejada || "-"}</td>
+                <td data-label="Data">${escapeHtml(paraStr)}${reqAt ? `<small class="table-sub-date">Solicitado em ${escapeHtml(reqAt)}</small>` : ""}</td>
                 <td data-label="Colaborador"><strong>${v.FuncionarioNome || "-"}</strong></td>
                 <td data-label="Unidade">${v.NomeLoja || v.LojaID || "-"}</td>
                 <td data-label="Valor" class="portal-num-col" style="font-weight:700; color:var(--ink);">${formatBRL(v.Valor)}</td>
@@ -4654,6 +4684,8 @@ async function loadValesList() {
             const actions = buildValeActionButtons(v, isManagerUser, isAdminUser);
             const { pillCls } = getValeStatusMeta(v.Status);
             const compHtml = renderValeComprovanteAction(v, "Ver Comprovante");
+            const paraStr = formatRequestDateBR(v.DataDesejada, false) || v.DataDesejada || "-";
+            const reqAt = formatRequestDateBR(v.DataCriacao || v.DataSolicitacao || v.CriadoEm, true);
             return `
               <article class="request-card pending-unified-card">
                 <div class="request-card-head">
@@ -4662,8 +4694,9 @@ async function loadValesList() {
                 </div>
                 <div class="pending-card-meta">
                   <span><strong>${formatBRL(v.Valor)}</strong></span>
-                  <span>Para: <strong>${v.DataDesejada || "-"}</strong></span>
+                  <span>Para: <strong>${escapeHtml(paraStr)}</strong></span>
                   <span>${v.NomeLoja || v.LojaID || "-"}</span>
+                  ${reqAt ? `<span class="request-date-pill" title="Data em que o colaborador enviou a solicitação">Solicitado em ${escapeHtml(reqAt)}</span>` : ""}
                 </div>
                 <p>${v.Motivo || "Sem motivo informado"}</p>
                 ${compHtml ? `<div style="margin-bottom:8px;">${compHtml}</div>` : ""}
@@ -6607,6 +6640,7 @@ async function loadUnifiedPendingHrItems() {
         dias: d.DiasAbono || 1,
         motivo: d.Observacao || d.CRM || d.Titulo || "Atestado Médico",
         url: d.ArquivoUrl || d.ArquivoURL || d.ArquivoOriginalBase64 || "",
+        criadoEm: d.DataCriacao || d.DataEnvio || d.DataSolicitacao || "",
       })),
       ...pendingJust.map((j) => ({
         source: "just",
@@ -6619,6 +6653,7 @@ async function loadUnifiedPendingHrItems() {
         dias: j.DiasAfastamento || 1,
         motivo: j.Motivo || "Atestado Médico",
         url: j.ArquivoURL || j.ArquivoUrl || "",
+        criadoEm: j.DataCriacao || j.DataSolicitacao || "",
       })),
     ];
 
@@ -6633,12 +6668,14 @@ async function loadUnifiedPendingHrItems() {
       } else {
         atestadosContainer.innerHTML = mergedAtestados
           .map(
-            (a) => `
+            (a) => {
+              const reqAt = a.criadoEm ? formatRequestDateBR(a.criadoEm, true) : "";
+              return `
             <article class="panel" style="padding:14px; display:grid; gap:10px;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                 <div>
                   <strong style="font-size:14px;">${escapeHtml(a.empName)}</strong>
-                  <small style="display:block; color:var(--muted);">${escapeHtml(a.loja)} · Período: ${escapeHtml(a.periodo)} (${escapeHtml(String(a.dias))} dia(s))</small>
+                  <small style="display:block; color:var(--muted);">${escapeHtml(a.loja)} · Período: ${escapeHtml(a.periodo)} (${escapeHtml(String(a.dias))} dia(s))${reqAt ? ` · Solicitado em ${escapeHtml(reqAt)}` : ""}</small>
                 </div>
                 <span class="portal-pill portal-pill--amber">Pendente</span>
               </div>
@@ -6657,7 +6694,8 @@ async function loadUnifiedPendingHrItems() {
                 }
               </div>
             </article>
-          `,
+          `;
+            },
           )
           .join("");
 

@@ -4184,11 +4184,14 @@
   }
   function activity(x) {
     const n = val(x, "NomeFuncionario", "nomeFuncionario"),
+      reqAt = formatRequestDateLabel_(
+        val(x, "DataSolicitacao", "dataSolicitacao", "DataCriacao", "dataCriacao", "CriadoEm", "criadoEm"),
+      ),
       action = isEmployee() ? "edit-timeoff" : "approve",
       control = isKitchenChief()
         ? '<span class="status">Somente leitura</span>'
         : `<button class="btn btn-ghost" data-action="${action}" data-id="${esc(idOf(x, "Folga"))}">Ver</button>`;
-    return `<div class="activity-item">${avatarMarkup_(x)}<div><strong>${esc(n)}</strong><span>${dateBR(val(x, "DataInicio", "dataInicio"))} • ${esc(val(x, "NomeLoja", "nomeLoja"))}</span></div>${control}</div>`;
+    return `<div class="activity-item">${avatarMarkup_(x)}<div><strong>${esc(n)}</strong><span>${dateBR(val(x, "DataInicio", "dataInicio"))} • ${esc(val(x, "NomeLoja", "nomeLoja"))}${reqAt ? ` • Solicitado em ${esc(reqAt)}` : ""}</span></div>${control}</div>`;
   }
   function person(n, email = "", record = null) {
     return `<div class="person-cell">${avatarMarkup_(record || n, "", email)}<div><strong>${esc(n || "—")}</strong>${email ? `<span>${esc(email)}</span>` : ""}</div></div>`;
@@ -4410,12 +4413,40 @@
       rows
         .map((x) => {
           const id = idOf(x, "Folga"),
+            reqAt = formatRequestDateLabel_(
+              val(x, "DataSolicitacao", "dataSolicitacao", "DataCriacao", "dataCriacao", "CriadoEm", "criadoEm"),
+            ),
             actions = isKitchenChief()
               ? '<span class="status">Somente leitura</span>'
               : `<div class="row-actions"><button data-action="edit-timeoff" data-id="${esc(id)}">Editar</button><button data-action="cancel" data-id="${esc(id)}">Cancelar</button>${isEmployee() && statusClass(val(x, "Status", "status")) === "approved" ? `<button onclick="openAcknowledgementDialog('${esc(id)}')">Confirmar ciência</button>` : ""}</div>`;
-          return `<tr><td>${person(val(x, "NomeFuncionario", "nomeFuncionario"), val(x, "EmailFuncionario", "emailFuncionario"))}</td><td>${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td>${dateBR(val(x, "DataInicio", "dataInicio"))}${iso(val(x, "DataFim", "dataFim")) !== iso(val(x, "DataInicio", "dataInicio")) ? " → " + dateBR(val(x, "DataFim", "dataFim")) : ""}</td><td>${esc(val(x, "TipoFolga", "tipoFolga"))}</td><td>${esc(val(x, "Origem", "origem"))}</td><td>${badge(val(x, "Status", "status"))}</td><td>${actions}</td></tr>`;
+          return `<tr><td>${person(val(x, "NomeFuncionario", "nomeFuncionario"), val(x, "EmailFuncionario", "emailFuncionario"))}</td><td>${esc(val(x, "NomeLoja", "nomeLoja"))}</td><td>${dateBR(val(x, "DataInicio", "dataInicio"))}${iso(val(x, "DataFim", "dataFim")) !== iso(val(x, "DataInicio", "dataInicio")) ? " → " + dateBR(val(x, "DataFim", "dataFim")) : ""}${reqAt ? `<small class="table-sub-date">Solicitado em ${esc(reqAt)}</small>` : ""}</td><td>${esc(val(x, "TipoFolga", "tipoFolga"))}</td><td>${esc(val(x, "Origem", "origem"))}</td><td>${badge(val(x, "Status", "status"))}</td><td>${actions}</td></tr>`;
         })
         .join("") || empty(7);
+  }
+  function formatRequestDateLabel_(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split("-");
+      return `${d}/${m}/${y}`;
+    }
+    const dt = new Date(s);
+    if (Number.isNaN(dt.getTime())) return dateBR(s);
+    const dStr = dt.toLocaleDateString("pt-BR", {
+      timeZone: "America/Bahia",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    if (s.includes("T")) {
+      const tStr = dt.toLocaleTimeString("pt-BR", {
+        timeZone: "America/Bahia",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      if (tStr && tStr !== "00:00") return `${dStr} às ${tStr}`;
+    }
+    return dStr;
   }
   function renderRequests() {
     const rows = state.timeOff
@@ -4444,6 +4475,9 @@
             crm = val(x, "CRM", "crm"),
             startD = val(x, "DataInicio", "dataInicio"),
             endD = val(x, "DataFim", "dataFim") || startD,
+            reqAt = formatRequestDateLabel_(
+              val(x, "DataSolicitacao", "dataSolicitacao", "DataCriacao", "dataCriacao", "CriadoEm", "criadoEm"),
+            ),
             periodText = startD === endD ? dateBR(startD) : `${dateBR(startD)} até ${dateBR(endD)}`,
             diffDays = Math.max(1, Math.round((new Date(`${endD}T12:00:00`) - new Date(`${startD}T12:00:00`)) / 86400000) + 1),
             approveBtnText = isMedical ? "Aprovar e Abonar Faltas" : "Aprovar",
@@ -4452,7 +4486,7 @@
               : isManager()
               ? `<div class="request-card-actions"><button class="btn btn-secondary" data-action="reject" data-id="${esc(id)}">Rejeitar</button><button class="btn btn-primary" data-action="approve" data-id="${esc(id)}">${approveBtnText}</button></div>`
               : `<div class="request-card-actions"><button class="btn btn-secondary" data-action="edit-timeoff" data-id="${esc(id)}">Ver detalhes</button>${statusClass(status) === "pending" ? `<button class="btn btn-ghost" data-action="cancel" data-id="${esc(id)}">Cancelar pedido</button>` : ""}</div>`;
-          return `<article class="request-card pending-unified-card"><div class="request-card-head">${person(n)}${isMedical ? `<span class="badge" style="background:#ecfdf5; color:#065f46; font-weight:700;">Atestado Médico</span>` : ""}${badge(status)}</div><div class="pending-card-meta"><span><strong>${periodText}</strong> (${diffDays} dia${diffDays > 1 ? "s" : ""})</span><span>${esc(tipo)}</span><span>${esc(val(x, "NomeLoja", "nomeLoja") || "Minha loja")}</span>${crm ? `<span>CRM: <strong>${esc(crm)}</strong></span>` : ""}</div><p>${esc(val(x, "Motivo", "motivo") || "Sem motivo informado")}</p>${docUrl ? `<div style="margin-bottom:8px;"><a href="${esc(docUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12.5px; padding:6px 12px; border-radius:8px;">Ver Comprovante no Drive ↗</a></div>` : ""}${managerActions}</article>`;
+          return `<article class="request-card pending-unified-card"><div class="request-card-head">${person(n)}${isMedical ? `<span class="badge" style="background:#ecfdf5; color:#065f46; font-weight:700;">Atestado Médico</span>` : ""}${badge(status)}</div><div class="pending-card-meta"><span><strong>${periodText}</strong> (${diffDays} dia${diffDays > 1 ? "s" : ""})</span><span>${esc(tipo)}</span><span>${esc(val(x, "NomeLoja", "nomeLoja") || "Minha loja")}</span>${crm ? `<span>CRM: <strong>${esc(crm)}</strong></span>` : ""}${reqAt ? `<span class="request-date-pill" title="Data em que o colaborador enviou a solicitação">Solicitado em ${esc(reqAt)}</span>` : ""}</div><p>${esc(val(x, "Motivo", "motivo") || "Sem motivo informado")}</p>${docUrl ? `<div style="margin-bottom:8px;"><a href="${esc(docUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12.5px; padding:6px 12px; border-radius:8px;">Ver Comprovante no Drive ↗</a></div>` : ""}${managerActions}</article>`;
         })
         .join("") ||
       `<div class="panel pending-empty-state"><span>✓</span><strong>${isManager() ? "Nenhum pedido de folga aguardando decisão" : "Você ainda não fez nenhum pedido de folga"}</strong><p>${isManager() ? "Novas solicitações aparecerão aqui automaticamente." : "Use o botão Pedir folga para iniciar."}</p></div>`;
@@ -7038,10 +7072,13 @@
     $("#clockAdjustmentCards").innerHTML =
       visibleAdjustments
         .map((a) => {
+          const reqAt = formatRequestDateLabel_(
+            a.DataSolicitacao || a.DataCriacao || a.CriadoEm,
+          );
           const actions = isManager()
             ? `<button class="btn btn-primary clock-review-btn" data-action="clock-review" data-id="${esc(a.AjustePontoID)}">Revisar ajuste</button>`
             : `<div class="pending-request-status">${badge(a.Status || "Pendente")}<small>${a.Status === "Pendente" ? "Aguardando análise do gestor" : "Solicitação concluída"}</small></div>`;
-          return `<article class="request-card clock-request-card pending-unified-card"><div class="request-head">${avatarMarkup_(a)}<div><strong>${esc(a.NomeFuncionario)}</strong><span>${esc(labels[a.TipoMarcacao] || a.TipoMarcacao)}</span></div></div><div class="clock-request-change"><div><small>Registrado</small><strong>${esc(formatClockDateTime(a.DataHoraOriginal))}</strong></div><b>→</b><div><small>Solicitado</small><strong>${esc(formatClockDateTime(a.DataHoraSolicitada))}</strong></div></div><p><strong>Motivo:</strong> ${esc(a.Motivo)}</p>${actions}</article>`;
+          return `<article class="request-card clock-request-card pending-unified-card"><div class="request-head">${avatarMarkup_(a)}<div><strong>${esc(a.NomeFuncionario)}</strong><span>${esc(labels[a.TipoMarcacao] || a.TipoMarcacao)}${reqAt ? ` · Solicitado em ${esc(reqAt)}` : ""}</span></div></div><div class="clock-request-change"><div><small>Registrado</small><strong>${esc(formatClockDateTime(a.DataHoraOriginal))}</strong></div><b>→</b><div><small>Solicitado</small><strong>${esc(formatClockDateTime(a.DataHoraSolicitada))}</strong></div></div><p><strong>Motivo:</strong> ${esc(a.Motivo)}</p>${actions}</article>`;
         })
         .join("") ||
       `<div class="panel pending-empty-state"><span>⌁</span><strong>${isManager() ? "Nenhum ajuste de ponto pendente" : "Você não possui pedidos de ajuste"}</strong><p>${isManager() ? "As correções enviadas pela equipe aparecerão aqui." : "Para solicitar uma correção, abra Meu ponto e escolha uma marcação."}</p></div>`;
@@ -10569,6 +10606,9 @@
         .map((swap) => {
           const id = val(swap, "TrocaID"),
             status = val(swap, "Status"),
+            reqAt = formatRequestDateLabel_(
+              val(swap, "DataSolicitacao", "dataSolicitacao", "DataCriacao", "dataCriacao", "CriadoEm", "criadoEm"),
+            ),
             isDestination =
               String(val(swap, "FuncionarioDestinoID")) === currentEmployeeId,
             pendingAcceptance = status === "Aguardando aceite" && isDestination,
@@ -10582,6 +10622,7 @@
           return `<article class="request-card swap-card">
             <div class="swap-card-top">
               <span class="swap-card-icon">⇄</span>
+              ${reqAt ? `<span class="request-date-inline" title="Data em que a troca foi solicitada">Solicitado em ${esc(reqAt)}</span>` : ""}
               ${badge(status)}
             </div>
             <div class="swap-people">
@@ -11508,6 +11549,9 @@
         .map(function (record) {
           var id = String(val(record, "FeriasID") || "");
           var status = String(val(record, "Status") || "Pendente");
+          var reqAt = formatRequestDateLabel_(
+            val(record, "DataSolicitacao", "dataSolicitacao", "DataCriacao", "dataCriacao", "CriadoEm", "criadoEm"),
+          );
           var pending = statusClass(status) === "pending";
           var cancellable =
             pending || statusClass(status) === "approved";
@@ -11544,6 +11588,7 @@
             esc(val(record, "TotalParcelas") || 1) +
             " · abono " +
             esc(val(record, "AbonoPecuniario") || 0) +
+            (reqAt ? " · Solicitado em " + esc(reqAt) : "") +
             " · " +
             badge(status) +
             '</span><div class="result-actions">' +
