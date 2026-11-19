@@ -3480,16 +3480,23 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
   display: block;
 }
 
+#view-fechamento-caixa .hr-hub-bar {
+  display: none !important;
+}
+
 body:has(#view-fechamento-caixa.active) .content,
-.content:has(#view-fechamento-caixa.active) {
+.content:has(#view-fechamento-caixa.active),
+body.view-is-fechamento-caixa .content {
   padding: 0 !important;
+  margin: 0 !important;
   max-width: 100% !important;
-  overflow-y: hidden !important;
+  overflow: hidden !important;
 }
 
 @media (max-width: 900px) {
   #view-fechamento-caixa.view-fechamento-fullscreen {
-    height: calc(100dvh - 56px - 64px) !important;
-    min-height: calc(100dvh - 56px - 64px) !important;
+    height: calc(100dvh - 56px - env(safe-area-inset-top, 0px) - 72px - env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(100dvh - 56px - env(safe-area-inset-top, 0px) - 72px - env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100dvh - 56px - env(safe-area-inset-top, 0px) - 72px - env(safe-area-inset-bottom, 0px)) !important;
   }
 }

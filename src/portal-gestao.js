@@ -71,17 +71,12 @@ export const isCaixaOrManager = (profile) => {
   const perfil = String(profile.Perfil || profile.perfil || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const funcao = String(profile.Funcao || profile.funcao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const setor = String(profile.Setor || profile.setor || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const matchesCaixa = (s) => Boolean(s && s.includes("caixa"));
   return (
-    cargo.includes("caixa") ||
-    cargo.includes("operad") ||
-    cargo.includes("atend") ||
-    funcao.includes("caixa") ||
-    funcao.includes("operad") ||
-    funcao.includes("atend") ||
-    setor.includes("caixa") ||
-    perfil.includes("caixa") ||
-    perfil.includes("operad") ||
-    perfil.includes("atend")
+    matchesCaixa(cargo) ||
+    matchesCaixa(funcao) ||
+    matchesCaixa(setor) ||
+    matchesCaixa(perfil)
   );
 };
 
@@ -6486,7 +6481,6 @@ const HR_HUB_GROUPS = [
   {
     id: "financeiro",
     tabs: [
-      { view: "fechamento-caixa", label: "Fechamento de Caixa", perm: "permission-caixa" },
       { view: "monthly-closing", label: "Folha Salarial", perm: "permission-manager" },
       { view: "takeat-credit", label: "Contas a Prazo (Takeat)", perm: "" },
       { view: "fichas", label: "Valor de Ficha", perm: "permission-manager" },
@@ -6539,6 +6533,7 @@ function syncWorkspaceHubBars(activeViewOverride = "") {
 function mountWorkspaceHubBars() {
   for (const hub of HR_HUB_GROUPS) {
     for (const currentTab of hub.tabs) {
+      if (currentTab.view === "fechamento-caixa") continue;
       const section = document.getElementById(`view-${currentTab.view}`);
       if (!section || section.querySelector(`.hr-hub-bar[data-hub="${hub.id}"]`)) continue;
 
@@ -7393,6 +7388,23 @@ export function initPortalGestao() {
   mountPayrollClosingScreen();
   enhanceAuditView();
 
+  const resolveUserFinanceiroUnit = () => {
+    const u = (typeof window !== "undefined" && window.state?.user) || runtime?.profile || {};
+    const storeStr = String(u.NomeLoja || u.nomeLoja || u.Loja || u.loja || u.LojaID || u.lojaId || "").toLowerCase();
+    if (storeStr.includes("eunap") || storeStr.includes("euna")) return "eunapolis";
+    if (storeStr.includes("food") || storeStr.includes("park")) return "foodpark";
+    if (storeStr.includes("teix") || storeStr.includes("tx")) return "teixeira";
+    return "";
+  };
+
+  const getFechamentoCaixaSrc = () => {
+    const isCaixa = typeof window !== "undefined" && window.isCashier ? window.isCashier() : isCaixaOrManager(runtime?.profile);
+    const isGestor = isGerenteProfile(runtime?.profile);
+    const userUnit = resolveUserFinanceiroUnit();
+    const lockUnit = isCaixa && !isGestor;
+    return `https://houseburgertx-beep.github.io/gestao/fechamento-caixa/?embedded=true${userUnit ? `&unitId=${encodeURIComponent(userUnit)}` : ""}${lockUnit ? "&lockUnit=true" : ""}`;
+  };
+
   const onViewActivated = (view) => {
     syncWorkspaceHubBars(view);
     if (view === "employees") loadEmployeesOverviewSummary();
@@ -7400,8 +7412,11 @@ export function initPortalGestao() {
     if (view === "monthly-closing") loadPayrollClosingTable();
     if (view === "fechamento-caixa") {
       const iframe = document.getElementById("fechamentoCaixaFrame");
-      if (iframe && !iframe.getAttribute("src")) {
-        iframe.src = "https://houseburgertx-beep.github.io/gestao/fechamento-caixa/?embedded=true";
+      if (iframe) {
+        const targetSrc = getFechamentoCaixaSrc();
+        if (iframe.getAttribute("src") !== targetSrc) {
+          iframe.src = targetSrc;
+        }
       }
     }
     if (view === "timeoff" || view === "pending-center") {
@@ -7428,6 +7443,15 @@ export function initPortalGestao() {
   window.addEventListener("gestao-user-hydrated", () => {
     syncWorkspaceHubBars();
     loadUnifiedPendingHrItems();
+    const iframe = document.getElementById("fechamentoCaixaFrame");
+    if (iframe) {
+      const userUnit = resolveUserFinanceiroUnit();
+      const targetSrc = getFechamentoCaixaSrc();
+      if (!iframe.src || iframe.src === "about:blank" || iframe.getAttribute("data-loaded-for-unit") !== userUnit) {
+        iframe.setAttribute("data-loaded-for-unit", userUnit);
+        iframe.src = targetSrc;
+      }
+    }
     if (isGerenteProfile(runtime?.profile)) {
       loadEmployeesOverviewSummary();
     }

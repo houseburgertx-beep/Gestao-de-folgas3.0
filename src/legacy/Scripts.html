@@ -3572,26 +3572,19 @@
               String(funcId),
           )
         : null) ||
-      empList[0] ||
       (typeof runtime !== "undefined" && runtime?.profile
         ? runtime.profile
         : null);
     const empCargo = String(emp?.Cargo || emp?.cargo || emp?.Funcao || emp?.funcao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const empSetor = String(emp?.Setor || emp?.setor || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const empProf = String(emp?.Perfil || emp?.perfil || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const matchesCaixa = (s) => Boolean(s && s.includes("caixa"));
     return (
-      cargo.includes("caixa") ||
-      cargo.includes("operad") ||
-      cargo.includes("atend") ||
-      empCargo.includes("caixa") ||
-      empCargo.includes("operad") ||
-      empCargo.includes("atend") ||
-      empSetor.includes("caixa") ||
-      empProf.includes("caixa") ||
-      empProf.includes("operad") ||
-      prof.includes("caixa") ||
-      prof.includes("operad") ||
-      prof.includes("atend")
+      matchesCaixa(cargo) ||
+      matchesCaixa(prof) ||
+      matchesCaixa(empCargo) ||
+      matchesCaixa(empSetor) ||
+      matchesCaixa(empProf)
     );
   }
   window.isAdmin = isAdmin;
@@ -3631,11 +3624,16 @@
     }
     const managerViews = ["live-team", "employees", "stores", "holidays", "operations", "reports", "scheduler", "monthly-closing", "advanced-reports"];
     const adminViews = ["access", "governance", "audit", "hour-balances", "whatsapp"];
+    if (view === "fechamento-caixa" && !isCashier()) {
+      toast("Esta área está disponível apenas para o perfil de caixa ou gerência.", true);
+      return;
+    }
     if ((managerViews.includes(view) && !isManager()) || (adminViews.includes(view) && !isAdmin())) {
       toast("Esta área está disponível apenas para o perfil autorizado.", true);
       return;
     }
     state.currentView = view;
+    document.body.classList.toggle("view-is-fechamento-caixa", view === "fechamento-caixa");
     try {
       window.dispatchEvent(new CustomEvent("gestao-view-change", { detail: { view } }));
     } catch (_) {}

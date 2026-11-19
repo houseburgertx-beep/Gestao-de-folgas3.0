@@ -3993,7 +3993,8 @@ test("perfil ou cargo de caixa concede permissão e visualização de fechamento
   assert.equal(isCaixaOrManager({ Perfil: "Caixa" }), true);
   assert.equal(isCaixaOrManager({ Perfil: "Operador de caixa" }), true);
   assert.equal(isCaixaOrManager({ Cargo: "Operadora de Caixa" }), true);
-  assert.equal(isCaixaOrManager({ Cargo: "Atendente", Perfil: "Funcionário" }), true);
+  assert.equal(isCaixaOrManager({ Cargo: "Atendente de Caixa", Perfil: "Funcionário" }), true);
+  assert.equal(isCaixaOrManager({ Cargo: "Atendente", Perfil: "Funcionário" }), false);
   assert.equal(isCaixaOrManager({ Funcao: "Caixa", Perfil: "Funcionário" }), true);
   assert.equal(isCaixaOrManager({ Perfil: "Funcionário", Cargo: "Auxiliar de Cozinha" }), false);
 
