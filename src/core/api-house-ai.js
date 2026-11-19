@@ -616,11 +616,11 @@ Regras Inegociáveis:
 
       if (!matchedEmp) {
         return {
-          handled: true,
+          handled: false,
           from: cleanPhone,
-          replyText:
-            "Olá! Este canal de inteligência é de uso exclusivo para colaboradores do Grupo House 190. Seu número não possui vínculo com nenhum cadastro ativo. Em caso de dúvidas, consulte seu gerente de loja.",
+          replyText: null,
           authorized: false,
+          reason: "unregistered_sender",
         };
       }
 

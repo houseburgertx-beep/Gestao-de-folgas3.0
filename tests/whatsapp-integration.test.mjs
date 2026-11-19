@@ -217,9 +217,9 @@ test("WhatsApp Integration: Webhook receptivo e autoatendimento com menu estrutu
       text: "Olá",
     }]);
 
-    assert.equal(unknownRes.handled, true);
+    assert.equal(unknownRes.handled, false);
     assert.equal(unknownRes.matched, false);
-    assert.ok(unknownRes.replyText.includes("exclusivo para colaboradores"), "Deve orientar que o canal é exclusivo");
+    assert.equal(unknownRes.replyText, null, "Número não cadastrado deve ser silenciado sem envio de mensagem");
   } finally {
     Object.assign(runtime, originalMethods);
   }

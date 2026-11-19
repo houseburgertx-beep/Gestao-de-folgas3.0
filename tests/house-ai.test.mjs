@@ -168,9 +168,9 @@ test("13. WhatsApp: Rejeição segura de remetente desconhecido sem vazamento", 
     from: "5511999999999",
     text: "Quero ver a escala de amanhã",
   }]);
-  assert.equal(res.handled, true);
+  assert.equal(res.handled, false);
   assert.equal(res.authorized, false);
-  assert.match(res.replyText, /exclusivo para colaboradores/i);
+  assert.equal(res.replyText, null);
 });
 
 test("14. WhatsApp TRAVA MANDATÓRIA: Bloqueio estrito de registro de ponto por chat", async () => {
@@ -266,7 +266,9 @@ test("19. WhatsApp: Normalização internacional de números (+55)", async () =>
     from: "73988887777",
     text: "Olá",
   }]);
-  assert.equal(res.handled, true);
+  assert.equal(res.from, "5573988887777");
+  assert.equal(res.handled, false);
+  assert.equal(res.replyText, null);
 });
 
 test("20. WhatsApp: Tratamento de payload vazio ou corrompido", async () => {

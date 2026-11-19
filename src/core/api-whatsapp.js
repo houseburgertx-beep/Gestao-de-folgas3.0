@@ -367,8 +367,13 @@ export function createWhatsAppHandlers() {
 
       let replyText = "";
       if (!matchedEmp) {
-        replyText = "Olá! Este canal é exclusivo para colaboradores do Grupo House 190. Seu número não foi localizado no cadastro oficial de funcionários. Em caso de dúvidas, procure o seu gerente de loja.";
-        return { handled: true, from: fromNumber, replyText, matched: false };
+        return {
+          handled: false,
+          from: fromNumber,
+          replyText: null,
+          matched: false,
+          reason: "unregistered_sender",
+        };
       }
 
       const firstName = String(matchedEmp.Nome || "").split(" ")[0];
