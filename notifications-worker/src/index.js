@@ -297,59 +297,154 @@ async function handle(request, env) {
   if (route === "/cash-notify") {
     if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
     const serviceToken = request.headers.get("X-Service-Token") || "";
-    if (!env.WA_SERVICE_TOKEN || !serviceToken || !(await equalSecret(serviceToken, env.WA_SERVICE_TOKEN))) {
+    const validCashSecret = Boolean(
+      env.CASH_NOTIFY_SECRET && serviceToken && (await equalSecret(serviceToken, env.CASH_NOTIFY_SECRET))
+    );
+    const validWaSecret = Boolean(
+      env.WA_SERVICE_TOKEN && serviceToken && (await equalSecret(serviceToken, env.WA_SERVICE_TOKEN))
+    );
+    if (!validCashSecret && !validWaSecret) {
       return json({ error: "unauthorized" }, 401);
     }
-    const { eventKind, unitId, unitName, operatorName, date, difference, shift } = body;
+    const {
+      eventKind,
+      unitId,
+      unitName,
+      operatorName,
+      date,
+      difference,
+      revenueTotal,
+      shift,
+      closingId,
+      returnReason,
+      reviewedBy,
+    } = body;
     if (!eventKind || !unitId) return json({ error: "missing_fields" }, 400);
     const allowedKinds = ["cash_closing", "cash_returned", "cash_conference"];
     if (!allowedKinds.includes(eventKind)) return json({ error: "invalid_event_kind" }, 400);
     try {
-      const tok = await googleToken(env);
-      const [employees, access] = await Promise.all([
-        database(env, tok, "tables/Funcionarios", { orderBy: "LojaID", equalTo: String(unitId) }),
-        database(env, tok, "access"),
-      ]);
-      const managerProfiles = new Set(["Administrador", "Responsavel de loja", "Gerente", "Diretoria", "Responsavel de loja"]);
-      const targets = Object.values(access || {}).filter((p) => {
-        if (!p || !active(p.Ativo)) return false;
-        if (p.Perfil === "Administrador") return true;
-        return managerProfiles.has(p.Perfil) && String(p.LojaID || "") === String(unitId);
-      });
-      const dateFormatted = String(date || "").split("-").reverse().join("/");
-      const absDiff = typeof difference === "number" ? Math.abs(difference) : 0;
-      const diffStr = typeof difference === "number"
-        ? (difference === 0 ? "sem divergencia" : `R$ ${(absDiff / 100).toFixed(2).replace(".", ",")}`)
-        : "";
-      const messages = {
-        cash_closing: `House 190 - Fechamento de Caixa\n*${unitName || unitId}* - ${dateFormatted}${shift ? ` - ${shift}` : ""}\nOperador: ${operatorName || "nao informado"}${diffStr ? `\nDivergencia: ${diffStr}` : ""}`,
-        cash_returned: `House 190 - Caixa Devolvido ao Operador\n*${unitName || unitId}* - ${dateFormatted}\nFechamento devolvido para correcao.\nOperador: ${operatorName || "nao informado"}`,
-        cash_conference: `House 190 - Conferencia Concluida\n*${unitName || unitId}* - ${dateFormatted}${diffStr ? `\nDivergencia final: ${diffStr}` : ""}`,
+      const parsePhoneList = (value) => {
+        if (Array.isArray(value)) return value.map((v) => String(v || "").trim()).filter(Boolean);
+        return String(value || "")
+          .split(/[,;\n]+/)
+          .map((v) => v.trim())
+          .filter(Boolean);
       };
-      const text = messages[eventKind];
+      const DEFAULT_FINANCEIRO_PHONES = ["5573982113316"];
+      const DEFAULT_EXECUTIVE_PHONES = ["5573991915552", "5573999136785"];
+
+      let rtdbCashCfg = null;
+      try {
+        const tok = await googleToken(env);
+        rtdbCashCfg = await database(env, tok, "tables/Configuracoes/WhatsAppCashNotify");
+      } catch (_) {
+        rtdbCashCfg = null;
+      }
+
+      const financeiroRaw = parsePhoneList(
+        rtdbCashCfg?.financeiroPhones ?? env.WA_CASH_FINANCEIRO_PHONES ?? DEFAULT_FINANCEIRO_PHONES
+      );
+      const executiveRaw = parsePhoneList(
+        rtdbCashCfg?.executivePhones ?? env.WA_CASH_EXECUTIVE_PHONES ?? DEFAULT_EXECUTIVE_PHONES
+      );
+
+      const formatCentsBRL = (cents) => {
+        const n = Number(cents);
+        if (!Number.isFinite(n)) return null;
+        return `R$ ${(Math.abs(n) / 100).toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+      };
+
+      const unitLabel = String(unitName || unitId).trim();
+      const dateFormatted = String(date || "").split("-").reverse().join("/") || "sem data";
+      const shiftLabel = String(shift || "").trim();
+      const shiftSuffix = shiftLabel ? ` - ${shiftLabel}` : "";
+      const operatorLabel = String(operatorName || "").trim() || "nao informado";
+      const reviewerLabel = String(reviewedBy || "").trim();
+      const reasonLabel = String(returnReason || "").trim();
+      const hasRevenue = typeof revenueTotal === "number" && Number.isFinite(revenueTotal);
+      const revenueStr = hasRevenue ? formatCentsBRL(revenueTotal) : null;
+      const revenueLine = revenueStr ? `\nValor faturado: ${revenueStr}` : "";
+      const hasDiff = typeof difference === "number" && Number.isFinite(difference);
+      const diffStatusStr = !hasDiff
+        ? "Nao informada"
+        : difference === 0
+          ? "Sem divergencia (caixa bateu)"
+          : difference < 0
+            ? `Houve divergencia: falta de ${formatCentsBRL(difference)}`
+            : `Houve divergencia: sobra de ${formatCentsBRL(difference)}`;
+
+      const financeiroMessages = {
+        cash_closing:
+          `House 190 - Fechamento de Caixa\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}\n` +
+          `Operador: ${operatorLabel}${revenueLine}\n` +
+          `Divergencia: ${diffStatusStr}\n` +
+          `Conferir: https://houseburgertx-beep.github.io/gestao/conferencia-caixa/`,
+        cash_returned:
+          `House 190 - Caixa Devolvido ao Operador\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}\n` +
+          `Operador: ${operatorLabel}${revenueLine}\n` +
+          `Divergencia: ${diffStatusStr}` +
+          (reasonLabel ? `\nMotivo: ${reasonLabel}` : ""),
+        cash_conference:
+          `House 190 - Conferencia de Caixa Concluida\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}\n` +
+          `Operador: ${operatorLabel}` +
+          (reviewerLabel ? `\nConferido por: ${reviewerLabel}` : "") +
+          `${revenueLine}\n` +
+          `Divergencia final: ${diffStatusStr}`,
+      };
+
+      const executiveMessages = {
+        cash_closing:
+          `House 190 - Fechamento de Caixa\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}${revenueLine}\n${diffStatusStr}`,
+        cash_returned:
+          `House 190 - Caixa Devolvido para Correcao\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}${revenueLine}\n${diffStatusStr}`,
+        cash_conference:
+          `House 190 - Caixa Conferido\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}${revenueLine}\nFinal: ${diffStatusStr}`,
+      };
+
+      const recipients = [];
+      const seenPhones = new Set();
+      for (const raw of financeiroRaw) {
+        const phone = normalizeWhatsAppPhone(raw);
+        if (!phone?.digits || seenPhones.has(phone.digits)) continue;
+        seenPhones.add(phone.digits);
+        recipients.push({ digits: phone.digits, role: "financeiro", text: financeiroMessages[eventKind] });
+      }
+      for (const raw of executiveRaw) {
+        const phone = normalizeWhatsAppPhone(raw);
+        if (!phone?.digits || seenPhones.has(phone.digits)) continue;
+        seenPhones.add(phone.digits);
+        recipients.push({ digits: phone.digits, role: "executive", text: executiveMessages[eventKind] });
+      }
+
       const gw = await getGatewayConfig(env);
-      const phones = new Set();
-      let sent = 0, failed = 0;
-      for (const target of targets.slice(0, 8)) {
-        const emp = Object.values(employees || {}).find((e) => String(e.FuncionarioID) === String(target.FuncionarioID));
-        const rawPhone = emp?.Telefone || emp?.WhatsApp || target.Telefone || "";
-        const phone = rawPhone ? normalizeWhatsAppPhone(rawPhone) : null;
-        if (!phone?.digits || phones.has(phone.digits)) continue;
-        phones.add(phone.digits);
-        const eventKey = `cash:${eventKind}:${unitId}:${date}:${phone.digits}`;
+      const dedupTarget = String(closingId || `${date || ""}:${shiftLabel || "unico"}`).slice(0, 80);
+      const minuteBucket = Math.floor(now / 60000);
+      let sent = 0, failed = 0, skipped = 0;
+      for (const recipient of recipients.slice(0, 12)) {
+        const eventKey = `cash:${eventKind}:${unitId}:${dedupTarget}:${minuteBucket}:${recipient.digits}`;
         const lock = await env.DB.prepare(
-          "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,\'sending\',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state=\'sending\',lease_until=excluded.lease_until WHERE deliveries.state!=\'sent\' AND deliveries.lease_until<?"
-        ).bind(eventKey, phone.digits, now + 300000, now + 86400000, now).run();
+          "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,'sending',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state='sending',lease_until=excluded.lease_until WHERE deliveries.state!='sent' AND deliveries.lease_until<?"
+        ).bind(eventKey, recipient.digits, now + 300000, now + 86400000, now).run();
         if (!lock.meta.changes) continue;
-        const result = await sendWhatsAppMessage(env, { phone: phone.digits, text, gwConfig: gw });
+        const result = await sendWhatsAppMessage(env, {
+          phone: recipient.digits,
+          text: recipient.text,
+          aiPrepared: true,
+          gwConfig: gw,
+        });
         if (result.success) {
           sent++;
-          await env.DB.prepare("UPDATE deliveries SET state=\'sent\' WHERE event_key=? AND endpoint=?").bind(eventKey, phone.digits).run();
+          await env.DB.prepare("UPDATE deliveries SET state='sent' WHERE event_key=? AND endpoint=?").bind(eventKey, recipient.digits).run();
+        } else if (result.skipped) {
+          skipped++;
         } else {
           failed++;
         }
       }
-      return json({ ok: true, sent, failed, targets: targets.length });
+      return json({ ok: true, sent, failed, skipped, targets: recipients.length });
     } catch (err) {
       return json({ error: "cash_notify_failed", details: String(err?.message || err) }, 502);
     }
