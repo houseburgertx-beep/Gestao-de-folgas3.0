@@ -64,6 +64,20 @@ const isGerenteProfile = (profile) => {
   return isDiretoriaProfile(profile) || r.includes("respons") || r.includes("gerente");
 };
 
+export const isCaixaOrManager = (profile) => {
+  if (!profile) return false;
+  if (isGerenteProfile(profile)) return true;
+  const cargo = String(profile.Cargo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const perfil = String(profile.Perfil || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return (
+    cargo.includes("caixa") ||
+    cargo.includes("operad") ||
+    cargo.includes("atend") ||
+    perfil.includes("caixa") ||
+    perfil.includes("operad")
+  );
+};
+
 const isOnboardingOnlyPending = (emp) => {
   if (!emp) return false;
   if (emp.CadastroValidado === true || emp.CadastroValidado === "true") return false;
@@ -6465,7 +6479,7 @@ const HR_HUB_GROUPS = [
   {
     id: "financeiro",
     tabs: [
-      { view: "fechamento-caixa", label: "Fechamento de Caixa", perm: "permission-manager" },
+      { view: "fechamento-caixa", label: "Fechamento de Caixa", perm: "permission-caixa" },
       { view: "monthly-closing", label: "Folha Salarial", perm: "permission-manager" },
       { view: "takeat-credit", label: "Contas a Prazo (Takeat)", perm: "" },
       { view: "fichas", label: "Valor de Ficha", perm: "permission-manager" },
@@ -6488,13 +6502,14 @@ const HR_HUB_GROUPS = [
 function syncWorkspaceHubBars(activeViewOverride = "") {
   const isGestao = isGerenteProfile(runtime?.profile);
   const isAdm = isDiretoriaProfile(runtime?.profile);
+  const isCaixa = typeof window !== "undefined" && window.isCashier ? window.isCashier() : isCaixaOrManager(runtime?.profile);
   const currentActive =
     activeViewOverride ||
     document.querySelector(".view.active")?.id?.replace(/^view-/, "") ||
     "";
 
   document.querySelectorAll(".hr-hub-bar").forEach((bar) => {
-    bar.style.display = isGestao ? "flex" : "none";
+    bar.style.display = (isGestao || isCaixa) ? "flex" : "none";
     bar.querySelectorAll(".hr-hub-tab").forEach((btn) => {
       const target = btn.getAttribute("data-view-target") || "";
       const perm = btn.getAttribute("data-hub-perm") || "";
@@ -6503,7 +6518,9 @@ function syncWorkspaceHubBars(activeViewOverride = "") {
           ? isAdm
           : perm === "permission-manager"
             ? isGestao
-            : true;
+            : perm === "permission-caixa"
+              ? isCaixa
+              : true;
       btn.style.display = visible ? "inline-flex" : "none";
       const isActive = target === currentActive;
       btn.classList.toggle("is-active", isActive);
@@ -7377,7 +7394,7 @@ export function initPortalGestao() {
     if (view === "fechamento-caixa") {
       const iframe = document.getElementById("fechamentoCaixaFrame");
       if (iframe && !iframe.getAttribute("src")) {
-        iframe.src = "https://houseburgertx-beep.github.io/gestao/fechamento-caixa/";
+        iframe.src = "https://houseburgertx-beep.github.io/gestao/fechamento-caixa/?embedded=true";
       }
     }
     if (view === "timeoff" || view === "pending-center") {

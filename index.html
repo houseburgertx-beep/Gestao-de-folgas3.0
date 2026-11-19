@@ -38,7 +38,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
     <meta name="app-version" content="6.17.13-firebase-github" />
     <title>Gestão de Folgas</title>
-    <link rel="stylesheet" href="./generated/legacy-styles-a12113b1d0bf.css">
+    <link rel="stylesheet" href="./generated/legacy-styles-4f9e16a8097c.css">
   </head>
   <body>
     <div id="loadingOverlay" class="loading-overlay">
@@ -292,7 +292,7 @@
             <button class="nav-item" data-view="communication"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H9l-5 4Z"/><path d="M8 8h8m-8 5h5"/></svg></span><b>Avisos &amp; POPs</b><em id="notificationBadge" class="nav-badge">0</em></button>
             <button class="nav-item hidden" style="display:none !important;" data-view="whistleblower"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span><b>Canal de Denúncias</b></button>
             <button class="nav-item permission-manager" data-view="monthly-closing"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8m-8 5h4m-4 4 2 2 6-6"/></svg></span><b>Folha Salarial</b></button>
-            <button class="nav-item permission-manager" data-view="fechamento-caixa"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="12" cy="15" r="2"/></svg></span><b>Fechamento de Caixa</b></button>
+            <button class="nav-item permission-caixa" data-view="fechamento-caixa"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="12" cy="15" r="2"/></svg></span><b>Fechamento de Caixa</b></button>
             <button class="nav-item permission-manager" data-view="reports"><span class="w-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v18h17M8 16v-5m5 5V7m5 9V4"/></svg></span><b>Relatórios</b></button>
           </details>
           <details class="nav-group permission-admin">
@@ -409,7 +409,7 @@
           </div>
         </header>
 
-        <nav class="mobile-dock" aria-label="Acessos rápidos"><div class="dock-indicator" id="dockIndicator"></div><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="timeoff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Folgas</span></button><button type="button" data-view-target="takeat-credit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg><span id="dockTakeatLabel">Consumo</span></button></nav><main class="content">
+        <nav class="mobile-dock" aria-label="Acessos rápidos"><div class="dock-indicator" id="dockIndicator"></div><button type="button" data-view-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg><span>Início</span></button><button type="button" data-view-target="timeclock" class="dock-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Ponto</span></button><button type="button" data-view-target="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></button><button type="button" data-view-target="timeoff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Folgas</span></button><button type="button" class="permission-caixa" data-view-target="fechamento-caixa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="12" cy="15" r="2"/></svg><span>Caixa</span></button><button type="button" data-view-target="takeat-credit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="11" y1="15" x2="13" y2="15"/></svg><span id="dockTakeatLabel">Consumo</span></button></nav><main class="content">
           <aside id="notificationPromptBanner" class="notif-prompt-banner hidden" role="region" aria-label="Aviso de notificações">
             <div class="notif-banner-compact">
               <div class="notif-banner-compact-left">
@@ -1337,30 +1337,14 @@
               </div>
             </div>
           </section>
-          <section id="view-fechamento-caixa" class="view">
-            <div class="section-toolbar" style="margin-bottom: 12px;">
-              <div>
-                <span class="eyebrow">HOUSE 190 · GESTÃO FINANCEIRA</span>
-                <h2>Fechamento de Caixa</h2>
-                <p>Feche o caixa diário em 6 passos, confira sangrias, despesas e auditoria Takeat.</p>
-              </div>
-              <div class="toolbar-actions">
-                <a href="https://houseburgertx-beep.github.io/gestao/fechamento-caixa/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  <span>Abrir em tela cheia</span>
-                </a>
-              </div>
-            </div>
-            <div class="panel" style="padding: 0; overflow: hidden; border-radius: 18px; border: 1px solid var(--line); min-height: 82vh; background: var(--surface);">
-              <iframe
-                id="fechamentoCaixaFrame"
-                src="https://houseburgertx-beep.github.io/gestao/fechamento-caixa/"
-                title="Fechamento de Caixa House 190"
-                style="width: 100%; height: 85vh; border: none; display: block;"
-                allow="camera; clipboard-write"
-                loading="lazy">
-              </iframe>
-            </div>
+          <section id="view-fechamento-caixa" class="view view-fechamento-fullscreen">
+            <iframe
+              id="fechamentoCaixaFrame"
+              src="https://houseburgertx-beep.github.io/gestao/fechamento-caixa/?embedded=true"
+              title="Fechamento de Caixa"
+              allow="camera; clipboard-write; geolocation"
+              loading="lazy">
+            </iframe>
           </section>
           <section id="view-takeat-credit" class="view">
             <div class="section-toolbar">
@@ -4782,6 +4766,6 @@
 </script>
 <!-- PDF.js (./vendor/pdfjs/pdf.min.js) is loaded on demand by documents.js. -->
 <script type="module" src="./src/main.js?v=6.17.13"></script>
-<script defer src="./generated/legacy-client-062f09c2d87f.js"></script>
+<script defer src="./generated/legacy-client-40c13ec2aeef.js"></script>
   </body>
 </html>

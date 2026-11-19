@@ -3284,6 +3284,9 @@
     $$(".permission-manager").forEach((item) =>
       item.classList.toggle("hidden", !manager),
     );
+    $$(".permission-caixa").forEach((item) =>
+      item.classList.toggle("hidden", !isCashier()),
+    );
     $$(".permission-team-read").forEach((item) =>
       item.classList.toggle("hidden", !canViewTeam()),
     );
@@ -3544,9 +3547,31 @@
   function isEmployee() {
     return profile(state.user).toLowerCase().includes("funcion");
   }
+  function isCashier() {
+    if (isManager()) return true;
+    const u = state.user || {};
+    const cargo = String(u.Cargo || u.cargo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const prof = profile(u).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const funcId = u.FuncionarioID || u.funcionarioId || "";
+    const emp = funcId && state.tables?.Funcionarios ? state.tables.Funcionarios[funcId] : null;
+    const empCargo = String(emp?.Cargo || emp?.Funcao || emp?.funcao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const empSetor = String(emp?.Setor || emp?.setor || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return (
+      cargo.includes("caixa") ||
+      cargo.includes("operad") ||
+      cargo.includes("atend") ||
+      empCargo.includes("caixa") ||
+      empCargo.includes("operad") ||
+      empCargo.includes("atend") ||
+      empSetor.includes("caixa") ||
+      prof.includes("caixa") ||
+      prof.includes("operad")
+    );
+  }
   window.isAdmin = isAdmin;
   window.isManager = isManager;
   window.isStoreManager = isStoreManager;
+  window.isCashier = isCashier;
   navigator.serviceWorker?.addEventListener("message", event => {
     if (event.data?.type === "gestao-open-view" && ["timeclock","notifications"].includes(event.data.view)) {
       if (state.user) switchView(event.data.view);

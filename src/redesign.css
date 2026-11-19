@@ -3451,3 +3451,45 @@ dialog {border:1px solid var(--line);border-radius:22px;background:var(--surface
 .nav-item.nav-hub-absorbed {
   display: none !important;
 }
+
+/* Fechamento de Caixa - Visual Nativo em Tela Cheia */
+#view-fechamento-caixa.view-fechamento-fullscreen {
+  width: 100% !important;
+  height: calc(100vh - 60px) !important;
+  min-height: calc(100dvh - 60px) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: var(--surface, #fafafa);
+  display: none;
+  flex-direction: column;
+}
+
+#view-fechamento-caixa.view-fechamento-fullscreen.active {
+  display: flex !important;
+}
+
+#view-fechamento-caixa.view-fechamento-fullscreen iframe {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  flex: 1 1 auto !important;
+  border: none !important;
+  outline: none !important;
+  background: var(--surface, #fafafa);
+  display: block;
+}
+
+body:has(#view-fechamento-caixa.active) .content,
+.content:has(#view-fechamento-caixa.active) {
+  padding: 0 !important;
+  max-width: 100% !important;
+  overflow-y: hidden !important;
+}
+
+@media (max-width: 900px) {
+  #view-fechamento-caixa.view-fechamento-fullscreen {
+    height: calc(100dvh - 56px - 64px) !important;
+    min-height: calc(100dvh - 56px - 64px) !important;
+  }
+}
