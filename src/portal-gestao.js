@@ -6465,6 +6465,7 @@ const HR_HUB_GROUPS = [
   {
     id: "financeiro",
     tabs: [
+      { view: "fechamento-caixa", label: "Fechamento de Caixa", perm: "permission-manager" },
       { view: "monthly-closing", label: "Folha Salarial", perm: "permission-manager" },
       { view: "takeat-credit", label: "Contas a Prazo (Takeat)", perm: "" },
       { view: "fichas", label: "Valor de Ficha", perm: "permission-manager" },
@@ -7373,6 +7374,12 @@ export function initPortalGestao() {
     if (view === "employees") loadEmployeesOverviewSummary();
     if (view === "fichas") loadFichasView();
     if (view === "monthly-closing") loadPayrollClosingTable();
+    if (view === "fechamento-caixa") {
+      const iframe = document.getElementById("fechamentoCaixaFrame");
+      if (iframe && !iframe.getAttribute("src")) {
+        iframe.src = "https://houseburgertx-beep.github.io/gestao/fechamento-caixa/";
+      }
+    }
     if (view === "timeoff" || view === "pending-center") {
       loadValesList();
       if (view === "pending-center") loadUnifiedPendingHrItems();
