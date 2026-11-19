@@ -3478,6 +3478,9 @@
         "takeat-credit",
         "whistleblower",
       ];
+      if (isCashier()) {
+        employeeViews.push("fechamento-caixa");
+      }
       navItems.forEach((item) => {
         item.classList.toggle(
           "hidden",
@@ -3545,7 +3548,14 @@
     return isManager() || isKitchenChief();
   }
   function isEmployee() {
-    return profile(state.user).toLowerCase().includes("funcion");
+    const p = profile(state.user).toLowerCase();
+    return (
+      p.includes("funcion") ||
+      p.includes("colaborad") ||
+      p.includes("caixa") ||
+      p.includes("operad") ||
+      p.includes("atend")
+    );
   }
   function isCashier() {
     if (isManager()) return true;
@@ -3553,9 +3563,22 @@
     const cargo = String(u.Cargo || u.cargo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const prof = profile(u).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const funcId = u.FuncionarioID || u.funcionarioId || "";
-    const emp = funcId && state.tables?.Funcionarios ? state.tables.Funcionarios[funcId] : null;
-    const empCargo = String(emp?.Cargo || emp?.Funcao || emp?.funcao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const empList = Array.isArray(state.employees) ? state.employees : [];
+    const emp =
+      (funcId
+        ? empList.find(
+            (e) =>
+              String(e.FuncionarioID || e.id || e.funcionarioId || "") ===
+              String(funcId),
+          )
+        : null) ||
+      empList[0] ||
+      (typeof runtime !== "undefined" && runtime?.profile
+        ? runtime.profile
+        : null);
+    const empCargo = String(emp?.Cargo || emp?.cargo || emp?.Funcao || emp?.funcao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const empSetor = String(emp?.Setor || emp?.setor || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const empProf = String(emp?.Perfil || emp?.perfil || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return (
       cargo.includes("caixa") ||
       cargo.includes("operad") ||
@@ -3564,8 +3587,11 @@
       empCargo.includes("operad") ||
       empCargo.includes("atend") ||
       empSetor.includes("caixa") ||
+      empProf.includes("caixa") ||
+      empProf.includes("operad") ||
       prof.includes("caixa") ||
-      prof.includes("operad")
+      prof.includes("operad") ||
+      prof.includes("atend")
     );
   }
   window.isAdmin = isAdmin;

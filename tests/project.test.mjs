@@ -2454,7 +2454,7 @@ test("Takeat Credit: separação por compra e detalhes da comanda com olho minim
   );
 });
 
-test("dock mobile contém apenas os 5 botões solicitados: início, ponto, tarefas, folgas e consumo", async () => {
+test("dock mobile contém os botões solicitados incluindo fechamento de caixa para operadores", async () => {
   const indexHtml = await readFile(
     new URL("../src/legacy/Index.html", import.meta.url),
     "utf8",
@@ -2470,6 +2470,7 @@ test("dock mobile contém apenas os 5 botões solicitados: início, ponto, taref
     "timeclock",
     "tasks",
     "timeoff",
+    "fechamento-caixa",
     "takeat-credit",
   ]);
 
@@ -3983,6 +3984,32 @@ test("Blindagem do Ponto Eletrônico (Portaria 671 MTE / Mobile PWA): anti-bounc
     "Scripts.html deve travar envio duplo ao confirmar ponto com selfie",
   );
 });
+
+test("perfil ou cargo de caixa concede permissão e visualização de fechamento de caixa", async () => {
+  const { isCaixaOrManager } = await import("../src/portal-gestao.js");
+  const { PERMISSIONS } = await import("../src/core/constants.js");
+
+  // Perfil Caixa
+  assert.equal(isCaixaOrManager({ Perfil: "Caixa" }), true);
+  assert.equal(isCaixaOrManager({ Perfil: "Operador de caixa" }), true);
+  assert.equal(isCaixaOrManager({ Cargo: "Operadora de Caixa" }), true);
+  assert.equal(isCaixaOrManager({ Cargo: "Atendente", Perfil: "Funcionário" }), true);
+  assert.equal(isCaixaOrManager({ Funcao: "Caixa", Perfil: "Funcionário" }), true);
+  assert.equal(isCaixaOrManager({ Perfil: "Funcionário", Cargo: "Auxiliar de Cozinha" }), false);
+
+  // Permissões
+  assert.ok(Array.isArray(PERMISSIONS.Caixa), "PERMISSIONS.Caixa deve estar definido");
+  assert.ok(PERMISSIONS.Caixa.includes("dashboard.self.read"), "Caixa deve possuir permissão básica de funcionário");
+  assert.ok(Array.isArray(PERMISSIONS["Operador de caixa"]), "PERMISSIONS['Operador de caixa'] deve estar definido");
+
+  // Scripts.html deve permitir fechamento-caixa na navegação de funcionários
+  const scriptsHtml = await readFile(
+    new URL("../src/legacy/Scripts.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(scriptsHtml, /employeeViews\.push\("fechamento-caixa"\)/, "fechamento-caixa deve ser liberado no employeeViews se for caixa");
+});
+
 
 
 

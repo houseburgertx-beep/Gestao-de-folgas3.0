@@ -67,14 +67,21 @@ const isGerenteProfile = (profile) => {
 export const isCaixaOrManager = (profile) => {
   if (!profile) return false;
   if (isGerenteProfile(profile)) return true;
-  const cargo = String(profile.Cargo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const perfil = String(profile.Perfil || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const cargo = String(profile.Cargo || profile.cargo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const perfil = String(profile.Perfil || profile.perfil || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const funcao = String(profile.Funcao || profile.funcao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const setor = String(profile.Setor || profile.setor || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return (
     cargo.includes("caixa") ||
     cargo.includes("operad") ||
     cargo.includes("atend") ||
+    funcao.includes("caixa") ||
+    funcao.includes("operad") ||
+    funcao.includes("atend") ||
+    setor.includes("caixa") ||
     perfil.includes("caixa") ||
-    perfil.includes("operad")
+    perfil.includes("operad") ||
+    perfil.includes("atend")
   );
 };
 

@@ -70,7 +70,10 @@ const isStoreReaderProfile = (profile) =>
   roleName(profile).includes("chefe de cozinha");
 const isEmployeeProfile = (profile) =>
   roleName(profile).includes("funcion") ||
-  roleName(profile).includes("colaborador");
+  roleName(profile).includes("colaborador") ||
+  roleName(profile).includes("caixa") ||
+  roleName(profile).includes("operad") ||
+  roleName(profile).includes("atend");
 
 const PERIOD_INDEXED_TABLES = new Set(["RegistrosPonto", "AjustesPonto"]);
 const PERIOD_INDEX_MIGRATION = "timeClockPeriodIndexesV1";
