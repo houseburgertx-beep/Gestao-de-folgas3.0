@@ -13,6 +13,7 @@ import {
 } from "../../src/core/reminder-policy.js";
 import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppPoll } from "./whatsapp.js";
 import { processInboundHouseAI, generateMotivationalTimeClockMessage, findEmployeeByPhone } from "./house-ai.js";
+import { fetchTakeatDailyChannelSales, formatReaisBRL } from "./takeat-sales.js";
 const encoder = new TextEncoder();
 const b64 = (value) =>
   btoa(String.fromCharCode(...value))
@@ -361,48 +362,61 @@ async function handle(request, env) {
       const dateFormatted = String(date || "").split("-").reverse().join("/") || "sem data";
       const shiftLabel = String(shift || "").trim();
       const shiftSuffix = shiftLabel ? ` - ${shiftLabel}` : "";
-      const operatorLabel = String(operatorName || "").trim() || "nao informado";
+      const operatorLabel = String(operatorName || "").trim() || "não informado";
       const reviewerLabel = String(reviewedBy || "").trim();
       const reasonLabel = String(returnReason || "").trim();
+
+      const takeatSales =
+        eventKind === "cash_closing"
+          ? await fetchTakeatDailyChannelSales(env, { unitId, unitName: unitLabel, date, now })
+          : null;
+
       const hasRevenue = typeof revenueTotal === "number" && Number.isFinite(revenueTotal);
-      const revenueStr = hasRevenue ? formatCentsBRL(revenueTotal) : null;
-      const revenueLine = revenueStr ? `\nValor faturado: ${revenueStr}` : "";
+      const closingRevenueStr = hasRevenue ? formatCentsBRL(revenueTotal) : null;
+      const takeatTotalStr = takeatSales ? formatReaisBRL(takeatSales.total) : null;
+      const effectiveRevenueStr = takeatTotalStr || closingRevenueStr;
+      const revenueLine = effectiveRevenueStr ? `\nValor faturado: ${effectiveRevenueStr}` : "";
+      const takeatChannelBlock =
+        takeatSales?.channels?.length
+          ? `\n\nFaturamento por canal (Takeat):\n` +
+            takeatSales.channels.map((ch) => `- ${ch.label}: ${formatReaisBRL(ch.revenue)}`).join("\n")
+          : "";
+
       const hasDiff = typeof difference === "number" && Number.isFinite(difference);
       const diffStatusStr = !hasDiff
-        ? "Nao informada"
+        ? "Não informada"
         : difference === 0
-          ? "Sem divergencia (caixa bateu)"
+          ? "Sem divergência (caixa bateu)"
           : difference < 0
-            ? `Houve divergencia: falta de ${formatCentsBRL(difference)}`
-            : `Houve divergencia: sobra de ${formatCentsBRL(difference)}`;
+            ? `Falta de ${formatCentsBRL(difference)}`
+            : `Sobra de ${formatCentsBRL(difference)}`;
 
       const financeiroMessages = {
         cash_closing:
           `House 190 - Fechamento de Caixa\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}\n` +
           `Operador: ${operatorLabel}${revenueLine}\n` +
-          `Divergencia: ${diffStatusStr}\n` +
+          `Divergência: ${diffStatusStr}${takeatChannelBlock}\n` +
           `Conferir: https://houseburgertx-beep.github.io/gestao/conferencia-caixa/`,
         cash_returned:
           `House 190 - Caixa Devolvido ao Operador\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}\n` +
-          `Operador: ${operatorLabel}${revenueLine}\n` +
-          `Divergencia: ${diffStatusStr}` +
+          `Operador: ${operatorLabel}${closingRevenueStr ? `\nValor faturado: ${closingRevenueStr}` : ""}\n` +
+          `Divergência: ${diffStatusStr}` +
           (reasonLabel ? `\nMotivo: ${reasonLabel}` : ""),
         cash_conference:
-          `House 190 - Conferencia de Caixa Concluida\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}\n` +
+          `House 190 - Conferência de Caixa Concluída\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}\n` +
           `Operador: ${operatorLabel}` +
           (reviewerLabel ? `\nConferido por: ${reviewerLabel}` : "") +
-          `${revenueLine}\n` +
-          `Divergencia final: ${diffStatusStr}`,
+          `${closingRevenueStr ? `\nValor faturado: ${closingRevenueStr}` : ""}\n` +
+          `Divergência final: ${diffStatusStr}`,
       };
 
-      const executiveMessages = {
-        cash_closing:
-          `House 190 - Fechamento de Caixa\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}${revenueLine}\n${diffStatusStr}`,
-        cash_returned:
-          `House 190 - Caixa Devolvido para Correcao\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}${revenueLine}\n${diffStatusStr}`,
-        cash_conference:
-          `House 190 - Caixa Conferido\n*${unitLabel}* - ${dateFormatted}${shiftSuffix}${revenueLine}\nFinal: ${diffStatusStr}`,
-      };
+      const executiveClosingMessage =
+        `House 190 - Fechamento de Caixa\n` +
+        `Unidade: *${unitLabel}*\n` +
+        `Operador: ${operatorLabel}\n` +
+        `Data: ${dateFormatted}${shiftSuffix}` +
+        (effectiveRevenueStr ? `\nValor faturado: ${effectiveRevenueStr}` : "") +
+        takeatChannelBlock;
 
       const recipients = [];
       const seenPhones = new Set();
@@ -412,11 +426,13 @@ async function handle(request, env) {
         seenPhones.add(phone.digits);
         recipients.push({ digits: phone.digits, role: "financeiro", text: financeiroMessages[eventKind] });
       }
-      for (const raw of executiveRaw) {
-        const phone = normalizeWhatsAppPhone(raw);
-        if (!phone?.digits || seenPhones.has(phone.digits)) continue;
-        seenPhones.add(phone.digits);
-        recipients.push({ digits: phone.digits, role: "executive", text: executiveMessages[eventKind] });
+      if (eventKind === "cash_closing") {
+        for (const raw of executiveRaw) {
+          const phone = normalizeWhatsAppPhone(raw);
+          if (!phone?.digits || seenPhones.has(phone.digits)) continue;
+          seenPhones.add(phone.digits);
+          recipients.push({ digits: phone.digits, role: "executive", text: executiveClosingMessage });
+        }
       }
 
       const gw = await getGatewayConfig(env);
