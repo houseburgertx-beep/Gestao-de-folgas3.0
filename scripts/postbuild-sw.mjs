@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,13 +30,21 @@ try {
   }
 
   let swContent = await readFile(swPath, "utf8");
+  const buildHash = createHash("sha256")
+    .update(relevantAssets.slice().sort().join("\n"))
+    .digest("hex")
+    .slice(0, 8);
+  swContent = swContent.replace(
+    /const CACHE_NAME = "([^"]+)";/,
+    (_, baseName) => `const CACHE_NAME = "${baseName}-${buildHash}";`,
+  );
   const target = 'const APP_SHELL = [\n';
   if (swContent.includes(target)) {
     const replacement = target + relevantAssets.join("\n") + "\n";
     swContent = swContent.replace(target, replacement);
     await writeFile(swPath, swContent, "utf8");
     console.log(
-      `[postbuild-sw] ${relevantAssets.length} ativo(s) do bundle Vite injetados no APP_SHELL do Service Worker.`,
+      `[postbuild-sw] ${relevantAssets.length} ativo(s) do bundle Vite injetados no APP_SHELL do Service Worker (cache suffix -${buildHash}).`,
     );
   } else {
     console.warn("[postbuild-sw] Marcador APP_SHELL não encontrado em dist/sw.js.");
