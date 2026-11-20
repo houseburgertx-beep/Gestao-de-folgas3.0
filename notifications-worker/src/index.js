@@ -11,7 +11,7 @@ import {
   remindersFor,
   scheduleForDay,
 } from "../../src/core/reminder-policy.js";
-import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppPoll } from "./whatsapp.js";
+import { normalizeWhatsAppPhone, resolveWhatsAppRecipientJid, sendWhatsAppMessage, sendWhatsAppButtons, sendWhatsAppPoll } from "./whatsapp.js";
 import { processInboundHouseAI, generateMotivationalTimeClockMessage, findEmployeeByPhone } from "./house-ai.js";
 import { fetchTakeatDailyChannelSales, formatReaisBRL } from "./takeat-sales.js";
 const encoder = new TextEncoder();
@@ -435,10 +435,45 @@ async function handle(request, env) {
         }
       }
 
+      if (body.dryRun === true) {
+        const baseUrl = (gw?.url || env.WA_API_URL || "").trim().replace(/\/+$/, "");
+        const apiEndpoint = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+        const sessionId = gw?.instance || env.WA_SESSION_ID || "house190";
+        const apiKey = gw?.apiKey || env.WA_API_KEY || "";
+        const resolvedRecipients = await Promise.all(
+          recipients.slice(0, 12).map(async (recipient) => {
+            const target = normalizeWhatsAppPhone(recipient.digits);
+            const resolved = await resolveWhatsAppRecipientJid({
+              apiEndpoint,
+              sessionId,
+              apiKey,
+              target,
+            });
+            return {
+              role: recipient.role,
+              inputDigits: recipient.digits,
+              resolvedJid: resolved.jid,
+              resolvedVia: resolved.resolvedVia,
+              checkResults: resolved.checkResults || null,
+            };
+          })
+        );
+        return json({
+          ok: true,
+          dryRun: true,
+          gateway: { url: apiEndpoint, instance: sessionId, ativo: gw?.ativo !== false, hasApiKey: Boolean(apiKey) },
+          takeatLoaded: Boolean(takeatSales),
+          takeatTotal: takeatSales?.total ?? null,
+          targets: recipients.length,
+          resolvedRecipients,
+        });
+      }
+
       const dedupTarget = String(closingId || `${date || ""}:${shiftLabel || "unico"}`).slice(0, 80);
       const minuteBucket = Math.floor(now / 60000);
       let sent = 0, failed = 0, skipped = 0;
       const errors = [];
+      const deliveryDetails = [];
 
       await Promise.allSettled(
         recipients.slice(0, 12).map(async (recipient) => {
@@ -454,6 +489,14 @@ async function handle(request, env) {
             aiPrepared: true,
             gwConfig: gw,
           });
+          deliveryDetails.push({
+            role: recipient.role,
+            inputDigits: recipient.digits,
+            resolvedJid: result.resolvedJid || null,
+            resolvedVia: result.resolvedVia || null,
+            messageId: result.messageId || null,
+            success: Boolean(result.success),
+          });
           if (result.success) {
             sent++;
             await env.DB.prepare("UPDATE deliveries SET state='sent' WHERE event_key=? AND endpoint=?").bind(eventKey, recipient.digits).run();
@@ -465,6 +508,7 @@ async function handle(request, env) {
             errors.push({
               role: recipient.role,
               phoneSuffix: recipient.digits.slice(-4),
+              resolvedJid: result.resolvedJid || null,
               error: String(result.error || "send_failed").slice(0, 120),
             });
             await env.DB.prepare("UPDATE deliveries SET state='failed', lease_until=? WHERE event_key=? AND endpoint=?").bind(now, eventKey, recipient.digits).run().catch(() => {});
@@ -481,6 +525,7 @@ async function handle(request, env) {
         skipped,
         targets: recipients.length,
         takeatLoaded: Boolean(takeatSales),
+        deliveries: deliveryDetails,
         errors,
       }));
       return json({
@@ -489,6 +534,7 @@ async function handle(request, env) {
         failed,
         skipped,
         targets: recipients.length,
+        deliveries: deliveryDetails,
         ...(errors.length ? { errors } : {}),
       });
     } catch (err) {

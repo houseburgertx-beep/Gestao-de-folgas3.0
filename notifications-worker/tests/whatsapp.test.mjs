@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeWhatsAppPhone, sendWhatsAppMessage, sendWhatsAppButtons } from "../src/whatsapp.js";
+import {
+  normalizeWhatsAppPhone,
+  buildBrazilWhatsAppCandidates,
+  resetResolvedJidCacheForTests,
+  sendWhatsAppMessage,
+  sendWhatsAppButtons,
+} from "../src/whatsapp.js";
 
 test("normalizeWhatsAppPhone normaliza telefones brasileiros em diversos formatos", () => {
   // Com DDD e 9 dígitos (Bahia 71)
@@ -153,4 +159,73 @@ test("sendWhatsAppMessage não confunde HTTP200 vazio ou statusfalse com envio c
       assert.equal(result.error, "gateway_did_not_confirm_send");
     }
   } finally { globalThis.fetch = original; }
+});
+
+test("sendWhatsAppMessage resolve JID real sem 9o digito na Bahia (DDD 73) via /api/chat/{sessionId}/check", async () => {
+  resetResolvedJidCacheForTests();
+  assert.deepEqual(buildBrazilWhatsAppCandidates("5573999136785"), [
+    "557399136785",
+    "5573999136785",
+  ]);
+  assert.deepEqual(buildBrazilWhatsAppCandidates("5511988887777"), [
+    "5511988887777",
+    "551188887777",
+  ]);
+
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    const s = String(url);
+    calls.push({ url: s, body: JSON.parse(options.body) });
+    if (s.endsWith("/chat/house190/check")) {
+      return new Response(
+        JSON.stringify({
+          status: true,
+          data: {
+            results: [
+              { number: "557399136785", exists: true, jid: "557399136785@s.whatsapp.net" },
+              { number: "5573999136785", exists: false, jid: null },
+            ],
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    if (s.includes("/messages/house190/")) {
+      return new Response(
+        JSON.stringify({ status: true, data: { key: { id: "msg-resolved-12" } } }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    return new Response("not found", { status: 404 });
+  };
+
+  try {
+    const result = await sendWhatsAppMessage(
+      {
+        WA_ENABLED: "true",
+        WA_API_URL: "https://gateway.test/api",
+        WA_SESSION_ID: "house190",
+        WA_API_KEY: "test-key",
+      },
+      {
+        phone: "5573999136785",
+        text: "House 190 - Fechamento de Caixa",
+        aiPrepared: true,
+      },
+    );
+    assert.equal(result.success, true);
+    assert.equal(result.resolvedJid, "557399136785@s.whatsapp.net");
+    assert.equal(result.resolvedVia, "onWhatsApp");
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].url, "https://gateway.test/api/chat/house190/check");
+    assert.deepEqual(calls[0].body.numbers, ["557399136785", "5573999136785"]);
+    assert.equal(
+      calls[1].url,
+      "https://gateway.test/api/messages/house190/557399136785%40s.whatsapp.net/send",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    resetResolvedJidCacheForTests();
+  }
 });

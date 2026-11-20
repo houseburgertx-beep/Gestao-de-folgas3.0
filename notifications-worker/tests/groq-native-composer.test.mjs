@@ -57,6 +57,7 @@ test('envio central compõe texto, botões e enquete sem alterar escolhas',async
  t.mock.method(globalThis,'fetch',async(url,options)=>{
   const body=JSON.parse(options.body);
   if(String(url).includes('api.groq.com')) {compositions++;const data=JSON.parse(body.messages[1].content);return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({message:`Olá!\n${data.texto}`})}}]}));}
+  if(String(url).includes('/chat/')) return new Response(JSON.stringify({status:true,data:{results:[]}}));
   deliveries.push(body);return new Response(JSON.stringify({status:true,data:{key:{id:'test'}}}));
  });
  const common={phone:'5571988887777',text:'Entrada registrada às 08:00'};
