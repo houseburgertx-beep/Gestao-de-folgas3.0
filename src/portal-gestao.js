@@ -7388,12 +7388,62 @@ export function initPortalGestao() {
   mountPayrollClosingScreen();
   enhanceAuditView();
 
+  const normalizeUnitToken = (val) =>
+    String(val || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
   const resolveUserFinanceiroUnit = () => {
-    const u = (typeof window !== "undefined" && window.state?.user) || runtime?.profile || {};
-    const storeStr = String(u.NomeLoja || u.nomeLoja || u.Loja || u.loja || u.LojaID || u.lojaId || "").toLowerCase();
-    if (storeStr.includes("eunap") || storeStr.includes("euna")) return "eunapolis";
-    if (storeStr.includes("food") || storeStr.includes("park")) return "foodpark";
-    if (storeStr.includes("teix") || storeStr.includes("tx")) return "teixeira";
+    const ctx =
+      typeof window !== "undefined" && typeof window.getGestaoSessionContext === "function"
+        ? window.getGestaoSessionContext()
+        : { user: runtime?.profile || {}, stores: [], employees: [] };
+    const u = ctx?.user && Object.keys(ctx.user).length ? ctx.user : runtime?.profile || {};
+    const empId = String(u.FuncionarioID || u.funcionarioId || "");
+    const emp = empId
+      ? (ctx?.employees || []).find(
+          (e) => String(e?.FuncionarioID || e?.id || e?.funcionarioId || "") === empId,
+        )
+      : null;
+    const storeId = String(u.LojaID || u.lojaId || emp?.LojaID || emp?.lojaId || "").trim();
+    const matchedStore = storeId
+      ? (ctx?.stores || []).find(
+          (st) => String(st?.LojaID || st?.lojaId || st?.id || "").trim() === storeId,
+        )
+      : null;
+
+    const candidates = [
+      u.NomeLoja,
+      u.nomeLoja,
+      u.Loja,
+      u.loja,
+      emp?.NomeLoja,
+      emp?.nomeLoja,
+      matchedStore?.NomeFantasia,
+      matchedStore?.NomeLoja,
+      matchedStore?.Nome,
+      matchedStore?.Cidade,
+      matchedStore?.Codigo,
+      storeId,
+    ]
+      .map(normalizeUnitToken)
+      .filter(Boolean)
+      .join(" ");
+
+    if (candidates.includes("eunap") || candidates.includes("euna")) return "eunapolis";
+    if (candidates.includes("food") || candidates.includes("park") || candidates.includes("fdp")) {
+      return "foodpark";
+    }
+    if (
+      candidates.includes("teix") ||
+      candidates.includes("tx") ||
+      candidates.includes("a.m. gourmet") ||
+      candidates.includes("am gourmet")
+    ) {
+      return "teixeira";
+    }
     return "";
   };
 
@@ -7401,8 +7451,23 @@ export function initPortalGestao() {
     const isCaixa = typeof window !== "undefined" && window.isCashier ? window.isCashier() : isCaixaOrManager(runtime?.profile);
     const isGestor = isGerenteProfile(runtime?.profile);
     const userUnit = resolveUserFinanceiroUnit();
-    const lockUnit = isCaixa && !isGestor;
+    const lockUnit = isCaixa && !isGestor && Boolean(userUnit);
     return `https://houseburgertx-beep.github.io/gestao/fechamento-caixa/?embedded=true${userUnit ? `&unitId=${encodeURIComponent(userUnit)}` : ""}${lockUnit ? "&lockUnit=true" : ""}`;
+  };
+
+  const syncFechamentoCaixaIframe = ({ onlyIfActive = false } = {}) => {
+    const iframe = document.getElementById("fechamentoCaixaFrame");
+    if (!iframe) return;
+    const isCaixa = typeof window !== "undefined" && window.isCashier ? window.isCashier() : isCaixaOrManager(runtime?.profile);
+    if (!isCaixa) return;
+    const section = document.getElementById("view-fechamento-caixa");
+    if (onlyIfActive && !section?.classList.contains("active")) return;
+    const targetSrc = getFechamentoCaixaSrc();
+    const currentSrc = iframe.getAttribute("src") || "";
+    if (currentSrc !== targetSrc) {
+      iframe.setAttribute("data-loaded-for-unit", resolveUserFinanceiroUnit());
+      iframe.setAttribute("src", targetSrc);
+    }
   };
 
   const onViewActivated = (view) => {
@@ -7411,13 +7476,7 @@ export function initPortalGestao() {
     if (view === "fichas") loadFichasView();
     if (view === "monthly-closing") loadPayrollClosingTable();
     if (view === "fechamento-caixa") {
-      const iframe = document.getElementById("fechamentoCaixaFrame");
-      if (iframe) {
-        const targetSrc = getFechamentoCaixaSrc();
-        if (iframe.getAttribute("src") !== targetSrc) {
-          iframe.src = targetSrc;
-        }
-      }
+      syncFechamentoCaixaIframe({ onlyIfActive: false });
     }
     if (view === "timeoff" || view === "pending-center") {
       loadValesList();
@@ -7443,15 +7502,7 @@ export function initPortalGestao() {
   window.addEventListener("gestao-user-hydrated", () => {
     syncWorkspaceHubBars();
     loadUnifiedPendingHrItems();
-    const iframe = document.getElementById("fechamentoCaixaFrame");
-    if (iframe) {
-      const userUnit = resolveUserFinanceiroUnit();
-      const targetSrc = getFechamentoCaixaSrc();
-      if (!iframe.src || iframe.src === "about:blank" || iframe.getAttribute("data-loaded-for-unit") !== userUnit) {
-        iframe.setAttribute("data-loaded-for-unit", userUnit);
-        iframe.src = targetSrc;
-      }
-    }
+    syncFechamentoCaixaIframe({ onlyIfActive: true });
     if (isGerenteProfile(runtime?.profile)) {
       loadEmployeesOverviewSummary();
     }

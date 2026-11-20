@@ -3520,8 +3520,15 @@
     document.body.classList.toggle("employee-workspace", !manager);
     $("#managementGroupLabel").textContent = manager ? "Gestão" : "Comunicação";
     renderPendingCenterSummary_();
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(positionDockIndicator);
+    }
     try {
-      window.dispatchEvent(new CustomEvent("gestao-user-hydrated", { detail: { user: state.user } }));
+      window.dispatchEvent(
+        new CustomEvent("gestao-user-hydrated", {
+          detail: { user: state.user, stores: state.stores },
+        }),
+      );
     } catch (_) {}
   }
   function isAdmin() {
@@ -3591,6 +3598,11 @@
   window.isManager = isManager;
   window.isStoreManager = isStoreManager;
   window.isCashier = isCashier;
+  window.getGestaoSessionContext = () => ({
+    user: state.user || {},
+    stores: Array.isArray(state.stores) ? state.stores : [],
+    employees: Array.isArray(state.employees) ? state.employees : [],
+  });
   navigator.serviceWorker?.addEventListener("message", event => {
     if (event.data?.type === "gestao-open-view" && ["timeclock","notifications"].includes(event.data.view)) {
       if (state.user) switchView(event.data.view);
