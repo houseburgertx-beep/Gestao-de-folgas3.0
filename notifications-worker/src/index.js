@@ -605,6 +605,201 @@ async function handle(request, env) {
     }
   }
 
+  if (route === "/tasks-wa-relay") {
+    if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+    const relaySecret = request.headers.get("X-Relay-Secret") || "";
+    if (!env.TASKS_RELAY_SECRET || !relaySecret || !(await equalSecret(relaySecret, env.TASKS_RELAY_SECRET))) {
+      return json({ error: "unauthorized" }, 401);
+    }
+    try {
+      const gw = await getGatewayConfig(env);
+      const sessionId = String(body.sessionId || "").trim() || gw.instance || "house190";
+      const baseUrl = String(gw.url || "").trim().replace(/\/+$/, "");
+      const apiKey = String(gw.apiKey || "").trim();
+      const action = String(body.action || "").trim();
+      const timeoutMs = Math.min(15000, Math.max(2000, Number(body.timeoutMs) || 10000));
+
+      if (!baseUrl || !sessionId || !apiKey) {
+        return json({ ok: false, configured: false, retryable: true, error: "wa_config_missing" }, 503);
+      }
+
+      if (action === "status") {
+        try {
+          const res = await fetch(`${baseUrl}/sessions/${encodeURIComponent(sessionId)}`, {
+            method: "GET",
+            headers: { "X-API-Key": apiKey, "bypass-tunnel-reminder": "true" },
+            signal: AbortSignal.timeout(8000),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            return json({
+              configured: true,
+              enabled: gw.ativo !== false,
+              connected: false,
+              status: `HTTP_${res.status}`,
+              gatewayUrl: baseUrl,
+              sessionId,
+              urlSource: "relay",
+              error: payload?.error || `Gateway respondeu HTTP ${res.status}.`,
+            });
+          }
+          const session = payload?.data || payload || {};
+          const rawStatus = String(session.status || (payload?.connected ? "CONNECTED" : "UNKNOWN")).toUpperCase();
+          const connected = rawStatus === "CONNECTED" || rawStatus === "WORKING" || rawStatus === "OPEN" || Boolean(session.me) || Boolean(payload?.connected);
+          return json({
+            configured: true,
+            enabled: gw.ativo !== false,
+            connected,
+            status: connected ? "CONNECTED" : rawStatus,
+            phone: session.me?.id ? String(session.me.id).split(":")[0].split("@")[0] : String(session.phoneNumber || ""),
+            pushName: String(session.me?.name || ""),
+            uptime: session.uptime ?? null,
+            pairingCode: session.pairingCode || null,
+            gatewayUrl: baseUrl,
+            sessionId,
+            urlSource: "relay",
+            error: null,
+          });
+        } catch (err) {
+          return json({
+            configured: true,
+            enabled: gw.ativo !== false,
+            connected: false,
+            status: "OFFLINE",
+            gatewayUrl: baseUrl,
+            sessionId,
+            urlSource: "relay",
+            error: String(err?.message || "Gateway inacessível."),
+          });
+        }
+      }
+
+      if (action === "qr") {
+        try {
+          const res = await fetch(`${baseUrl}/sessions/${encodeURIComponent(sessionId)}/qr`, {
+            method: "GET",
+            headers: { "X-API-Key": apiKey, "bypass-tunnel-reminder": "true" },
+            signal: AbortSignal.timeout(8000),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            return json({ success: false, error: payload?.error || payload?.message || `Gateway respondeu HTTP ${res.status}.` }, 502);
+          }
+          return json({
+            success: Boolean(payload?.success || payload?.base64 || payload?.qr),
+            qr: payload?.qr || null,
+            base64: payload?.base64 || null,
+            message: payload?.message || null,
+            error: payload?.error || null,
+          });
+        } catch (err) {
+          return json({ success: false, error: String(err?.message || "Gateway inacessível.") }, 502);
+        }
+      }
+
+      if (action === "session") {
+        const sessionAction = String(body.sessionAction || "").trim();
+        if (!["start", "restart", "logout", "pair"].includes(sessionAction)) {
+          return json({ ok: false, error: "invalid_session_action" }, 400);
+        }
+        try {
+          const reqBody = sessionAction === "pair" && body.phoneNumber
+            ? JSON.stringify({ phoneNumber: String(body.phoneNumber).trim() })
+            : undefined;
+          const res = await fetch(`${baseUrl}/sessions/${encodeURIComponent(sessionId)}/${sessionAction}`, {
+            method: "POST",
+            headers: {
+              "X-API-Key": apiKey,
+              "bypass-tunnel-reminder": "true",
+              ...(reqBody ? { "Content-Type": "application/json" } : {}),
+            },
+            body: reqBody,
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            return json({ ok: false, error: String(payload?.error || payload?.message || `HTTP ${res.status}`) }, 502);
+          }
+          return json({ ok: true, data: payload });
+        } catch (err) {
+          return json({ ok: false, error: String(err?.message || "Gateway inacessível.") }, 502);
+        }
+      }
+
+      if (action === "send") {
+        if (gw.ativo === false) {
+          return json({ ok: false, retryable: false, skipped: true, error: "wa_disabled" });
+        }
+        const rawRecipient = String(body.recipient || body.phone || "").trim();
+        const text = String(body.text || "").trim().slice(0, 4000);
+        if (!rawRecipient || !text) {
+          return json({ ok: false, retryable: false, error: "missing_recipient_or_text" }, 400);
+        }
+        let jid = "";
+        if (rawRecipient.endsWith("@g.us")) {
+          const groupId = rawRecipient.slice(0, -5).trim();
+          if (!/^[0-9-]{8,40}$/.test(groupId)) return json({ ok: false, retryable: false, error: "invalid_phone" }, 400);
+          jid = `${groupId}@g.us`;
+        } else {
+          const candidate = rawRecipient.endsWith("@s.whatsapp.net") ? rawRecipient.slice(0, -15) : rawRecipient;
+          const target = normalizeWhatsAppPhone(candidate);
+          if (!target) return json({ ok: false, retryable: false, error: "invalid_phone" }, 400);
+          const resolved = await resolveWhatsAppRecipientJid({
+            apiEndpoint: baseUrl,
+            sessionId,
+            apiKey,
+            target,
+          });
+          jid = resolved.jid || target.jid;
+        }
+        try {
+          const res = await fetch(`${baseUrl}/messages/${encodeURIComponent(sessionId)}/${encodeURIComponent(jid)}/send`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+              "bypass-tunnel-reminder": "true",
+            },
+            body: JSON.stringify({ message: { text } }),
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => "");
+            const retryable = res.status >= 500 || res.status === 404 || res.status === 408 || res.status === 429;
+            return json({
+              ok: false,
+              retryable,
+              status: res.status,
+              gatewayUrl: baseUrl,
+              sessionId,
+              error: `http_${res.status}${errText ? `: ${errText.slice(0, 120)}` : ""}`,
+            });
+          }
+          const payload = await res.json().catch(() => ({}));
+          const messageId = payload?.data?.key?.id || payload?.data?.id || "";
+          if (payload.status === false || (!messageId && payload.status !== true && payload.status !== "success")) {
+            return json({
+              ok: false,
+              retryable: true,
+              status: res.status,
+              gatewayUrl: baseUrl,
+              sessionId,
+              error: payload?.error || "gateway_did_not_confirm_send",
+            });
+          }
+          return json({ ok: true, retryable: false, status: res.status, messageId, gatewayUrl: baseUrl, sessionId });
+        } catch (err) {
+          const msg = err?.name === "TimeoutError" ? "timeout" : String(err?.message || err);
+          return json({ ok: false, retryable: true, gatewayUrl: baseUrl, sessionId, error: msg.slice(0, 140) });
+        }
+      }
+
+      return json({ ok: false, error: "invalid_action" }, 400);
+    } catch (err) {
+      return json({ ok: false, retryable: true, error: String(err?.message || err).slice(0, 140) }, 502);
+    }
+  }
+
     if (["/integrity/create", "/integrity/consult", "/integrity/message"].includes(route)) {
     if (request.method !== "POST") return json({ success: false, message: "method_not_allowed" }, 405);
     try {
