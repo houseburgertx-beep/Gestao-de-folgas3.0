@@ -319,6 +319,7 @@ async function handle(request, env) {
       closingId,
       returnReason,
       reviewedBy,
+      channelBreakdown,
     } = body;
     if (!eventKind || !unitId) return json({ error: "missing_fields" }, 400);
     const allowedKinds = ["cash_closing", "cash_returned", "cash_conference"];
@@ -348,7 +349,14 @@ async function handle(request, env) {
           return await database(env, tok, "tables/Configuracoes/WhatsAppCashNotify", null, 4000);
         })(),
         eventKind === "cash_closing"
-          ? fetchTakeatDailyChannelSales(env, { unitId, unitName: unitLabel, date, now })
+          ? fetchTakeatDailyChannelSales(env, {
+              unitId,
+              unitName: unitLabel,
+              date,
+              revenueTotal,
+              channelBreakdown,
+              now,
+            })
           : Promise.resolve(null),
         getGatewayConfig(env),
       ]);
@@ -372,9 +380,12 @@ async function handle(request, env) {
       };
 
       const hasRevenue = typeof revenueTotal === "number" && Number.isFinite(revenueTotal);
+      const hasPositiveRevenue = hasRevenue && revenueTotal > 0;
       const closingRevenueStr = hasRevenue ? formatCentsBRL(revenueTotal) : null;
       const takeatTotalStr = takeatSales ? formatReaisBRL(takeatSales.total) : null;
-      const effectiveRevenueStr = takeatTotalStr || closingRevenueStr;
+      // Valor faturado deve ser SEMPRE fiel ao fechamento de caixa (PDV); só recorre ao Takeat se não vier valor no fechamento.
+      const effectiveRevenueStr =
+        (hasPositiveRevenue ? closingRevenueStr : null) || takeatTotalStr || closingRevenueStr;
       const revenueLine = effectiveRevenueStr ? `\nValor faturado: ${effectiveRevenueStr}` : "";
       const takeatChannelBlock =
         takeatSales?.channels?.length
@@ -463,25 +474,71 @@ async function handle(request, env) {
           dryRun: true,
           gateway: { url: apiEndpoint, instance: sessionId, ativo: gw?.ativo !== false, hasApiKey: Boolean(apiKey) },
           takeatLoaded: Boolean(takeatSales),
+          takeatSource: takeatSales?.source || null,
           takeatTotal: takeatSales?.total ?? null,
+          takeatChannels: takeatSales?.channels || [],
+          takeatWindow: takeatSales?.windowStart
+            ? {
+                start: takeatSales.windowStart,
+                end: takeatSales.windowEnd,
+                cashierOpeningId: takeatSales.cashierOpeningId ?? null,
+              }
+            : null,
+          previewMessages: {
+            financeiro: financeiroMessages[eventKind],
+            executive: eventKind === "cash_closing" ? executiveClosingMessage : null,
+          },
           targets: recipients.length,
           resolvedRecipients,
         });
       }
 
-      const dedupTarget = String(closingId || `${date || ""}:${shiftLabel || "unico"}`).slice(0, 80);
-      const minuteBucket = Math.floor(now / 60000);
-      let sent = 0, failed = 0, skipped = 0;
+      const normalizedShiftKey =
+        String(shiftLabel || "unico")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_|_$/g, "") || "unico";
+      const isoDateSlot = String(date || "").trim().slice(0, 10);
+      const canonicalSlot = /^\d{4}-\d{2}-\d{2}$/.test(isoDateSlot)
+        ? `${isoDateSlot}:${normalizedShiftKey}`
+        : String(closingId || normalizedShiftKey).slice(0, 80);
+
+      // Se o caixa foi devolvido ao operador, libera apenas o lock do Financeiro para que
+      // o reenvio após correção avise o Financeiro uma única vez (sem reenviar duplicado para diretoria).
+      if (eventKind === "cash_returned") {
+        await Promise.allSettled(
+          recipients
+            .filter((r) => r.role === "financeiro")
+            .map((r) => {
+              const priorClosingKey = `cash:cash_closing:${unitId}:${canonicalSlot}:${r.digits}`;
+              return env.DB.prepare("DELETE FROM deliveries WHERE event_key=? AND endpoint=?")
+                .bind(priorClosingKey, r.digits)
+                .run();
+            })
+        );
+      }
+
+      const returnWindowBucket = Math.floor(now / 600000);
+      const dedupTtlMs = eventKind === "cash_returned" ? 86400000 : 7 * 86400000;
+      let sent = 0, failed = 0, skipped = 0, deduped = 0;
       const errors = [];
       const deliveryDetails = [];
 
       await Promise.allSettled(
         recipients.slice(0, 12).map(async (recipient) => {
-          const eventKey = `cash:${eventKind}:${unitId}:${dedupTarget}:${minuteBucket}:${recipient.digits}`;
+          const eventKey =
+            eventKind === "cash_returned"
+              ? `cash:cash_returned:${unitId}:${canonicalSlot}:${returnWindowBucket}:${recipient.digits}`
+              : `cash:${eventKind}:${unitId}:${canonicalSlot}:${recipient.digits}`;
           const lock = await env.DB.prepare(
             "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,'sending',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state='sending',lease_until=excluded.lease_until WHERE deliveries.state!='sent' AND deliveries.lease_until<?"
-          ).bind(eventKey, recipient.digits, now + 300000, now + 86400000, now).run();
-          if (!lock.meta.changes) return;
+          ).bind(eventKey, recipient.digits, now + 300000, now + dedupTtlMs, now).run();
+          if (!lock.meta.changes) {
+            deduped++;
+            return;
+          }
 
           const result = await sendWhatsAppMessage(env, {
             phone: recipient.digits,
@@ -520,11 +577,14 @@ async function handle(request, env) {
         event: "cash_notify_done",
         eventKind,
         unitId,
+        canonicalSlot,
         sent,
         failed,
         skipped,
+        deduped,
         targets: recipients.length,
         takeatLoaded: Boolean(takeatSales),
+        takeatSource: takeatSales?.source || null,
         deliveries: deliveryDetails,
         errors,
       }));
@@ -533,7 +593,10 @@ async function handle(request, env) {
         sent,
         failed,
         skipped,
+        deduped,
         targets: recipients.length,
+        takeatLoaded: Boolean(takeatSales),
+        takeatSource: takeatSales?.source || null,
         deliveries: deliveryDetails,
         ...(errors.length ? { errors } : {}),
       });
