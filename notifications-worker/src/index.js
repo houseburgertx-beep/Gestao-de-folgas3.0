@@ -334,20 +334,33 @@ async function handle(request, env) {
       const DEFAULT_FINANCEIRO_PHONES = ["5573982113316"];
       const DEFAULT_EXECUTIVE_PHONES = ["5573991915552", "5573999136785"];
 
-      let rtdbCashCfg = null;
-      try {
-        const tok = await googleToken(env);
-        rtdbCashCfg = await database(env, tok, "tables/Configuracoes/WhatsAppCashNotify");
-      } catch (_) {
-        rtdbCashCfg = null;
-      }
+      const unitLabel = String(unitName || unitId).trim();
+      const dateFormatted = String(date || "").split("-").reverse().join("/") || "sem data";
+      const shiftLabel = String(shift || "").trim();
+      const shiftSuffix = shiftLabel ? ` - ${shiftLabel}` : "";
+      const operatorLabel = String(operatorName || "").trim() || "não informado";
+      const reviewerLabel = String(reviewedBy || "").trim();
+      const reasonLabel = String(returnReason || "").trim();
 
-      const financeiroRaw = parsePhoneList(
-        rtdbCashCfg?.financeiroPhones ?? env.WA_CASH_FINANCEIRO_PHONES ?? DEFAULT_FINANCEIRO_PHONES
-      );
-      const executiveRaw = parsePhoneList(
-        rtdbCashCfg?.executivePhones ?? env.WA_CASH_EXECUTIVE_PHONES ?? DEFAULT_EXECUTIVE_PHONES
-      );
+      const [rtdbCashResult, takeatSalesResult, gwResult] = await Promise.allSettled([
+        (async () => {
+          const tok = await googleToken(env);
+          return await database(env, tok, "tables/Configuracoes/WhatsAppCashNotify", null, 4000);
+        })(),
+        eventKind === "cash_closing"
+          ? fetchTakeatDailyChannelSales(env, { unitId, unitName: unitLabel, date, now })
+          : Promise.resolve(null),
+        getGatewayConfig(env),
+      ]);
+
+      const rtdbCashCfg = rtdbCashResult.status === "fulfilled" ? rtdbCashResult.value : null;
+      const takeatSales = takeatSalesResult.status === "fulfilled" ? takeatSalesResult.value : null;
+      const gw = gwResult.status === "fulfilled" ? gwResult.value : await getGatewayConfig(env);
+
+      const parsedFin = parsePhoneList(rtdbCashCfg?.financeiroPhones ?? env.WA_CASH_FINANCEIRO_PHONES);
+      const financeiroRaw = parsedFin.length ? parsedFin : DEFAULT_FINANCEIRO_PHONES;
+      const parsedExec = parsePhoneList(rtdbCashCfg?.executivePhones ?? env.WA_CASH_EXECUTIVE_PHONES);
+      const executiveRaw = parsedExec.length ? parsedExec : DEFAULT_EXECUTIVE_PHONES;
 
       const formatCentsBRL = (cents) => {
         const n = Number(cents);
@@ -357,19 +370,6 @@ async function handle(request, env) {
           maximumFractionDigits: 2,
         })}`;
       };
-
-      const unitLabel = String(unitName || unitId).trim();
-      const dateFormatted = String(date || "").split("-").reverse().join("/") || "sem data";
-      const shiftLabel = String(shift || "").trim();
-      const shiftSuffix = shiftLabel ? ` - ${shiftLabel}` : "";
-      const operatorLabel = String(operatorName || "").trim() || "não informado";
-      const reviewerLabel = String(reviewedBy || "").trim();
-      const reasonLabel = String(returnReason || "").trim();
-
-      const takeatSales =
-        eventKind === "cash_closing"
-          ? await fetchTakeatDailyChannelSales(env, { unitId, unitName: unitLabel, date, now })
-          : null;
 
       const hasRevenue = typeof revenueTotal === "number" && Number.isFinite(revenueTotal);
       const closingRevenueStr = hasRevenue ? formatCentsBRL(revenueTotal) : null;
@@ -435,32 +435,62 @@ async function handle(request, env) {
         }
       }
 
-      const gw = await getGatewayConfig(env);
       const dedupTarget = String(closingId || `${date || ""}:${shiftLabel || "unico"}`).slice(0, 80);
       const minuteBucket = Math.floor(now / 60000);
       let sent = 0, failed = 0, skipped = 0;
-      for (const recipient of recipients.slice(0, 12)) {
-        const eventKey = `cash:${eventKind}:${unitId}:${dedupTarget}:${minuteBucket}:${recipient.digits}`;
-        const lock = await env.DB.prepare(
-          "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,'sending',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state='sending',lease_until=excluded.lease_until WHERE deliveries.state!='sent' AND deliveries.lease_until<?"
-        ).bind(eventKey, recipient.digits, now + 300000, now + 86400000, now).run();
-        if (!lock.meta.changes) continue;
-        const result = await sendWhatsAppMessage(env, {
-          phone: recipient.digits,
-          text: recipient.text,
-          aiPrepared: true,
-          gwConfig: gw,
-        });
-        if (result.success) {
-          sent++;
-          await env.DB.prepare("UPDATE deliveries SET state='sent' WHERE event_key=? AND endpoint=?").bind(eventKey, recipient.digits).run();
-        } else if (result.skipped) {
-          skipped++;
-        } else {
-          failed++;
-        }
-      }
-      return json({ ok: true, sent, failed, skipped, targets: recipients.length });
+      const errors = [];
+
+      await Promise.allSettled(
+        recipients.slice(0, 12).map(async (recipient) => {
+          const eventKey = `cash:${eventKind}:${unitId}:${dedupTarget}:${minuteBucket}:${recipient.digits}`;
+          const lock = await env.DB.prepare(
+            "INSERT INTO deliveries(event_key,endpoint,state,lease_until,expires_at) VALUES(?,?,'sending',?,?) ON CONFLICT(event_key,endpoint) DO UPDATE SET state='sending',lease_until=excluded.lease_until WHERE deliveries.state!='sent' AND deliveries.lease_until<?"
+          ).bind(eventKey, recipient.digits, now + 300000, now + 86400000, now).run();
+          if (!lock.meta.changes) return;
+
+          const result = await sendWhatsAppMessage(env, {
+            phone: recipient.digits,
+            text: recipient.text,
+            aiPrepared: true,
+            gwConfig: gw,
+          });
+          if (result.success) {
+            sent++;
+            await env.DB.prepare("UPDATE deliveries SET state='sent' WHERE event_key=? AND endpoint=?").bind(eventKey, recipient.digits).run();
+          } else if (result.skipped) {
+            skipped++;
+            await env.DB.prepare("UPDATE deliveries SET state='skipped', lease_until=? WHERE event_key=? AND endpoint=?").bind(now, eventKey, recipient.digits).run().catch(() => {});
+          } else {
+            failed++;
+            errors.push({
+              role: recipient.role,
+              phoneSuffix: recipient.digits.slice(-4),
+              error: String(result.error || "send_failed").slice(0, 120),
+            });
+            await env.DB.prepare("UPDATE deliveries SET state='failed', lease_until=? WHERE event_key=? AND endpoint=?").bind(now, eventKey, recipient.digits).run().catch(() => {});
+          }
+        })
+      );
+
+      console.log(JSON.stringify({
+        event: "cash_notify_done",
+        eventKind,
+        unitId,
+        sent,
+        failed,
+        skipped,
+        targets: recipients.length,
+        takeatLoaded: Boolean(takeatSales),
+        errors,
+      }));
+      return json({
+        ok: true,
+        sent,
+        failed,
+        skipped,
+        targets: recipients.length,
+        ...(errors.length ? { errors } : {}),
+      });
     } catch (err) {
       return json({ error: "cash_notify_failed", details: String(err?.message || err) }, 502);
     }

@@ -281,3 +281,92 @@ test("/cash-notify envia devolucao e conferencia apenas para o financeiro (sem d
     globalThis.fetch = originalFetch;
   }
 });
+
+test("/cash-notify funciona via Service Binding (sem header Origin) para Eunapolis e recai nos numeros padrao se config RTDB vier vazia", async () => {
+  resetTakeatSalesCacheForTests();
+  const originalFetch = globalThis.fetch;
+  const sentMessages = [];
+  globalThis.fetch = async (url, init) => {
+    const s = String(url);
+    if (s === "https://public-api.takeat.app/oauth/token") {
+      return new Response(JSON.stringify({ access_token: "mock-takeat-jwt", expires_in: 900 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (s.startsWith("https://public-api.takeat.app/v1/reports/payments/channels")) {
+      assert.match(s, /restaurant_id=97686/);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            restaurant_id: 97686,
+            records: [
+              { channel_group: "delivery_takeat", gross_revenue: 2100.5 },
+              { channel_group: "presencial", gross_revenue: 1850.25 },
+            ],
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    if (s.includes("WhatsAppCashNotify")) {
+      return new Response(JSON.stringify({ financeiroPhones: "", executivePhones: "" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (s.includes("/api/messages/house190/")) {
+      const body = JSON.parse(init?.body || "{}");
+      sentMessages.push({ url: s, text: body?.message?.text || "" });
+      return new Response(JSON.stringify({ status: true, data: { key: { id: `msg-eun-${sentMessages.length}` } } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify(null), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const res = await worker.fetch(
+      new Request("https://house-folgas-notifications.brunohouse.workers.dev/cash-notify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Service-Token": "cash-dedicated-secret-190",
+        },
+        body: JSON.stringify({
+          eventKind: "cash_closing",
+          unitId: "eunapolis",
+          unitName: "House 190 Eunápolis",
+          operatorName: "Ana Claudia",
+          date: "2026-11-19",
+          shift: "Único",
+          revenueTotal: 395075,
+          difference: 0,
+          closingId: "closing-eunapolis-2026-11-19",
+        }),
+      }),
+      {
+        ...env,
+        CASH_NOTIFY_SECRET: "cash-dedicated-secret-190",
+        TAKEAT_MULTISTORE_API_KEY: "tk_test_mock_key",
+        WA_ENABLED: "true",
+        WA_API_URL: "https://wa-gw.example.com/api",
+        WA_API_KEY: "test-wa-key",
+        WA_SESSION_ID: "house190",
+      }
+    );
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.ok, true);
+    assert.equal(data.sent, 3);
+    assert.equal(data.targets, 3);
+    assert.equal(sentMessages.length, 3);
+    assert.ok(sentMessages.some((m) => m.url.includes("5573982113316")));
+    assert.ok(sentMessages.some((m) => m.url.includes("5573991915552")));
+    assert.ok(sentMessages.some((m) => m.url.includes("5573999136785")));
+  } finally {
+    globalThis.fetch = originalFetch;
+    resetTakeatSalesCacheForTests();
+  }
+});

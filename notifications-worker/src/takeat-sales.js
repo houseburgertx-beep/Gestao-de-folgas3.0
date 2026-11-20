@@ -80,7 +80,7 @@ async function getTakeatAccessToken(apiKey, now = Date.now()) {
       grant_type: "api_key",
       api_key: cleanKey,
     }),
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(4500),
   });
   if (!res.ok) return null;
   const data = await res.json().catch(() => null);
@@ -101,7 +101,7 @@ async function resolveRestaurantIdDynamic(token, unitId, unitName) {
 
   const res = await fetch(`${TAKEAT_API_BASE}/v1/restaurants`, {
     headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(4500),
   });
   if (!res.ok) return "";
   const list = await res.json().catch(() => null);
@@ -144,7 +144,7 @@ export async function fetchTakeatDailyChannelSales(env, { unitId, unitName = "",
     });
     const res = await fetch(`${TAKEAT_API_BASE}/v1/reports/payments/channels?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(4500),
     });
     if (!res.ok) return null;
 
