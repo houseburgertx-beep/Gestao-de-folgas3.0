@@ -545,30 +545,37 @@ export function createWhatsAppHandlers() {
       const { employee, punch, type } = payload;
       if (!employee) return { handled: false, error: "Colaborador ausente." };
 
+      // Respeita a Central de Automações (aut_ponto) antes de disparar qualquer mensagem de batida ou intervalo.
+      const automations = await runtime.getById("Configuracoes", "WhatsAppAutomations").catch(() => null);
+      if (automations && (automations.aut_ponto === false || automations.aut_ponto === 0 || String(automations.aut_ponto).toLowerCase() === "false")) {
+        return { handled: true, skipped: true, reason: "automation_disabled" };
+      }
+
       const phone = normalizeWhatsAppNumber(
         employee.Telefone || employee.WhatsApp || employee.Celular || ""
       );
       if (!phone) return { handled: false, reason: "Sem telefone cadastrado." };
 
+      const normalizedType = type === "SAIDA_FINAL" ? "SAIDA" : type;
       const firstName = String(employee.Nome || "Colaborador").trim().split(/\s+/)[0];
       const punchTime = punch?.DataHora
         ? new Date(punch.DataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
         : new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
       let text = "";
-      if (type === "ENTRADA") {
+      if (normalizedType === "ENTRADA") {
         text = `Olá, ${firstName}! Bom início de turno na House 190!\n\n` +
           `Seu ponto de ENTRADA foi registrado às ${punchTime} com sucesso.\n\n` +
           `Desejamos uma jornada produtiva, cheia de foco, energia e excelente trabalho em equipe. O sucesso do nosso salão e da nossa cozinha depende da dedicação de cada um de nós. Tenha um excelente trabalho hoje!`;
-      } else if (type === "SAIDA") {
+      } else if (normalizedType === "SAIDA") {
         text = `Excelente descanso, ${firstName}!\n\n` +
           `Sua jornada de hoje foi finalizada e registrada às ${punchTime} com sucesso.\n\n` +
           `Agradecemos imensamente por todo o seu empenho, dedicação e energia dedicados ao Grupo House 190 hoje. Descanse bastante e recarregue as energias para o próximo turno!`;
-      } else if (type === "SAIDA_INTERVALO") {
+      } else if (normalizedType === "SAIDA_INTERVALO") {
         text = `Bom intervalo, ${firstName}!\n\n` +
           `Sua saída para descanso foi registrada às ${punchTime}.\n\n` +
           `Aproveite sua pausa para se alimentar com calma e recuperar o fôlego regulamentar.`;
-      } else if (type === "RETORNO_INTERVALO") {
+      } else if (normalizedType === "RETORNO_INTERVALO") {
         text = `Bem-vindo(a) de volta do intervalo, ${firstName}!\n\n` +
           `Seu retorno foi registrado às ${punchTime}.\n\n` +
           `Desejamos uma ótima continuidade de turno e um excelente fechamento de dia!`;
@@ -576,13 +583,12 @@ export function createWhatsAppHandlers() {
 
       if (!text) return { handled: false, reason: "Tipo sem mensagem definida." };
 
-      const cleanText = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu, "").trim();
-
       try {
         const sent = await requestWorker("/wa-clock-event", {
-          phone, employeeName: firstName, type, timeStr: punchTime,
+          phone, employeeName: firstName, type: normalizedType, timeStr: punchTime,
           requestId: punch?.RequestID || punch?.RegistroPontoID || "",
         });
+        if (sent?.skipped) return { handled: true, skipped: true, reason: sent.reason || "automation_disabled" };
         return { handled: true, success: sent.success, messageId: sent.messageId };
       } catch (error) {
         console.warn("[ponto-whatsapp] Envio não confirmado:", error.message);

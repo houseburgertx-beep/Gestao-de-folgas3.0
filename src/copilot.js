@@ -1247,6 +1247,80 @@ export const GEMINI_TOOLS = [
           },
         },
       },
+      {
+        name: "incluirPontoManual",
+        description: "Inclui uma marcação de ponto manual auditada para um colaborador (ou solicita inclusão quando colaborador comum)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorId: { type: "STRING" },
+            colaboradorNome: { type: "STRING" },
+            data: { type: "STRING" },
+            horario: { type: "STRING" },
+            tipoMarcacao: { type: "STRING" },
+            motivo: { type: "STRING" },
+          },
+          required: ["data", "horario", "motivo"],
+        },
+      },
+      {
+        name: "cancelarFolga",
+        description: "Cancela uma folga cadastrada (com estorno automático de saldo para folgas aprovadas canceladas pela gestão)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            folgaId: { type: "STRING" },
+            colaboradorId: { type: "STRING" },
+            colaboradorNome: { type: "STRING" },
+            data: { type: "STRING" },
+            motivo: { type: "STRING" },
+          },
+        },
+      },
+      {
+        name: "solicitarVale",
+        description: "Cria uma solicitação oficial de vale/adiantamento salarial",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorId: { type: "STRING" },
+            colaboradorNome: { type: "STRING" },
+            valor: { type: "NUMBER" },
+            motivo: { type: "STRING" },
+            dataDesejada: { type: "STRING" },
+          },
+          required: ["valor", "motivo"],
+        },
+      },
+      {
+        name: "decidirVale",
+        description: "Valida (gerente), aprova/paga com recibo (diretoria/admin) ou recusa uma solicitação de vale",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            valeId: { type: "STRING" },
+            colaboradorId: { type: "STRING" },
+            colaboradorNome: { type: "STRING" },
+            decisao: { type: "STRING" },
+            motivo: { type: "STRING" },
+          },
+        },
+      },
+      {
+        name: "enviarAvisoWhatsApp",
+        description: "Envia aviso via WhatsApp para um colaborador ou para a equipe (ex.: avisos de vale ou comunicados rápidos)",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            colaboradorId: { type: "STRING" },
+            colaboradorNome: { type: "STRING" },
+            titulo: { type: "STRING" },
+            mensagem: { type: "STRING" },
+            destino: { type: "STRING" },
+          },
+          required: ["mensagem"],
+        },
+      },
     ],
   },
 ];
@@ -1657,7 +1731,8 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
 
     case "solicitarAjustePonto":
     case "ajustarPonto":
-    case "corrigirPonto": {
+    case "corrigirPonto":
+    case "incluirPontoManual": {
       const parsedDate = extractDateFromText(args.data) || extractDateFromText("hoje");
       const isoDate = parsedDate ? parsedDate.isoDate : (args.data || "");
       const formattedDate = parsedDate ? parsedDate.formattedDate : (args.data || "");
@@ -1668,7 +1743,9 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
       const reason = extractReasonFromText(args.motivo || "Solicitação de ajuste de ponto via Copiloto");
 
       let targetEmp = null;
-      if (args.colaboradorNome && role !== "employee") {
+      if (args.colaboradorId && role !== "employee") {
+        targetEmp = resolveExplicitEmployee(String(args.colaboradorId).trim());
+      } else if (args.colaboradorNome && role !== "employee") {
         targetEmp = findEmployeeInText(args.colaboradorNome, employees);
       }
       const targetName = targetEmp ? (targetEmp.Nome || targetEmp.nome) : userName;
@@ -1677,7 +1754,7 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
 
       if (role === "employee" || (!targetEmp && role !== "admin" && role !== "manager")) {
         const payload = {
-          registroPontoId: "",
+          registroPontoId: String(args.registroPontoId || ""),
           dataHoraSolicitada: `${isoDate}T${time}:00`,
           motivo: reason,
         };
@@ -1685,7 +1762,7 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
         return {
           type: "action",
           actionType: "request_clock_adjustment",
-          title: "Solicitar Ajuste de Ponto",
+          title: name === "incluirPontoManual" ? "Solicitar Inclusão de Ponto" : "Solicitar Ajuste de Ponto",
           apiMethod: "requestTimeClockAdjustment",
           apiArgs: [payload],
           summary: `Enviar solicitação de ajuste da batida de ponto para o dia ${formattedDate} às ${time} (${punchLabel}) com motivo: "${reason}".`,
@@ -1708,7 +1785,7 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
         };
       }
 
-      if (role === "manager") {
+      if (role === "manager" && name !== "incluirPontoManual") {
         const payload = {
           funcionarioId: targetId,
           data: isoDate,
@@ -1756,6 +1833,174 @@ function _convertFunctionCallToActionRaw(name, args = {}, context = {}) {
           { label: "Motivo", value: reason },
         ],
         details: { empId: targetId, isoDate, time, punchType },
+      };
+    }
+
+    case "cancelarFolga": {
+      const targetEmp = args.colaboradorId
+        ? resolveExplicitEmployee(String(args.colaboradorId).trim())
+        : args.colaboradorNome
+          ? findEmployeeInText(args.colaboradorNome, employees)
+          : null;
+      const targetId = targetEmp ? getUserId(targetEmp) : userId;
+      const targetName = targetEmp ? String(targetEmp.Nome || targetEmp.nome || "") : userName;
+      if (role === "employee" && targetId !== userId) {
+        return { type: "error", message: "Você só pode cancelar suas próprias solicitações pendentes de folga." };
+      }
+      const dateStr = String(args.data || "").slice(0, 10);
+      const leave = args.folgaId
+        ? timeOff.find((f) => String(f.FolgaID || f.ID || f.id) === String(args.folgaId))
+        : timeOff.find((f) => {
+            const st = String(f.Status || f.status || "").toLowerCase();
+            if (st === "cancelada" || st === "rejeitada") return false;
+            if (String(f.FuncionarioID || "") !== String(targetId)) return false;
+            if (dateStr) {
+              const ini = String(f.DataInicio || f.Data || "").slice(0, 10);
+              const fim = String(f.DataFim || ini).slice(0, 10);
+              return ini <= dateStr && fim >= dateStr;
+            }
+            return true;
+          });
+      const leaveId = String(args.folgaId || leave?.FolgaID || leave?.ID || leave?.id || "");
+      if (!leaveId) {
+        return { type: "error", message: `Nenhuma folga ativa encontrada para ${targetName}${dateStr ? " em " + dateStr : ""}.` };
+      }
+      if (role === "employee" && leave && String(leave.Status || "").toLowerCase() !== "pendente") {
+        return { type: "error", message: "Somente pedidos pendentes podem ser cancelados pelo colaborador." };
+      }
+      const motivo = String(args.motivo || `Cancelada via Copiloto House 190 por ${userName}`).trim();
+      const leaveDate = String(leave?.DataInicio || leave?.Data || dateStr || "");
+      return {
+        type: "action",
+        actionType: "cancel_timeoff",
+        title: "Cancelar Folga",
+        apiMethod: "cancelTimeOff",
+        apiArgs: [leaveId, motivo],
+        summary: `Cancelar a folga de ${targetName}${leaveDate ? " em " + leaveDate : ""} (com estorno automático de saldo se estiver aprovada).`,
+        diff: [
+          { label: "Colaborador", value: targetName },
+          { label: "Folga ID", value: leaveId },
+          { label: "Data", value: leaveDate || "Conforme registro" },
+          { label: "Motivo", value: motivo },
+        ],
+        details: { leaveId, empId: targetId, leaveDate, motivo },
+      };
+    }
+
+    case "solicitarVale": {
+      const targetEmp = args.colaboradorId
+        ? resolveExplicitEmployee(String(args.colaboradorId).trim())
+        : args.colaboradorNome && role !== "employee"
+          ? findEmployeeInText(args.colaboradorNome, employees)
+          : null;
+      const targetId = targetEmp ? getUserId(targetEmp) : userId;
+      const targetName = targetEmp ? String(targetEmp.Nome || targetEmp.nome || "") : userName;
+      const valor = Number(args.valor || 0);
+      if (!Number.isFinite(valor) || valor <= 0) {
+        return { type: "error", message: "Informe um valor válido maior que zero para o vale." };
+      }
+      const motivo = String(args.motivo || "Solicitação de vale via Copiloto").trim();
+      const dataDesejada = String(args.dataDesejada || args.data || todayIso()).slice(0, 10);
+      const valorFmt = `R$ ${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return {
+        type: "action",
+        actionType: "request_vale",
+        title: "Solicitar Vale / Adiantamento",
+        apiMethod: "solicitarVale",
+        apiArgs: [{ FuncionarioID: targetId, valor, motivo, dataDesejada }],
+        summary: `Registrar solicitação de vale de ${valorFmt} para ${targetName} (${dataDesejada}).`,
+        diff: [
+          { label: "Colaborador", value: targetName },
+          { label: "Valor", value: valorFmt },
+          { label: "Data Desejada", value: dataDesejada },
+          { label: "Motivo", value: motivo },
+        ],
+        details: { empId: targetId, valor, dataDesejada, motivo },
+      };
+    }
+
+    case "decidirVale": {
+      if (role === "employee") {
+        return { type: "error", message: "A validação ou aprovação de vales é restrita à Gerência e Diretoria." };
+      }
+      const valeId = String(args.valeId || "").trim();
+      if (!valeId) {
+        return { type: "error", message: "Informe o identificador do vale a ser decidido." };
+      }
+      const dec = String(args.decisao || "").toLowerCase();
+      const aprovar = !["recusar", "rejeitar"].includes(dec);
+      const isDirect = role === "admin" && dec !== "validar";
+      const apiMethod = isDirect ? "aprovarPagarValeDiretoria" : "validarValeGerente";
+      const label = isDirect
+        ? (aprovar ? "Aprovar e Pagar Vale (Diretoria)" : "Recusar Vale (Diretoria)")
+        : (aprovar ? "Validar Vale (Gerência)" : "Recusar Vale (Gerência)");
+      const motivo = String(args.motivo || "").trim();
+      return {
+        type: "action",
+        actionType: "decide_vale",
+        title: label,
+        apiMethod,
+        apiArgs: [{ valeId, aprovar, decisao: aprovar ? (isDirect ? "pagar" : "validar") : "recusar", observacao: motivo }],
+        summary: `${label} — protocolo ${valeId}${args.colaboradorNome ? " (" + args.colaboradorNome + ")" : ""}.`,
+        diff: [
+          { label: "Protocolo Vale", value: valeId },
+          { label: "Colaborador", value: args.colaboradorNome || "Conforme registro" },
+          { label: "Decisão", value: label },
+          { label: "Observação", value: motivo || "Sem observação adicional" },
+        ],
+        details: { valeId, aprovar, apiMethod },
+      };
+    }
+
+    case "enviarAvisoWhatsApp": {
+      if (role === "employee") {
+        return { type: "error", message: "O disparo de avisos pelo WhatsApp pelo aplicativo é restrito à gestão." };
+      }
+      const mensagem = String(args.mensagem || "").trim();
+      const titulo = String(args.titulo || "Aviso House 190").trim();
+      if (!mensagem) {
+        return { type: "error", message: "Informe a mensagem do aviso." };
+      }
+      const destino = String(args.destino || "Colaborador");
+      if (destino === "Loja local" || destino === "Rede completa") {
+        const lojaId = destino === "Rede completa" && role === "admin" ? "TODAS" : userStore;
+        return {
+          type: "action",
+          actionType: "broadcast_whatsapp",
+          title: "Enviar Aviso WhatsApp para Equipe",
+          apiMethod: "broadcastWhatsAppAnnouncement",
+          apiArgs: [{ titulo, mensagem, lojaId }],
+          summary: `Enviar comunicado via WhatsApp "${titulo}" para ${lojaId === "TODAS" ? "toda a rede" : "a equipe da unidade"}.`,
+          diff: [
+            { label: "Título", value: titulo },
+            { label: "Destino", value: lojaId === "TODAS" ? "Rede completa" : "Loja local" },
+            { label: "Mensagem", value: mensagem },
+          ],
+          details: { titulo, mensagem, lojaId },
+        };
+      }
+      const targetEmp = args.colaboradorId
+        ? resolveExplicitEmployee(String(args.colaboradorId).trim())
+        : args.colaboradorNome
+          ? findEmployeeInText(args.colaboradorNome, employees)
+          : null;
+      const phone = targetEmp ? String(targetEmp.WhatsApp || targetEmp.Telefone || targetEmp.Celular || "").trim() : "";
+      if (!targetEmp || !phone) {
+        return { type: "error", message: "Colaborador não encontrado ou sem telefone cadastrado para envio no WhatsApp." };
+      }
+      return {
+        type: "action",
+        actionType: "send_whatsapp_notice",
+        title: "Enviar Aviso via WhatsApp",
+        apiMethod: "sendTestWhatsAppMessage",
+        apiArgs: [{ phone, message: `${titulo}\n\n${mensagem}` }],
+        summary: `Enviar aviso via WhatsApp para ${targetEmp.Nome}.`,
+        diff: [
+          { label: "Destinatário", value: targetEmp.Nome },
+          { label: "Assunto", value: titulo },
+          { label: "Mensagem", value: mensagem },
+        ],
+        details: { empId: getUserId(targetEmp), titulo, mensagem },
       };
     }
 

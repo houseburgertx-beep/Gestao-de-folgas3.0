@@ -4,13 +4,13 @@ import {runGroqConversation,GROQ_CHAT_MODEL,APP_CHAT_VIEWS} from './wa-chat.js';
 const id=row=>String(row?.FuncionarioID||row?.funcionarioId||row?.id||'');
 const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const fail=(message,status)=>Object.assign(new Error(message),{status});
-export async function handleAppHouseAI({request,payload={},env,authenticate,database,token,now=Date.now(),chat=runGroqConversation,memoryFactory=createWhatsAppConversationStore}) {
+export async function handleAppHouseAI({request,payload={},env,authenticate,database,token,now=Date.now(),chat=runGroqConversation,memoryFactory=createWhatsAppConversationStore,sendWhatsApp=null}) {
  const {uid,profile}=await authenticate(request,env);
  if(!uid||!profile||!active(profile.Ativo))throw fail('Sua sessão expirou. Entre novamente.',401);
  if(!payload||typeof payload!=='object'||Array.isArray(payload)||Object.keys(payload).some(key=>!['prompt','currentView'].includes(key)))throw fail('Envie somente a pergunta e a tela atual.',400);
  if(typeof payload.prompt!=='string'||!payload.prompt.trim()||payload.prompt.length>4000)throw fail('Envie uma pergunta entre 1 e 4.000 caracteres.',400);
  if(!env.GROQ_API_KEY)throw fail('A Groq ainda não está configurada no servidor.',503);
- const role=normalize(profile.Perfil),manager=/gerente|manager|responsavel/.test(role),admin=['admin','administrador'].includes(role);
+ const role=normalize(profile.Perfil),manager=/gerente|manager|responsavel/.test(role),admin=['admin','administrador','diretoria'].includes(role);
  const tok=await token();
  const employees=Object.values(await database(env,tok,'tables/Funcionarios')||{});
  const employeeId=String(profile.FuncionarioID||profile.funcionarioId||'');
@@ -23,7 +23,7 @@ export async function handleAppHouseAI({request,payload={},env,authenticate,data
  const memory=await memoryFactory(env,tok,`app:${uid}:groq`);
  if(!memory)throw fail('Não foi possível abrir o contexto privado da conversa.',503);
  const currentView=APP_CHAT_VIEWS.has(payload.currentView)?payload.currentView:'dashboard';
- const result=await chat({env,employee,employees,profile,database,tok,now,text:payload.prompt.trim(),memory,channel:'app',authScope:{uid},appContext:{currentView},executeLegacy:async()=>{throw Error('native_app_never_executes_legacy');}});
+ const result=await chat({env,employee,employees,profile,database,tok,now,text:payload.prompt.trim(),memory,channel:'app',authScope:{uid},appContext:{currentView},sendWhatsApp,executeLegacy:async()=>{throw Error('native_app_never_executes_legacy');}});
  if(!result||!['groq_conversation','chat_reset'].includes(result.action))throw fail(result?.replyText||'A IA está indisponível. Tente novamente.',503);
  const data=result.data||{type:'query',reply:result.replyText,provider:'groq',model:env.GROQ_MODEL||GROQ_CHAT_MODEL};
  return {success:true,data};

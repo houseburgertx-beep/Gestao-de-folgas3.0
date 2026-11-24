@@ -1,7 +1,7 @@
 import {composeWhatsAppMessage} from './wa-message-composer.js';
 import {handleAppHouseAI} from "./house-ai-app.js";
 import {runGroqConversation,GROQ_CHAT_MODEL} from "./wa-chat.js";
-import { relayNotification, verifyCreatorNotificationEvent } from "./notification-relay.js";
+import { AUTOMATION_KEYS, isAutomationEnabled, relayNotification, verifyCreatorNotificationEvent } from "./notification-relay.js";
 import { handleIntegrity } from "./whistleblower-service.js";
 import webpush from "web-push";
 import {
@@ -889,6 +889,11 @@ async function handle(request, env) {
       }
 
       const tok = await googleToken(env);
+      let cachedGw = null;
+      const sendWhatsApp = async ({ phone, text }) => {
+        cachedGw ||= await getGatewayConfig(env);
+        return sendWhatsAppMessage(env, { phone, text, aiPrepared: true, gwConfig: cachedGw });
+      };
       const aiResult = await processInboundHouseAI({
         from: rawFrom,
         text: rawText,
@@ -897,6 +902,7 @@ async function handle(request, env) {
         database,
         tok,
         now,
+        sendWhatsApp,
       });
 
       if (aiResult?.replyText) {
@@ -960,7 +966,14 @@ async function handle(request, env) {
 
   if (route === "/house-ai-chat") {
     if(request.method!=="POST")return json({success:false,message:"method_not_allowed"},405);
-    try { return json(await handleAppHouseAI({request,payload:body,env,authenticate,database,token:()=>googleToken(env),now})); }
+    try {
+      let cachedGw = null;
+      const sendWhatsApp = async ({ phone, text }) => {
+        cachedGw ||= await getGatewayConfig(env);
+        return sendWhatsAppMessage(env, { phone, text, aiPrepared: true, gwConfig: cachedGw });
+      };
+      return json(await handleAppHouseAI({request,payload:body,env,authenticate,database,token:()=>googleToken(env),now,sendWhatsApp}));
+    }
     catch(error) {return json({success:false,message:error.message==="unauthorized"?"Sua sessão expirou. Entre novamente.":error.status?error.message:"Não foi possível consultar a IA agora."},error.message==="unauthorized"?401:error.status||502);}
   }
 
@@ -999,16 +1012,28 @@ async function handle(request, env) {
       if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
       const { profile } = await authenticate(request, env);
       const tok = await googleToken(env);
-      const employee = profile.FuncionarioID ? await database(env, tok, `tables/Funcionarios/${encodeURIComponent(profile.FuncionarioID)}`) : null;
+      const [automations, employee] = await Promise.all([
+        database(env, tok, "tables/Configuracoes/WhatsAppAutomations").catch(() => ({})),
+        profile.FuncionarioID
+          ? database(env, tok, `tables/Funcionarios/${encodeURIComponent(profile.FuncionarioID)}`).catch(() => null)
+          : null,
+      ]);
+      if (!isAutomationEnabled(automations, "aut_ponto")) {
+        return json({ success: true, skipped: true, reason: "automation_disabled" }, 200);
+      }
       const phone = employee?.Telefone || employee?.WhatsApp || profile.Telefone;
       const employeeName = employee?.Nome || profile.Nome;
-      const { type, timeStr } = body || {};
+      const rawType = String(body?.type || "").trim();
+      const type = rawType === "SAIDA_FINAL" ? "SAIDA" : rawType;
+      const timeStr = body?.timeStr;
+      const recordId = String(body?.requestId || "").trim();
       if (!phone || !type) return json({ error: "missing_phone_or_type" }, 400);
 
       const motivationalText = generateMotivationalTimeClockMessage({
         type,
         employeeName,
         timeStr,
+        recordId,
       });
 
       if (!motivationalText) {
@@ -1213,7 +1238,7 @@ async function handle(request, env) {
       const gw = await getGatewayConfig(env);
       const res = await sendWhatsAppMessage(env, {
         phone,
-        text: "👋 *House 190*\nEste é um teste de integração com o WhatsApp via WA-AKG!",
+        text: "*House 190*\nEste é um teste de integração com o WhatsApp via WA-AKG.",
         gwConfig: gw,
       });
       return json(res, res.success ? 200 : 502);
@@ -1751,6 +1776,13 @@ export async function tick(env, now = Date.now()) {
         database(env, token, "tables/Folgas"),
       ])
     : [{}, {}];
+  const isWaEnabled =
+    env.WA_ENABLED === true ||
+    env.WA_ENABLED === 1 ||
+    ["true", "1", "sim", "yes"].includes(String(env.WA_ENABLED || "").toLowerCase());
+  const waAutomations = isWaEnabled
+    ? await database(env, token, "tables/Configuracoes/WhatsAppAutomations").catch(() => ({}))
+    : {};
   let sent = 0;
   for (const device of devices) {
     const profile = access[device.uid];
@@ -1797,6 +1829,7 @@ export async function tick(env, now = Date.now()) {
           body: n.Mensagem || "Você tem uma atualização. Abra o aplicativo para conferir.",
           view: viewType,
           tag: `aviso-${n.NotificacaoID}`,
+          noticeType: n.Tipo || "",
           expires: date + 300000,
         });
       }
@@ -1831,11 +1864,12 @@ export async function tick(env, now = Date.now()) {
         console.warn(JSON.stringify({ event: "push_delivery_failed" }));
       }
 
-      const isWaEnabled =
-        env.WA_ENABLED === true ||
-        env.WA_ENABLED === 1 ||
-        ["true", "1", "sim", "yes"].includes(String(env.WA_ENABLED || "").toLowerCase());
-      const phone = isWaEnabled && (employee?.Telefone || profile.Telefone);
+      const waAutKey =
+        String(event.tag || "").startsWith("ponto-") || event.view === "timeclock"
+          ? "aut_ponto"
+          : (event.noticeType ? AUTOMATION_KEYS[event.noticeType] : null);
+      const waAllowedByAutomation = isAutomationEnabled(waAutomations, waAutKey);
+      const phone = isWaEnabled && waAllowedByAutomation && (employee?.Telefone || profile.Telefone);
       const waTarget = phone ? normalizeWhatsAppPhone(phone) : null;
       if (waTarget && sent < 20) {
         const waEndpoint = `wa:${waTarget.digits}`;
@@ -1849,7 +1883,7 @@ export async function tick(env, now = Date.now()) {
           try {
             const rawName = (employee?.Nome || profile?.Nome || "").trim();
             const firstName = rawName ? rawName.split(/\s+/)[0] : "";
-            const greeting = firstName ? `Olá, *${firstName}*! 👋\n\n` : "Olá! 👋\n\n";
+            const greeting = firstName ? `Olá, *${firstName}*!\n\n` : "Olá!\n\n";
             const footer = event.view === "tasks" ? "\n\n_House 190 · CozinhaFlow_" : "\n\n_House 190_";
             const text = `${greeting}*${event.title}*\n${event.body}${footer}`;
             const gw = await getGatewayConfig(env);
@@ -1918,12 +1952,14 @@ async function checkAndGenerateMonthlyTimeCards(env, token, now) {
     }
   }
 
-  // Busca Funcionários, Registros de Ponto e Documentos existentes do Firebase RTDB
-  const [employeesData, recordsData, docsData] = await Promise.all([
+  // Busca Funcionários, Registros de Ponto, Documentos e Automações do Firebase RTDB
+  const [employeesData, recordsData, docsData, waAutomations] = await Promise.all([
     database(env, token, "tables/Funcionarios").catch(() => ({})),
     database(env, token, `tables/RegistrosPonto/${targetMonth}`).catch(() => ({})),
     database(env, token, "tables/Documentos").catch(() => ({})),
+    database(env, token, "tables/Configuracoes/WhatsAppAutomations").catch(() => ({})),
   ]);
+  const espelhoWaEnabled = isAutomationEnabled(waAutomations, "aut_espelho_ponto");
 
   const employees = Object.values(employeesData || {});
   const records = Object.values(recordsData || {});
@@ -2007,8 +2043,8 @@ async function checkAndGenerateMonthlyTimeCards(env, token, now) {
       signal: AbortSignal.timeout(8000),
     }).catch(() => {});
 
-    // Disparo no WhatsApp
-    const phone = emp.Telefone || emp.WhatsApp || emp.Celular;
+    // Disparo no WhatsApp (respeita aut_espelho_ponto)
+    const phone = espelhoWaEnabled ? (emp.Telefone || emp.WhatsApp || emp.Celular) : null;
     const waTarget = phone ? normalizeWhatsAppPhone(phone) : null;
     if (waTarget) {
       const gw = await getGatewayConfig(env);

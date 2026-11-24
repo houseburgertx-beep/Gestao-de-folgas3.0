@@ -435,6 +435,7 @@ export async function processInboundHouseAI({
   now = Date.now(),
   conversationStore = null,
   llmBypass = false,
+  sendWhatsApp = null,
 }) {
   const normPhone = normalizeWhatsAppPhone(from);
   const cleanPhone = normPhone ? normPhone.digits : String(from || "").replace(/\D/g, "");
@@ -476,23 +477,38 @@ export async function processInboundHouseAI({
     };
   }
 
-  const accessProfile = associatedProfiles.find((p) => active(p.Ativo));
+  const roleRank = (p) => {
+    const r = String(p?.Perfil || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    if (r === "administrador" || r === "admin") return 5;
+    if (r === "diretoria") return 4;
+    if (r.includes("gerente") || r.includes("responsavel") || r.includes("manager")) return 3;
+    if (r.includes("chefe de cozinha")) return 2;
+    return 1;
+  };
+  const accessProfile = associatedProfiles
+    .filter((p) => active(p.Ativo))
+    .sort((a, b) => roleRank(b) - roleRank(a))[0];
   if (accessProfile && (!accessProfile.FuncionarioID || String(accessProfile.FuncionarioID) === String(matchedEmp.FuncionarioID || matchedEmp.id))) {
     matchedEmp = { ...matchedEmp, Perfil: accessProfile.Perfil || matchedEmp.Perfil, LojaID: accessProfile.LojaID || matchedEmp.LojaID };
   }
   const firstName = String(matchedEmp.Nome || pushName || "Colaborador").trim().split(/\s+/)[0];
-  const empId = String(matchedEmp.FuncionarioID || matchedEmp.id || "");
+  let empId = String(matchedEmp.FuncionarioID || matchedEmp.id || "");
+  const isElevatedRole = roleRank(accessProfile || matchedEmp) >= 3;
+  if (!empId && isElevatedRole) {
+    empId = `wa-admin:${cleanPhone}`;
+    matchedEmp = { ...matchedEmp, FuncionarioID: empId };
+  }
 
   if (env.GROQ_API_KEY && !llmBypass) {
     if (!empId) return {handled:true,authorized:false,action:"missing_employee_link",replyText:"Seu acesso precisa estar vinculado a um funcionário. Peça à gerência para conferir esse vínculo no cadastro."};
-    // Sensitive medical content stays outside the model. Point registration
-    // never has a model tool and follows the existing protected app flow.
+    // Sensitive medical content stays outside the model. Live biometric punch
+    // registration never has a model tool and follows the protected app flow.
     const sensitive = /\b(cid|diagnostico|diagnóstico|laudo|receita|doenca|doença)\b/.test(cleanText);
     const punch = /(?:bater|bata|bate|registrar|registra|registre|marcar|marca) (?:meu )?ponto|bater entrada|bater saida|bater saída|ponto agora/.test(cleanText);
-    if (sensitive || punch) return processInboundHouseAI({from,text,pushName,env,database,tok,now,conversationStore,llmBypass:true});
+    if (sensitive || punch) return processInboundHouseAI({from,text,pushName,env,database,tok,now,conversationStore,llmBypass:true,sendWhatsApp});
     const chatMemory = conversationStore || await createWhatsAppConversationStore(env,tok,`${cleanPhone}:groq`).catch(()=>null);
-    const result = await runGroqConversation({env,employee:matchedEmp,employees,profile:accessProfile||matchedEmp,database,tok,now,text,memory:chatMemory,
-      executeLegacy:legacyText=>processInboundHouseAI({from,text:legacyText,pushName,env,database,tok,now,llmBypass:true})});
+    const result = await runGroqConversation({env,employee:matchedEmp,employees,profile:accessProfile||matchedEmp,database,tok,now,text,memory:chatMemory,sendWhatsApp,
+      executeLegacy:legacyText=>processInboundHouseAI({from,text:legacyText,pushName,env,database,tok,now,llmBypass:true,sendWhatsApp})});
     if(result) return {...result,replyText:stripHouseAIEmojis(result.replyText)};
   }
 
@@ -529,20 +545,6 @@ export async function processInboundHouseAI({
   if (readIntent === "tarefas") {
     try {
       const rows = await database(env, tok, "tables/Tarefas");
-      if (env.GROQ_API_KEY && !llmBypass) {
-    if (!empId) return {handled:true,authorized:false,action:"missing_employee_link",replyText:"Seu acesso precisa estar vinculado a um funcionário. Peça à gerência para conferir esse vínculo no cadastro."};
-    // Sensitive medical content stays outside the model. Point registration
-    // never has a model tool and follows the existing protected app flow.
-    const sensitive = /\b(cid|diagnostico|diagnóstico|laudo|receita|doenca|doença)\b/.test(cleanText);
-    const punch = /(?:bater|bata|bate|registrar|registra|registre|marcar|marca) (?:meu )?ponto|bater entrada|bater saida|bater saída|ponto agora/.test(cleanText);
-    if (sensitive || punch) return processInboundHouseAI({from,text,pushName,env,database,tok,now,conversationStore,llmBypass:true});
-    const chatMemory = conversationStore || await createWhatsAppConversationStore(env,tok,`${cleanPhone}:groq`).catch(()=>null);
-    const result = await runGroqConversation({env,employee:matchedEmp,employees,profile:accessProfile||matchedEmp,database,tok,now,text,memory:chatMemory,
-      executeLegacy:legacyText=>processInboundHouseAI({from,text:legacyText,pushName,env,database,tok,now,llmBypass:true})});
-    if(result) return {...result,replyText:stripHouseAIEmojis(result.replyText)};
-  }
-
-  const storeId = String(matchedEmp.LojaID || "");
       const tasks = Object.values(rows || {}).filter((task) => {
         const owner = String(task.FuncionarioID || task.RESPONSAVEL_ID || "");
         const store = String(task.LojaID || task.LOJA_ID || "");

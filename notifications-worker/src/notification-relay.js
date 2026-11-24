@@ -1,7 +1,15 @@
 import { active } from "../../src/core/reminder-policy.js";
 import { normalizeWhatsAppPhone, sendWhatsAppMessage } from "./whatsapp.js";
 const managers = new Set(["Administrador", "Responsável de loja", "Gerente"]);
-const automationKeys = { Folga: "aut_folga_nova", FolgaAprovada: "aut_folga_aprovada", FolgaRecusada: "aut_folga_recusada", Atestado: "aut_folga_nova", Troca: "aut_troca_folga", Ponto: "aut_ponto", Tarefa: "aut_tarefas", Tarefas: "aut_tarefas", Documentos: "aut_documentos", Documento: "aut_documentos", Comunicado: "aut_comunicados", Comunicados: "aut_comunicados", Aviso: "aut_comunicados", Avisos: "aut_comunicados", EspelhoPonto: "aut_espelho_ponto" };
+export const AUTOMATION_KEYS = { Folga: "aut_folga_nova", FolgaAprovada: "aut_folga_aprovada", FolgaRecusada: "aut_folga_recusada", Atestado: "aut_folga_nova", Troca: "aut_troca_folga", Ponto: "aut_ponto", Intervalo: "aut_ponto", Tarefa: "aut_tarefas", Tarefas: "aut_tarefas", Documentos: "aut_documentos", Documento: "aut_documentos", Comunicado: "aut_comunicados", Comunicados: "aut_comunicados", Aviso: "aut_comunicados", Avisos: "aut_comunicados", EspelhoPonto: "aut_espelho_ponto" };
+export function isAutomationEnabled(automations, key) {
+  if (!key || !automations || typeof automations !== "object") return true;
+  const val = automations[key];
+  if (val === undefined || val === null) return true;
+  if (val === false || val === 0) return false;
+  if (typeof val === "string" && ["false", "0", "nao", "não", "no", "off"].includes(val.trim().toLowerCase())) return false;
+  return true;
+}
 export async function verifyCreatorNotificationEvent({ notice, profile, read }) {
   const id = String(notice.RegistoRelacionadoID || "");
   if (!/^[A-Za-z0-9_-]{1,180}$/.test(id) || !profile.FuncionarioID || !profile.LojaID) return false;
@@ -30,7 +38,7 @@ export async function relayNotification({ env, uid, profile, notice, employees, 
   if (creatorOnly && !ownRecipient && !creatorEventVerified) {
     return { status: 403, body: { error: "forbidden" } };
   }
-  if (automations[automationKeys[notice.Tipo]] === false) return { status: 200, body: { success: true, skipped: true } };
+  if (!isAutomationEnabled(automations, AUTOMATION_KEYS[notice.Tipo])) return { status: 200, body: { success: true, skipped: true } };
   let recipients;
   if (notice.DestinatarioID || notice.Destinatario) {
     recipients = employees.filter((e) => (notice.DestinatarioID && String(e.FuncionarioID) === String(notice.DestinatarioID)) || (notice.Destinatario && String(e.Email || "").toLowerCase() === String(notice.Destinatario).toLowerCase()));
